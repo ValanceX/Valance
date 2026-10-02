@@ -891,6 +891,50 @@ None. Per the stop conditions: ownership is not different from where the types a
 
 ---
 
+## Stage 19: an application-owned capability (tracer)
+
+*Question: can an application define and use a capability whose implementation is supplied at `start`, with a resource owned by the application's lifetime, with no Web, PORT or MESH-runtime dependency and no new VALANCE concept? Answer: yes, with existing primitives only. No VALANCE, NEXUS, MESH or PORT source changed; three new example files and one test file.*
+
+### What was built
+- `src/catalog/service.ts`: the **contract**, `Catalog = Nexus.Capability.define<CatalogService>("example/catalog")` with `lookup(id)` and `close()`. Imports only `@valancex/nexus`.
+- `src/catalog/with-service.ts`: the catalog definition plus one command, `catalog.lookupItem`, which does `yield* Nexus.Capability.require(Catalog)`, calls `lookup`, and commits the result into ordinary state (`items`). Bound at `app/lookupItem` like any entry. Written over `Valance.define({ ...base, commands })`; the shared definition is untouched.
+- `test/capability.test.ts`: the external **platform** (an implementation backed by a counted resource, `Layer.scoped(Capability.Environment, acquireRelease(…))`, passed as `StartOptions.platform`), and the tripwires.
+
+### Observed
+| Tripwire | Result |
+|---|---|
+| A. ownership | the contract imports only NEXUS; neither file names Web, PORT, `mesh-runtime`, `window` or `document` (source assertion) |
+| B. injection | `invoke("app/lookupItem", [{ value: "Z9" }])` puts `{ id: "Z9", name: "item-Z9" }` in state |
+| C. lifetime | before start `{0, 0}`; running `{1, 0}`, **acquired by `start`, not by first use**; still `{1, 0}` after a command; after the Scope `{1, 1}` |
+| D. missing | with no platform option, and with an empty `Environment`, `start` succeeds and `invoke` fails with NEXUS's own `{ _tag: "CapabilityUnavailableError", id: "example/catalog" }`; state unchanged |
+| E. rendering | command, capability, state commit, existing `values`, **update** (same section, existing keyed row keeps its element), `item-Z9` on screen; operations `draw, update` |
+| F. boundary | the handle is still exactly `state` and `invoke` |
+| isolation | a command holding the capability: an application FiberRef write does not reach the caller; interrupting the caller interrupts the command; the resource is **not** released by the interruption (`{1, 0}`) and is released by the Scope (`{1, 1}`) |
+
+Mutation checks: a host-owned implementation (`EnvironmentLive`, which NEXUS never releases) fails the lifetime, rendering and isolation tests; a platform that supplies nothing fails injection, rendering and isolation.
+
+### Breaks
+None. The first place anything could have broken was the type of the command: it requires `EnvironmentShape`, and `Valance.define` constrains commands to `Ambient`, which already includes it. It typechecked unchanged.
+
+### Existing primitives that were sufficient
+`Nexus.Capability.define` and `require`; `Nexus.Application.Platform` as `StartOptions.platform` (a platform `Layer` is provided to the application-owned runtime scope, so scoped implementations are acquired before and released after every application resource); `Nexus.Command.define` and `Mesh.bind`; `ApplicationHandle.invoke`; the existing `values` render path. The error is NEXUS's (`CapabilityUnavailableError` flows through `E`, as `CommandValidationError` does).
+
+### New concept required
+None.
+
+### API pressure (demonstrated only)
+- **Availability is discovered at use, not at start.** `start` succeeds with no implementation; the failure is the first `invoke` that needs it. That is NEXUS's `require`; v0.7 requirements and provision statements exist for a pre-start check, and VALANCE wires neither. Whether an application should be able to refuse to start without a capability it cannot work without is a question this tracer raises and does not answer.
+- **Supplying an implementation is verbose for a platform author** (a `Map` of `{ _tag: "Available", implementation }` inside `Layer.scoped(Environment, …)`). It is a NEXUS-side platform-author concern, observed once; nothing in VALANCE or the application is affected.
+- The handle's error channel now carries `CapabilityUnavailableError`, a NEXUS type, for an application-defined capability: consistent with Stage 18's classification of `E`.
+
+### Not tested
+`renderToHtml` accepts the same `platform` option (it takes `StartOptions`), so a request-scoped implementation should be acquired and released within the call; not exercised here. An implementation that is acquired lazily outside its platform layer is effectively host-owned (NEXUS documents this).
+
+### Next probe
+Make the capability's operation asynchronous (`lookup` returning an `Effect`), and observe, with the same platform, whether caller interruption reaches an in-flight capability call, whether a Scope that closes while a call is in flight releases the resource only after the call ends, and what a command that was interrupted mid-call leaves in state. That is the smallest step toward async data flow and it needs nothing the tracer has not already used.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
