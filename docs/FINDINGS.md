@@ -883,11 +883,11 @@ Ownership from semantics, traced end to end: a MESH intent reaches the table thr
 None. Per the stop conditions: ownership is not different from where the types already sit; replacing `IntentArgument` or `UnmappedCommand` renames them (or changes NEXUS, for the key); `BoundaryValue` follows `IntentArgument`.
 
 ### Deferred
-- The lossy `invoke` error for keys that are not `component/name` (a NEXUS `UnmappedCommand` change or a second error type, with evidence that a consumer needs the key).
+- The lossy `invoke` error for keys that are not `component/name`. Deferred because `UnmappedCommand` is the one error contract shared by `dispatch` and `invoke`, owned by the NEXUS adapter: carrying the key is an adapter / error-contract decision outside VALANCE, to be taken only with evidence that a consumer needs the key. It is not fixed locally.
 - Whether the entry namespace (`app/`) should be named and checked, or the table's key scheme made explicit for external entries.
 - Narrowing or removing `Mounted` / `DispatchExit` from the main entry.
 - Naming: `IntentArgument` for arguments not produced by an intent.
-- Package organization (entry layout, `./internal`), unchanged from Stage 17.
+- Package organization: entry layout, and whether `./internal` should remain a separate package entry. Unchanged from Stage 17.
 
 ---
 
