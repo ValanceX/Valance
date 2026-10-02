@@ -1,0 +1,5 @@
+<page title={title}>
+  <text>Item {id}: {name}</text>
+  <text>{count} items: {summary}</text>
+  <button on.click={back()}>Back</button>
+</page>

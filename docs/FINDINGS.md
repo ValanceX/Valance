@@ -334,6 +334,28 @@ The current implementation has a coherent behavior for this without any addition
 
 ---
 
+## Stage 8: the Application Model tracer (what is an application?)
+
+**Question.** What is the smallest thing a VALANCE application is, found from ownership and lifecycle pressure rather than API design?
+
+**Tracer.** `examples/tracer-web/src/catalog/` (a second application; the first is untouched). One state, a union whose discriminant is the selected view (`home | details(selectedId) | not-found`, each with `items`). Three MESH programs, three NEXUS commands (`open`, `home`, `changeItems`) bound twice in the one table: as MESH intents (`home/open`, `details/back`, `notfound/back`) and as external entries (`app/open`, `app/home`, `app/changeItems`, reached with `Running.invoke`). `view: (state) => state.view`. No Valance, MESH, PORT or NEXUS source changed.
+
+**Scenario (asserted).** `home(1) → home(2) → details(A) → details(A, 3 items) → home → not-found → details(A)`: PORT `draw, update, draw, update, draw, draw, draw`. Run (a) against a bare `Target` with no DOM, no window and no history, and (b) against PORT Web in jsdom with MESH intents as real clicks: same operations, same selected views; DOM sections survive each `update` and are replaced by each `draw`. Platform resource `{acquired 1, released 0}` through the whole scenario, `{1, 1}` after the scope closed; status `Running` at every observation, `Stopped` after; follower interrupted; container emptied. `app.commands` was built once, over one state handle.
+
+**Tripwires, mutation-checked** (`test/application.test.ts`): always-draw and always-update each fail both scenario tests; building the command table twice fails the one-state test.
+
+**Observed, and what it means**
+- *State owner:* the NEXUS `State` created in `Valance.start`; `Running.state`/`states` are read-only views of it. It is the application state, not a primitive the application sits beside. `Selector` appears only inside `start` (per-view scope); the application never touches one.
+- *View selection:* `view(state)` expresses `state → program` naturally and in the application layer. One friction: `view` and `views` are keyed by a free `V`, and each `View.scope` receives the whole `S`. A union state whose variants carry different data needs a narrowing the type system does not know about (`at()` in the tracer throws on a mismatch). The correlation "this view receives this variant" is real and is currently unexpressed.
+- *Lifetime:* everything long-lived hangs off the caller's Scope: the NEXUS runtime and platform resources, the one state, Valance's follower fiber, the target. Nothing in MESH, PORT or a view outlives a view change: per-view hosts are stateless dispatch tables; the only thing that dies on `draw` is the PORT realization.
+- *External events:* the smallest mechanism that exists is `Running.invoke(key, args)`: one binding table, entered from MESH intents and from outside. It works, but both callers (`Web.history`, the tests) must wrap it as `Nexus.Runtime.run(running.nexus.runtime, running.invoke(...))`. The caller has to know the application's runtime to deliver an event to it.
+- *Draw/update:* unchanged. "Same view → update" is the composer's memory in `connect` (`drawn.current.view`): it belongs to the connection to a target, not to the application.
+- *Browser:* nothing in the model needed history. The scenario runs on a target with no `window`.
+
+**Substrate discrepancy (not fixed).** The brief names MESH 0.7.0 and PORT Web 0.2.2; the repo resolves 0.6.0 and 0.2.1. Bumping to the published 0.7.0/0.2.2 passes Node and jsdom but fails every Chromium test: published NEXUS 0.10.0 depends on `@valancex/mesh-runtime ^0.6.0`, so the install holds two runtimes and the browser's `init()` reaches only one. Fixing it needs a NEXUS release that accepts MESH 0.7 (or an override, which the constraints forbid). Reverted. As a consequence the tracer renders item data as scalars: MESH 0.6.0 has no repeat syntax, so keyed `mesh-each` was not exercised.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

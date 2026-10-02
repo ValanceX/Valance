@@ -1,0 +1,4 @@
+<page title={title}>
+  <text>{count} items: {summary}</text>
+  <button on.click={open(firstId)}>Open first</button>
+</page>

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "types": {},
+  "components": {
+    "page": { "props": { "title": { "type": { "kind": "string" }, "required": true } }, "events": {}, "commands": {}, "scope": {} },
+    "text": { "props": {}, "events": {}, "commands": {}, "scope": {} },
+    "button": { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
+    "home": {
+      "props": {},
+      "events": {},
+      "commands": { "open": { "parameters": [{ "name": "id", "type": { "kind": "string" } }] } },
+      "scope": { "title": { "kind": "string" }, "count": { "kind": "number" }, "summary": { "kind": "string" }, "firstId": { "kind": "string" } }
+    },
+    "details": {
+      "props": {},
+      "events": {},
+      "commands": { "back": { "parameters": [] } },
+      "scope": { "title": { "kind": "string" }, "id": { "kind": "string" }, "name": { "kind": "string" }, "count": { "kind": "number" }, "summary": { "kind": "string" } }
+    },
+    "notfound": {
+      "props": {},
+      "events": {},
+      "commands": { "back": { "parameters": [] } },
+      "scope": { "title": { "kind": "string" } }
+    }
+  }
+}
