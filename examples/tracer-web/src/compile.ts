@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 
 const read = (name: string): string => readFileSync(new URL(name, import.meta.url), "utf8");
 
-const compileOne = async (root: "counter" | "about"): Promise<Mesh.Program> => {
+const compileOne = async (root: "counter" | "about" | "missing"): Promise<Mesh.Program> => {
   const model = read("components.json");
   const result = await compile({ source: read(`${root}.mprx`), path: `${root}.mprx`, model: { manifest: model, path: "components.json", component: root } });
 
@@ -19,4 +19,4 @@ const compileOne = async (root: "counter" | "about"): Promise<Mesh.Program> => {
   return { root, templates: [JSON.stringify(result.template)], model };
 };
 
-export const compilePrograms = async (): Promise<Programs> => ({ counter: await compileOne("counter"), about: await compileOne("about") });
+export const compilePrograms = async (): Promise<Programs> => ({ counter: await compileOne("counter"), about: await compileOne("about"), missing: await compileOne("missing") });

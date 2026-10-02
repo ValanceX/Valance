@@ -39,3 +39,8 @@ as "reviewed only".
 
 - **C13.** URL ≠ state. What a URL means is application code (`urlOf`, `stateOf` in the example app). `Web.history` reads and writes the URL and calls them; it parses nothing.
 - **C14.** Same navigate command, same single application. No Router, codec, mapper, normalization, link primitive, or public `urlOf`/`stateOf` API.
+
+## Added for stage 5 (initial URL canonicalization; written before the code)
+
+- **C15.** Starting an application never creates a history entry because `Web.history` saw a representation mismatch.
+- **C16.** Interpreting the initial URL (`stateOf`, total) is not synchronization (`urlOf`, later commits). Which one owns canonicalization is decided by evidence, not assumed; no public `replaceState`/canonicalization API unless a stable need is shown.

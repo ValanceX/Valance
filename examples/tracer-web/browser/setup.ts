@@ -25,13 +25,14 @@ export default async function setup(project: TestProject): Promise<void> {
     programs,
     // The URLs the "server" is asked for. What each means is the application's (`stateFor`); count is not in a URL.
     home: await serve(stateFor("/tracer/?tab=overview")),
-    about: await serve({ ...stateFor("/tracer/about?tab=details"), count: 3 }),
-    invalid: await serve(stateFor("/tracer/not-a-view")),
+    about: await serve({ ...stateFor("/tracer/about?tab=details"), count: 3 }),          // case A: canonical
+    plainAbout: await serve({ ...stateFor("/tracer/about"), count: 3 }),                 // case B: valid, not canonical
+    notFound: await serve(stateFor("/tracer/not-a-view")),                               // case C: no view
   });
 }
 
 declare module "vitest" {
   export interface ProvidedContext {
-    page: { readonly programs: Programs; readonly home: Served; readonly about: Served; readonly invalid: Served };
+    page: { readonly programs: Programs; readonly home: Served; readonly about: Served; readonly plainAbout: Served; readonly notFound: Served };
   }
 }

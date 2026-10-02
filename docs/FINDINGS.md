@@ -197,3 +197,53 @@ PORT operations: `hydrate, draw, update, draw, draw`. History entries added in t
 - **Server request URL → initial state in a real server** (the harness calls `stateFor` itself).
 - **Popstate racing a program switch:** probed once (consistent; every commit rendered in order, none coalesced); not characterized.
 - **Where a base path configured at deployment would enter.**
+
+---
+
+## Stage 5: who owns initial URL canonicalization?
+
+**Problem (from stage 4).** `/tracer/not-a-view` → state `{path: "/not-a-view"}` → `urlOf` differs from the URL → `Web.history` pushed an entry at start, which no navigation requested.
+
+**Changes.**
+- `stateOf` is now total: a URL naming no view is the explicit state `path: "/not-found"`, and `view` shows a third MESH program (`missing`: "Not found" + a Home button) for it. Not an accidental fallback.
+- `Web.history`: the first state is a baseline. `Stream.drop(running.states, 1)`: starting never writes.
+- The example's `initialStateAt(window)` (`src/app.ts`, 8 lines, application code): `stateOf(location)`, and if the URL is not `urlOf(state)`, `history.replaceState` it. It runs before `Valance.start` and `Web.history`.
+- Nothing in Valance gained a replace operation.
+
+**Three initial URLs, in Chromium** (hydrate adopted in all; application `Running`; platform `{1, 1}` over the run; operations `["hydrate"]`; zero pushes):
+
+| Case | Initial URL | Initial state | Program | History write at start | Final URL |
+|---|---|---|---|---|---|
+| A canonical | `/tracer/about?tab=details` | `/about`, details | About | none | unchanged |
+| B valid, not canonical | `/tracer/about` | `/about`, overview | About | `replace /tracer/about?tab=overview` (by the application's entry) | `/tracer/about?tab=overview` |
+| C no view | `/tracer/not-a-view` | `/not-found`, overview | Not found | `replace /tracer/not-found?tab=overview` (by the application's entry) | `/tracer/not-found?tab=overview` |
+
+**Controls (the application does not canonicalize; same Chromium harness).**
+
+| Variant | At start | After an unrelated commit (`count + 1`) |
+|---|---|---|
+| Model B, no canonicalization (Web.history baseline-only) | no write; URL left as served | `push /tracer/about?tab=overview` (B) / `push /tracer/not-found?tab=overview` (C): an unintended entry on a commit that has nothing to do with the URL |
+| Model A (temporary patch, discarded): Web.history replaces on the first mismatch, application silent | `replace` to the same URLs | no further write |
+
+So both models produce the same URLs and neither pushes an entry at start; they differ in who decided. Under A the rewrite of the visitor's URL (for C, from the one they typed to `/tracer/not-found?...`) is made by the synchronization mechanism for every application, and the application cannot decline it. Under B it is eight lines the application can change (for C it might keep the requested URL, or not rewrite B), but `Web.history`'s guard then holds the application to a precondition.
+
+### Confirmed
+1. `stateOf` can be total: an unknown URL maps to an explicit state (`/not-found`) that `view` handles on purpose.
+2. Starting never needs to push: with the application canonicalizing before start, A writes nothing and B, C write exactly one `replaceState`; no push, in real Chromium, with hydration adopted in all three.
+3. Initial canonicalization uses `replaceState`, not `pushState`; the first state is only a baseline for `Web.history`.
+4. Both ownership models work and give identical URLs; the difference is who decides and what is left to enforce.
+5. The `Web.history` guard compares the URL with `urlOf(state)` on **every** commit, so an application that leaves a noncanonical URL in place gets an unintended push on its next unrelated commit (control run). That behavior exists independent of who canonicalizes.
+6. NEXUS, MESH and PORT: no change.
+
+### Ownership decision (supported by this evidence, not a law)
+**Model B: the application produces the canonical initial state (and URL) before history synchronization begins.** `Web.history` stays synchronization only: baseline at start, `pushState` for later commits, popstate → the navigate command. No canonicalization API was forced: the application used `history.replaceState` directly in its entry. Reasons from the runs: (1) A and B are behaviorally identical here, so the tie is broken by the contract: B keeps URL policy (rewrite, keep, or reject a requested URL) with the code that knows what the URL means, and keeps `Web.history`'s start rule one line; (2) A's rewrite is unconditional and cannot be vetoed by an application that wants to show the URL as requested; (3) A would also treat the first emission as "initial", which is not guaranteed if the state changed between hydration and history starting (reasoned, not tested).
+
+### Likely
+- The `Web.history` precondition ("URL equals `urlOf(state)` at start") is real and worth enforcing or documenting; the control run shows the cost of violating it. The guard may be better as "push when `urlOf` *changed*" than "push when the URL differs", but that was not tried (popstate to a noncanonical entry would interact).
+- Applications that want to keep a requested URL for a not-found state need `urlOf` to reproduce it (e.g. the state holds what was asked). Not tested.
+
+### Unresolved
+- **The guard itself:** per-commit comparison with the URL versus change-based; popstate to a noncanonical history entry (Back to a URL like `/tracer/about`) would still push.
+- **A state change between hydration and `Web.history` start** is taken as the baseline and not written.
+- Whether a not-found state should keep the visitor's URL.
+- Trailing-slash, query ordering/repeats/encoding, hash fragments, deployment base path, real anchors, scroll/focus restoration, a real server's request-URL mapping, popstate racing a program switch (unchanged from before).

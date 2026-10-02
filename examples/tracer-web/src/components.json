@@ -71,6 +71,20 @@
           "kind": "string"
         }
       }
+    },
+    "missing": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "goHome": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "title": {
+          "kind": "string"
+        }
+      }
     }
   }
 }

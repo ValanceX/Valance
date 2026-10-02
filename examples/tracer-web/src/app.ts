@@ -25,11 +25,16 @@ export type Navigation = Pick<AppState, "path" | "tab">;
 /** state → URL (path and query, as `location.pathname + location.search` will read it back). */
 export const urlOf = ({ path, tab }: AppState): string => `${BASE}${path}?tab=${encodeURIComponent(tab)}`;
 
-/** URL → the part of the state it represents. Anything it does not say is the default. */
-export const stateOf = (url: URL): Navigation => ({
-  path: url.pathname.startsWith(BASE) ? url.pathname.slice(BASE.length) || "/" : url.pathname,
-  tab: url.searchParams.get("tab") ?? initial.tab,
-});
+/** The paths the application has a view for. Everything else is, explicitly, "/not-found". */
+const KNOWN = ["/", "/about"];
+export const NOT_FOUND = "/not-found";
+
+/** URL → the part of the state it represents. Total: a URL naming no view is the explicit state `/not-found`. */
+export const stateOf = (url: URL): Navigation => {
+  const path = url.pathname.startsWith(BASE) ? url.pathname.slice(BASE.length) || "/" : url.pathname;
+
+  return { path: KNOWN.includes(path) ? path : NOT_FOUND, tab: url.searchParams.get("tab") ?? initial.tab };
+};
 
 /** What a request URL means: the state the application starts in. The server and the client both start from it. */
 export const stateFor = (url: string): AppState => ({ ...initial, ...stateOf(new URL(url, "http://localhost")) });
@@ -47,7 +52,23 @@ const firstValue = (args: ReadonlyArray<Mesh.IntentArgument>): unknown => {
 export interface Programs {
   readonly counter: Mesh.Program;
   readonly about: Mesh.Program;
+  readonly missing: Mesh.Program;
 }
+
+/**
+ * The page's first act, BEFORE `Valance.start` and `Web.history`: what the URL means, and a canonical URL for it.
+ * If the URL is not already `urlOf(state)` it is replaced (never pushed): the visitor did not navigate anywhere.
+ * That decision, and this being the moment for it, are the application's.
+ */
+export const initialStateAt = (win: Window): AppState => {
+  const state = stateFor(win.location.pathname + win.location.search);
+
+  if (win.location.pathname + win.location.search !== urlOf(state)) {
+    win.history.replaceState(null, "", urlOf(state));
+  }
+
+  return state;
+};
 
 export const application = (programs: Programs) => Valance.define({
   name: "tracer-web",
@@ -55,9 +76,10 @@ export const application = (programs: Programs) => Valance.define({
   views: {
     counter: { program: programs.counter, scope: ({ title, count, stamp }) => ({ title, count, stamp }) },
     about: { program: programs.about, scope: ({ title, count, tab }) => ({ title, count, tab }) },
+    missing: { program: programs.missing, scope: ({ title }) => ({ title }) },
   },
   // Route state is application state; the active program is derived from it.
-  view: (state) => state.path === "/about" ? "about" : "counter",
+  view: (state) => state.path === "/" ? "counter" : state.path === "/about" ? "about" : "missing",
   commands: (state) => {
     // Behavior: the platform's Clock (application code sees it; the caller never does).
     const increment = Nexus.Command.define("counter.increment", Schema.Struct({}), () =>
@@ -69,6 +91,7 @@ export const application = (programs: Programs) => Valance.define({
       "counter/increment": Nexus.Mesh.bind(increment, () => ({})),
       "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about", tab: initial.tab })),
       "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
+      "missing/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
       // Not a MESH component: the same command, for input that is not a MESH intent (the browser's popstate).
       // Its argument is `stateOf(url)`: the part of the state the URL represents.
       "app/navigate": Nexus.Mesh.bind(navigate, (args) => firstValue(args)),

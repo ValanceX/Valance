@@ -21,7 +21,7 @@ import { userEvent } from "@vitest/browser/context";
 import { Effect, Fiber, Layer, Stream } from "effect";
 import { beforeAll, expect, inject, it } from "vitest";
 
-import { Navigated, application, primitives, stateFor, stateOf, urlOf } from "../src/app.js";
+import { Navigated, application, initialStateAt, primitives, stateFor, stateOf, urlOf } from "../src/app.js";
 
 const page = inject("page");
 
@@ -58,29 +58,34 @@ const countingPlatform = () => {
 };
 
 /** Starts the application at the URL the "server" served, hydrates, and keeps URL and state in step. */
-const run = async <A>(served: typeof page.home, startUrl: string, body: (context: {
+const run = async <A>(served: typeof page.home, startUrl: string, options: { readonly canonicalize: boolean }, body: (context: {
   readonly main: HTMLElement;
   readonly running: Valance.Running<typeof served.state, Nexus.Command.CommandValidationError, Nexus.Event.EventBusShape>;
   readonly navigated: Array<string>;
   readonly counts: { acquired: number; released: number };
   readonly hydration: unknown;
   readonly entriesAtStart: number;
-  readonly pushes: Array<string>;
+  readonly writes: Array<string>;
 }) => Effect.Effect<A>): Promise<{ readonly result: A; readonly counts: { acquired: number; released: number }; readonly operations: ReadonlyArray<string> }> => {
-  window.history.replaceState(null, "", startUrl);
+  window.history.replaceState(null, "", startUrl);                       // the harness's stand-in for "this URL was served"
   const main = container(served.html);
   const operations: Array<string> = [];
   const navigated: Array<string> = [];
-  const pushes: Array<string> = [];
+  // Every history write from here on, by whom it is made: the application's entry, Web.history, or a navigation.
+  const writes: Array<string> = [];
   const push = window.history.pushState.bind(window.history);
-  window.history.pushState = (data: unknown, unused: string, target?: string | URL | null) => { pushes.push(String(target)); push(data, unused, target); };
+  const replace = window.history.replaceState.bind(window.history);
+  window.history.pushState = (data: unknown, unused: string, target?: string | URL | null) => { writes.push(`push ${String(target)}`); push(data, unused, target); };
+  window.history.replaceState = (data: unknown, unused: string, target?: string | URL | null) => { writes.push(`replace ${String(target)}`); replace(data, unused, target); };
   const { platform, counts } = countingPlatform();
   const entriesAtStart = window.history.length;
 
   try {
     const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      // Initial URL → initial state, by the application's own function: it says what the URL represents (not count or stamp).
-      expect(stateFor(window.location.pathname + window.location.search)).toMatchObject({ path: served.state.path, tab: served.state.tab });
+      // Initial URL → initial state, by the application's own function, before anything starts. The application
+      // canonicalizes the URL there (replace), or, in the control runs, does not.
+      const initialState = options.canonicalize ? initialStateAt(window) : stateFor(window.location.pathname + window.location.search);
+      expect(initialState).toMatchObject({ path: served.state.path, tab: served.state.tab });
       const running = yield* Valance.start(application(page.programs), { platform, state: served.state });
       const mounted = yield* Valance.hydrate(running, recording(main, operations));
       yield* Web.history(running, { window, urlOf, stateOf, navigate: "app/navigate" });
@@ -88,7 +93,7 @@ const run = async <A>(served: typeof page.home, startUrl: string, body: (context
       const watcher = Nexus.Runtime.runFork(running.nexus.runtime, Stream.runForEach(Nexus.Event.subscribe(Navigated), ({ path, tab }) => Effect.sync(() => { navigated.push(`${path}|${tab}`); })));
       yield* Effect.sleep("20 millis");
 
-      const value = yield* body({ main, running, navigated, counts, hydration: mounted.hydration, entriesAtStart, pushes });
+      const value = yield* body({ main, running, navigated, counts, hydration: mounted.hydration, entriesAtStart, writes });
       yield* Fiber.interrupt(watcher);
 
       return value;
@@ -97,6 +102,7 @@ const run = async <A>(served: typeof page.home, startUrl: string, body: (context
     return { result, counts, operations };
   } finally {
     window.history.pushState = push;
+    window.history.replaceState = replace;
     main.remove();
   }
 };
@@ -112,10 +118,10 @@ const HOME = "/tracer/?tab=overview";
 it("/tracer/about?tab=details → navigate (application) → Back → Forward: URL, state and program agree; state outside the URL survives", async () => {
   const trace: Array<{ step: string; url: string; path: string; tab: string; count: number; about: boolean; acquired: number; released: number; status: string }> = [];
 
-  const { result, counts, operations } = await run<{ navigated: Array<string>; pushes: Array<string>; entries: number }>(page.about, ABOUT, ({ main, running, navigated, counts: c, hydration, entriesAtStart, pushes }) => Effect.gen(function* () {
+  const { result, counts, operations } = await run<{ navigated: Array<string>; writes: Array<string>; entries: number }>(page.about, ABOUT, { canonicalize: true }, ({ main, running, navigated, counts: c, hydration, entriesAtStart, writes }) => Effect.gen(function* () {
     expect(hydration).toEqual({ adopted: true });
     expect(url()).toBe(ABOUT);
-    expect(pushes).toEqual([]);                                           // the initial URL is not pushed
+    expect(writes).toEqual([]);                                           // a canonical initial URL is not written at all
     expect(window.history.length).toBe(entriesAtStart);
 
     const observe = (step: string) => Effect.gen(function* () {
@@ -138,7 +144,7 @@ it("/tracer/about?tab=details → navigate (application) → Back → Forward: U
     yield* until(() => url() === HOME && text(main).startsWith("4 clicks"));
     yield* observe("Forward: /, overview");
 
-    return { navigated: [...navigated], pushes: [...pushes], entries: window.history.length - entriesAtStart };
+    return { navigated: [...navigated], writes: [...writes], entries: window.history.length - entriesAtStart };
   }));
 
   // URL ≠ state, and they agree at every observation (the tab came back from the URL, not from memory).
@@ -153,7 +159,7 @@ it("/tracer/about?tab=details → navigate (application) → Back → Forward: U
   expect(counts).toEqual({ acquired: 1, released: 1 });
   // One navigate command for every navigation (one MESH intent, two popstates); one push, none for popstate.
   expect(result.navigated).toEqual(["/|overview", "/about|details", "/|overview"]);
-  expect(result.pushes).toEqual([HOME]);
+  expect(result.writes).toEqual([`push ${HOME}`]);
   expect(result.entries).toBe(1);
   // PORT: same program → update; each program change → draw, including both caused by popstate.
   expect(operations).toEqual(["hydrate", "draw", "update", "draw", "draw"]);
@@ -174,7 +180,7 @@ it("the popstate listener lives exactly as long as the scope: one while running,
   }) as typeof window.removeEventListener;
 
   try {
-    const { result } = await run<{ whileRunning: number }>(page.home, HOME, ({ main }) => Effect.gen(function* () {
+    const { result } = await run<{ whileRunning: number }>(page.home, HOME, { canonicalize: true }, ({ main }) => Effect.gen(function* () {
       yield* click(main, 1);
       yield* until(() => url() === ABOUT.replace("details", "overview") && text(main).startsWith("About"));
 
@@ -189,24 +195,51 @@ it("the popstate listener lives exactly as long as the scope: one while running,
   }
 });
 
-it("observation: an invalid path, /tracer/not-a-view (no query)", async () => {
-  const { result, operations } = await run<{ url: string; state: { path: string; tab: string }; text: string; pushes: Array<string> }>(page.invalid, "/tracer/not-a-view", ({ main, running, pushes }) => Effect.gen(function* () {
-    const state = yield* running.state;
+// The initial URL, three ways. The application interprets it (stateOf, total) and canonicalizes it (replace, never
+// push) BEFORE Valance.start and Web.history; Web.history treats the first state as a baseline and writes nothing.
+const cases = [
+  { name: "A: canonical", served: page.about, start: "/tracer/about?tab=details", state: { path: "/about", tab: "details" }, program: "About Tracer", writes: [], url: "/tracer/about?tab=details" },
+  { name: "B: valid, not canonical", served: page.plainAbout, start: "/tracer/about", state: { path: "/about", tab: "overview" }, program: "About Tracer", writes: ["replace /tracer/about?tab=overview"], url: "/tracer/about?tab=overview" },
+  { name: "C: no view", served: page.notFound, start: "/tracer/not-a-view", state: { path: "/not-found", tab: "overview" }, program: "Not found", writes: ["replace /tracer/not-found?tab=overview"], url: "/tracer/not-found?tab=overview" },
+] as const;
 
-    return { url: url(), state: { path: state.path, tab: state.tab }, text: text(main), pushes: [...pushes] };
+it.each(cases)("initial URL $name ($start): the application's entry canonicalizes with replace; nothing is ever pushed", async ({ served, start, state, program, writes, url: finalUrl }) => {
+  const { result, counts, operations } = await run<{ record: unknown; hydration: unknown; status: string }>(served, start, { canonicalize: true }, ({ main, running, hydration, writes: log }) => Effect.gen(function* () {
+    const current = yield* running.state;
+    const status = yield* Nexus.Application.status(running.nexus);
+
+    return { record: { initial: start, state: { path: current.path, tab: current.tab }, program: text(main).slice(0, program.length), writes: [...log], finalUrl: url() }, hydration, status: status._tag };
   }));
 
-  // The application takes the URL at its word: the path is kept as given, `view` falls back to the counter, and the
-  // URL is not canonical (no `?tab=`), so the first state commit pushes the canonical one. Nothing here decided that.
-  expect(result.state).toEqual({ path: "/not-a-view", tab: "overview" });
-  expect(result.text.startsWith("0 clicks")).toBe(true);
-  expect(result.pushes).toEqual(["/tracer/not-a-view?tab=overview"]);
-  expect(result.url).toBe("/tracer/not-a-view?tab=overview");
-  expect(operations).toEqual(["hydrate"]);
+  expect(result.record).toEqual({ initial: start, state, program, writes, finalUrl });
+  expect(result.hydration).toEqual({ adopted: true });
+  expect(result.status).toBe("Running");
+  expect(operations).toEqual(["hydrate"]);                                // no render, draw or update was needed to start
+  expect(counts).toEqual({ acquired: 1, released: 1 });
+});
+
+// CONTROL: the application does NOT canonicalize. Web.history still writes nothing at start, so there is no
+// unintended entry from starting; the cost shows later (see the second assertion).
+it.each([cases[1], cases[2]])("control, $name: without the application's canonicalization, start writes nothing; an unrelated later commit pushes", async ({ served, start }) => {
+  const { result } = await run<{ atStart: { writes: Array<string>; url: string }; afterUnrelated: Array<string> }>(served, start, { canonicalize: false }, ({ running, writes }) => Effect.gen(function* () {
+    const atStart = { writes: [...writes], url: url() };
+    // A commit that has nothing to do with the URL: count + 1.
+    yield* Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.invoke("counter/increment", [])));
+    yield* Effect.sleep("50 millis");
+
+    return { atStart, afterUnrelated: [...writes] };
+  }));
+
+  console.log(`control ${start}: ${JSON.stringify(result)}`);
+  expect(result.atStart).toEqual({ writes: [], url: start });
+  // Observed, not endorsed: Web.history compares the URL with urlOf(state) on every commit, so the first commit of
+  // ANY kind pushes the canonical URL, an entry no navigation asked for.
+  expect(result.afterUnrelated).toHaveLength(1);
+  expect(result.afterUnrelated[0]).toMatch(/^push \/tracer\//);
 });
 
 it("probe: Back the moment the push lands, while the about program may still be rendering, settles consistent", async () => {
-  const { operations } = await run(page.home, HOME, ({ main, running }) => Effect.gen(function* () {
+  const { operations } = await run(page.home, HOME, { canonicalize: true }, ({ main, running }) => Effect.gen(function* () {
     yield* Effect.promise(() => userEvent.click(main.querySelectorAll("button")[1]!));
     yield* until(() => url() !== HOME);
     window.history.back();                                                // not waiting for the about render

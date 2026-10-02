@@ -33,6 +33,10 @@ export interface HistoryOptions<S> {
  *   state commit → `urlOf(state)` differs from `location.pathname + location.search` → `history.pushState`
  *   popstate     → `running.invoke(navigate, [stateOf(location)])`: the application's own navigate command
  *
+ * The first state is only a baseline: starting never writes. The page's URL is the application's to interpret and,
+ * if it wants, canonicalize (with `replaceState`, before `start`); this assumes it then equals `urlOf(state)`. If it
+ * does not, the first LATER commit of any kind pushes `urlOf(state)`: an entry no navigation asked for.
+ *
  * It reads and writes the URL and knows nothing of what a URL means. There is no feedback flag: a `pushState`
  * makes the URL equal `urlOf(state)`, so the commit it follows is not pushed again; a `popstate` changes the state
  * through the command and the URL already equals what that state maps to. PORT Web has no history API (it touches
@@ -44,8 +48,9 @@ export const history = <S, E, R extends Ambient>(running: Running<S, E, R>, opti
     const { window: win } = options;
     const pending: Array<Fiber.RuntimeFiber<unknown, never>> = [];
 
-    // Every state commit, starting with the current one, so a page that loads at its own URL is not pushed again.
-    const follower = yield* Stream.runForEach(running.states, (state) => Effect.sync(() => {
+    // The first state is the baseline, not a navigation: the URL the page was loaded at is the application's to
+    // interpret (and, if it wants, canonicalize) before this starts. Only later commits are written.
+    const follower = yield* Stream.runForEach(Stream.drop(running.states, 1), (state) => Effect.sync(() => {
       const url = options.urlOf(state);
 
       if (win.location.pathname + win.location.search !== url) {
