@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "types": ["node", "@vitest/browser/providers/playwright"],
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["src", "test", "browser", "vitest.config.ts", "vitest.browser.config.ts"]
+}

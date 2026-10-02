@@ -1,0 +1,30 @@
+{
+  "name": "@valancex/tracer-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Guarded tracer bullet: a small real Web application through @valancex/valance, NEXUS, MESH and PORT Web.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:browser": "vitest run -c vitest.browser.config.ts"
+  },
+  "dependencies": {
+    "@valancex/valance": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.0.0",
+    "@valancex/mesh-compiler": "^0.6.0",
+    "@valancex/mesh-runtime": "^0.6.0",
+    "@valancex/nexus": "^0.9.0",
+    "@valancex/port-web": "^0.2.1",
+    "@vitest/browser": "3.2.7",
+    "effect": "^3.10.0",
+    "jsdom": "^26.0.0",
+    "playwright": "1.56.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

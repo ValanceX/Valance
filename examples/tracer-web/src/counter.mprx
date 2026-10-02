@@ -1,0 +1,4 @@
+<page title={title}>
+  <text>{count} clicks, last at {stamp}</text>
+  <button on.click={increment()}>Click</button>
+</page>
