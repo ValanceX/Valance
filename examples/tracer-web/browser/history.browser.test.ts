@@ -218,24 +218,74 @@ it.each(cases)("initial URL $name ($start): the application's entry canonicalize
   expect(counts).toEqual({ acquired: 1, released: 1 });
 });
 
-// CONTROL: the application does NOT canonicalize. Web.history still writes nothing at start, so there is no
-// unintended entry from starting; the cost shows later (see the second assertion).
-it.each([cases[1], cases[2]])("control, $name: without the application's canonicalization, start writes nothing; an unrelated later commit pushes", async ({ served, start }) => {
-  const { result } = await run<{ atStart: { writes: Array<string>; url: string }; afterUnrelated: Array<string> }>(served, start, { canonicalize: false }, ({ running, writes }) => Effect.gen(function* () {
-    const atStart = { writes: [...writes], url: url() };
-    // A commit that has nothing to do with the URL: count + 1.
-    yield* Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.invoke("counter/increment", [])));
+// The guard: when does Web.history push? Never because the URL merely differs from urlOf(state); only when the
+// application's own URL (urlOf(state)) changes between synchronized states. Popstate re-baselines and never writes.
+const ABOUT_OVERVIEW = "/tracer/about?tab=overview";
+const increment = (running: Valance.Running<typeof page.home.state, Nexus.Command.CommandValidationError, Nexus.Event.EventBusShape>) =>
+  Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.invoke("counter/increment", [])));
+
+// Case A: the page sits at a noncanonical URL (the application did not canonicalize it); an unrelated commit is not a navigation.
+it.each([cases[1], cases[2]])("guard A, $name: an unrelated state change at a noncanonical URL writes nothing", async ({ served, start }) => {
+  const { result } = await run<{ writes: Array<string>; url: string; navigated: Array<string>; count: number }>(served, start, { canonicalize: false }, ({ running, writes, navigated }) => Effect.gen(function* () {
+    yield* increment(running);                                            // count + 1: nothing to do with the URL
     yield* Effect.sleep("50 millis");
 
-    return { atStart, afterUnrelated: [...writes] };
+    return { writes: [...writes], url: url(), navigated: [...navigated], count: (yield* running.state).count };
   }));
 
-  console.log(`control ${start}: ${JSON.stringify(result)}`);
-  expect(result.atStart).toEqual({ writes: [], url: start });
-  // Observed, not endorsed: Web.history compares the URL with urlOf(state) on every commit, so the first commit of
-  // ANY kind pushes the canonical URL, an entry no navigation asked for.
-  expect(result.afterUnrelated).toHaveLength(1);
-  expect(result.afterUnrelated[0]).toMatch(/^push \/tracer\//);
+  expect(result).toEqual({ writes: [], url: start, navigated: [], count: served.state.count + 1 });
+});
+
+// Case B: Back to a history entry whose URL is noncanonical. popstate → stateOf → the navigate command; no write; the browser stays where history put it.
+it("guard B: popstate to a noncanonical history entry navigates, and writes nothing", async () => {
+  const { result, operations } = await run<{ afterBack: { url: string; path: string; writes: Array<string> }; afterUnrelated: { url: string; writes: Array<string>; text: string }; afterForward: { url: string; writes: Array<string> }; navigated: Array<string> }>(
+    page.plainAbout, "/tracer/about", { canonicalize: false }, ({ main, running, writes, navigated }) => Effect.gen(function* () {
+      yield* click(main, 0);                                              // the page's Back button: application navigation → push HOME
+      yield* until(() => url() === HOME && text(main).startsWith("3 clicks"));
+      window.history.back();                                              // popstate to "/tracer/about"
+      yield* until(() => url() === "/tracer/about" && text(main).startsWith("About Tracer: 3 clicks"));
+      const afterBack = { url: url(), path: (yield* running.state).path, writes: [...writes] };
+
+      yield* increment(running);                                          // an unrelated commit while sitting at the noncanonical entry
+      yield* until(() => text(main).startsWith("About Tracer: 4 clicks"));
+      yield* Effect.sleep("50 millis");
+      const afterUnrelated = { url: url(), writes: [...writes], text: text(main).slice(0, 22) };
+
+      window.history.forward();                                           // popstate back to HOME
+      yield* until(() => url() === HOME && text(main).startsWith("4 clicks"));
+
+      return { afterBack, afterUnrelated, afterForward: { url: url(), writes: [...writes] }, navigated: [...navigated] };
+    }));
+
+  const pushedHome = [`push ${HOME}`];                                    // the only write: the one application navigation
+  expect(result.afterBack).toEqual({ url: "/tracer/about", path: "/about", writes: pushedHome });
+  expect(result.afterUnrelated).toEqual({ url: "/tracer/about", writes: pushedHome, text: "About Tracer: 4 clicks" });
+  expect(result.afterForward).toEqual({ url: HOME, writes: pushedHome });
+  expect(result.navigated).toEqual(["/|overview", "/about|overview", "/|overview"]);   // one intent, two popstates, one command
+  expect(operations).toEqual(["hydrate", "draw", "draw", "update", "draw"]);
+});
+
+// Case C: application navigation pushes once per distinct application URL; unrelated commits push nothing.
+it("guard C: each distinct application URL is pushed exactly once; unrelated commits are not pushed", async () => {
+  const { result, operations } = await run<{ writes: Array<string>; navigated: Array<string>; url: string }>(page.home, HOME, { canonicalize: true }, ({ main, running, writes, navigated }) => Effect.gen(function* () {
+    yield* increment(running);                                            // unrelated, on the counter
+    yield* click(main, 1);                                                // → About: push 1
+    yield* until(() => url() === ABOUT_OVERVIEW && text(main).startsWith("About"));
+    yield* increment(running);                                            // unrelated, on the about program: update, not a push
+    yield* until(() => text(main).startsWith("About Tracer: 2 clicks"));
+    yield* click(main, 0);                                                // Back → Home: push 2
+    yield* until(() => url() === HOME && text(main).startsWith("2 clicks"));
+    yield* click(main, 1);                                                // → About again: push 3 (the same URL as push 1, still a new navigation)
+    yield* until(() => url() === ABOUT_OVERVIEW && text(main).startsWith("About"));
+    yield* Effect.sleep("50 millis");
+
+    return { writes: [...writes], navigated: [...navigated], url: url() };
+  }));
+
+  expect(result.writes).toEqual([`push ${ABOUT_OVERVIEW}`, `push ${HOME}`, `push ${ABOUT_OVERVIEW}`]);
+  expect(result.navigated).toEqual(["/about|overview", "/|overview", "/about|overview"]);
+  expect(result.url).toBe(ABOUT_OVERVIEW);
+  expect(operations).toEqual(["hydrate", "update", "draw", "update", "draw", "draw"]);
 });
 
 it("probe: Back the moment the push lands, while the about program may still be rendering, settles consistent", async () => {

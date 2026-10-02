@@ -9,7 +9,7 @@ import type { Ambient, Running, TargetFactory } from "./index.js";
 
 import * as Nexus from "@valancex/nexus";
 import { createWebPort } from "@valancex/port-web";
-import { Effect, Fiber, Scope, Stream } from "effect";
+import { Effect, Fiber, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, property, textProperty } from "@valancex/port-web";
@@ -30,41 +30,56 @@ export interface HistoryOptions<S> {
 /**
  * Keeps `location` and the application in step, in both directions, until the caller's Scope closes.
  *
- *   state commit → `urlOf(state)` differs from `location.pathname + location.search` → `history.pushState`
- *   popstate     → `running.invoke(navigate, [stateOf(location)])`: the application's own navigate command
+ *   start         the first state's `urlOf` is the baseline; nothing is written.
+ *   later state   `urlOf(state)` differs from the last synchronized `urlOf` → `history.pushState`, which becomes the baseline.
+ *   popstate      `running.invoke(navigate, [stateOf(location)])`, then the resulting state's `urlOf` becomes the baseline. Never a write.
  *
- * The first state is only a baseline: starting never writes. The page's URL is the application's to interpret and,
- * if it wants, canonicalize (with `replaceState`, before `start`); this assumes it then equals `urlOf(state)`. If it
- * does not, the first LATER commit of any kind pushes `urlOf(state)`: an entry no navigation asked for.
+ * The question it answers is "did the application's URL change?", never "does the browser's URL equal the
+ * application's?": a page sitting at a noncanonical URL (a history entry the application did not write) is left
+ * alone, and an unrelated state change is not a navigation. Canonicalizing the URL is the application's, before start.
  *
- * It reads and writes the URL and knows nothing of what a URL means. There is no feedback flag: a `pushState`
- * makes the URL equal `urlOf(state)`, so the commit it follows is not pushed again; a `popstate` changes the state
- * through the command and the URL already equals what that state maps to. PORT Web has no history API (it touches
- * nothing outside its container), so this is Valance's, not PORT's.
+ * Popstate is handled by the same fiber that watches state, in order, so the commit a popstate causes is seen after
+ * the baseline has been updated for it, not as a new navigation. It reads and writes the URL and knows nothing of
+ * what a URL means. PORT Web has no history API (it touches nothing outside its container), so this is Valance's.
  */
 export const history = <S, E, R extends Ambient>(running: Running<S, E, R>, options: HistoryOptions<S>): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function* () {
     const scope = yield* Effect.scope;
     const { window: win } = options;
-    const pending: Array<Fiber.RuntimeFiber<unknown, never>> = [];
+    const popped = yield* Queue.unbounded<string>();
+    // The application URL of the last state this mechanism has accounted for. Unset until the first state: the baseline.
+    let last: string | undefined;
 
-    // The first state is the baseline, not a navigation: the URL the page was loaded at is the application's to
-    // interpret (and, if it wants, canonicalize) before this starts. Only later commits are written.
-    const follower = yield* Stream.runForEach(Stream.drop(running.states, 1), (state) => Effect.sync(() => {
-      const url = options.urlOf(state);
+    const follower = yield* Stream.runForEach(
+      Stream.merge(
+        Stream.map(running.states, (state) => ({ _tag: "state" as const, state })),
+        Stream.map(Stream.fromQueue(popped), (href) => ({ _tag: "popstate" as const, href }))
+      ),
+      (event) => event._tag === "state"
+        ? Effect.sync(() => {
+          const url = options.urlOf(event.state);
 
-      if (win.location.pathname + win.location.search !== url) {
-        win.history.pushState(null, "", url);
-      }
-    })).pipe(Effect.forkIn(scope));
+          if (last === undefined) {
+            last = url;
+          } else if (url !== last) {
+            last = url;
+            win.history.pushState(null, "", url);
+          }
+        })
+        : Effect.gen(function* () {
+          // The application's runtime, like a dispatch: its platform's FiberRefs apply, and nothing flows back (NEXUS I44).
+          const handle = Nexus.Runtime.runFork(running.nexus.runtime, running.invoke(options.navigate, [{ value: options.stateOf(new URL(event.href)) }]).pipe(
+            Effect.tapErrorCause((cause) => Effect.logError("popstate navigation failed", cause)),
+            Effect.ignore
+          ));
 
-    const onPopState = (): void => {
-      // The application's runtime, like a dispatch: its platform's FiberRefs apply, and nothing flows back (NEXUS I44).
-      pending.push(Nexus.Runtime.runFork(running.nexus.runtime, running.invoke(options.navigate, [{ value: options.stateOf(new URL(win.location.href)) }]).pipe(
-        Effect.tapErrorCause((cause) => Effect.logError("popstate navigation failed", cause)),
-        Effect.ignore
-      )));
-    };
+          yield* Fiber.await(handle).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
+          // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
+          last = options.urlOf(yield* running.state);
+        })
+    ).pipe(Effect.forkIn(scope));
+
+    const onPopState = (): void => { Queue.unsafeOffer(popped, win.location.href); };
 
     win.addEventListener("popstate", onPopState);
 
@@ -72,6 +87,5 @@ export const history = <S, E, R extends Ambient>(running: Running<S, E, R>, opti
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
       yield* Effect.sync(() => { win.removeEventListener("popstate", onPopState); });
       yield* Fiber.interrupt(follower);
-      yield* Effect.forEach(pending.splice(0), Fiber.interrupt, { discard: true });
     }));
   });

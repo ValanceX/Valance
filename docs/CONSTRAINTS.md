@@ -44,3 +44,8 @@ as "reviewed only".
 
 - **C15.** Starting an application never creates a history entry because `Web.history` saw a representation mismatch.
 - **C16.** Interpreting the initial URL (`stateOf`, total) is not synchronization (`urlOf`, later commits). Which one owns canonicalization is decided by evidence, not assumed; no public `replaceState`/canonicalization API unless a stable need is shown.
+
+## Added for stage 6 (the guard; written before the code)
+
+- **C17.** `Web.history` answers "did the application's URL change?" (`urlOf(state)` vs the last synchronized `urlOf`), not "does the browser URL equal the application's?". It is not a canonicalizer.
+- **C18.** Starting writes nothing, popstate never writes, and the signature and public surface of `Web.history` do not change.

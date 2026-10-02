@@ -247,3 +247,46 @@ So both models produce the same URLs and neither pushes an entry at start; they 
 - **A state change between hydration and `Web.history` start** is taken as the baseline and not written.
 - Whether a not-found state should keep the visitor's URL.
 - Trailing-slash, query ordering/repeats/encoding, hash fragments, deployment base path, real anchors, scroll/focus restoration, a real server's request-URL mapping, popstate racing a program switch (unchanged from before).
+
+---
+
+## Stage 6: the guard: "URL differs" versus "the application's URL changed"
+
+**Old.** On every state commit after the first: `location.pathname + location.search !== urlOf(state)` → `pushState`.
+**New.** The first state's `urlOf` is the baseline (no write). Each later state: `urlOf(state) !== last` → `pushState`, then `last = urlOf(state)`. On popstate: run the navigate command with `stateOf(location)`, then `last = urlOf(<resulting state>)`; never a write. No signature change, no new public API; `last` is a local variable.
+
+**Where popstate is handled.** In the same fiber that watches state (state commits and popstate hrefs are merged into one stream, consumed sequentially). The commit a popstate causes is therefore processed after the baseline was updated for it, so it cannot be mistaken for a navigation. (Handling popstate in its own fiber would race the state follower.)
+
+**Chromium evidence** (`browser/history.browser.test.ts`; 12 tests, green on three consecutive runs). Tests were written first and run against the old guard: A and B failed, C (canonical navigation) passed on both.
+
+| Case | Setup | Observed with the new guard |
+|---|---|---|
+| A: unrelated commit, noncanonical URL | page at `/tracer/about` (or `/tracer/not-a-view`), application did not canonicalize; `count + 1` | writes `[]`; URL unchanged; navigation log empty. (Old guard: `push /tracer/about?tab=overview`.) |
+| B: popstate to a noncanonical entry | entry 1 `/tracer/about` (as served), application navigation → Home (`push /tracer/?tab=overview`), Back, unrelated `count + 1`, Forward | after Back: URL stays `/tracer/about`, state `/about`; after the unrelated commit: URL stays, About program shows 4 clicks; after Forward: Home. Writes throughout: only `push /tracer/?tab=overview` (the one application navigation); no push, no replace for either popstate or the unrelated commit. Navigation log `["/\|overview","/about\|overview","/\|overview"]` (one intent, two popstates, one command). PORT: `hydrate, draw, draw, update, draw`. |
+| C: application navigation | Home → unrelated `count + 1` → About → unrelated commit on About → Back (to Home) → About again | writes exactly `[push /tracer/about?tab=overview, push /tracer/?tab=overview, push /tracer/about?tab=overview]`: one push per navigation, the same URL pushed again when navigated to again; the unrelated commits push nothing. PORT: `hydrate, update, draw, update, draw, draw`. |
+
+Earlier tests (initial A/B/C URLs, acceptance sequence, listener lifetime, the Back-right-after-push probe) pass unchanged, so startup writes nothing, popstate never writes and the listener ends with the scope as before.
+
+**Mutations** (each fails named tests, then restored):
+- back to `location !== urlOf(state)`: guard A (both) and guard B fail;
+- `last` not updated after a legitimate push: guard C and the acceptance sequence fail;
+- popstate not re-baselining: guard B and the acceptance sequence fail.
+
+### Confirmed
+1. Synchronizing on "the application's URL changed" is sufficient for all three cases: application navigation pushes exactly once per navigation, popstate writes nothing, and an unrelated commit at a noncanonical URL writes nothing.
+2. A popstate must re-baseline; without it, the next unrelated commit pushes (mutation M3).
+3. The baseline must follow each push; without it, an unrelated commit after a navigation pushes again (M2).
+4. Popstate-then-unrelated-commit while sitting at a noncanonical historical URL is left alone: the browser stays at the URL history stored.
+5. No substrate change; no new public API; the `Web.history` signature is unchanged.
+
+### `Web.history` contract (justified by the runs above)
+- **On start:** the first observed state's `urlOf` is the baseline. No history write, regardless of the browser URL.
+- **On a later state:** if `urlOf(state)` differs from the last synchronized `urlOf`, `pushState(urlOf(state))` and update the baseline; otherwise nothing.
+- **On popstate:** `running.invoke(navigate, [stateOf(location)])`, then the resulting state's `urlOf` becomes the baseline. Never a write.
+- It never compares with, or rewrites, the browser URL; canonicalization is the application's, before start.
+
+### Unresolved
+- **A failed popstate navigation:** the state stays at the previous value while the browser URL has moved; the baseline then follows the old state. Logged only.
+- **A popstate while a state change is in flight** is processed in order, but the combination was not stress-tested (the earlier Back-right-after-push probe still passes).
+- **A navigation to the URL the application is already at** (equal `urlOf`) writes nothing: no duplicate entry, but also no way to express "push the same URL again".
+- Whether a not-found state should keep the visitor's requested URL; trailing-slash, query ordering/repeats/encoding, hash, deployment base path, real anchors, scroll/focus restoration, a real server's request-URL mapping (unchanged).
