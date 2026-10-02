@@ -66,6 +66,9 @@
         },
         "count": {
           "kind": "number"
+        },
+        "tab": {
+          "kind": "string"
         }
       }
     }

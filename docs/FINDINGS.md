@@ -139,3 +139,61 @@ path state commit → path ≠ location.pathname → history.pushState        (n
 8. **Popstate during a switch?** See the probe row: consistent, every intermediate commit rendered.
 9. **History-listener leaks?** None observed.
 10. **Smallest next experiment:** see the report.
+
+---
+
+## Stage 4: the URL is not the state (base path + query)
+
+**Question.** Can URL ↔ state stay ordinary application-owned functions when the browser URL is not the application's path?
+
+**Model.** Browser URL `/tracer/about?tab=details`; state `{ path: "/about", tab: "details", title, count, stamp }`. The URL carries `path` and `tab` only; `count`, `stamp` and `title` are not in it. In `examples/tracer-web/src/app.ts`:
+
+```ts
+urlOf(state): string      // `${"/tracer"}${state.path}?tab=${encodeURIComponent(state.tab)}`
+stateOf(url: URL): { path, tab }   // strip the base; tab from the query, default "overview"
+stateFor(url): AppState   // { ...initial, ...stateOf(url) }: what a request URL means (server and client)
+```
+
+**What changed.** `Web.history` takes `urlOf` and `stateOf` instead of `path`. It compares `location.pathname + location.search` with `urlOf(state)` (push when they differ), and on popstate calls `running.invoke(navigate, [stateOf(location)])`. The `app.navigate` command now takes `{ path, tab }`; the MESH buttons and popstate still reach it through the same binding table. The about program gained a `tab` line so the URL's tab is visible. Nothing else in Valance changed.
+
+**Chromium evidence** (`browser/history.browser.test.ts`; three consecutive runs green):
+
+| Step | URL | State | Program | Pushes / PORT |
+|---|---|---|---|---|
+| initial (server HTML, count 3) | `/tracer/about?tab=details` | `/about`, details, 3 | About | 0 pushes; hydrate (adopted) |
+| About page's Back button (MESH intent) | `/tracer/?tab=overview` | `/`, overview, 3 | Counter | exactly 1 push; draw |
+| Click (state not in the URL) | unchanged | count 4 | Counter | no push; update |
+| browser Back | `/tracer/about?tab=details` | `/about`, details, **4** | About | no push; draw |
+| browser Forward | `/tracer/?tab=overview` | `/`, overview, 4 | Counter | no push; draw |
+
+PORT operations: `hydrate, draw, update, draw, draw`. History entries added in total: 1. `Navigated` log `["/|overview", "/about|details", "/|overview"]`: one command, three sources (one intent, two popstates). The tab came back from the URL on Back, not from memory; the count, which the URL does not carry, survived.
+
+**Lifecycle.** Application `Running` at all five observations; the counting platform resource acquired once, released only at scope close (`{1, 1}`); exactly one `popstate` listener while running, none after the scope closed.
+
+**Tripwires, mutation-checked.** Always-push fails the main test; a pathname-only guard (the previous tracer's assumption) fails it too, which is how the query became part of the comparison; not removing the listener fails the lifetime test.
+
+**Invalid URL, observed (`/tracer/not-a-view`, no query).** The application keeps the path as given (`path: "/not-a-view"`), `view` falls back to the counter, and because the URL is not the canonical `urlOf(state)` (no `?tab=`), the first state commit pushes `/tracer/not-a-view?tab=overview`: one history entry nobody decided to create. The model exposes two missing decisions: what a URL that maps to no view *is*, and whether a non-canonical initial URL is rewritten (replaceState) or pushed. Neither is Valance's or the router's to guess; both are visible only because the mapping is explicit.
+
+### Confirmed
+1. URL and application state differ (base path, query, three fields absent from the URL) and stay synchronized in both directions without a Router.
+2. The mapping is application-owned: `urlOf`/`stateOf` are plain functions in the application; `Web.history` only reads and writes `location` and calls them.
+3. `Web.history` stayed a sufficient composition boundary: one option swap (`path` → `urlOf` + `stateOf`), no new abstraction, no change to the navigate path.
+4. NEXUS, MESH and PORT needed no change.
+5. The initial URL becomes initial state through the same function (`stateFor`), selects the program for SSR, hydrates, and pushes nothing when it is canonical.
+
+### Likely
+- `urlOf`/`stateOf` belong in application code, next to the state schema they describe. One application is one data point; whether they should ever be shared is not established.
+- `Web.history` is a synchronization mechanism (URL ↔ commands/state), not a routing mechanism. Routing, if the word applies, is the application's `path → view` plus these two functions.
+- The base path behaves as an application concern here (a constant in the mapping); it could equally be a deployment concern injected into the mapping. Unresolved by this experiment: only one base, hard-coded.
+- The comparison `pathname + search` is a hidden assumption of `Web.history` that the application's `urlOf` must meet (same shape, same normalization); the failing pathname-only mutation shows it is real.
+
+### Unresolved
+- **Invalid URLs:** what `stateOf` returns for a URL with no view, and whether the application rejects, rewrites or shows it (observed above: kept as given, view falls back, initial push).
+- **Canonicalization of non-canonical initial URLs** (replace vs push).
+- **Query encoding and normalization** beyond `encodeURIComponent` of one value; parameter order; repeated or unknown parameters.
+- **Trailing slash:** `"/tracer"` and `"/tracer/"` both map to path `/`; `urlOf` writes the slash form.
+- **Hash fragments:** ignored by the guard; `pushState` with a hash-less URL would drop a hash.
+- **Real anchors/links**, scroll and focus restoration.
+- **Server request URL → initial state in a real server** (the harness calls `stateFor` itself).
+- **Popstate racing a program switch:** probed once (consistent; every commit rendered in order, none coalesced); not characterized.
+- **Where a base path configured at deployment would enter.**

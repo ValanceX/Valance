@@ -23,13 +23,15 @@ export default async function setup(project: TestProject): Promise<void> {
 
   project.provide("page", {
     programs,
-    home: await serve(stateFor("/")),
-    about: await serve({ ...stateFor("/about"), count: 3 }),
+    // The URLs the "server" is asked for. What each means is the application's (`stateFor`); count is not in a URL.
+    home: await serve(stateFor("/tracer/?tab=overview")),
+    about: await serve({ ...stateFor("/tracer/about?tab=details"), count: 3 }),
+    invalid: await serve(stateFor("/tracer/not-a-view")),
   });
 }
 
 declare module "vitest" {
   export interface ProvidedContext {
-    page: { readonly programs: Programs; readonly home: Served; readonly about: Served };
+    page: { readonly programs: Programs; readonly home: Served; readonly about: Served; readonly invalid: Served };
   }
 }

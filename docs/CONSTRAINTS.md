@@ -34,3 +34,8 @@ as "reviewed only".
 - **C11.** Browser Back/Forward enters application behavior through the SAME navigate command a MESH intent uses. No second navigation pathway.
 - **C12.** MESH and PORT do not change. NEXUS changes only if the tracer proves a missing primitive.
 - No Router/Route/route DSL/registry/link primitive/guards/loaders/redirects/outlets/parameters/wildcards; exact-path comparison only.
+
+## Added for stage 4 (URL shape; written before the code)
+
+- **C13.** URL ≠ state. What a URL means is application code (`urlOf`, `stateOf` in the example app). `Web.history` reads and writes the URL and calls them; it parses nothing.
+- **C14.** Same navigate command, same single application. No Router, codec, mapper, normalization, link primitive, or public `urlOf`/`stateOf` API.

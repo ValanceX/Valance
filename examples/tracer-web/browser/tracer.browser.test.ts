@@ -64,7 +64,7 @@ it("hydrates the server's /about in Chromium, then real clicks cross the program
     const sections: Array<Element | null> = [main.firstElementChild];
 
     expect(mounted.hydration).toEqual({ adopted: true });
-    expect(main.textContent).toBe("About Tracer: 3 clicksBack");
+    expect(main.textContent).toBe("About Tracer: 3 clickstab: detailsBack");
 
     yield* press(0, "3 clicks, last at 0");          // Back → counter program; the state (3) came from the server
     sections.push(main.firstElementChild);
@@ -100,7 +100,7 @@ it("hydrates the server's / too, and its About click draws the other program", a
     expect(mounted.hydration).toEqual({ adopted: true });
     yield* Effect.promise(async () => {
       await userEvent.click(main.querySelectorAll("button")[1]!);
-      await expect.poll(() => main.textContent).toBe("About Tracer: 0 clicksBack");
+      await expect.poll(() => main.textContent).toBe("About Tracer: 0 clickstab: overviewBack");
     });
   })));
 

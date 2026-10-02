@@ -98,7 +98,7 @@ describe("one application, two MESH programs", () => {
     const about = await Effect.runPromise(renderToHtml(app, { primitives, state: { ...stateFor("/about"), count: 3 } }));
 
     expect(home.html).toContain("0 clicks, last at 0");
-    expect(about.html).toBe('<section aria-label="Tracer"><span>About Tracer: 3 clicks</span><button>Back</button></section>');
+    expect(about.html).toBe('<section aria-label="Tracer"><span>About Tracer: 3 clicks</span><span>tab: overview</span><button>Back</button></section>');
   });
 
   for (const [path, count, leaving, arrives] of [["/", 0, 1, "About Tracer: 0 clicks"], ["/about", 3, 0, "3 clicks"]] as const) {

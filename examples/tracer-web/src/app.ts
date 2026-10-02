@@ -10,16 +10,32 @@ import * as Web from "@valancex/valance/web";
 import * as Nexus from "@valancex/nexus";
 import { Clock, Effect, Schema } from "effect";
 
-export const AppState = Schema.Struct({ title: Schema.String, count: Schema.Number, stamp: Schema.Number, path: Schema.String });
+export const AppState = Schema.Struct({ title: Schema.String, count: Schema.Number, stamp: Schema.Number, path: Schema.String, tab: Schema.String });
 export type AppState = Schema.Schema.Type<typeof AppState>;
 
-export const initial: AppState = { title: "Tracer", count: 0, stamp: 0, path: "/" };
+export const initial: AppState = { title: "Tracer", count: 0, stamp: 0, path: "/", tab: "overview" };
+
+// The URL the application is shown at is NOT its `path`: it has a fixed base path, and the query holds `tab`.
+// What a URL means is the application's: these two functions are all of it. (`count`, `stamp`, `title` are not in the URL.)
+const BASE = "/tracer";
+
+/** The part of the state the URL represents. */
+export type Navigation = Pick<AppState, "path" | "tab">;
+
+/** state → URL (path and query, as `location.pathname + location.search` will read it back). */
+export const urlOf = ({ path, tab }: AppState): string => `${BASE}${path}?tab=${encodeURIComponent(tab)}`;
+
+/** URL → the part of the state it represents. Anything it does not say is the default. */
+export const stateOf = (url: URL): Navigation => ({
+  path: url.pathname.startsWith(BASE) ? url.pathname.slice(BASE.length) || "/" : url.pathname,
+  tab: url.searchParams.get("tab") ?? initial.tab,
+});
 
 /** What a request URL means: the state the application starts in. The server and the client both start from it. */
-export const stateFor = (path: string): AppState => ({ ...initial, path });
+export const stateFor = (url: string): AppState => ({ ...initial, ...stateOf(new URL(url, "http://localhost")) });
 
 /** Published by the one navigate command, whoever asked for it: a MESH intent or the browser's Back. */
-export const Navigated = Nexus.Event.define("Navigated", Schema.Struct({ path: Schema.String }));
+export const Navigated = Nexus.Event.define("Navigated", Schema.Struct({ path: Schema.String, tab: Schema.String }));
 
 /** The one argument of "app/navigate", as MESH's boundary gives it. Whether it is a path is the command's schema's to say. */
 const firstValue = (args: ReadonlyArray<Mesh.IntentArgument>): unknown => {
@@ -38,7 +54,7 @@ export const application = (programs: Programs) => Valance.define({
   state: { schema: AppState, initial },
   views: {
     counter: { program: programs.counter, scope: ({ title, count, stamp }) => ({ title, count, stamp }) },
-    about: { program: programs.about, scope: ({ title, count }) => ({ title, count }) },
+    about: { program: programs.about, scope: ({ title, count, tab }) => ({ title, count, tab }) },
   },
   // Route state is application state; the active program is derived from it.
   view: (state) => state.path === "/about" ? "about" : "counter",
@@ -46,15 +62,16 @@ export const application = (programs: Programs) => Valance.define({
     // Behavior: the platform's Clock (application code sees it; the caller never does).
     const increment = Nexus.Command.define("counter.increment", Schema.Struct({}), () =>
       Effect.flatMap(Clock.currentTimeMillis, (stamp) => state.update((current) => Effect.succeed({ ...current, count: current.count + 1, stamp }))).pipe(Effect.asVoid));
-    const navigate = Nexus.Command.define("app.navigate", Schema.Struct({ path: Schema.String }), ({ path }) =>
-      state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.andThen(Nexus.Event.publish(Navigated, { path }))));
+    const navigate = Nexus.Command.define("app.navigate", Schema.Struct({ path: Schema.String, tab: Schema.String }), ({ path, tab }) =>
+      state.update((current) => Effect.succeed({ ...current, path, tab })).pipe(Effect.andThen(Nexus.Event.publish(Navigated, { path, tab }))));
 
     return {
       "counter/increment": Nexus.Mesh.bind(increment, () => ({})),
-      "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about" })),
-      "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/" })),
+      "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about", tab: initial.tab })),
+      "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
       // Not a MESH component: the same command, for input that is not a MESH intent (the browser's popstate).
-      "app/navigate": Nexus.Mesh.bind(navigate, (args) => ({ path: firstValue(args) })),
+      // Its argument is `stateOf(url)`: the part of the state the URL represents.
+      "app/navigate": Nexus.Mesh.bind(navigate, (args) => firstValue(args)),
     };
   },
 });

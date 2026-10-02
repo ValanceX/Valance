@@ -1,7 +1,11 @@
-// URL ↔ application state, in Chromium, with real clicks and real history traversal.
+// URL ↔ application state, in Chromium, with real clicks and real history traversal, where the URL is NOT the state:
 //
-//   user navigation:  click → MESH intent → NEXUS navigate command → path state → view(path) → history.pushState
-//   browser Back/Fwd: popstate → the SAME navigate command (via Valance's binding table) → path state → view(path)
+//   browser URL   /tracer/about?tab=details            (base path + query)
+//   state         { path: "/about", tab: "details", count, stamp, title }     (count, stamp, title are not in the URL)
+//
+//   user navigation:  click → MESH intent → NEXUS navigate command → state → view(state) → history.pushState(urlOf(state))
+//   browser Back/Fwd: popstate → stateOf(url) → the SAME navigate command (Valance's binding table) → state → view(state)
+//   `urlOf` and `stateOf` are the application's own functions (../src/app.ts); Web.history only reads and writes the URL.
 //
 // One Valance.start, one NEXUS application, one state, one platform lifetime, two MESH programs. The harness cannot
 // load this page at an arbitrary URL, so `replaceState` stands in for "the server served this URL"; the server HTML
@@ -17,7 +21,7 @@ import { userEvent } from "@vitest/browser/context";
 import { Effect, Fiber, Layer, Stream } from "effect";
 import { beforeAll, expect, inject, it } from "vitest";
 
-import { Navigated, application, primitives, stateFor } from "../src/app.js";
+import { Navigated, application, primitives, stateFor, stateOf, urlOf } from "../src/app.js";
 
 const page = inject("page");
 
@@ -53,116 +57,106 @@ const countingPlatform = () => {
   return { platform, counts };
 };
 
-/** Starts the application at the URL the "server" served, hydrates, and keeps URL and path in step. */
-const run = async <A>(served: typeof page.home, body: (context: {
+/** Starts the application at the URL the "server" served, hydrates, and keeps URL and state in step. */
+const run = async <A>(served: typeof page.home, startUrl: string, body: (context: {
   readonly main: HTMLElement;
   readonly running: Valance.Running<typeof served.state, Nexus.Command.CommandValidationError, Nexus.Event.EventBusShape>;
-  readonly operations: Array<string>;
   readonly navigated: Array<string>;
   readonly counts: { acquired: number; released: number };
   readonly hydration: unknown;
   readonly entriesAtStart: number;
+  readonly pushes: Array<string>;
 }) => Effect.Effect<A>): Promise<{ readonly result: A; readonly counts: { acquired: number; released: number }; readonly operations: ReadonlyArray<string> }> => {
-  window.history.replaceState(null, "", served.state.path);
+  window.history.replaceState(null, "", startUrl);
   const main = container(served.html);
   const operations: Array<string> = [];
   const navigated: Array<string> = [];
+  const pushes: Array<string> = [];
+  const push = window.history.pushState.bind(window.history);
+  window.history.pushState = (data: unknown, unused: string, target?: string | URL | null) => { pushes.push(String(target)); push(data, unused, target); };
   const { platform, counts } = countingPlatform();
   const entriesAtStart = window.history.length;
 
-  const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-    expect(stateFor(window.location.pathname)).toMatchObject({ path: served.state.path });          // initial URL → initial state: exact path
-    const running = yield* Valance.start(application(page.programs), { platform, state: served.state });
-    const mounted = yield* Valance.hydrate(running, recording(main, operations));
-    yield* Web.history(running, { window, path: (state) => state.path, navigate: "app/navigate" });
-    // Every Navigated, whoever asked for it.
-    const watcher = Nexus.Runtime.runFork(running.nexus.runtime, Stream.runForEach(Nexus.Event.subscribe(Navigated), ({ path }) => Effect.sync(() => { navigated.push(path); })));
-    yield* Effect.sleep("20 millis");
+  try {
+    const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      // Initial URL → initial state, by the application's own function: it says what the URL represents (not count or stamp).
+      expect(stateFor(window.location.pathname + window.location.search)).toMatchObject({ path: served.state.path, tab: served.state.tab });
+      const running = yield* Valance.start(application(page.programs), { platform, state: served.state });
+      const mounted = yield* Valance.hydrate(running, recording(main, operations));
+      yield* Web.history(running, { window, urlOf, stateOf, navigate: "app/navigate" });
+      // Every Navigated, whoever asked for it.
+      const watcher = Nexus.Runtime.runFork(running.nexus.runtime, Stream.runForEach(Nexus.Event.subscribe(Navigated), ({ path, tab }) => Effect.sync(() => { navigated.push(`${path}|${tab}`); })));
+      yield* Effect.sleep("20 millis");
 
-    const value = yield* body({ main, running, operations, navigated, counts, hydration: mounted.hydration, entriesAtStart });
-    yield* Fiber.interrupt(watcher);
+      const value = yield* body({ main, running, navigated, counts, hydration: mounted.hydration, entriesAtStart, pushes });
+      yield* Fiber.interrupt(watcher);
 
-    return value;
-  })));
-  main.remove();
+      return value;
+    })));
 
-  return { result, counts, operations };
+    return { result, counts, operations };
+  } finally {
+    window.history.pushState = push;
+    main.remove();
+  }
 };
 
 const text = (main: Element): string => main.textContent ?? "";
-const url = (): string => window.location.pathname;
+const url = (): string => window.location.pathname + window.location.search;
 const until = (check: () => boolean) => Effect.promise(async () => { await expect.poll(check).toBe(true); });
 const click = (main: Element, index: number) => Effect.promise(() => userEvent.click(main.querySelectorAll("button")[index]!));
 
-it("/ → About → Back → Forward → Back: URL, path and program stay in step; the application never restarts", async () => {
-  const trace: Array<{ step: string; url: string; path: string; text: string; acquired: number; released: number; status: string }> = [];
+const ABOUT = "/tracer/about?tab=details";
+const HOME = "/tracer/?tab=overview";
 
-  const { result, counts, operations } = await run<{ state: typeof page.home.state; navigated: Array<string>; entries: number }>(page.home, ({ main, running, navigated, counts: c, hydration, entriesAtStart }) => Effect.gen(function* () {
+it("/tracer/about?tab=details → navigate (application) → Back → Forward: URL, state and program agree; state outside the URL survives", async () => {
+  const trace: Array<{ step: string; url: string; path: string; tab: string; count: number; about: boolean; acquired: number; released: number; status: string }> = [];
+
+  const { result, counts, operations } = await run<{ navigated: Array<string>; pushes: Array<string>; entries: number }>(page.about, ABOUT, ({ main, running, navigated, counts: c, hydration, entriesAtStart, pushes }) => Effect.gen(function* () {
     expect(hydration).toEqual({ adopted: true });
-    expect(window.history.length).toBe(entriesAtStart);                   // starting at its own URL pushed nothing
+    expect(url()).toBe(ABOUT);
+    expect(pushes).toEqual([]);                                           // the initial URL is not pushed
+    expect(window.history.length).toBe(entriesAtStart);
 
     const observe = (step: string) => Effect.gen(function* () {
       const state = yield* running.state;
       const status = yield* Nexus.Application.status(running.nexus);
-      trace.push({ step, url: url(), path: state.path, text: text(main), acquired: c.acquired, released: c.released, status: status._tag });
+      trace.push({ step, url: url(), path: state.path, tab: state.tab, count: state.count, about: text(main).startsWith("About"), acquired: c.acquired, released: c.released, status: status._tag });
     });
 
-    yield* observe("start");
-    yield* click(main, 0);                                                // Click ×2
-    yield* click(main, 0);
-    yield* until(() => text(main).startsWith("2 clicks"));
-    yield* click(main, 1);                                                // About: intent → command → state → pushState
-    yield* until(() => text(main).startsWith("About") && url() === "/about");
-    yield* observe("about (pushed)");
-    window.history.back();                                                // popstate → the same command
-    yield* until(() => url() === "/" && text(main).startsWith("2 clicks"));
-    yield* observe("back to /");
+    yield* observe("initial /about, details");
+    yield* click(main, 0);                                                // the About page's Back button: intent → command → pushState(urlOf(state))
+    yield* until(() => url() === HOME && text(main).startsWith("3 clicks"));
+    yield* observe("navigated to /, overview");
+    yield* click(main, 0);                                                // state the URL does not carry: count 3 → 4. No URL change.
+    yield* until(() => text(main).startsWith("4 clicks"));
+    yield* observe("count 4, URL unchanged");
+    window.history.back();                                                // popstate → stateOf(url) → the same command
+    yield* until(() => url() === ABOUT && text(main).startsWith("About Tracer: 4 clicks"));
+    yield* observe("Back: /about, details");
     window.history.forward();
-    yield* until(() => url() === "/about" && text(main).startsWith("About"));
-    yield* observe("forward to /about");
-    window.history.back();
-    yield* until(() => url() === "/" && text(main).startsWith("2 clicks"));
-    yield* observe("back to / again");
-    yield* click(main, 0);
-    yield* until(() => text(main).startsWith("3 clicks"));
-    yield* observe("counter, 3 clicks");
+    yield* until(() => url() === HOME && text(main).startsWith("4 clicks"));
+    yield* observe("Forward: /, overview");
 
-    return { state: yield* running.state, navigated: [...navigated], entries: window.history.length - entriesAtStart };
+    return { navigated: [...navigated], pushes: [...pushes], entries: window.history.length - entriesAtStart };
   }));
 
+  // URL ≠ state, and they agree at every observation (the tab came back from the URL, not from memory).
+  expect(trace.map((t) => [t.url, t.path, t.tab])).toEqual([
+    [ABOUT, "/about", "details"], [HOME, "/", "overview"], [HOME, "/", "overview"], [ABOUT, "/about", "details"], [HOME, "/", "overview"],
+  ]);
+  expect(trace.map((t) => t.about)).toEqual([true, false, false, true, false]);
+  // State the URL does not represent is intact across every transition.
+  expect(trace.map((t) => t.count)).toEqual([3, 3, 4, 4, 4]);
   // Application and platform lifetime: one start, one acquisition, Running throughout, released only when the scope closed.
-  expect(trace.map((t) => [t.status, t.acquired, t.released])).toEqual(Array(6).fill(["Running", 1, 0]));
+  expect(trace.map((t) => [t.status, t.acquired, t.released])).toEqual(Array(5).fill(["Running", 1, 0]));
   expect(counts).toEqual({ acquired: 1, released: 1 });
-  // URL and application path agree at every observation, and the program is the one the path selects.
-  expect(trace.map((t) => [t.url, t.path])).toEqual([["/", "/"], ["/about", "/about"], ["/", "/"], ["/about", "/about"], ["/", "/"], ["/", "/"]]);
-  expect(trace.map((t) => t.text.startsWith("About"))).toEqual([false, true, false, true, false, false]);
-  // State continuity: the count survives /, /about, /, /about, / (about shows it too).
-  expect(trace.map((t) => t.text.match(/\d+(?= clicks)/)?.[0])).toEqual(["0", "2", "2", "2", "2", "3"]);
-  expect(result.state.count).toBe(3);
-  // One navigate command for every navigation (one MESH intent, three popstates), and exactly one history entry pushed (Back and Forward add none).
-  expect(result.navigated).toEqual(["/about", "/", "/about", "/"]);
+  // One navigate command for every navigation (one MESH intent, two popstates); one push, none for popstate.
+  expect(result.navigated).toEqual(["/|overview", "/about|details", "/|overview"]);
+  expect(result.pushes).toEqual([HOME]);
   expect(result.entries).toBe(1);
-  // PORT: same program → update; each program change → draw. (Two Clicks, About, Back, Forward, Back, Click.)
-  expect(operations).toEqual(["hydrate", "update", "update", "draw", "draw", "draw", "draw", "update"]);
-});
-
-it("an initial URL of /about hydrates the about program, pushes nothing, and Back/Forward then cross programs", async () => {
-  const { result, counts, operations } = await run<{ path: string; navigated: Array<string> }>(page.about, ({ main, running, navigated, hydration, entriesAtStart }) => Effect.gen(function* () {
-    expect(hydration).toEqual({ adopted: true });
-    expect(url()).toBe("/about");
-    expect(window.history.length).toBe(entriesAtStart);
-
-    yield* click(main, 0);                                                // the About page's Back button: intent → command → pushState("/")
-    yield* until(() => url() === "/" && text(main).startsWith("3 clicks"));
-    window.history.back();                                                // popstate → /about
-    yield* until(() => url() === "/about" && text(main).startsWith("About Tracer: 3 clicks"));
-
-    return { path: (yield* running.state).path, navigated: [...navigated] };
-  }));
-
-  expect(result).toEqual({ path: "/about", navigated: ["/", "/about"] });
-  expect(operations).toEqual(["hydrate", "draw", "draw"]);
-  expect(counts).toEqual({ acquired: 1, released: 1 });
+  // PORT: same program → update; each program change → draw, including both caused by popstate.
+  expect(operations).toEqual(["hydrate", "draw", "update", "draw", "draw"]);
 });
 
 it("the popstate listener lives exactly as long as the scope: one while running, none after", async () => {
@@ -180,9 +174,9 @@ it("the popstate listener lives exactly as long as the scope: one while running,
   }) as typeof window.removeEventListener;
 
   try {
-    const { result } = await run<{ whileRunning: number }>(page.home, ({ main }) => Effect.gen(function* () {
+    const { result } = await run<{ whileRunning: number }>(page.home, HOME, ({ main }) => Effect.gen(function* () {
       yield* click(main, 1);
-      yield* until(() => url() === "/about" && text(main).startsWith("About"));
+      yield* until(() => url() === ABOUT.replace("details", "overview") && text(main).startsWith("About"));
 
       return { whileRunning: live.size };
     }));
@@ -195,17 +189,33 @@ it("the popstate listener lives exactly as long as the scope: one while running,
   }
 });
 
+it("observation: an invalid path, /tracer/not-a-view (no query)", async () => {
+  const { result, operations } = await run<{ url: string; state: { path: string; tab: string }; text: string; pushes: Array<string> }>(page.invalid, "/tracer/not-a-view", ({ main, running, pushes }) => Effect.gen(function* () {
+    const state = yield* running.state;
+
+    return { url: url(), state: { path: state.path, tab: state.tab }, text: text(main), pushes: [...pushes] };
+  }));
+
+  // The application takes the URL at its word: the path is kept as given, `view` falls back to the counter, and the
+  // URL is not canonical (no `?tab=`), so the first state commit pushes the canonical one. Nothing here decided that.
+  expect(result.state).toEqual({ path: "/not-a-view", tab: "overview" });
+  expect(result.text.startsWith("0 clicks")).toBe(true);
+  expect(result.pushes).toEqual(["/tracer/not-a-view?tab=overview"]);
+  expect(result.url).toBe("/tracer/not-a-view?tab=overview");
+  expect(operations).toEqual(["hydrate"]);
+});
+
 it("probe: Back the moment the push lands, while the about program may still be rendering, settles consistent", async () => {
-  const { operations } = await run(page.home, ({ main, running }) => Effect.gen(function* () {
+  const { operations } = await run(page.home, HOME, ({ main, running }) => Effect.gen(function* () {
     yield* Effect.promise(() => userEvent.click(main.querySelectorAll("button")[1]!));
-    yield* until(() => url() === "/about");
+    yield* until(() => url() !== HOME);
     window.history.back();                                                // not waiting for the about render
-    yield* until(() => url() === "/");
+    yield* until(() => url() === HOME);
     yield* Effect.promise(async () => { await expect.poll(() => text(main)).toMatch(/^0 clicks/); });
 
     expect((yield* running.state).path).toBe("/");
   }));
 
-  // Every commit is rendered, in order, and none is coalesced or skipped: the about program was drawn, then the counter again.
+  // Every commit is rendered, in order, and none is coalesced or skipped.
   expect(operations).toEqual(["hydrate", "draw", "draw"]);
 });
