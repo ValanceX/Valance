@@ -1,0 +1,7 @@
+<page title={status}>
+  <text>status: {status}</text>
+  <text>data: {data}</text>
+  <text>ticks: {ticks}</text>
+  <button on.click={load()}>Load</button>
+  <button on.click={tick()}>Tick</button>
+</page>

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "types": {},
+  "components": {
+    "page": { "props": { "title": { "type": { "kind": "string" }, "required": true } }, "events": {}, "commands": {}, "scope": {} },
+    "text": { "props": {}, "events": {}, "commands": {}, "scope": {} },
+    "button": { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
+    "asyncapp": {
+      "props": {},
+      "events": {},
+      "commands": { "load": { "parameters": [] }, "tick": { "parameters": [] } },
+      "scope": { "status": { "kind": "string" }, "data": { "kind": "string" }, "ticks": { "kind": "number" } }
+    }
+  }
+}
