@@ -749,6 +749,44 @@ Find out whether an application author has a use for an external face, with no n
 
 ---
 
+## Stage 16: is there an application-level external face?
+
+*Evidence only; no VALANCE source changed, neither candidate chosen. One test-local example (`test/external-face.test.ts`, 2 tests) and an inventory of who touches `state`, `states` and `invoke` today.*
+
+### Inventory (who actually uses the application-facing members)
+
+- **Non-test source:** `Web.history` (`invoke`, `states`, `state`) and `renderToHtml` (`state`, to return for embedding). Both are platform bindings.
+- **Author-side example source:** none. `catalog/app.ts` mentions `Running.invoke` once, in a comment. The `app/*` entry keys (`app/open`, `app/changeItems`, `app/home`, `app/navigate`) are *authored* in the definitions, but are called only by bindings and tests.
+- **Tests:** about 25 `invoke` calls, all harness-driven. `packages/valance/test/entry.test.ts` and `lifecycle.test.ts` are headless hosts: `start`, `invoke`, `state`, scope, no target.
+
+### The example
+
+A host page announces data as a window event; one producer function translates it to `app/open` and must reach the same command a MESH intent reaches (`home/open` and `app/open` are both bound to `catalog.open`). It is written once and handed (1) the A-style handle `{ state, invoke }` or (2) the full `Running` a binding gets. Result, identical in both: a MESH click on Beta and the producer's `open B` leave equal states (`details B`); an id the application does not have (`""`, reached from MESH by an empty list and "Open first") gives equal `not-found` states either way. **The function is unchanged between (1) and (2): it needs only `invoke`.** What it needs from outside the application: the entry; a Scope, to remove its listener before the application ends (it did, `live.size` 0); the entry key string and its argument contract (`{ value }`, untyped, defined in the definition); a decision about failure (logged here). Mutation: pointing the producer at another entry fails both tests.
+
+| Requirement | Demonstrated outside tests? | Entirely a platform binding? | Needs the application to expose an entry? |
+|---|---|---|---|
+| 1. Host-driven data push | **no**; the nearest real analogue is popstate | yes, as a producer binding (the example) | yes: the binding enters by key |
+| 2. Programmatic command, same semantics as MESH | **yes**: `Web.history` does exactly this | yes | yes |
+| 3. State observation | **yes, by bindings only**: history (`states`, `state`), SSR (`state`) | yes | yes (`state`, `states`) |
+| 4. Multiple producers | **yes**: MESH intents, popstate | the same mechanism (below) | yes |
+| 5. Headless host | **yes, in tests**: start, `invoke`, `state`, scope | there is no provided binding: the host's own code is the binding | yes |
+
+### Findings
+
+1. **The question's dichotomy does not hold.** "The application exposes an external face" and "entirely a platform binding that dispatches application commands" are not alternatives: a binding that dispatches commands *needs the application to expose an entry*, because nothing else can receive it. Every requirement is representable as a binding (A: no) and every one needs the entry (B: also no). The face exists in either world; what varies is *who is allowed to hold it*.
+2. **One mechanism, two doors.** All outside producers enter through `invoke(key, args)` into the one command table. MESH intents enter through `dispatch`, which resolves a handler id against a drawn render and reaches the same table. The example shows equal semantics through both doors. Producers do not need different concepts.
+3. **What the pieces need.** A target needs `values` and `dispatch`. A pure producer needs only `invoke`. `Web.history` is both a producer and an observer: `invoke`, `states`, `state`. SSR needs one `state` read. The handle `{ state, invoke }` is therefore: *enter by key* and *read once*; continuous observation (`states`) is not in it and is used by one binding.
+4. **What `Running`'s `{ state, invoke }` represents.** The contact surface of the application for code that is neither the definition nor a MESH render. The *entries* (the `app/*` keys, and which commands they bind) are application semantics: the author decides what an outside caller may do. The *handle* that carries them is plumbing. Its demonstrated users are exclusively platform bindings and tests (including headless hosts).
+5. **Not demonstrated:** any author-written host code, or any external state read that is not a binding. Whether `state` has a use beyond SSR and history is open.
+6. **A hazard common to every producer, not specific to a shape:** a synchronous callback turned into entries needs ordering, failure handling, and a Scope. `Web.history` solves this with a queue and one follower; the example does the minimum and does not. Nothing here adds a concept; it says what any producer carries.
+
+### Answers
+- **Is the external face an application concept or integration plumbing?** Both: the entries are the application's; the handle is plumbing.
+- **Can the public API decision be made?** The architecture is determined; one question that the code cannot answer remains.
+- **The one remaining unknown:** *who is the audience of `{ state, invoke }`: only Valance's own bindings (then it can stay internal, and B composes them), or code others write (a custom producer, a headless host, another platform)?* The example shows such code is trivial to write when handed `invoke`; whether VALANCE supports it is product intent, not something the architecture decides.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
