@@ -18,13 +18,13 @@ export interface Served<S> {
 }
 
 /** Starts the application, renders it once, and ends it. No target object, no DOM. */
-export const renderToHtml = <S, E, R extends Ambient>(
-  app: ApplicationDefinition<S, E, R>,
+export const renderToHtml = <S, E, R extends Ambient, V extends string>(
+  app: ApplicationDefinition<S, E, R, V>,
   options: StartOptions<S> & { readonly primitives: WebPrimitives }
 ): Effect.Effect<Served<S>, StartError | Mesh.MeshDiagnostics> =>
   Effect.scoped(Effect.gen(function* () {
     const running = yield* start(app, options);
-    const render = yield* running.render;
+    const viewed = yield* running.render;
 
-    return { html: realizeHtml(render.tree, options.primitives), state: yield* running.state };
+    return { html: realizeHtml(viewed.render.tree, options.primitives), state: yield* running.state };
   }));

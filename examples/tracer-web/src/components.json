@@ -35,6 +35,9 @@
       "commands": {
         "increment": {
           "parameters": []
+        },
+        "goAbout": {
+          "parameters": []
         }
       },
       "scope": {
@@ -52,10 +55,17 @@
     "about": {
       "props": {},
       "events": {},
-      "commands": {},
+      "commands": {
+        "goHome": {
+          "parameters": []
+        }
+      },
       "scope": {
         "title": {
           "kind": "string"
+        },
+        "count": {
+          "kind": "number"
         }
       }
     }

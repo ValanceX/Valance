@@ -3,7 +3,7 @@
 The application-composition boundary over [NEXUS](https://github.com/ValanceX/Nexus) (behavior), [MESH](https://github.com/ValanceX/Mesh) (template semantics) and [PORT](https://github.com/ValanceX/Port) (target realization). **0.0.1, a guarded tracer bullet: the API is a hypothesis.**
 
 ```ts
-const app = Valance.define({ name, program, state: { schema, initial }, scope, commands });
+const app = Valance.define({ name, state: { schema, initial }, views: { counter: { program, scope }, about: { program, scope } }, view: (state) => /* program for this state */, commands });
 
 // server
 const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }));

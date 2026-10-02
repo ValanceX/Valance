@@ -6,7 +6,7 @@ import { Clock, Effect, Exit, Layer, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { application, primitives } from "../src/app.js";
-import { compileProgram } from "../src/compile.js";
+import { compilePrograms } from "../src/compile.js";
 import { load, until } from "./helpers.js";
 
 // A complete Clock (sleep included) that reads `n`.
@@ -17,11 +17,11 @@ const fixed = (n: number): Clock.Clock => {
 };
 const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.setClock(fixed(42)));
 
-const clickHandler = (render: Nexus.Mesh.Render): string => (render.tree.root as unknown as { children: ReadonlyArray<{ events: { click: string } }> }).children[1]!.events.click;
+const clickHandler = (viewed: Valance.Viewed): string => (viewed.render.tree.root as unknown as { children: ReadonlyArray<{ events: { click: string } }> }).children[1]!.events.click;
 
 describe("lifecycle", () => {
   it("platform services reach application behavior, and never the caller (NEXUS I44, through Valance)", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     const page = load("");
     const callerClocks: Array<number> = [];
     const observe = Effect.flatMap(Clock.currentTimeMillis, (t) => Effect.sync(() => { callerClocks.push(t); }));
@@ -45,7 +45,7 @@ describe("lifecycle", () => {
   });
 
   it("closing the caller's scope ends Valance's follower, unmounts the target, then ends the application", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     const page = load("");
     let out!: { running: Valance.Running<unknown, unknown, never>; mounted: Valance.Mounted<unknown> };
 
@@ -64,7 +64,7 @@ describe("lifecycle", () => {
   });
 
   it("Application.shutdown ends the render follower cleanly; the target stays until the scope closes", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     const page = load("");
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
@@ -79,7 +79,7 @@ describe("lifecycle", () => {
   });
 
   it("a commit between subscription and first render is not lost (NEXUS `values`)", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     const page = load("");
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
@@ -87,15 +87,15 @@ describe("lifecycle", () => {
       const initial = yield* running.render;
       let committed = false;
       // The host's first element arrives (subscription made, first render about to be produced), and a click commits.
-      const racing: typeof running = { ...running, host: { ...running.host, values: Stream.tap(running.host.values, () => Effect.suspend(() => {
+      const racing: typeof running = { ...running, values: Stream.tap(running.values, () => Effect.suspend(() => {
         if (committed) {
           return Effect.void;
         }
 
         committed = true;
 
-        return Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.host.dispatch(initial, clickHandler(initial)))).pipe(Effect.asVoid);
-      })) } };
+        return Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.dispatch(initial, clickHandler(initial)))).pipe(Effect.asVoid);
+      })) };
       yield* Valance.mount(racing, Web.target({ container: page.container, primitives }));
       yield* Effect.promise(() => until(() => page.container.textContent!.startsWith("1 clicks")));
 
@@ -104,7 +104,7 @@ describe("lifecycle", () => {
   });
 
   it("initial render + immediate state change never leaves state 1 and DOM 0 (repeated, at several offsets)", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     let stale = 0;
     let runs = 0;
 
@@ -115,7 +115,7 @@ describe("lifecycle", () => {
         await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
           const running = yield* Valance.start(app);
           const initial = yield* running.render;
-          const commit = () => { void Nexus.Runtime.run(running.nexus.runtime, running.host.dispatch(initial, clickHandler(initial))); };
+          const commit = () => { void Nexus.Runtime.run(running.nexus.runtime, running.dispatch(initial, clickHandler(initial))); };
 
           if (offset < 0) {
             commit();

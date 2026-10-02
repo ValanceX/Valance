@@ -21,3 +21,9 @@ as "reviewed only".
 - No `any`; no `ApplicationDefinition.environment` / `CapabilitySource`.
 - No application code mutating the target. The only path to the target is state → render → PORT.
 - No compat shims. (None were needed; if one appears it is documented in `FINDINGS.md`.)
+
+## Added for stage 2 (written before the multi-view code)
+
+- **C8.** One `Valance.start` per application, however many MESH programs it shows; route state lives in application state; the active program is derived from it.
+- **C9.** A program change is PORT's `draw` (continuity is the composer's fact); Valance never asks PORT to `update` across programs.
+- No `@valancex/router`, route DSL, navigation registry, or route lifecycle; no second application to simulate navigation.

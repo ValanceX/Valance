@@ -1,27 +1,35 @@
 // Build time and "the server", in Node: MPRX → template-v1 (published MESH compiler), then the application
-// rendered to HTML through @valancex/valance/web/server. The page receives the program, the server's HTML and
-// the state the server embedded: what a real page load carries. The browser never compiles MPRX.
+// rendered to HTML for two request paths through @valancex/valance/web/server. The page receives the programs,
+// each path's server HTML and the state the server embedded: what a real page load carries. The browser never
+// compiles MPRX. What a request URL means (`stateFor`) is the application's.
 import type { TestProject } from "vitest/node";
 
 import { renderToHtml } from "@valancex/valance/web/server";
 import { Effect } from "effect";
 
-import { application, primitives } from "../src/app.js";
-import { compileProgram } from "../src/compile.js";
+import { application, primitives, stateFor } from "../src/app.js";
+import type { AppState, Programs } from "../src/app.js";
+import { compilePrograms } from "../src/compile.js";
+
+export interface Served {
+  readonly html: string;
+  readonly state: AppState;
+}
 
 export default async function setup(project: TestProject): Promise<void> {
-  const program = await compileProgram();
-  const served = await Effect.runPromise(renderToHtml(application(program), { primitives }));
+  const programs = await compilePrograms();
+  const app = application(programs);
+  const serve = (state: AppState): Promise<Served> => Effect.runPromise(renderToHtml(app, { primitives, state }));
 
-  project.provide("page", { program, html: served.html, state: served.state });
+  project.provide("page", {
+    programs,
+    home: await serve(stateFor("/")),
+    about: await serve({ ...stateFor("/about"), count: 3 }),
+  });
 }
 
 declare module "vitest" {
   export interface ProvidedContext {
-    page: {
-      readonly program: { readonly root: string; readonly templates: ReadonlyArray<string>; readonly model: string };
-      readonly html: string;
-      readonly state: { readonly title: string; readonly count: number; readonly stamp: number };
-    };
+    page: { readonly programs: Programs; readonly home: Served; readonly about: Served };
   }
 }

@@ -1,5 +1,8 @@
 // The tracer's application, written against Valance. It names NEXUS for behavior (state, commands, Clock)
 // and nothing of MESH hosts or PORT: the Web realization table is target configuration, below.
+//
+// One application, one NEXUS state, two MESH programs. Which program is shown is a function of the state:
+// `path` is application state, and `view` maps it to a program. Navigation is an ordinary NEXUS command.
 import type { Mesh } from "@valancex/nexus";
 
 import * as Valance from "@valancex/valance";
@@ -7,22 +10,40 @@ import * as Web from "@valancex/valance/web";
 import * as Nexus from "@valancex/nexus";
 import { Clock, Effect, Schema } from "effect";
 
-export const Counter = Schema.Struct({ title: Schema.String, count: Schema.Number, stamp: Schema.Number });
-export type Counter = Schema.Schema.Type<typeof Counter>;
+export const AppState = Schema.Struct({ title: Schema.String, count: Schema.Number, stamp: Schema.Number, path: Schema.String });
+export type AppState = Schema.Schema.Type<typeof AppState>;
 
-export const initial: Counter = { title: "Tracer", count: 0, stamp: 0 };
+export const initial: AppState = { title: "Tracer", count: 0, stamp: 0, path: "/" };
 
-export const application = (program: Mesh.Program) => Valance.define({
+/** What a request URL means: the state the application starts in. The server and the client both start from it. */
+export const stateFor = (path: string): AppState => ({ ...initial, path });
+
+export interface Programs {
+  readonly counter: Mesh.Program;
+  readonly about: Mesh.Program;
+}
+
+export const application = (programs: Programs) => Valance.define({
   name: "tracer-web",
-  program,
-  state: { schema: Counter, initial },
-  scope: ({ title, count, stamp }) => ({ title, count, stamp }),
+  state: { schema: AppState, initial },
+  views: {
+    counter: { program: programs.counter, scope: ({ title, count, stamp }) => ({ title, count, stamp }) },
+    about: { program: programs.about, scope: ({ title, count }) => ({ title, count }) },
+  },
+  // Route state is application state; the active program is derived from it.
+  view: (state) => state.path === "/about" ? "about" : "counter",
   commands: (state) => {
     // Behavior: the platform's Clock (application code sees it; the caller never does).
     const increment = Nexus.Command.define("counter.increment", Schema.Struct({}), () =>
       Effect.flatMap(Clock.currentTimeMillis, (stamp) => state.update((current) => Effect.succeed({ ...current, count: current.count + 1, stamp }))).pipe(Effect.asVoid));
+    const navigate = Nexus.Command.define("app.navigate", Schema.Struct({ path: Schema.String }), ({ path }) =>
+      state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.asVoid));
 
-    return { "counter/increment": Nexus.Mesh.bind(increment, () => ({})) };
+    return {
+      "counter/increment": Nexus.Mesh.bind(increment, () => ({})),
+      "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about" })),
+      "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/" })),
+    };
   },
 });
 

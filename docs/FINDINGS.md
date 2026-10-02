@@ -1,77 +1,73 @@
 # Tracer findings: `@valancex/valance` 0.0.1
 
-*Evidence base: NEXUS 0.9.0, MESH runtime/compiler 0.6.0, PORT Web 0.2.1, all from npm; Node 22; Chromium 1194 via Playwright 1.56.1. No substrate source was changed.*
-Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).
+*Evidence base: NEXUS 0.10.0 (packed from the NEXUS branch, unpublished; see `vendor/`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
 
-## What ran
+## Stage 1: the first-render observation boundary (fixed in NEXUS)
+
+**Defect.** Tracer 1 rendered the current state and then subscribed to `renders` (future commits only). A commit in between left state `count: 1` and the DOM at `0 clicks` (100/100 runs of the probe). Valance first compensated (subscribe first, hold what arrives before the first draw): a Valance-specific workaround for a substrate gap.
+
+**NEXUS 0.10.0 primitive: `values`** on `State`, `Selector` and `Mesh.Host`. The current value (or its render) at subscription, then every later commit, in order; one atomic step, built on the `SubscriptionRef.changes` mechanism `changes` already used (which dropped the first element). `changes` and `renders` are unchanged. Nothing was added to fibers, runtime or scope; J1/P1 are untouched.
+
+**Tests (NEXUS `tests/observation.test.ts`, `tests/mesh.test.ts` 5b).** The two-step gap is reproduced (observer holds 0, state is 1); commits racing the subscription at 16 relative timings are always a contiguous run ending at the last commit, with the subscription provably landing at different points; a slow consumer misses nothing; a commit between subscription and first render is rendered next. Replacing `values` with read-then-subscribe fails the race and slow-consumer tests. All 483 earlier NEXUS tests pass unmodified (492 total).
+
+**Valance.** The hold-back is deleted. The first element of `running.values` is the first draw or hydration; later ones are updates. The permanent test runs "initial render + immediate state change" 100 times at five offsets: state 1 / DOM 0 never occurs. Chromium passes.
+
+## Stage 2: one application, several MESH programs
+
+**Model tested.** The definition has `views` (`{ program, scope }` each) and `view(state)`. Route state is application state (`path`); `view` derives the program from it; navigation is an ordinary NEXUS command (`app.navigate`) bound from a MESH intent in each program. One `Valance.start`; one NEXUS state; one command table. No router, no navigation abstraction, no second application.
+
+**Exact tracer behavior** (`test/multiview.test.ts`, jsdom; `browser/`, Chromium with real clicks):
 
 ```text
-application = Valance.define({ program, state, scope, commands })        data; starts nothing
-server  renderToHtml(app) ─ start ─▶ MESH render-v1 ─▶ PORT Web realizeHtml ─▶ HTML (+ state for the page)
-client  start(app, {platform, state}) ─▶ hydrate(running, Web.target) ─▶ PORT verify + adopt
-click ─▶ PORT report(handler) ─▶ Valance dispatches with the DRAWN render ─▶ MESH intent
-      ─▶ NEXUS command (platform Clock) ─▶ state ─▶ selector ─▶ MESH render ─▶ PORT update (same DOM nodes)
-scope close ─▶ follower interrupted ─▶ target unmounted ─▶ NEXUS application ended
+/  --Click,Click--> 2 clicks --About--> "About Tracer: 2 clicks" --Back--> 2 clicks --Click--> 3 clicks
+PORT operations:  draw, update, update,        draw,                   draw,         update
 ```
 
-Run in jsdom (`examples/tracer-web/test`, 8 tests) and in Chromium with a real click and SSR HTML produced in Node (`browser/`, 1 test). PORT's own browser tracer does not cover SSR or hydration; this one does.
-
-## Answers
-
-| Question | Answer, from the run |
+| Observation | Result |
 |---|---|
-| **What is a Valance application?** | Plain data: `name`, MESH `program` (compiled templates + manifest text), one NEXUS `state` (schema + initial), `scope` (state → MESH snapshot) and `commands` (state → `"component/name"` → NEXUS binding). No target, no platform. |
-| **What does `start` do?** | Calls `Nexus.Application.start` (supplying `platform`), `createState`, and builds the `Mesh.host`. Returns `Running`. Nothing is drawn. It needs the caller's `Scope`. |
-| **Ownership** | Create + start: `Valance.start`. Lifetime: the caller's Scope. Platform: the caller, as a `start` option (NEXUS D30). Render/update orchestration: `Valance.mount`/`hydrate` (a scope-owned follower fiber + the target). Shutdown: scope close, or `Application.shutdown(running.nexus)`. |
-| **How does behavior enter NEXUS?** | The definition's `commands(state)` returns NEXUS commands bound to MESH intents; `start` creates the state in the application's own runtime scope. Event dispatch runs in the application runtime (`Runtime.runFork`), so platform FiberRefs apply to it. |
-| **NEXUS ↔ MESH boundary** | `Mesh.host` (NEXUS). Valance adds nothing to it; MESH only ever sees a snapshot and returns render-v1. |
-| **How does render-v1 reach PORT?** | `Target.draw/hydrate/update(tree)` with MESH's tree untouched. Tripwire `render.test.ts` compares it with a direct `mesh-runtime.render` of the same snapshot. |
-| **Does Valance know anything target-specific?** | Core (`.`): no. It knows PORT's contract shape (draw/update/unmount, optional hydrate), which PORT's CONTRACT.md already makes universal, and it knows program continuity and the drawn render, which that contract assigns to the composer. `./web` only forwards `container`/`primitives` and the report callback to `createWebPort`. |
-| **SSR: who owns what?** | PORT: HTML (`realizeHtml`). Valance: choosing to start, render once, end (`renderToHtml`), returning the state. The application: serializing that state into the page. |
-| **Hydration: who owns what?** | PORT: verification, adoption, mismatch → fresh draw, and the result. Valance: calling it with the *client's* render and retaining that render; making the target available only after that. No second protocol. |
-| **Update path** | event → PORT report → Valance dispatch (drawn render) → MESH intent → NEXUS command → state → selector → `host.renders` → Valance follower → `target.update`. The application never touches the target (tripwire). |
-| **Lifetime** | start / run / update / shutdown as in the ownership row. Scope close ends things in reverse order of creation: follower, target, application. |
-| **Routing** | See below: not built; the probe says what it will need. |
+| Application lifetime | One start. Status `Running` at every step; the platform's scoped resource acquired once, released only when the scope closed (`{acquired: 1, released: 1}`). |
+| NEXUS state lifetime | Same state throughout. The count survived `/ → /about → /`, and the about program rendered it. |
+| MESH program switching | Valance renders each emitted *state* with the program `view(state)` selects. Replacing program A with B ended nothing in NEXUS. |
+| PORT | A render from the same view as the drawn one is `update` (same DOM elements); one from another view is `draw` (new elements). Program continuity is "same view", known to Valance because it chose the program. No PORT change. |
+| PORT, probed | An `update` across programs happened to produce correct DOM and a replaced section, because MESH keys are disjoint between these programs. PORT's contract calls that meaningless and permits overlapping keys, so it is not relied on. |
+| SSR | The request path is the initial application state (`stateFor(path)`, the application's); `renderToHtml` then selects the program: `/` → counter HTML, `/about` → about HTML. |
+| Hydration | Both `/` and `/about` server HTML adopt (jsdom and Chromium). The first program change then draws afresh: no adopted server node survives. In Chromium, `/about` (server count 3) → Back → Click → About carried 3 → 4 across both switches, with behavior under the platform Clock and none of it visible to the caller. |
 
-## Confirmed
+## Architecture findings
 
-1. **`@valancex/valance` can compose the real NEXUS 0.9 + MESH 0.6 + PORT Web 0.2 path**, including SSR → hydration → interaction → update, in Node, jsdom and Chromium, with no mock of any substrate.
-2. **J1 is closed in NEXUS 0.9.0** and holds through Valance: the platform's Clock (42) is seen by application behavior and by nothing in the caller, before, during and after, with Valance's follower and dispatch fibers in play (`lifecycle.test.ts`; Chromium).
-3. **MESH and PORT acquired no dependency on NEXUS or Valance.** PORT Web depends on `@valancex/mesh-runtime` only; the MESH runtime on nothing (`boundaries.test.ts`).
-4. **The composer's obligations are real and belong to Valance's layer, not a substrate**: program continuity, retaining the drawn render, hydrating with the client's render. Previously this lived in a *test file* (`Port/integration/test/compose.ts`).
-5. **The Web realization table is target configuration, not application.** The definition never mentions it; `primitives` is passed to `Web.target`/`renderToHtml`.
-6. **A real defect at the composition boundary, found by running it.** NEXUS `renders` is future-only (State.changes drops the replayed value), and the test composer took the first render *then* subscribed. A commit during that window reached state but never the DOM: state `count: 1`, DOM `0 clicks`, 100/100 runs. Valance now subscribes first and holds the render that arrives before the first draw. Both halves are pinned by a test that fails without them (mutation-checked).
+### Confirmed (demonstrated by the tracers)
+1. The composition works through SSR, hydration, interaction and update, on both programs, in Node, jsdom and Chromium.
+2. **Atomic current-and-follow is a NEXUS capability, and with it the first-render race cannot occur** (Stage 1 evidence).
+3. **One Valance application can own several MESH programs and keep its state across switches.** Application, state, platform resources and command bindings all outlive a program change.
+4. **Route state is application state, and the active program is a function of it.** No state had to live outside the application.
+5. **A program change is a PORT `draw`, not an `update`**, and Valance, as composer, is where that is known. MESH and PORT needed no change.
+6. **The request URL means initial application state**, and hydration of the selected view works for both programs.
+7. Dependency boundaries held: MESH and PORT Web gained no dependency on NEXUS or Valance; Valance core names nothing Web-specific.
+8. The earlier "view switch = end one application and start another, state lost" probe is superseded: it described the wrong model.
 
-## Likely
+### Likely (strong implications, not proven)
+- `path` ↔ `view` is *application* logic. The tracer needed no router to switch, SSR or hydrate; what a router would add is URL ↔ state synchronization (history, links), which this tracer did not touch.
+- The NEXUS Mesh adapter has no "render this snapshot" entry: a host renders its scope's *current* value. Valance renders each emitted state through a one-shot constant-scope host to keep the stream exact (`Valance.start`, `renderOf`). It works and is small; it suggests the adapter's render-from-a-value operation wants to be public rather than reached through a throwaway host. One data point.
+- The per-view hosts Valance keeps exist only to dispatch. Rendering and dispatching are different jobs that the adapter bundles into one `Host`.
+- `Running.nexus` should not be public (unchanged).
 
-- Valance should own `renderToHtml`/`mount`/`hydrate`-style orchestration permanently; each is one function today. Whether they stay three functions or become `start({ target })` is not yet determined.
-- `Running.nexus` should not be public. The tests needed it (`Application.shutdown`, `Runtime.runFork`), the application author did not.
-- The commit window is only *narrowed* by subscribe-first: it depends on Effect running the forked follower's subscription before the first render resolves. Nothing in NEXUS's contract guarantees it.
+### Unresolved (another experiment needed)
+- **URL synchronization:** who reflects `path` to `history`, and who turns a `popstate`/link into `app.navigate`? Not exercised: the tracer navigated only through MESH intents.
+- **Links are buttons here.** MESH/PORT have no link primitive; whether navigation needs one (and where it lives) is open.
+- **Unknown paths:** `view` maps anything not `/about` to the counter. Not-found is not modeled.
+- **Navigation vs. in-flight events:** a click reported on program A's tree after the application switched to B dispatches against A's render and A's table entry (by construction), but this was not exercised under a race.
+- **Failure policy** (render/dispatch diagnostics) as before; O15 as before.
+- Not exercised: shared state shape across views that need different state, per-view state, nested/layout views, async loading, a production bundle, concurrent interactions.
 
-## Unresolved
-
-- **NEXUS gap (recommended change): an atomic "current value, then changes"** on `Selector`/`Mesh.Host` (SubscriptionRef already gives it; `State.changes` removes it). That makes the first-render window impossible instead of unlikely.
-- **O15 stands.** Rendering and dispatch are outside NEXUS admitted work. Valance ties its follower to the caller's Scope, but `Application.shutdown` alone ends the follower (cleanly, observed) and leaves the target mounted until the scope closes.
-- **Failure policy.** A failed dispatch is recorded in `Mounted.dispatched`; a failed render/update kills the follower and is visible only through `Mounted.followed`. Nothing reports either to the user. A diagnostics design is not justified yet, but silence is not a design.
-- **Routing, from the probe (`route-probe.test.ts`).** MPRX has no conditionals, so a view is a MESH *program*; a view switch is therefore a PORT *draw afresh*, which only the composer may decide. Today that is "end one Valance application's scope, start another": the previous view's state does not survive (0 clicks after returning). So route state must live above a single application's state, and whichever layer owns it must also own program switching (continuity). That points at *Valance*, not NEXUS/MESH/PORT, but the shape (one application with N programs vs N applications with shared state) is not decided by one data point.
-- **Who calls `init()` for the MESH WASM engine in browsers?** Currently the page. Likely Valance/web later; not justified yet.
-- **Duplicated vocabulary:** the manifest declares primitives (`page`, `text`, `button`), and the `primitives` table realizes them. Nothing checks they agree until render time (PORT reports unknown/unsupported).
-- **Not exercised:** M1 pairing with a *distinguishing* intent (the tracer's `increment` takes no arguments; PORT's integration covers it); the application `runtime` Layer/services (Valance passes `Layer.empty`); more than one capability; concurrent interactions during a render; a production bundle; `Application.start` failure paths through Valance.
-- Stale metadata observed in PORT: `integration/package.json` still declares `@valancex/nexus ^0.8.1`, while its README and the NEXUS 0.9 notes describe 0.9. Not changed here.
-
-## Where things belong
+## Where things belong (updated)
 
 | | Owns |
 |---|---|
-| **Valance** | The application definition (data); `start`; follower + dispatch orchestration; program continuity; drawn-render retention; choosing when to hydrate; lifetime via Scope; the `./web` target forwarding and `renderToHtml`. |
-| **NEXUS** | Application lifecycle, state, commands, events, platform/capabilities, FiberRef isolation, `Mesh.host`. Candidate change: atomic snapshot-and-follow. |
-| **MESH** | Compiler, manifest, templates, render-v1, intents. Unchanged; it cannot express a route. |
-| **PORT** | Realization, `realizeHtml`, hydrate verification/adoption/mismatch, event resolution, value realization. Unchanged. |
+| **Valance** | Definition (state, views, `view`, commands), `start`, the follower, program continuity (same view → update, other view → draw), drawn-render retention, `renderToHtml`/hydrate choice, lifetime via Scope. |
+| **NEXUS** | Application lifecycle, state, commands, platform, FiberRef isolation, `Mesh.host`, and now atomic `values`. Candidate: render-from-a-value in the adapter. |
+| **MESH** | Compiler, manifest, templates, render-v1, intents. Unchanged; one manifest served both programs. |
+| **PORT** | Realization, `realizeHtml`, hydrate, event resolution. Unchanged. |
+| **Application** | Route state in its state, `path → view`, request URL → initial state, embedding state in the page. |
 
-## Not extracted yet (the tracer did not justify these)
-
-Router; one-application-many-programs model; platform helpers or a registry; `runtime` services layer in the definition; diagnostics/error-reporting framework; state serialization/embedding helper; WASM `init` helper; a `Target` registry or other targets; a CLI/dev server; a combined `start({ target })`.
-
-## Recommended next move
-
-**Fix the substrate gap and probe routing with one real use, in that order.** (1) Ask NEXUS for an atomic current-and-follow on the selector/host, then delete Valance's hold-and-catch-up. (2) Add a two-view tracer (`/` counter, `/about`) where route state is shared across the switch, to decide whether it is one Valance application with N programs or N applications; do not build a router until that choice is forced by code.
+## Not extracted (still unjustified)
+Router package, route DSL, navigation registry/lifecycle, link primitive, URL/history sync helper, layouts/nesting, loaders, per-view state, diagnostics framework, WASM `init` helper, other targets.

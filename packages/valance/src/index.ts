@@ -21,20 +21,28 @@ import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "eff
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;
 
-export interface ApplicationDefinition<S, E, R extends Ambient> {
-  readonly name: string;
+/** One MESH program the application can show, and the manifest-shaped values it is rendered from. */
+export interface View<S> {
   /** MESH program: templates compiled at build time, and the manifest's text. */
   readonly program: Nexus.Mesh.Program;
+  /** State → the program root's scope values, shaped to the manifest. */
+  readonly scope: (state: S) => Record<string, unknown>;
+}
+
+export interface ApplicationDefinition<S, E, R extends Ambient, V extends string> {
+  readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
   readonly state: { readonly schema: Schema.Schema<S>; readonly initial: S };
-  /** State → the MESH root's scope values, shaped to the manifest. */
-  readonly scope: (state: S) => Record<string, unknown>;
-  /** Behavior: NEXUS commands over the state, bound to MESH command intents ("component/name"). */
+  /** The MESH programs the application can show. The application's state outlives a change of program. */
+  readonly views: { readonly [K in V]: View<S> };
+  /** Which program the current state shows. A function of application state: what the active view is, is the application's. */
+  readonly view: (state: S) => V;
+  /** Behavior: NEXUS commands over the state, bound to MESH command intents ("component/name"), for every view. */
   readonly commands: (state: Nexus.State.StateHandle<S>) => Readonly<Record<string, Nexus.Mesh.Binding<E, R>>>;
 }
 
 /** The definition, typed. An application is data: defining one starts nothing. */
-export const define = <S, E, R extends Ambient>(definition: ApplicationDefinition<S, E, R>): ApplicationDefinition<S, E, R> => definition;
+export const define = <S, E, R extends Ambient, V extends string>(definition: ApplicationDefinition<S, E, R, V>): ApplicationDefinition<S, E, R, V> => definition;
 
 export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError;
 
@@ -45,11 +53,20 @@ export interface StartOptions<S> {
   readonly state?: S;
 }
 
+/** A MESH render, and which view's program made it. Program continuity is "same view as the drawn one". */
+export interface Viewed {
+  readonly view: string;
+  readonly render: Nexus.Mesh.Render;
+}
+
 export interface Running<S, E, R extends Ambient> {
   readonly nexus: Nexus.Application.RunningApplication<never>;
-  readonly host: Nexus.Mesh.Host<E, R>;
-  /** The current MESH render. */
-  readonly render: Effect.Effect<Nexus.Mesh.Render, Nexus.Mesh.MeshDiagnostics>;
+  /** The render of the current state, in the view the current state selects. */
+  readonly render: Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics>;
+  /** The render of the state current at subscription, then one per later commit, in order, with no gap (NEXUS `State.values`). */
+  readonly values: Stream.Stream<Viewed, Nexus.Mesh.MeshDiagnostics>;
+  /** Dispatches an event against exactly the render it was reported on, through its own view's command table. */
+  readonly dispatch: (viewed: Viewed, handler: string, payload?: BoundaryValue) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E, R>;
   /** The application's state, read only. */
   readonly state: Effect.Effect<S>;
 }
@@ -58,14 +75,35 @@ export interface Running<S, E, R extends Ambient> {
  * Starts the application. Its lifetime is the caller's `Scope`: closing it, or `Application.shutdown(running.nexus)`,
  * ends the application and its state. Valance keeps nothing that outlives that scope.
  */
-export const start = <S, E, R extends Ambient>(app: ApplicationDefinition<S, E, R>, options: StartOptions<S> = {}): Effect.Effect<Running<S, E, R>, StartError, Scope.Scope> =>
+export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<Running<S, E, R>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
     const nexus = yield* Nexus.Application.start(definition, options.platform === undefined ? undefined : { platform: options.platform });
     const state = yield* Nexus.Application.createState(nexus, app.state.schema, options.state ?? app.state.initial);
-    const host = Nexus.Mesh.host<E, R>({ program: app.program, scope: Nexus.Selector.define(state, app.scope), commands: app.commands(state) });
+    const commands = app.commands(state);
+    // One host per view, used to dispatch (render, handler) → intent → command. The one NEXUS state is shared by all of them.
+    const hosts = new Map<string, Nexus.Mesh.Host<E, R>>(Object.entries<View<S>>(app.views).map(([name, view]) => [name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands })]));
+    // The render of one given state. The adapter renders a host's scope value, not a value it is handed, and a
+    // sequential stream must render each emitted state exactly: a constant scope does that.
+    const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> => {
+      const view = app.view(value);
+      const snapshot = app.views[view].scope(value);
+      const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
 
-    return { nexus, host, render: host.render, state: state.get };
+      return Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render.pipe(Effect.map((render) => ({ view, render })));
+    };
+
+    return {
+      nexus,
+      render: Effect.flatMap(state.get, renderOf),
+      values: Stream.mapEffect(state.values, renderOf),
+      dispatch: (viewed, handler, payload) => {
+        const host = hosts.get(viewed.view);
+
+        return host === undefined ? Effect.die(new Error(`no view named ${viewed.view}`)) : host.dispatch(viewed.render, handler, payload);
+      },
+      state: state.get,
+    };
   });
 
 /** Reports what the user did: PORT's handler identifier and payload. */
@@ -105,38 +143,44 @@ const connect = <S, E, R extends Ambient, T extends Target, A>(
   Effect.gen(function* () {
     const scope = yield* Effect.scope;
     // The render whose tree is drawn: the only render an event may be dispatched with (NEXUS M1, M2).
-    const drawn: { render: Nexus.Mesh.Render | undefined } = { render: undefined };
+    const drawn: { current: Viewed | undefined } = { current: undefined };
     const dispatched: Array<DispatchExit<E>> = [];
     const pending: Array<Fiber.RuntimeFiber<unknown, never>> = [];
 
     const target = create((handler, payload) => {
-      const render = drawn.render;
+      const render = drawn.current;
 
       if (render === undefined) {
         throw new Error("the target reported an interaction before anything was drawn");
       }
 
       // Runs inside the application (its platform's FiberRefs apply), but nothing flows back (NEXUS I44).
-      pending.push(Nexus.Runtime.runFork(running.nexus.runtime, Effect.exit(running.host.dispatch(render, handler, payload)).pipe(
+      pending.push(Nexus.Runtime.runFork(running.nexus.runtime, Effect.exit(running.dispatch(render, handler, payload)).pipe(
         Effect.tap((exit) => Effect.sync(() => { dispatched.push(exit); }))
       )));
     });
 
-    // `host.values` is the render of the current state, then one per later commit, atomically (NEXUS 0.10): the
-    // first element is the first draw (or hydration), every later one an update, and no commit can fall between.
+    // `running.values` is the render of the current state, then one per later commit, atomically (NEXUS 0.10): the
+    // first element is the first draw (or hydration), no commit can fall between. A later render of the SAME view is
+    // the same program: update. One of ANOTHER view is another program, and only the composer knows that: draw afresh.
     // The follower is Valance's fiber, not NEXUS's (O15): the caller's scope owns it.
     const firstDone = yield* Deferred.make<A, Nexus.Mesh.MeshDiagnostics>();
-    const follower = yield* Stream.runForEach(running.host.values, (render) => Effect.suspend(() => {
-      if (drawn.render !== undefined) {
-        target.update(render.tree);
-        drawn.render = render;
+    const follower = yield* Stream.runForEach(running.values, (viewed) => Effect.suspend(() => {
+      if (drawn.current !== undefined) {
+        if (drawn.current.view === viewed.view) {
+          target.update(viewed.render.tree);
+        } else {
+          target.draw(viewed.render.tree);
+        }
+
+        drawn.current = viewed;
 
         return Effect.void;
       }
 
       // Draw or hydrate, and retain the render, in one synchronous step: no event can be reported in between.
-      const result = first(target, render.tree);
-      drawn.render = render;
+      const result = first(target, viewed.render.tree);
+      drawn.current = viewed;
 
       return Deferred.succeed(firstDone, result);
     })).pipe(

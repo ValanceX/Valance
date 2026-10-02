@@ -8,18 +8,18 @@ import { renderToHtml } from "@valancex/valance/web/server";
 import { Effect, Exit } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { Counter, application, initial, primitives } from "../src/app.js";
-import { compileProgram } from "../src/compile.js";
+import { AppState, application, initial, primitives } from "../src/app.js";
+import { compilePrograms } from "../src/compile.js";
 import { load, until } from "./helpers.js";
 
 const text = (root: Element): string => root.querySelector("span")!.textContent!;
 
 describe("tracer: SSR → hydrate → event → state → render → update", () => {
   it("runs the whole lifecycle the substrates support", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     const served = await Effect.runPromise(renderToHtml(app, { primitives }));
 
-    expect(served.html).toBe('<section aria-label="Tracer"><span>0 clicks, last at 0</span><button>Click</button></section>');
+    expect(served.html).toBe('<section aria-label="Tracer"><span>0 clicks, last at 0</span><button>Click</button><button>About</button></section>');
 
     const page = load(served.html);
     const server = page.nodes();
@@ -48,14 +48,14 @@ describe("tracer: SSR → hydrate → event → state → render → update", ()
   });
 
   it("on a hydration mismatch PORT draws afresh, and the application carries on", async () => {
-    const app = application(await compileProgram());
+    const app = application(await compilePrograms());
     const served = await Effect.runPromise(renderToHtml(app, { primitives }));
     const page = load(served.html);
     const server = page.nodes();
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       // The client's state differs from the server's: PORT reports it, it does not guess.
-      const running = yield* Valance.start(app, { state: { ...initial, title: "Other" } satisfies Counter });
+      const running = yield* Valance.start(app, { state: { ...initial, title: "Other" } satisfies AppState });
       const mounted = yield* Valance.hydrate(running, Web.target({ container: page.container, primitives }));
 
       expect(mounted.hydration.adopted).toBe(false);

@@ -6,13 +6,14 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { application } from "../src/app.js";
-import { compileProgram } from "../src/compile.js";
+import { compilePrograms } from "../src/compile.js";
 import { until } from "./helpers.js";
 
 describe("render boundary", () => {
   it("the target receives MESH's own render-v1 of NEXUS's state, and updates come only from state", async () => {
-    const program = await compileProgram();
-    const app = application(program);
+    const programs = await compilePrograms();
+    const program = programs.counter;
+    const app = application(programs);
     const calls: Array<{ readonly op: "draw" | "update" | "unmount"; readonly tree?: unknown }> = [];
     let report!: Valance.Report;
     // A recording target: PORT's contract and nothing else.
