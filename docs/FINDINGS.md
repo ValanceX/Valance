@@ -372,6 +372,36 @@ The current implementation has a coherent behavior for this without any addition
 
 ---
 
+## Stage 10: SSR → hydration → keyed update
+
+**Question.** Does keyed DOM identity survive the server/client boundary: server HTML adopted by PORT's `hydrate`, then updated by application transitions?
+
+**Chain (existing machinery only).** `renderToHtml(app, { primitives, state })` in Node (`browser/setup.ts`, the "server") renders the catalog `home` view with `[A B C]`; the page puts that HTML in the document before anything starts; `Valance.start({ state: served.state })` and `Valance.hydrate` (PORT Web's `hydrate`) adopt it; later transitions are `Running.invoke` data changes and a MESH click. No Valance, NEXUS, MESH or PORT change, no new API. `app.ts` is unchanged, and the test that it names no Web, PORT, `window`, `history` or `popstate` still passes.
+
+**Chromium evidence** (`browser/catalog.browser.test.ts`, Part 3; DOM objects compared, not text):
+
+| Step | Verified |
+|---|---|
+| Server output | rows Alpha, Beta, Gamma in order, three buttons (checked on a probe DOM before any script) |
+| Hydration | PORT reports `{ adopted: true }`; the three row elements and the `section` after hydration are the **server's own objects** (captured before the application started) |
+| `[A B C] → [C A B]` | `update`; A, B, C are the same adopted objects, in the new order |
+| `[C A B] → [A C D]` | `update`; A and C are the same adopted objects; B's server element is disconnected; D is a new element, not any earlier one |
+| keyed view → details | `draw`; the adopted `section` and every row are disconnected, no row exists in the new view |
+| Operations | `hydrate, update, update, draw` |
+| Adopted handlers | clicking the **server's own** Beta button dispatches `open(B)`: `hydrate, draw`; the adopted row is then gone |
+| Lifetime | platform resource `{1, 1}` |
+
+**Mutation check.** Making hydration replace the server DOM (clear the container, `draw`) while still reporting `adopted` fails the adoption test, on the server-node identity assertions. The other Chromium suites, 20 tests in all, and the 16 jsdom and 16 unit tests pass.
+
+**Result.** The keyed identity semantics held across the boundary with no friction found in the substrate: PORT's `hydrate` keeps every server node and the keyed `update` that follows matches them by key. Nothing needed to be weakened, and no cross-repository contract was violated.
+
+**Friction recorded, not acted on.**
+- The server's page needs the client's state: `renderToHtml` returns `state` and the page must carry it to `Valance.start` (here the harness passes it; a real page embeds it). The Application Model does not say how, and nothing in this tracer required it to.
+- Hydration was exercised for one served view only (`home`, with its list). A server-rendered `details` or `not-found` view hydrating a keyed list was not tried; neither contains a list.
+- Event replay and input made before hydration are PORT's documented non-goals and were not tested.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

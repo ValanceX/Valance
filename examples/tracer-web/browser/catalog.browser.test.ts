@@ -6,6 +6,8 @@
 //         reappearance. No history anywhere: the application runs without it.
 // Part 2: `Web.history` bound to the same union state through the application's own `urlOf` / `stateOf`.
 
+import type { WebPort } from "@valancex/port-web";
+
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Nexus from "@valancex/nexus";
@@ -18,7 +20,7 @@ import { beforeAll, describe, expect, inject, it } from "vitest";
 import { application, stateOf, urlOf, type AppState, type Item } from "../src/catalog/app.js";
 import { initialStateAt, primitives } from "../src/catalog/web.js";
 
-const { catalog } = inject("page");
+const { catalog, catalogServed } = inject("page");
 
 beforeAll(async () => { await init(wasmUrl); });
 
@@ -26,14 +28,15 @@ const item = (id: string): Item => ({ id, name: { A: "Alpha", B: "Beta", C: "Gam
 const items = (ids: string): ReadonlyArray<Item> => [...ids].map(item);
 const ABC = items("ABC");
 
-type Operation = "draw" | "update";
+type Operation = "hydrate" | "draw" | "update";
 
-const recording = (root: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.Target> => (report) => {
+const recording = (root: Element, operations: Array<Operation>): Valance.TargetFactory<WebPort> => (report) => {
   const port = Web.target({ container: root, primitives })(report);
 
   return {
     draw: (tree) => { operations.push("draw"); port.draw(tree); },
     update: (tree) => { operations.push("update"); port.update(tree); },
+    hydrate: (tree) => { operations.push("hydrate"); return port.hydrate(tree); },
     unmount: () => { port.unmount(); },
   };
 };
@@ -48,6 +51,8 @@ const countingPlatform = () => {
   return { platform, counts };
 };
 
+const rows = (main: Element): ReadonlyArray<Element> => [...main.querySelectorAll("div")];
+
 type Running = Valance.Running<AppState, unknown, never>;
 
 interface Context {
@@ -55,6 +60,11 @@ interface Context {
   readonly running: Running;
   readonly operations: Array<Operation>;
   readonly counts: { acquired: number; released: number };
+  /** The server's own row elements, captured before the application started (empty when nothing was served). */
+  readonly server: ReadonlyArray<Element>;
+  readonly serverSection: Element | null;
+  /** PORT's own report of what hydration did; undefined when the application was mounted, not hydrated. */
+  readonly hydration: unknown;
   /** Every binding key entered through `invoke`, from outside MESH: what history (and this test) asked of the application. */
   readonly invoked: Array<string>;
   readonly writes: Array<string>;
@@ -65,10 +75,13 @@ interface Context {
 }
 
 /** One application, started in a scope, mounted in Chromium. `history` binds `Web.history` to it; without it nothing touches `window.history`. */
-const run = async <A>(options: { readonly startUrl: string; readonly items?: ReadonlyArray<Item>; readonly history: boolean }, body: (context: Context) => Effect.Effect<A>) => {
+const run = async <A>(options: { readonly startUrl: string; readonly items?: ReadonlyArray<Item>; readonly history: boolean; readonly served?: typeof catalogServed }, body: (context: Context) => Effect.Effect<A>) => {
   window.history.replaceState(null, "", options.startUrl);
   const main = document.createElement("main");
+  main.innerHTML = options.served?.html ?? "";                            // the page as the server sent it, before any script runs
   document.body.append(main);
+  const server = rows(main);
+  const serverSection = main.firstElementChild;
   const operations: Array<Operation> = [];
   const invoked: Array<string> = [];
   const writes: Array<string> = [];
@@ -82,13 +95,17 @@ const run = async <A>(options: { readonly startUrl: string; readonly items?: Rea
   try {
     const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       // The application's policy, before anything starts: what the URL means, and its canonical form.
-      const state = options.history ? initialStateAt(window, options.items) : { view: "home" as const, items: options.items ?? ABC };
+      const state = options.served !== undefined ? options.served.state : options.history ? initialStateAt(window, options.items) : { view: "home" as const, items: options.items ?? ABC };
       const started = yield* Valance.start(application(catalog), { platform, state });
       const running = started as unknown as Running;
       // `invoke` is the one way in from outside MESH; recording it shows what enters the application and how.
       const watched: Running = { ...running, invoke: (key, args) => { invoked.push(key); return running.invoke(key, args); } };
 
-      yield* Valance.mount(watched, recording(main, operations));
+      const mounted = options.served === undefined ? undefined : yield* Valance.hydrate(watched, recording(main, operations));
+
+      if (options.served === undefined) {
+        yield* Valance.mount(watched, recording(main, operations));
+      }
 
       if (options.history) {
         yield* Web.history(watched, { window, urlOf, stateOf, navigate: "app/navigate" });
@@ -98,7 +115,7 @@ const run = async <A>(options: { readonly startUrl: string; readonly items?: Rea
       const initialWrites = [...writes];                                   // the application's own canonicalization, before Web.history
       writes.length = 0;
 
-      return yield* body({ main, running: watched, operations, counts, invoked, writes, initialWrites, entriesAtStart, external });
+      return yield* body({ main, running: watched, operations, counts, server, serverSection, hydration: mounted?.hydration, invoked, writes, initialWrites, entriesAtStart, external });
     })));
 
     return { result, counts, operations, writes };
@@ -111,7 +128,6 @@ const run = async <A>(options: { readonly startUrl: string; readonly items?: Rea
 
 const until = (check: () => boolean) => Effect.promise(async () => { await expect.poll(check).toBe(true); });
 const url = (): string => window.location.pathname;
-const rows = (main: Element): ReadonlyArray<Element> => [...main.querySelectorAll("div")];
 const rowOf = (main: Element, name: string): Element | undefined => rows(main).find((row) => row.querySelector("span")?.textContent === name);
 const order = (main: Element): ReadonlyArray<string | null | undefined> => rows(main).map((row) => row.querySelector("span")?.textContent);
 const clickRow = (main: Element, name: string) => Effect.promise(() => userEvent.click(rowOf(main, name)!.querySelector("button")!));
@@ -277,4 +293,80 @@ describe("Part 2: Web.history bound to the union state, through the application'
       expect(result.after).toEqual([]);
     });
   }
+});
+
+describe("Part 3: SSR → hydration → keyed update (server DOM, adopted, then updated by application transitions)", () => {
+  it("the server's keyed nodes are adopted, and keep their identity through reorder, removal and insertion; a view change draws afresh", async () => {
+    // What the server sent: the page's DOM exists before the application starts.
+    const probe = document.createElement("main");
+    probe.innerHTML = catalogServed.html;
+    expect(order(probe)).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(probe.querySelectorAll("div button")).toHaveLength(3);
+
+    const { result, counts, operations } = await run({ startUrl: "/", history: false, served: catalogServed }, ({ main, external, running, hydration, server, serverSection }) => Effect.gen(function* () {
+      const settle = (names: ReadonlyArray<string>) => until(() => JSON.stringify(order(main)) === JSON.stringify(names));
+      const el = (name: string) => rowOf(main, name);
+
+      // 1. Adoption (PORT's report), and the DOM is the server's.
+      expect(hydration).toEqual({ adopted: true });
+      const adopted = { A: el("Alpha")!, B: el("Beta")!, C: el("Gamma")! };
+      const sectionAdopted = main.firstElementChild;
+
+      // The server's own DOM objects ARE the hydrated ones: adopted, not replaced.
+      expect(server).toHaveLength(3);
+      expect([adopted.A, adopted.B, adopted.C]).toEqual([...server]);
+      expect(adopted.A).toBe(server[0]);
+      expect(adopted.B).toBe(server[1]);
+      expect(adopted.C).toBe(server[2]);
+      expect(sectionAdopted).toBe(serverSection);
+
+      // 2. [A B C] → [C A B]: the adopted server nodes survive, reordered.
+      yield* external("app/changeItems", items("CAB"));
+      yield* settle(["Gamma", "Alpha", "Beta"]);
+      expect(el("Alpha")).toBe(adopted.A);
+      expect(el("Beta")).toBe(adopted.B);
+      expect(el("Gamma")).toBe(adopted.C);
+      expect(main.firstElementChild).toBe(sectionAdopted);
+
+      // 3. [C A B] → [A C D]: A and C survive, B is removed, D is new.
+      yield* external("app/changeItems", items("ACD"));
+      yield* settle(["Alpha", "Gamma", "Delta"]);
+      expect(el("Alpha")).toBe(adopted.A);
+      expect(el("Gamma")).toBe(adopted.C);
+      expect(adopted.B.isConnected).toBe(false);
+      expect(el("Delta")).not.toBe(adopted.B);
+      expect([adopted.A, adopted.B, adopted.C].includes(el("Delta")!)).toBe(false);
+
+      // 4. A view change draws afresh: nothing of the keyed realization is reused by the other view.
+      const rowsBefore = rows(main);
+      yield* clickRow(main, "Delta");
+      yield* until(() => main.textContent?.startsWith("Item D: Delta") === true);
+      expect(main.firstElementChild).not.toBe(sectionAdopted);
+      expect(sectionAdopted!.isConnected).toBe(false);
+      expect(rowsBefore.every((row) => !row.isConnected)).toBe(true);
+      expect(rows(main)).toEqual([]);
+
+      return yield* running.state;
+    }));
+
+    expect(result).toEqual({ view: "details", items: items("ACD"), selectedId: "D" });
+    expect(operations).toEqual(["hydrate", "update", "update", "draw"]);
+    expect(counts).toEqual({ acquired: 1, released: 1 });
+  });
+
+  it("an adopted repeated node's handler is live: clicking the server's own Beta button opens Beta", async () => {
+    const { result, operations } = await run({ startUrl: "/", history: false, served: catalogServed }, ({ main, running, hydration }) => Effect.gen(function* () {
+      expect(hydration).toEqual({ adopted: true });
+      const beta = rowOf(main, "Beta")!;
+
+      yield* clickRow(main, "Beta");
+      yield* until(() => main.textContent?.startsWith("Item B: Beta") === true);
+      expect(beta.isConnected).toBe(false);
+
+      return yield* running.state;
+    }));
+
+    expect(result).toMatchObject({ view: "details", selectedId: "B" });
+    expect(operations).toEqual(["hydrate", "draw"]);
+  });
 });
