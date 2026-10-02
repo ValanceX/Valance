@@ -402,6 +402,175 @@ The current implementation has a coherent behavior for this without any addition
 
 ---
 
+## Stage 11: Application Model reassessment
+
+*An analysis, not an implementation. No source, test or substrate changed. Evidence is the code and the Stage 1 to 10 tracers on NEXUS 0.10.1, MESH 0.7.0, PORT Web 0.2.2 (one `mesh-runtime` 0.7.0, one Effect 3.22.2). Where a claim has no test behind it, it says so.*
+
+### 1. Proven model
+
+```text
+Application
+  one state            the NEXUS State made in `start`; read-only outside; changed only by NEXUS commands
+  derived view(state)  pure, total, evaluated on each committed state; never stored
+  one binding table    "key" -> command; entered from MESH intents and from outside, through one function
+  one scope            the caller's: platform resources, state, follower, target, platform bindings
+
+            state ──▶ view(state) ──▶ MESH program + scope values ──▶ render-v1 ──▶ PORT
+   same view as the one drawn   ──▶ update      (keyed identity continues)
+   another view                 ──▶ draw        (nothing of the old realization is reused)
+```
+
+Surrounding it, as bindings that need the application and that it does not need: a PORT target (`mount` / `hydrate`), browser history (`Web.history`), server rendering (`renderToHtml`). Each was removed in a tracer and the application still ran: Part 1 of the catalog Chromium test runs with no history; the first Application Model test runs with no DOM at all.
+
+### 2. Ownership map
+
+| Concern | Owner | Lifetime | Evidence |
+|---|---|---|---|
+| State | the application (a NEXUS `State` made in `start`) | the scope | `commands` built once over one handle across 6 transitions; `Running` has no write path |
+| Lifecycle | the caller's `Scope`, via `start` | what the caller says | platform resource `{1, 0}` through every transition, `{1, 1}` and status `Stopped` after |
+| Commands | the application (NEXUS `Command`s bound in one table) | the scope | one table served MESH intents, `app/*` entries and popstate |
+| View selection | the application (`view(state)` and `views`) | pure, per commit | `shown` equalled `state.view` at every step |
+| MESH programs | the application's build: compiled data (`root`, templates, model) | immutable | each example compiles with its own copy of one 25-line script (`compile.ts`); Valance never compiles |
+| Rendering state → tree | Valance, through a MESH host (NEXUS adapter) | per commit | `renderOf` (a throwaway host per emitted state) and per-view hosts (dispatch only) |
+| Realization | PORT; the composer keeps only *what was drawn* | per target connection | hydration adopted the server's own nodes; keyed nodes kept across updates |
+| Draw/update decision | Valance, in `connect` (`drawn.current.view`) | per target connection | the memory belongs to the connection, not the application |
+| Web history | `Web.history`, from the application's `urlOf` / `stateOf` | the scope; listener removed before the application ends | one listener while open, none after; writes only when `urlOf` changed |
+| SSR | Valance (`renderToHtml`: start, render once, end) | one request | state returned for embedding; embedding is the page's |
+| Hydration | PORT adopts; Valance picks `hydrate` for the first render | one first render | `{ adopted: true }`; server DOM objects preserved; PORT's setter-failure and event-replay limits stand |
+
+### 3. Internal versus public
+
+"Does the application author need to know this exists?" The *author* writes the definition and picks a platform. A *platform-binding author* (Valance's `./web`, a future target) needs more. The two are different audiences and the table keeps them apart.
+
+| Concept | Author sees it? | Reason |
+|---|---|---|
+| Application state (schema, initial) | **yes** | the one thing the author defines about data |
+| `view(state)` and `views` (program + scope per view) | **yes** | selection and the state → scope-values mapping are the author's |
+| Commands and the binding table | **yes** | behavior; today written in NEXUS vocabulary (`Command.define`, `Mesh.bind`, `StateHandle.update`) |
+| A MESH program (compiled data) | **yes, as data** | acquired at build time; Valance only consumes it |
+| A platform (`Platform` layer) | **yes** | the one place services and capabilities enter |
+| `urlOf` / `stateOf`, canonicalization | **yes, if the app uses history** | application policy; shown to be the application's |
+| The lifetime (start, end) | **yes, as a lifetime** | the Scope is the present spelling, not the concept |
+| `Running.state` (read) | yes, observation | read-only authority |
+| `Running.nexus` | **no** | used by 2 internal sites and 16 test sites; no application code |
+| `Running.invoke` + running it in `nexus.runtime` | **no** (platform bindings: yes) | see 4; its `R` leaks the runtime |
+| `Running.render` / `values` / `dispatch` | **no** | composition mechanics between Valance and a target |
+| `Running.states` | platform bindings only | `Web.history`'s observation |
+| `renderOf`, per-view hosts | **no** | scaffolding for a missing render-from-value |
+| `at()` | **no** (tracer scaffolding) | see 4 |
+| `connect`, follower fiber, `drawn.current`, `pending` | **no** | the connection to a target |
+| `Target`, `TargetFactory`, `Report`, `HydratableTarget` | platform bindings only | PORT's contract as the composer uses it |
+| `Mounted.dispatched`, `settled`, `followed` | **no** | observation facilities used by tests |
+| `renderToHtml`, `hydrate`, `Web.target`, `Web.history` | **yes, as Web integration** | the Web additions |
+| the Web primitives table | yes, **as Web target configuration** | passed to both server and client by convention |
+
+### 4. API pressure (demonstrated only)
+
+1. **External event entry is a real boundary, but its author-facing need is not demonstrated.**
+   - *Where it bites:* `invoke` returns `Effect<…, UnmappedCommand | E, R>`, and `R` is satisfiable only by the application's runtime. Whoever calls it must `Runtime.run(running.nexus.runtime, …)`.
+   - *Who does:* two sites in the package (`connect`'s dispatch, `Web.history`'s popstate), both Valance's own, and nine test sites. No application definition, example `src` or author-written code ever did.
+   - *Classification:* a real missing boundary *for platform bindings* (they are exactly "something outside the application that enters it"); a testing convenience otherwise (the tests' `app/changeItems` and `app/open` have no non-test counterpart); and in part an artifact of the NEXUS integration: Valance already holds the runtime, so the `R` is a leak, not a requirement. Whether an *author's* host page ever needs one is open.
+   - *Related, same cause:* status and shutdown are read through `running.nexus` in 7 test sites; lifecycle observation has no Valance spelling.
+2. **The binding table has two kinds of keys in one namespace.** Intent keys (`home/open`) are called by rendered programs; entry keys (`app/navigate`, `app/changeItems`) by platform bindings or outside. `Web.history`'s `navigate: "app/navigate"` is a convention the application must satisfy: a platform binding *requires an entry of the application*. The catalog application binds the same command twice (`home/open`, `app/open`). Not a failure; it is the same boundary as 1, seen from the table.
+3. **View ↔ state variant (`at()`) is TypeScript ergonomics, not a model flaw.** `View<S>.scope` takes the whole union; the catalog application wraps three scopes in `at()` whose throw cannot fire when `view` is `state.view`. One union application is the whole evidence, and the runtime model is not affected. The correlation is real, and a stronger typed `views` would remove `at()`; the evidence does not justify a type-level framework, and a flat state (the earlier tracer) needs none.
+4. **The Web primitives table is passed twice by convention** (`renderToHtml({ primitives })` on the server, `Web.target({ primitives })` on the client) (28 mentions across the examples' tests). Nothing enforces that the two tables match. Small, and the Web layer's.
+5. **Program acquisition is copied.** `compile.ts` exists twice, identical except the component names. It is build-time; Valance rightly does not own it, and no product layer does yet.
+6. **Earlier `app.ts` imports `Web`** (its primitives table, "target configuration, not part of the application"). The catalog application moved this to `web.ts` and asserts the stricter rule. The two examples disagree about invariant 11's strength.
+7. **Not pressure, observed:** `render-from-value` (`renderOf`, per-view hosts) is a substrate gap (Stage 2); it costs one throwaway host per commit and nothing a user can see.
+8. **Not demonstrated either way:** application services. `start` hardcodes `runtime: Layer.empty`; commands may require only the environment and the event bus. Every tracer needed only a `platform`.
+
+### 5. Candidate public boundary
+
+Two shapes, neither chosen, neither implemented. They are spellings of the model in section 1, not a decision. Both would hide NEXUS runtime mechanics, MESH runtime and PORT realization, `Fiber`, and history internals; whether `Scope` is hidden is each shape's assumption.
+
+**A. A definition, and an opaque running application with entries.** Today's decomposition, with the runtime removed from view.
+
+```text
+definition   define({ name, state, views, view, commands })                      (data, as now)
+start        start(definition, { platform?, state? }) -> a running application with a lifetime
+             (spelled as a scope-bound Effect, or a Promise plus `stop`: unproven which)
+event        running.send(entry, ...args)      (returns completion; the runtime is Valance's)
+             running.state                     (read-only)
+platform     the `platform` option; a Web platform is a layer the caller supplies
+SSR          Web.renderToHtml(definition, { primitives, state }) -> { html, state }
+Web          Web.mount | Web.hydrate(running, { container, primitives })   and   Web.history(running, { urlOf, stateOf, navigate })
+```
+- *Evidence:* every browser tracer composes exactly start → mount/hydrate → history in this order, in one lifetime; SSR is start → render → end.
+- *Assumes:* a "running application" is a first-class value that platform bindings take; entries are named by string keys as now; the author calls the steps.
+- *Exposes:* definition, lifetime, entries, observation. *Hides:* runtime, `Running` internals, the connection.
+- *Constrains:* the order and lifetimes of bindings stay the caller's responsibility; the string-keyed entry convention becomes visible API.
+
+**B. A definition, and a platform host that owns the lifetime.**
+
+```text
+definition   define({ name, state, views, view, commands })                      (data, as now)
+start        Web.run(definition, { container, primitives, platform?, history?: { urlOf, stateOf, navigate }, state? }) -> a stop
+event        none for the author: platform bindings call entries inside the host; a headless test host exists for tests
+platform     the `platform` option, and the host *is* the Web platform
+SSR          Web.serve(definition, { primitives, state }) -> { html, state }; the host `Web.run` hydrates when it finds server HTML
+Web          the host composes mount/hydrate and history; the author names only their functions
+```
+- *Evidence:* the platform-binding order and ownership never varied across 6 browser tracers; platform bindings are the only callers of external entry; history needed nothing from the author but two functions and a key.
+- *Assumes:* the platform is the unit of composition and one application runs on one platform host; a non-Web target has its own host; tests use a headless host.
+- *Exposes:* definition, one host call per platform. *Hides:* start, mount, hydrate, history, entry, `Running`.
+- *Constrains:* running an application without a platform (tests, server-side logic) needs a separate public path; combining two targets or a custom history needs the lower-level pieces made public after all; the pieces are not demonstrated to be unneeded by authors, only unused by them so far.
+
+### 6. Architectural invariants for any future public API
+
+Each is marked with its evidence and how it was changed.
+
+1. **One authoritative application state.** *Kept.* One `State`, built once, read-only outside. Nothing writes it except NEXUS commands.
+2. **The view is derived from state: pure, total, and recomputed per committed state.** *Modified:* "derived" is not enough: `view` is called for every emitted state, so it must be total. Never stored.
+3. **Application lifetime is one coherent scope, and bindings end before the application.** *Modified:* platform bindings (follower, target, history listener) end first, then the application, in the caller's scope. Verified by listener counts and finalizer order.
+4. **Every state transition is a command in the application's binding table; external events enter there.** *Narrowed:* demonstrated for MESH intents and popstate; there is no other write path. *Not* demonstrated: that external callers are many.
+5. **MESH does not own application state.** *Kept.* A program is data; each render is a function of a snapshot.
+6. **PORT does not own application state.** *Kept, with an addition (12).*
+7. **Browser history is a platform binding, not the application model.** *Kept.* The application's `urlOf` is pure over its state; a test asserts the definition names no Web, PORT, `window`, `history` or `popstate`, and the application runs in Chromium with no history.
+8. **SSR and hydration create no second application state model.** *Narrowed:* the served state is a value of the application's own state; hydration adopts DOM and PORT is told the same tree. *Unspecified:* how the page carries that state to the client.
+9. **A same-view state change is an update.** *Modified:* continuity is **view identity** (a view name), not program equality. Two views draw; one view never changes program.
+10. **A view change replaces the realization.** *Kept, strengthened:* it always draws; nothing of the old view is reused.
+11. **Application code is platform-independent.** *Kept for the catalog application only.* The first tracer's `app.ts` imports `Web` for its primitives table; the rule is stricter than the earlier example holds to.
+12. **(added) Realization continuity belongs to the connection to a target, not to the application.** The record of what was drawn lives in `connect`; a second target would keep its own.
+13. **(added) A URL names a navigation, not a state.** `stateOf(url)` yields the part of the state a URL carries, and a command completes it with data the application holds, deciding unknown items itself (`not-found`).
+14. **(added) Every commit is rendered, in order, with no gap and no coalescing.** Atomic current-and-following (`values`) plus an in-order follower. Whether coalescing is ever wanted is not tested.
+
+### 7. Deferred work
+
+| Item | Why deferred |
+|---|---|
+| Router, route DSL | **unnecessary**: `urlOf`/`stateOf` plus one navigate command did everything; nothing needed matching, nesting or a registry |
+| Link DSL / anchors | **architecture not proven**: buttons only; real anchors need a MESH/PORT story |
+| Global store, second state system | **unnecessary**: one NEXUS state served every tracer |
+| Component abstraction | **unnecessary**: MESH owns composition; the application owns state |
+| Generic event bus, application middleware | **unnecessary**: one binding table and NEXUS's own event bus sufficed |
+| Plugin architecture | **unnecessary**, and unprovable without a second consumer |
+| CSS optimizer, dev server / HMR | **a later product layer**: no tracer touched them |
+| Broad SSR framework (streaming, routes, state embedding, event replay, progressive hydration) | **a later product layer**; PORT Web lists replay and pre-hydration input as non-goals; embedding is unspecified |
+| A public PORT or MESH abstraction | **unnecessary**: Valance consumes both as data and as PORT's three operations |
+| Typed view ↔ state-variant relationship | **architecture not proven**: one union application; revisit when a second shows the same friction |
+| `renderOf` / per-view host removal | **substrate not ready**: needs a NEXUS render-from-value entry |
+| Application services (`runtime` layer) | **architecture not proven**: `Layer.empty` was enough for every tracer |
+| Program-acquisition tooling (the copied `compile.ts`) | **a later product layer**: it is a build step |
+| Failure policy (render / dispatch diagnostics, failed popstate) | **architecture not proven**: only a logged, ignored policy exists |
+| Multiple targets per application, per-view state, layouts, async loading | **architecture not proven**: never exercised |
+| Rendering coalescing | **architecture not proven**: every intermediate commit is rendered |
+
+### 8. Recommendation for the next coding task
+
+**Make external event entry self-contained, and remove the NEXUS runtime from every caller that is not Valance's own composition.** It is the one pressure that both candidate boundaries need, it is behavior-preserving, and the Stage 1 to 10 suites are its regression net.
+
+Scope, concretely:
+- `Running.invoke` returns an effect with `R = never`, run in the application's runtime by Valance, so its callers no longer need `running.nexus.runtime` (the `R` leak, section 4.1).
+- `Web.history` and `connect`'s dispatch use it; the 9 test sites that wrap `Runtime.run(running.nexus.runtime, …)` stop doing so.
+- No change to the binding table, entry keys, `Web.history`'s contract or any PORT/NEXUS/MESH package; no name decision (`invoke` may stay `invoke`), no new type, no new concept.
+- Lifecycle observation (status, shutdown) is **not** in this task: it is the same family but a separate question, and it is not needed to remove the runtime from callers of events.
+
+Acceptance: the full matrix passes unchanged in meaning (16 unit, 16 jsdom, 20 Chromium); `grep "nexus.runtime"` finds only Valance's own composition; a focused test shows `invoke` succeeds and fails (`UnmappedCommand`) with no runtime in the caller's hands; mutation-check that an event still runs inside the application's runtime (a platform FiberRef reaches the command, and does not reach the caller: NEXUS I44).
+
+What it deliberately does not decide: the public spelling (candidate A's `send`, candidate B's hidden entry), whether `Scope` stays visible, or whether an author's host page ever needs an entry.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
