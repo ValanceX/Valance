@@ -65,8 +65,11 @@ export interface Running<S, E, R extends Ambient> {
   readonly render: Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics>;
   /** The render of the state current at subscription, then one per later commit, in order, with no gap (NEXUS `State.values`). */
   readonly values: Stream.Stream<Viewed, Nexus.Mesh.MeshDiagnostics>;
-  /** Dispatches an event against exactly the render it was reported on, through its own view's command table. */
-  readonly dispatch: (viewed: Viewed, handler: string, payload?: BoundaryValue) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E, R>;
+  /**
+   * Dispatches an event against exactly the render it was reported on, through its own view's command table. It runs
+   * in the application, whoever calls it: the caller needs no runtime.
+   */
+  readonly dispatch: (viewed: Viewed, handler: string, payload?: BoundaryValue) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
   /** The application's state, read only. */
   readonly state: Effect.Effect<S>;
   /** The state current at subscription, then every later commit, with no gap (NEXUS `State.values`). Read only. */
@@ -74,9 +77,13 @@ export interface Running<S, E, R extends Ambient> {
   /**
    * Runs the command bound to `key` with the given arguments, exactly as a MESH intent for that key would:
    * through the same table `dispatch` uses, so there is one way into application behavior. For input that does
-   * not come from a MESH render (a browser event). Run it in `nexus.runtime`.
+   * not come from a MESH render (a browser event).
+   *
+   * It executes in the application's own context, with the platform's FiberRefs, and nothing of that context flows
+   * back to the caller (NEXUS I44). The caller needs no runtime and provides no services: interrupting the returned
+   * effect interrupts the command, and typed failures and defects pass through unchanged.
    */
-  readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E, R>;
+  readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
 }
 
 /**
@@ -101,6 +108,15 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       return Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render.pipe(Effect.map((render) => ({ view, render })));
     };
 
+    // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
+    // `runFork`: the handle holds none of them, so joining it imports nothing into the caller). The caller's
+    // interruption interrupts the event; results, typed failures and defects pass through unchanged.
+    const inApplication = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F> => Effect.suspend(() => {
+      const handle = Nexus.Runtime.runFork(nexus.runtime, effect);
+
+      return Fiber.join(handle).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
+    });
+
     return {
       nexus,
       render: Effect.flatMap(state.get, renderOf),
@@ -108,7 +124,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
 
-        return host === undefined ? Effect.die(new Error(`no view named ${viewed.view}`)) : host.dispatch(viewed.render, handler, payload);
+        return host === undefined ? Effect.die(new Error(`no view named ${viewed.view}`)) : inApplication(host.dispatch(viewed.render, handler, payload));
       },
       state: state.get,
       states: state.values,
@@ -116,7 +132,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         const binding = Object.hasOwn(commands, key) ? commands[key] : undefined;
         const [component = "", name = ""] = key.split("/");
 
-        return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : binding(args);
+        return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
       },
     };
   });
@@ -169,8 +185,8 @@ const connect = <S, E, R extends Ambient, T extends Target, A>(
         throw new Error("the target reported an interaction before anything was drawn");
       }
 
-      // Runs inside the application (its platform's FiberRefs apply), but nothing flows back (NEXUS I44).
-      pending.push(Nexus.Runtime.runFork(running.nexus.runtime, Effect.exit(running.dispatch(render, handler, payload)).pipe(
+      // `dispatch` runs inside the application (its platform's FiberRefs apply) and nothing flows back (NEXUS I44).
+      pending.push(Effect.runFork(Effect.exit(running.dispatch(render, handler, payload)).pipe(
         Effect.tap((exit) => Effect.sync(() => { dispatched.push(exit); }))
       )));
     });

@@ -7,7 +7,6 @@ import type { WebPort, WebPortOptions } from "@valancex/port-web";
 import type { BoundaryValue } from "@valancex/mesh-runtime";
 import type { Ambient, Running, TargetFactory } from "./index.js";
 
-import * as Nexus from "@valancex/nexus";
 import { createWebPort } from "@valancex/port-web";
 import { Effect, Fiber, Queue, Scope, Stream } from "effect";
 
@@ -71,13 +70,10 @@ export const history = <S, E, R extends Ambient>(running: Running<S, E, R>, opti
           }
         })
         : Effect.gen(function* () {
-          // The application's runtime, like a dispatch: its platform's FiberRefs apply, and nothing flows back (NEXUS I44).
-          const handle = Nexus.Runtime.runFork(running.nexus.runtime, running.invoke(options.navigate, [{ value: options.stateOf(new URL(event.href)) }]).pipe(
-            Effect.tapErrorCause((cause) => Effect.logError("popstate navigation failed", cause)),
-            Effect.ignore
-          ));
-
-          yield* Fiber.await(handle).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
+          // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
+          yield* running.invoke(options.navigate, [{ value: options.stateOf(new URL(event.href)) }]).pipe(
+            Effect.catchAllCause((cause) => Effect.logError("popstate navigation failed", cause))
+          );
           // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
           last = options.urlOf(yield* running.state);
         })

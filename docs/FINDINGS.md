@@ -571,6 +571,42 @@ What it deliberately does not decide: the public spelling (candidate A's `send`,
 
 ---
 
+## Stage 12: application event entry is self-contained
+
+*Stage 11's first pressure point (4.1), acted on. An execution-boundary change only; NEXUS, MESH, PORT, `Web.history`'s contract, the binding table and every example application are unchanged.*
+
+**Before.** `Running.invoke` and `Running.dispatch` returned effects requiring `R`, satisfiable only by the application's runtime, so every caller wrote `Runtime.run(running.nexus.runtime, …)`: two sites in the package (`connect`'s dispatch, `Web.history`'s popstate) and nine in tests.
+
+**After.** One private function in `start`, `inApplication`, forks the effect into the application's runtime (`Runtime.runFork`) and joins the handle, interrupting the application's fiber if the caller is interrupted. `invoke` and `dispatch` return `Effect<_, UnmappedCommand | … | E>` with **no requirement**, so any caller runs them on the default Effect runtime. `Web.history` calls `running.invoke` and logs any failure or defect (as before, the follower is never ended by a command); `connect` forks `running.dispatch` on the default runtime; the test sites call `invoke`/`dispatch` directly. `grep "nexus.runtime"` now finds `index.ts` (the composition) and one test that subscribes to the application's NEXUS event bus (observation, not event delivery).
+
+**Isolation, baselined first.** The focused test (`packages/valance/test/entry.test.ts`) was run in the old calling form against the **unchanged** source and passed, which fixes what the semantics were; the same assertions then pass with the new form:
+- the platform's Clock reaches the command; neither it nor a command's own FiberRef write reaches the caller, and a later event does not see an earlier event's write (NEXUS I44);
+- the caller's FiberRefs **at start** flow into the application; a change in the caller after start does not reach an event (so "caller → application" means start-time, not per-event, exactly as before);
+- an unmapped key is the existing `UnmappedCommand` failure; a defect in a command reaches the caller as a defect; interrupting the caller interrupts the command;
+- a type-level assertion that `invoke` has no environment.
+
+Mutation checks: running the event in the caller's context fails the platform and caller-FiberRef tests; dropping interrupt propagation fails the interruption test.
+
+**Validation.** Build, typecheck; 22 unit (16 + 6), 16 jsdom, 20 Chromium, all passing; lockfile and manifests untouched (one NEXUS 0.10.1, one `mesh-runtime` 0.7.0, one Effect).
+
+### CONFIRMED
+External event delivery can be encapsulated behind the VALANCE application boundary without changing application semantics: no behavior in the existing matrix changed, and the isolation semantics are those the unchanged code had.
+
+### INTERNAL
+NEXUS runtime execution is an implementation detail of `start`. A caller of `invoke` or `dispatch` holds no runtime and provides no services. `Running.nexus` remains on the type for lifecycle observation only.
+
+### OPEN
+- **Lifecycle observation** (`status`, `shutdown`, 7 test sites) still goes through `running.nexus`. Separate question, not touched.
+- `Running<S, E, R>`'s `R` is now unused by its members (it still constrains the definition's commands). Removing it is a signature cleanup across `mount`, `hydrate`, `history` and the tests, not done here.
+- Observing the application's own NEXUS events from outside (`Event.subscribe` in one test) is the last runtime use outside the composition and is not event delivery.
+- Whether an application *author* ever needs an external entry (Stage 11 4.1) is still undemonstrated; this change removed the leak, not the question.
+- The public Application API is undecided.
+
+### NEXT
+With the execution boundary clean, the next architectural decision is lifecycle: whether and how an application's status and shutdown are observed without `running.nexus`. It is the last way the runtime shows through `Running`, and it decides whether `nexus` can leave the type, which both Stage 11 candidate boundaries need before either is chosen.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

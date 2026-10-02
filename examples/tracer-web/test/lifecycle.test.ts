@@ -94,7 +94,7 @@ describe("lifecycle", () => {
 
         committed = true;
 
-        return Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.dispatch(initial, clickHandler(initial)))).pipe(Effect.asVoid);
+        return running.dispatch(initial, clickHandler(initial)).pipe(Effect.orDie, Effect.asVoid);
       })) };
       yield* Valance.mount(racing, Web.target({ container: page.container, primitives }));
       yield* Effect.promise(() => until(() => page.container.textContent!.startsWith("1 clicks")));
@@ -115,7 +115,7 @@ describe("lifecycle", () => {
         await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
           const running = yield* Valance.start(app);
           const initial = yield* running.render;
-          const commit = () => { void Nexus.Runtime.run(running.nexus.runtime, running.dispatch(initial, clickHandler(initial))); };
+          const commit = () => { void Effect.runPromise(running.dispatch(initial, clickHandler(initial))); };
 
           if (offset < 0) {
             commit();

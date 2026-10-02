@@ -222,7 +222,7 @@ it.each(cases)("initial URL $name ($start): the application's entry canonicalize
 // application's own URL (urlOf(state)) changes between synchronized states. Popstate re-baselines and never writes.
 const ABOUT_OVERVIEW = "/tracer/about?tab=overview";
 const increment = (running: Valance.Running<typeof page.home.state, Nexus.Command.CommandValidationError, Nexus.Event.EventBusShape>) =>
-  Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.invoke("counter/increment", [])));
+  running.invoke("counter/increment", []).pipe(Effect.orDie);
 
 // Case A: the page sits at a noncanonical URL (the application did not canonicalize it); an unrelated commit is not a navigation.
 it.each([cases[1], cases[2]])("guard A, $name: an unrelated state change at a noncanonical URL writes nothing", async ({ served, start }) => {

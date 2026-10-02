@@ -81,7 +81,7 @@ const run = async (makeTarget: (operations: Array<Operation>) => Valance.TargetF
     const mounted = yield* Valance.mount(watched, makeTarget(operations));
     ended = { running, mounted: mounted as never };
     const ctx: Ctx = {
-      invoke: (key, value) => Nexus.Runtime.run(running.nexus.runtime, running.invoke(key, value === undefined ? [] : [{ value }])).then(() => undefined),
+      invoke: (key, value) => Effect.runPromise(running.invoke(key, value === undefined ? [] : [{ value }])).then(() => undefined),
       ...ctxOf(running),
     };
     const observeStatus = Effect.gen(function* () { status.push((yield* Nexus.Application.status(running.nexus))._tag); });
@@ -123,8 +123,8 @@ const expectedViews = ["home", "home", "details", "details", "home", "not-found"
 describe("the application model", () => {
   it("without a browser: one state, one runtime lifetime, update for data, draw for views, release at shutdown", async () => {
     const result = await run(bare, (running) => ({
-      openFirst: () => Nexus.Runtime.run(running.nexus.runtime, running.invoke("app/open", [{ value: "A" }])).then(() => undefined),
-      back: () => Nexus.Runtime.run(running.nexus.runtime, running.invoke("app/home", [])).then(() => undefined),
+      openFirst: () => Effect.runPromise(running.invoke("app/open", [{ value: "A" }])).then(() => undefined),
+      back: () => Effect.runPromise(running.invoke("app/home", [])).then(() => undefined),
     }));
 
     // One application state: the definition's behavior was built once, over one state handle, for every transition.
@@ -183,7 +183,7 @@ describe("the application model", () => {
     const app = application(await compilePrograms());
     const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const running = yield* Valance.start(app);
-      const invoke = (key: string, value?: BoundaryValue) => Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.invoke(key, value === undefined ? [] : [{ value }])));
+      const invoke = (key: string, value?: BoundaryValue) => running.invoke(key, value === undefined ? [] : [{ value }]).pipe(Effect.orDie);
 
       yield* invoke("app/open", "A");
       yield* invoke("app/changeItems", [{ id: "B", name: "Beta" }] as never);              // A is gone

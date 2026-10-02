@@ -111,7 +111,7 @@ const run = async <A>(options: { readonly startUrl: string; readonly items?: Rea
         yield* Web.history(watched, { window, urlOf, stateOf, navigate: "app/navigate" });
       }
 
-      const external = (key: string, value?: unknown) => Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, watched.invoke(key, value === undefined ? [] : [{ value: value as never }]))).pipe(Effect.asVoid);
+      const external = (key: string, value?: unknown) => watched.invoke(key, value === undefined ? [] : [{ value: value as never }]).pipe(Effect.orDie, Effect.asVoid);
       const initialWrites = [...writes];                                   // the application's own canonicalization, before Web.history
       writes.length = 0;
 
