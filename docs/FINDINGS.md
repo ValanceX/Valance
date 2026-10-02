@@ -1,5 +1,7 @@
 # Tracer findings: `@valancex/valance` 0.0.1
 
+> **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract) and the [Milestone](#milestone-validated-valance-composition) at the end. Stages 3 to 6 are kept as the evidence trail.
+
 *Evidence base: NEXUS 0.10.0 (packed from the NEXUS branch, unpublished; see `vendor/`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
 
 ## Stage 1: the first-render observation boundary (fixed in NEXUS)
@@ -76,6 +78,8 @@ Router package, route DSL, navigation registry/lifecycle, link primitive, URL/hi
 
 ## Stage 3: URL ↔ application state (Chromium)
 
+> **Superseded in part:** the guard described here (push when the URL differs from the path, with URL equality as the loop breaker) and the `path` option were replaced in Stages 4 and 6 (`urlOf`/`stateOf`; push when the application URL changes). The finding that URL sync fits at the Valance Web boundary stands.
+
 **Question.** Does `URL ↔ path state ↔ selected MESH program` already explain routing, and where does URL synchronization belong?
 
 **Mechanism (all in Valance; ~40 lines in `./web`, two additions to `Running`).**
@@ -144,6 +148,8 @@ path state commit → path ≠ location.pathname → history.pushState        (n
 
 ## Stage 4: the URL is not the state (base path + query)
 
+> **Superseded in part:** the per-commit comparison of `location.pathname + location.search` with `urlOf(state)` was replaced in Stage 6. `urlOf`/`stateOf` as application functions stands.
+
 **Question.** Can URL ↔ state stay ordinary application-owned functions when the browser URL is not the application's path?
 
 **Model.** Browser URL `/tracer/about?tab=details`; state `{ path: "/about", tab: "details", title, count, stamp }`. The URL carries `path` and `tab` only; `count`, `stamp` and `title` are not in it. In `examples/tracer-web/src/app.ts`:
@@ -201,6 +207,8 @@ PORT operations: `hydrate, draw, update, draw, draw`. History entries added in t
 ---
 
 ## Stage 5: who owns initial URL canonicalization?
+
+> **Superseded in part:** the first-state rule (`Stream.drop`) and the "guard compares the URL on every commit" remarks were refined in Stage 6 (baseline from the first state's `urlOf`; push only when the application URL changes). The ownership decision (the application canonicalizes before start) stands.
 
 **Problem (from stage 4).** `/tracer/not-a-view` → state `{path: "/not-a-view"}` → `urlOf` differs from the URL → `Web.history` pushed an entry at start, which no navigation requested.
 
@@ -318,8 +326,33 @@ Earlier tests (initial A/B/C URLs, acceptance sequence, listener lifetime, the B
 
 The current implementation has a coherent behavior for this without any addition: the baseline follows the *state*, not the browser, so the invariant the task asked for holds (a failed popstate cannot make a later unrelated change manufacture a history entry), and navigation keeps working afterwards. Both the failing and the no-op variants behave the same. The cost is explicit: until the next application navigation, **the browser URL and the application URL differ** (the page shows `/home`, the address bar says `/restricted`, a reload would load `/restricted`), and the failure is only logged.
 
-**Status of that behavior: specified as the current minimal contract, not endorsed as the final policy.** No rollback or resynchronization was added: nothing observed requires restoration for correctness of the synchronization itself, and what the right restoration is (replace the URL back, navigate to an error state, ignore) is a decision about what a refused navigation *means*, which belongs to the application. It stays unresolved whether `Web.history` should ever offer help.
+**Boundary (explicit).** `Web.history` does not restore or rewrite the browser URL when a popstate navigation does not produce an application state transition. If the application state changes, `Web.history` follows the resulting application URL; if it does not, `Web.history` writes nothing. Recovery or error behavior (restore the URL, show an error, redirect, or tolerate the mismatch) belongs to the application's navigation policy. This is a statement of where `Web.history` stops, not a claim that tolerating the mismatch is good navigation UX, and no hook for restoration was added.
 
 **Regression evidence.** Unit: 12 `Web.history` tests + 4 boundary tests. Tracer (jsdom): 12. Chromium: 12 (three consecutive runs). Mutations, each failing in both the unit suite and Chromium: browser-URL-vs-state comparison (unit 4 failing, Chromium 3); baseline not updated after a push (unit 2, Chromium 2); no re-baseline after popstate (unit 4, Chromium 2).
 
-**Remaining uncertainty that affects this contract:** the right behavior for a failed popstate navigation (above); a popstate arriving during an in-flight state change (processed in order, but only probed once); a state change between hydration and `Web.history` starting is taken as the baseline.
+**Remaining uncertainty that affects this contract:** a popstate arriving during an in-flight state change (processed in order, but only probed once); a state change between hydration and `Web.history` starting is taken as the baseline.
+
+---
+
+## Milestone: validated VALANCE composition
+
+Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (`79ce508`, packed in `vendor/`, unpublished), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
+
+```text
+one Valance application
+    owns one NEXUS state and one platform lifetime (acquired once, released at scope close)
+    and may select among several MESH programs
+
+application state ──▶ view(state) program selection ──▶ MESH render-v1 ──▶ PORT realization
+same-program state change ──▶ PORT update (same DOM nodes)
+program change            ──▶ PORT draw   (fresh nodes; continuity is the composer's fact)
+
+browser popstate ──▶ application-owned stateOf ──▶ the application's navigate command ──▶ state ──▶ program selection and render
+application URL transition (urlOf(state) changed) ──▶ Web.history pushState
+```
+
+What carries this: the current render and later renders are observed atomically (`values`); the composer (Valance) keeps the drawn render and decides draw versus update; route state is ordinary application state; what a URL means (`urlOf`, `stateOf`, canonicalization before start) is application code; `Web.history` synchronizes application URL transitions with browser history and does not detect navigation by comparing the browser URL with the application state.
+
+Evidence: NEXUS 492 tests; Valance 16 unit/boundary tests (12 `Web.history`, 4 boundary), 12 jsdom tracer tests, 12 Chromium acceptance tests; mutation checks on the three critical guard invariants (each caught by both the unit suite and Chromium).
+
+New abstractions that survived: `define`, `start`, `mount`, `hydrate`, `Running.states`/`Running.invoke`, `Web.target`, `Web.history`, `renderToHtml`. **Not** introduced, and not justified by anything observed: a router, routes or a route registry, a URL codec or mapper, navigation events, redirect or canonicalization APIs, a link primitive, a browser abstraction, rollback hooks.

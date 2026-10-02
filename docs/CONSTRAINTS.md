@@ -53,3 +53,7 @@ as "reviewed only".
 ## Added for stage 7 (stabilization)
 
 - **C19.** The `Web.history` contract is tested at unit level (`packages/valance/test/history.test.ts`); Chromium stays the acceptance check. No new options, API, rollback or resynchronization.
+
+## Status (Web.history exploration closed)
+
+C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated once, in `docs/FINDINGS.md` Stage 7. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).
