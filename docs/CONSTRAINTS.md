@@ -49,3 +49,7 @@ as "reviewed only".
 
 - **C17.** `Web.history` answers "did the application's URL change?" (`urlOf(state)` vs the last synchronized `urlOf`), not "does the browser URL equal the application's?". It is not a canonicalizer.
 - **C18.** Starting writes nothing, popstate never writes, and the signature and public surface of `Web.history` do not change.
+
+## Added for stage 7 (stabilization)
+
+- **C19.** The `Web.history` contract is tested at unit level (`packages/valance/test/history.test.ts`); Chromium stays the acceptance check. No new options, API, rollback or resynchronization.

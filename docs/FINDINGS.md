@@ -290,3 +290,36 @@ Earlier tests (initial A/B/C URLs, acceptance sequence, listener lifetime, the B
 - **A popstate while a state change is in flight** is processed in order, but the combination was not stress-tested (the earlier Back-right-after-push probe still passes).
 - **A navigation to the URL the application is already at** (equal `urlOf`) writes nothing: no duplicate entry, but also no way to express "push the same URL again".
 - Whether a not-found state should keep the visitor's requested URL; trailing-slash, query ordering/repeats/encoding, hash, deployment base path, real anchors, scroll/focus restoration, a real server's request-URL mapping (unchanged).
+
+---
+
+## Stage 7: the `Web.history` contract, stabilized
+
+**The distinction this rests on.** The browser URL is not the application URL. The application URL is `urlOf(state)`: a function of application state, and only meaningful between two states. The browser URL is whatever history holds: it may be noncanonical, it may be an entry the application never wrote, and after a failed popstate it may be somewhere the application is not. `Web.history` synchronizes **application URL transitions** with browser history. It does not decide navigation by comparing the browser URL with the current application state.
+
+**Contract** (each line is a test in `packages/valance/test/history.test.ts`, with the Chromium suite as acceptance):
+
+| | |
+|---|---|
+| Start | The first state's `urlOf` is the baseline. No `pushState`, no `replaceState`, even at a browser URL that is not `urlOf(state)`. |
+| Later state, same application URL | No write (including when the URL differs from the browser's). |
+| Later state, changed application URL | Exactly one `pushState(urlOf(state))`; it becomes the baseline. Unrelated state afterwards pushes nothing. |
+| Distinct navigations | Each pushes once, including back to an earlier application URL. |
+| Popstate | `invoke(navigate, [stateOf(location)])`; then the resulting state's `urlOf` becomes the baseline. The popstate itself never writes, and a later unrelated change pushes nothing, including when history holds a noncanonical URL for that state. |
+| Scope | One listener while the scope is open, none after. |
+
+**Failed popstate (observed with a real NEXUS runtime and state; no machinery added).** History `/home → /restricted`, popstate, and the navigate command either fails (`UnmappedCommand`) or succeeds without changing state:
+
+| After | Writes | Browser URL | Application state | Baseline |
+|---|---|---|---|---|
+| popstate to `/restricted` | none (no push, no replace) | `/app/restricted` | unchanged (`/home`) | `urlOf(state)` = `/app/home` |
+| an unrelated state change | none | unchanged | `/home`, `n + 1` | unchanged |
+| a real navigation to `/about` | `push /app/about` | `/app/about` | `/about` | `/app/about` |
+
+The current implementation has a coherent behavior for this without any addition: the baseline follows the *state*, not the browser, so the invariant the task asked for holds (a failed popstate cannot make a later unrelated change manufacture a history entry), and navigation keeps working afterwards. Both the failing and the no-op variants behave the same. The cost is explicit: until the next application navigation, **the browser URL and the application URL differ** (the page shows `/home`, the address bar says `/restricted`, a reload would load `/restricted`), and the failure is only logged.
+
+**Status of that behavior: specified as the current minimal contract, not endorsed as the final policy.** No rollback or resynchronization was added: nothing observed requires restoration for correctness of the synchronization itself, and what the right restoration is (replace the URL back, navigate to an error state, ignore) is a decision about what a refused navigation *means*, which belongs to the application. It stays unresolved whether `Web.history` should ever offer help.
+
+**Regression evidence.** Unit: 12 `Web.history` tests + 4 boundary tests. Tracer (jsdom): 12. Chromium: 12 (three consecutive runs). Mutations, each failing in both the unit suite and Chromium: browser-URL-vs-state comparison (unit 4 failing, Chromium 3); baseline not updated after a push (unit 2, Chromium 2); no re-baseline after popstate (unit 4, Chromium 2).
+
+**Remaining uncertainty that affects this contract:** the right behavior for a failed popstate navigation (above); a popstate arriving during an in-flight state change (processed in order, but only probed once); a state change between hydration and `Web.history` starting is taken as the baseline.

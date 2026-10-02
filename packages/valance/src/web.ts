@@ -38,6 +38,10 @@ export interface HistoryOptions<S> {
  * application's?": a page sitting at a noncanonical URL (a history entry the application did not write) is left
  * alone, and an unrelated state change is not a navigation. Canonicalizing the URL is the application's, before start.
  *
+ * A popstate whose navigation fails, or leaves the state unchanged, is not repaired: nothing is written, the browser
+ * stays at the URL history gave it, the baseline is the (unchanged) state's own URL, and the failure is only logged.
+ * Browser URL and application URL then differ until the next application navigation; restoring one is the application's.
+ *
  * Popstate is handled by the same fiber that watches state, in order, so the commit a popstate causes is seen after
  * the baseline has been updated for it, not as a new navigation. It reads and writes the URL and knows nothing of
  * what a URL means. PORT Web has no history API (it touches nothing outside its container), so this is Valance's.
