@@ -607,6 +607,43 @@ With the execution boundary clean, the next architectural decision is lifecycle:
 
 ---
 
+## Stage 13: the lifecycle boundary (a tracer that stopped)
+
+*Question: what lifecycle semantics does VALANCE itself need, and can they be owned without `running.nexus`? Result: VALANCE's lifecycle concept already exists and needs no NEXUS handle; a status or stop surface is not justified by anything but tests. No source changed; four tripwires were added (`packages/valance/test/lifecycle.test.ts`).*
+
+**Current uses of `running.nexus`.** None in VALANCE source (the only mention is a doc comment). Eight test sites:
+
+| Use | Sites | What it is |
+|---|---|---|
+| `status` = Running at each step | 4 | NEXUS observation, **redundant** with the platform resource counts `{1, 0}` those tests assert beside it |
+| `status` = Stopped after the scope closed | 2 | NEXUS observation of "scope close ends the application"; derivable from counts `{1, 1}` plus `states` ending |
+| `shutdown` | 1 (`lifecycle.test.ts`) | the **only** way an application ends before its scope; drives the documented `Mounted.followed` Success outcome |
+| `Event.subscribe` in `nexus.runtime` | 1 | observing the application's own NEXUS events; not lifecycle |
+
+**Behavior established (characterized before any conclusion).**
+- *Scope close:* platform resources released once; `states` completes normally after the last commit; `invoke` is refused as a defect; the last state stays readable; NEXUS status `Stopped`.
+- *`shutdown`, repeated and concurrent (4 calls):* idempotent, one release, the same observable end as a scope close, and closing the scope afterwards is harmless (no second release). This is NEXUS's documented behavior and VALANCE adds nothing to it.
+- *No self-termination:* NEXUS documents exactly two ways an application ends (the caller's scope, or `Application.shutdown`); nothing ends one on its own.
+
+**What VALANCE actually needs.** One lifetime, the caller's `Scope` (Stage 11, invariant 3), and a way for its own bindings to learn the application ended. It already has the second, without NEXUS: `states` and `values` complete (so `connect`'s follower and `Web.history`'s follower end by themselves), `Mounted.followed` reports it, and new work is refused as a defect. VALANCE code never asks "what is the status".
+
+**Why no boundary was implemented.** A `status` would be `Running | Stopped` and nothing else observable (`start` returns only once `Running`; `Created`, `Initializing`, `Stopping` and `Failed` are NEXUS states a caller of VALANCE cannot see), so it would restate "has `states` ended". A `stop` would be a second termination route that no VALANCE code or example uses. Both would be new API justified only by tests, and the evidence does not require them.
+
+**The precise reason `nexus` is still reachable.** The *early end*, an application ending while its scope is open, can happen only through `Application.shutdown(running.nexus)`. VALANCE documents what the follower does then (`Mounted.followed` Success; the target stays until the scope closes) and one test pins it. If `nexus` were private, that outcome would be unreachable: a documented behavior with no caller. So the question is not "how is the status observed", it is "does VALANCE promise an early end".
+
+**Also inspected.** `Running<S, E, R>`'s `R` is unused by every member since Stage 12 (17 mentions across signatures and tests); removing it is mechanical and independent of lifecycle.
+
+### CONFIRMED
+VALANCE's lifecycle is the caller's scope. An ended application is observable without NEXUS (resources released, `states` completed, `invoke` refused, `Mounted.followed`), and those signals agree with NEXUS's own `Stopped`. No non-test VALANCE code reads `Running.nexus`.
+
+### OPEN
+Whether VALANCE promises an early end (an application stopping while its scope is open) and, if so, whether that is `Mounted.followed`'s Success outcome and a way to cause it, or whether the scope is the only route. Everything else about lifecycle follows from that decision.
+
+### NEXT
+Decide whether early end is part of the application model. If it is not (scope is the only route), `Running.nexus`, the `shutdown` test and `followed`'s Success outcome can leave the public surface together; if it is, it needs a VALANCE-owned spelling, and that is a public-API decision.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
