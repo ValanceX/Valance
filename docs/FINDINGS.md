@@ -2,7 +2,7 @@
 
 > **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract) and the [Milestone](#milestone-validated-valance-composition) at the end. Stages 3 to 6 are kept as the evidence trail.
 
-*Evidence base: NEXUS 0.10.0 (packed from the NEXUS branch, unpublished; see `vendor/`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
+*Evidence base: NEXUS 0.10.0 (published; tag `v0.10.0`, `a0116367`. Stages 1 to 7 ran against a packed tarball of that revision, byte-identical to the published package, sha256 `ed578f5e…`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
 
 ## Stage 1: the first-render observation boundary (fixed in NEXUS)
 
@@ -336,7 +336,7 @@ The current implementation has a coherent behavior for this without any addition
 
 ## Milestone: validated VALANCE composition
 
-Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (`79ce508`, packed in `vendor/`, unpublished), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
+Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
 
 ```text
 one Valance application

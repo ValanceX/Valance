@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@valancex/nexus': file:vendor/valancex-nexus-0.10.0.tgz
-
 importers:
 
   .:
@@ -34,8 +31,8 @@ importers:
         specifier: ^0.6.0
         version: 0.6.0
       '@valancex/nexus':
-        specifier: file:../../vendor/valancex-nexus-0.10.0.tgz
-        version: file:vendor/valancex-nexus-0.10.0.tgz
+        specifier: ^0.10.0
+        version: 0.10.0
       '@valancex/port-web':
         specifier: ^0.2.1
         version: 0.2.1(@valancex/mesh-runtime@0.6.0)
@@ -61,8 +58,8 @@ importers:
   packages/valance:
     dependencies:
       '@valancex/nexus':
-        specifier: file:../../vendor/valancex-nexus-0.10.0.tgz
-        version: file:vendor/valancex-nexus-0.10.0.tgz
+        specifier: ^0.10.0
+        version: 0.10.0
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -463,9 +460,8 @@ packages:
     resolution: {integrity: sha512-haovWIo58s9DA1SRwdla2a0QWRRa4CcQCW3QcdRjEo6V0NSeLd4zmfyhXWbJE6vb3QYfq57Tfuj/1pJbPbnTzg==}
     engines: {node: '>=22'}
 
-  '@valancex/nexus@file:vendor/valancex-nexus-0.10.0.tgz':
-    resolution: {integrity: sha512-VCgMA9Qb0/2qnoZZ5rNIwp/EitjCGtKOTizdXoFe1Q0wuGt/Xe8nyWGvmZMXMN7Fw5Ps/TlJPl3Z174Hq1ymLQ==, tarball: file:vendor/valancex-nexus-0.10.0.tgz}
-    version: 0.10.0
+  '@valancex/nexus@0.10.0':
+    resolution: {integrity: sha512-VCgMA9Qb0/2qnoZZ5rNIwp/EitjCGtKOTizdXoFe1Q0wuGt/Xe8nyWGvmZMXMN7Fw5Ps/TlJPl3Z174Hq1ymLQ==}
     engines: {node: '>=22'}
 
   '@valancex/port-web@0.2.1':
@@ -1181,7 +1177,7 @@ snapshots:
 
   '@valancex/mesh-runtime@0.6.0': {}
 
-  '@valancex/nexus@file:vendor/valancex-nexus-0.10.0.tgz':
+  '@valancex/nexus@0.10.0':
     dependencies:
       '@valancex/mesh-runtime': 0.6.0
       effect: 3.22.2
