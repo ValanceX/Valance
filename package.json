@@ -5,13 +5,25 @@
   "description": "Workspace root for @valancex/valance, the application-composition boundary over NEXUS, MESH and PORT.",
   "license": "MIT",
   "author": "Jack Miller <jackmiller0899@gmail.com>",
-  "repository": { "type": "git", "url": "git+https://github.com/ValanceX/Valance.git" },
-  "engines": { "node": ">=22" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ValanceX/Valance.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "test:browser": "pnpm --filter @valancex/tracer-web run test:browser"
   },
-  "devDependencies": { "typescript": "^5.6.0" }
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@valancex/nexus": "file:vendor/valancex-nexus-0.10.0.tgz"
+    }
+  }
 }

@@ -2,7 +2,7 @@
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import { Clock, Effect, Exit, Layer } from "effect";
+import { Clock, Effect, Exit, Layer, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { application, primitives } from "../src/app.js";
@@ -78,27 +78,63 @@ describe("lifecycle", () => {
     })));
   });
 
-  it("a commit during the first render is not lost (NEXUS `renders` is future-only)", async () => {
+  it("a commit between subscription and first render is not lost (NEXUS `values`)", async () => {
     const app = application(await compileProgram());
     const page = load("");
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const running = yield* Valance.start(app);
       const initial = yield* running.render;
-      // The first render is taken (so it reflects 0 clicks), and THEN a commit lands, before anything is drawn.
-      const gated: typeof running = { ...running, render: Effect.gen(function* () {
-        const stale = yield* running.render;
-        yield* Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.host.dispatch(initial, clickHandler(initial))));
+      let committed = false;
+      // The host's first element arrives (subscription made, first render about to be produced), and a click commits.
+      const racing: typeof running = { ...running, host: { ...running.host, values: Stream.tap(running.host.values, () => Effect.suspend(() => {
+        if (committed) {
+          return Effect.void;
+        }
 
-        // Long enough for the follower to deliver that commit's render before the first draw: the held path.
-        yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 30)));
+        committed = true;
 
-        return stale;
-      }) };
-      const mounted = yield* Valance.mount(gated, Web.target({ container: page.container, primitives }));
+        return Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.host.dispatch(initial, clickHandler(initial)))).pipe(Effect.asVoid);
+      })) } };
+      yield* Valance.mount(racing, Web.target({ container: page.container, primitives }));
       yield* Effect.promise(() => until(() => page.container.textContent!.startsWith("1 clicks")));
 
-      expect(mounted.dispatched).toEqual([]);
+      expect((yield* running.state).count).toBe(1);
     })));
+  });
+
+  it("initial render + immediate state change never leaves state 1 and DOM 0 (repeated, at several offsets)", async () => {
+    const app = application(await compileProgram());
+    let stale = 0;
+    let runs = 0;
+
+    for (const offset of [-1, 0, 1, 2, 4]) {
+      for (let i = 0; i < 20; i += 1) {
+        const page = load("");
+        runs += 1;
+        await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+          const running = yield* Valance.start(app);
+          const initial = yield* running.render;
+          const commit = () => { void Nexus.Runtime.run(running.nexus.runtime, running.host.dispatch(initial, clickHandler(initial))); };
+
+          if (offset < 0) {
+            commit();
+          } else {
+            setTimeout(commit, offset);
+          }
+
+          yield* Valance.mount(running, Web.target({ container: page.container, primitives }));
+          yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 25)));
+          const { count } = yield* running.state;
+
+          if (!page.container.textContent!.startsWith(`${count} clicks`)) {
+            stale += 1;
+          }
+        })));
+      }
+    }
+
+    expect(runs).toBe(100);
+    expect(stale).toBe(0);
   });
 });

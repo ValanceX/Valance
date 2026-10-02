@@ -22,7 +22,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@valancex/nexus": "^0.9.0"
+    "@valancex/nexus": "^0.10.0"
   },
   "peerDependencies": {
     "@valancex/mesh-runtime": "^0.6.0",

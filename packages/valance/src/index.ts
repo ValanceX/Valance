@@ -16,7 +16,7 @@
 import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
 
 import * as Nexus from "@valancex/nexus";
-import { Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;
@@ -122,32 +122,32 @@ const connect = <S, E, R extends Ambient, T extends Target, A>(
       )));
     });
 
-    // NEXUS `renders` carries future commits only (State.changes drops the replayed current value), and
-    // there is no atomic "current value and then changes". So the follower subscribes BEFORE the first render
-    // is taken: commits that land while it is being taken are held, not lost (probe: tracer-web
-    // test/lifecycle.test.ts "a commit during the first render"). Taking the first render after subscribing
-    // means it already reflects everything committed before the hold began.
-    const held: { latest: Nexus.Mesh.Render | undefined } = { latest: undefined };
+    // `host.values` is the render of the current state, then one per later commit, atomically (NEXUS 0.10): the
+    // first element is the first draw (or hydration), every later one an update, and no commit can fall between.
+    // The follower is Valance's fiber, not NEXUS's (O15): the caller's scope owns it.
+    const firstDone = yield* Deferred.make<A, Nexus.Mesh.MeshDiagnostics>();
+    const follower = yield* Stream.runForEach(running.host.values, (render) => Effect.suspend(() => {
+      if (drawn.render !== undefined) {
+        target.update(render.tree);
+        drawn.render = render;
 
-    // Every later render of this host is the same program: update. The fiber is Valance's, not NEXUS's (O15): the scope owns it.
-    const follower = yield* Stream.runForEach(running.host.renders, (later) => Effect.sync(() => {
-      if (drawn.render === undefined) {
-        held.latest = later;
-      } else {
-        target.update(later.tree);
-        drawn.render = later;
+        return Effect.void;
       }
-    })).pipe(Effect.forkIn(scope));
 
-    // Draw or hydrate with the current render, retain it, then catch up with anything held. One synchronous step: no event can fall between.
-    const render = yield* running.render;
-    const result = first(target, render.tree);
-    drawn.render = render;
+      // Draw or hydrate, and retain the render, in one synchronous step: no event can be reported in between.
+      const result = first(target, render.tree);
+      drawn.render = render;
 
-    if (held.latest !== undefined) {
-      target.update(held.latest.tree);
-      drawn.render = held.latest;
-    }
+      return Deferred.succeed(firstDone, result);
+    })).pipe(
+      // Ending before the first render (a diagnostic, a failure of the target, an application that ended) is mount's failure.
+      Effect.onExit((exit) => Exit.match(exit, {
+        onFailure: (cause) => Deferred.failCause(firstDone, cause),
+        onSuccess: () => Deferred.die(firstDone, new Error("the application ended before its first render")),
+      })),
+      Effect.forkIn(scope)
+    );
+    const result = yield* Deferred.await(firstDone);
 
     // Scope finalizers run in reverse: this runs before the application ends.
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
