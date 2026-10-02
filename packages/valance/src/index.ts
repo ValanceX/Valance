@@ -5,7 +5,8 @@
  *
  *   define(app)            data: program, state, scope, command bindings. No target, no platform.
  *   start(app, options)    starts the NEXUS application in the CALLER's Scope; supplies the platform;
- *                          creates the application's state and its MESH host.
+ *                          creates the application's state and its MESH host; returns the application's handle:
+ *                          its `state` and `invoke`, and nothing of the composition (see ./internal).
  *   mount / hydrate        connects a PORT target to a started application: draws (or adopts server
  *                          server output for) the current render, follows later renders as updates, and
  *                          dispatches each reported event with the render that was drawn.
@@ -16,6 +17,7 @@
 import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
 
 import * as Nexus from "@valancex/nexus";
+import { handleOf, runningOf, type Running, type Viewed } from "./internal.js";
 import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
@@ -53,31 +55,23 @@ export interface StartOptions<S> {
   readonly state?: S;
 }
 
-/** A MESH render, and which view's program made it. Program continuity is "same view as the drawn one". */
-export interface Viewed {
-  readonly view: string;
-  readonly render: Nexus.Mesh.Render;
-}
-
-export interface Running<S, E, R extends Ambient> {
-  readonly nexus: Nexus.Application.RunningApplication<never>;
-  /** The render of the current state, in the view the current state selects. */
-  readonly render: Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics>;
-  /** The render of the state current at subscription, then one per later commit, in order, with no gap (NEXUS `State.values`). */
-  readonly values: Stream.Stream<Viewed, Nexus.Mesh.MeshDiagnostics>;
+/**
+ * The application's external face: what code outside its definition, and outside any MESH render, may do with it.
+ * Whoever holds it (a host page, a custom producer, a headless host, one of Valance's own bindings) holds exactly this.
+ *
+ * It carries no runtime, no render, no dispatch, and no lifecycle: the application's lifetime is the `Scope` `start`
+ * ran in, and nothing here ends it, restarts it, or reports on it.
+ */
+export interface ApplicationHandle<S, E> {
   /**
-   * Dispatches an event against exactly the render it was reported on, through its own view's command table. It runs
-   * in the application, whoever calls it: the caller needs no runtime.
+   * The application's current state: one read, as of when it runs. A read, not a subscription: the state a host sees
+   * is the state commands have committed, whatever view is shown.
    */
-  readonly dispatch: (viewed: Viewed, handler: string, payload?: BoundaryValue) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
-  /** The application's state, read only. */
   readonly state: Effect.Effect<S>;
-  /** The state current at subscription, then every later commit, with no gap (NEXUS `State.values`). Read only. */
-  readonly states: Stream.Stream<S>;
   /**
    * Runs the command bound to `key` with the given arguments, exactly as a MESH intent for that key would:
-   * through the same table `dispatch` uses, so there is one way into application behavior. For input that does
-   * not come from a MESH render (a browser event).
+   * through the same table, so there is one way into application behavior. For input that does not come from a MESH
+   * render (a browser event, a host page, a headless caller).
    *
    * It executes in the application's own context, with the platform's FiberRefs, and nothing of that context flows
    * back to the caller (NEXUS I44). The caller needs no runtime and provides no services: interrupting the returned
@@ -87,10 +81,11 @@ export interface Running<S, E, R extends Ambient> {
 }
 
 /**
- * Starts the application. Its lifetime is the caller's `Scope`: closing it, or `Application.shutdown(running.nexus)`,
- * ends the application and its state. Valance keeps nothing that outlives that scope.
+ * Starts the application. Its lifetime is the caller's `Scope`: closing it ends the application and its state, and
+ * Valance keeps nothing that outlives that scope. (NEXUS can also end an application early; that is the substrate's,
+ * is outside this model, and nothing here asks for it.)
  */
-export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<Running<S, E, R>, StartError, Scope.Scope> =>
+export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<ApplicationHandle<S, E>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
     const nexus = yield* Nexus.Application.start(definition, options.platform === undefined ? undefined : { platform: options.platform });
@@ -117,7 +112,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       return Fiber.join(handle).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
     });
 
-    return {
+    const running: Running<S, E> = {
       nexus,
       render: Effect.flatMap(state.get, renderOf),
       values: Stream.mapEffect(state.values, renderOf),
@@ -135,6 +130,8 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
       },
     };
+
+    return handleOf(running);
   });
 
 /** Reports what the user did: PORT's handler identifier and payload. */
@@ -166,12 +163,13 @@ export interface Mounted<E> {
   readonly followed: Effect.Effect<Exit.Exit<void, Nexus.Mesh.MeshDiagnostics>>;
 }
 
-const connect = <S, E, R extends Ambient, T extends Target, A>(
-  running: Running<S, E, R>,
+const connect = <S, E, T extends Target, A>(
+  application: ApplicationHandle<S, E>,
   create: TargetFactory<T>,
   first: (target: T, tree: RenderTree) => A
 ): Effect.Effect<Mounted<E> & { readonly first: A }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.gen(function* () {
+    const running = runningOf(application);
     const scope = yield* Effect.scope;
     // The render whose tree is drawn: the only render an event may be dispatched with (NEXUS M1, M2).
     const drawn: { current: Viewed | undefined } = { current: undefined };
@@ -245,12 +243,12 @@ const connect = <S, E, R extends Ambient, T extends Target, A>(
   });
 
 /** Draws the application's current render on a target, and keeps it current. Ends with the caller's Scope. */
-export const mount = <S, E, R extends Ambient>(running: Running<S, E, R>, create: TargetFactory<Target>): Effect.Effect<Mounted<E>, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
-  Effect.map(connect(running, create, (target, tree) => { target.draw(tree); }), ({ first: _, ...mounted }) => mounted);
+export const mount = <S, E>(application: ApplicationHandle<S, E>, create: TargetFactory<Target>): Effect.Effect<Mounted<E>, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
+  Effect.map(connect(application, create, (target, tree) => { target.draw(tree); }), ({ first: _, ...mounted }) => mounted);
 
 /**
  * Takes over server output with the client's own render (never the server's), then keeps it current.
  * What adoption or mismatch means is PORT's: `hydration` is its result, unchanged.
  */
-export const hydrate = <S, E, R extends Ambient, H>(running: Running<S, E, R>, create: TargetFactory<HydratableTarget<H>>): Effect.Effect<Mounted<E> & { readonly hydration: H }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
-  Effect.map(connect(running, create, (target, tree) => target.hydrate(tree)), ({ first, ...mounted }) => ({ ...mounted, hydration: first }));
+export const hydrate = <S, E, H>(application: ApplicationHandle<S, E>, create: TargetFactory<HydratableTarget<H>>): Effect.Effect<Mounted<E> & { readonly hydration: H }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
+  Effect.map(connect(application, create, (target, tree) => target.hydrate(tree)), ({ first, ...mounted }) => ({ ...mounted, hydration: first }));

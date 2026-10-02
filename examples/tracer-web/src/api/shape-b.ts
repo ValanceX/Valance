@@ -1,4 +1,4 @@
-// API tracer, candidate B: the platform owns the run operation. The application author supplies the definition and
+// API tracer, candidate B (candidate A became the real API in Stage 17; this stays as the platform-owned alternative): the platform owns the run operation. The application author supplies the definition and
 // platform options; no handle is returned, and application code never sees `Running`.
 //
 //   author   : the application definition (../catalog/app.ts), no platform

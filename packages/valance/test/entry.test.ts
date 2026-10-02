@@ -71,8 +71,46 @@ describe("application event entry", () => {
     expect(state.n).toBe(7);
   });
 
+  it("the handle is the application's face and nothing else: state and invoke, frozen, with no composition or substrate", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const handle = yield* Valance.start(application);
+
+      expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
+      expect(Object.isFrozen(handle)).toBe(true);
+      for (const internal of ["nexus", "values", "dispatch", "render", "states", "runtime", "shutdown", "status"]) {
+        expect(internal in handle, internal).toBe(false);
+      }
+    })));
+
+    expectTypeOf<keyof Valance.ApplicationHandle<State, never>>().toEqualTypeOf<"state" | "invoke">();
+  });
+
+  it("state is one read of what commands have committed, not a subscription", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const handle = yield* Valance.start(application);
+      const before = yield* handle.state;
+
+      yield* handle.invoke("app/set", [{ value: 3 }]);
+
+      expect(before.n).toBe(0);                                  // a value, as of when it ran
+      expect((yield* handle.state).n).toBe(3);
+    })));
+  });
+
+  it("invalid arguments to a known entry fail as the command's own validation error, and change nothing", async () => {
+    const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const handle = yield* Valance.start(application);
+      const exit = yield* Effect.exit(handle.invoke("app/set", [{ value: "not a number" }]));
+
+      return { exit, state: yield* handle.state };
+    })));
+
+    expect(Exit.isFailure(result.exit) && Cause.isFailType(result.exit.cause) && result.exit.cause.error).toMatchObject({ _tag: "CommandValidationError" });
+    expect(result.state.n).toBe(0);
+  });
+
   it("is typed so that no runtime is needed to run it", () => {
-    type Entry = ReturnType<Valance.Running<State, never, never>["invoke"]>;
+    type Entry = ReturnType<Valance.ApplicationHandle<State, never>["invoke"]>;
 
     expectTypeOf<Entry>().toEqualTypeOf<Effect.Effect<unknown, Mesh.UnmappedCommand, never>>();
     expectTypeOf<Effect.Effect.Context<Entry>>().toEqualTypeOf<never>();

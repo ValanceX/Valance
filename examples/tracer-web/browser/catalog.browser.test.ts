@@ -12,6 +12,7 @@ import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
+import { handleOf, runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
 import { userEvent } from "@vitest/browser/context";
 import { Effect, Layer } from "effect";
@@ -53,7 +54,7 @@ const countingPlatform = () => {
 
 const rows = (main: Element): ReadonlyArray<Element> => [...main.querySelectorAll("div")];
 
-type Running = Valance.Running<AppState, unknown, never>;
+type Running = Valance.ApplicationHandle<AppState, unknown>;
 
 interface Context {
   readonly main: HTMLElement;
@@ -99,7 +100,7 @@ const run = async <A>(options: { readonly startUrl: string; readonly items?: Rea
       const started = yield* Valance.start(application(catalog), { platform, state });
       const running = started as unknown as Running;
       // `invoke` is the one way in from outside MESH; recording it shows what enters the application and how.
-      const watched: Running = { ...running, invoke: (key, args) => { invoked.push(key); return running.invoke(key, args); } };
+      const watched: Running = handleOf({ ...runningOf(running), invoke: (key, args) => { invoked.push(key); return running.invoke(key, args); } });
 
       const mounted = options.served === undefined ? undefined : yield* Valance.hydrate(watched, recording(main, operations));
 

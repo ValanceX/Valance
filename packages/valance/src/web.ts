@@ -5,9 +5,10 @@
  */
 import type { WebPort, WebPortOptions } from "@valancex/port-web";
 import type { BoundaryValue } from "@valancex/mesh-runtime";
-import type { Ambient, Running, TargetFactory } from "./index.js";
+import type { ApplicationHandle, TargetFactory } from "./index.js";
 
 import { createWebPort } from "@valancex/port-web";
+import { runningOf } from "./internal.js";
 import { Effect, Fiber, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitives } from "@valancex/port-web";
@@ -45,8 +46,9 @@ export interface HistoryOptions<S> {
  * the baseline has been updated for it, not as a new navigation. It reads and writes the URL and knows nothing of
  * what a URL means. PORT Web has no history API (it touches nothing outside its container), so this is Valance's.
  */
-export const history = <S, E, R extends Ambient>(running: Running<S, E, R>, options: HistoryOptions<S>): Effect.Effect<void, never, Scope.Scope> =>
+export const history = <S, E>(application: ApplicationHandle<S, E>, options: HistoryOptions<S>): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function* () {
+    const running = runningOf(application);
     const scope = yield* Effect.scope;
     const { window: win } = options;
     const popped = yield* Queue.unbounded<string>();

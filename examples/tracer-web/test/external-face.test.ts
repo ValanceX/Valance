@@ -1,44 +1,21 @@
-// Stage 16: is there an application-level external face, or is every outside producer a platform binding?
-// ONE producer: a host page announces data as a window event ("catalog:open"), and it must reach the same command a MESH
-// intent reaches (`home/open` and `app/open` are both bound to `catalog.open`). It is written once, as the smallest thing
-// that does the job, and handed (1) the A-style handle { state, invoke } or (2) the full `Running`, as a binding would get.
-// It needs ONLY `invoke`. Not an API: a test-local function, to show exactly what an outside producer requires.
-import type { Mesh } from "@valancex/nexus";
-
+// The application's external face, as a real API: a producer that is neither the definition nor a MESH render reaches
+// the application through the public handle (`ApplicationHandle`: `state` and `invoke`), and nothing else of it.
+// A host page announces data as a window event ("catalog:open"); the producer (../src/catalog/host.ts) enters it at
+// `app/open`, which is bound to the same command a MESH intent reaches (`home/open`, `catalog.open`).
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import { Cause, Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import * as A from "../src/api/shape-a.js";
 import { application, type AppState, type Item } from "../src/catalog/app.js";
 import { compilePrograms } from "../src/catalog/compile.js";
+import { fromWindowEvent } from "../src/catalog/host.js";
 import { primitives } from "../src/catalog/web.js";
 import { until } from "./helpers.js";
 
 const items = (ids: string): ReadonlyArray<Item> => [...ids].map((id) => ({ id, name: { A: "Alpha", B: "Beta", C: "Gamma" }[id]! }));
-
-/** The whole of what an outside producer needs from the application: the entry. Nothing else of `Running`. */
-interface Entry {
-  readonly invoke: (key: string, args: ReadonlyArray<Mesh.IntentArgument>) => Effect.Effect<unknown, unknown>;
-}
-
-/**
- * The producer. Machinery it needs: the entry; a Scope (to remove its listener before the application ends); a translation
- * from its own event to (key, args); a decision about failure (here: logged, never thrown into the page's event loop).
- */
-const fromWindowEvent = (entry: Entry, win: Window, name: string, key: string) => Effect.gen(function* () {
-  const listener = (event: Event): void => {
-    void Effect.runPromise(entry.invoke(key, [{ value: (event as CustomEvent<never>).detail }]).pipe(
-      Effect.catchAllCause((cause) => Effect.logError("host event failed", Cause.pretty(cause)))
-    ));
-  };
-
-  win.addEventListener(name, listener);
-  yield* Effect.addFinalizer(() => Effect.sync(() => { win.removeEventListener(name, listener); }));
-});
 
 const page = () => {
   const dom = new JSDOM(`<!doctype html><html><body><main></main></body></html>`, { url: "http://localhost/" });
@@ -65,20 +42,19 @@ const platform: Nexus.Application.Platform = Nexus.Capability.EnvironmentLive(ne
 const settle = (check: () => boolean) => Effect.promise(() => until(check));
 
 /** The MESH path and the producer path to the SAME command, compared in one running application. */
-const scenario = (how: "handle" | "running") => async () => {
+const scenario = async () => {
   const app = application(await compilePrograms());
   const p = page();
   const states: Array<{ readonly via: string; readonly state: AppState }> = [];
 
   await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-    const running = yield* Valance.start(app, { platform, state: { view: "home", items: items("ABC") } });
-    yield* Valance.mount(running, Web.target({ container: p.container, primitives }));
-    // The ONLY difference between the two runs: what the producer is handed.
-    const handle: A.Handle<AppState, Nexus.Command.CommandValidationError> = { invoke: running.invoke, state: running.state };
-    yield* fromWindowEvent(how === "handle" ? handle : running, p.win, "catalog:open", "app/open");
+    const handle = yield* Valance.start(app, { platform, state: { view: "home", items: items("ABC") } });
+    yield* Valance.mount(handle, Web.target({ container: p.container, primitives }));
+    yield* fromWindowEvent(handle, p.win, "catalog:open", "app/open");
     expect(p.live.size).toBe(1);
 
-    const seen = (via: string) => running.state.pipe(Effect.map((state) => { states.push({ via, state }); }));
+    // A host observes state through the handle alone: one read, no internal composition, no runtime.
+    const seen = (via: string) => handle.state.pipe(Effect.map((state) => { states.push({ via, state }); }));
 
     // MESH intent -> home/open -> catalog.open
     p.click(p.rowButton("Beta"));
@@ -93,13 +69,14 @@ const scenario = (how: "handle" | "running") => async () => {
     yield* seen("host: app/open B");
 
     // An id the application does not have: the command decides (not-found), whoever asked. MESH reaches it with an empty list.
-    yield* running.invoke("app/home", []);
-    yield* running.invoke("app/changeItems", [{ value: [] as never }]);
+    yield* handle.invoke("app/home", []);
+    yield* handle.invoke("app/changeItems", [{ value: [] as never }]);
     yield* settle(() => p.container.textContent?.startsWith("0 items") === true);
     p.click(p.button("Open first"));                                          // firstId "" -> home/open ""
     yield* settle(() => p.container.textContent?.startsWith("Not found") === true);
     yield* seen("mesh: home/open ''");
-    yield* running.invoke("app/home", []);
+    yield* handle.invoke("app/home", []);
+    yield* settle(() => p.container.textContent?.startsWith("0 items") === true);
     p.announce("");
     yield* settle(() => p.container.textContent?.startsWith("Not found") === true);
     yield* seen("host: app/open ''");
@@ -112,9 +89,9 @@ const scenario = (how: "handle" | "running") => async () => {
   expect(states[3]!.state).toEqual({ view: "not-found", items: [] });
   // The producer's listener was the producer's to remove, and was removed, before the application ended.
   expect(p.live.size).toBe(0);
+  expect(p.container.innerHTML).toBe("");
 };
 
-describe("one outside producer, one command, two ways of being handed the entry", () => {
-  it("handed the A-style handle { state, invoke }: a host-page producer", scenario("handle"));
-  it("handed the full `Running`, as a platform binding would be: the same function, unchanged", scenario("running"));
+describe("an external producer through the application's public handle", () => {
+  it("enters the same command a MESH intent does, and reads the same resulting state", scenario);
 });

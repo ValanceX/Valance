@@ -10,9 +10,12 @@ const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }
 
 // client
 Effect.scoped(Effect.gen(function* () {
-  const running = yield* Valance.start(app, { platform, state });
-  const mounted = yield* Valance.hydrate(running, Web.target({ container, primitives }));
-  yield* Web.history(running, { window, urlOf, stateOf, navigate: "app/navigate" });   // URL ↔ state (the application's functions), optional
+  const application = yield* Valance.start(app, { platform, state });   // the application's handle: { state, invoke }
+  const mounted = yield* Valance.hydrate(application, Web.target({ container, primitives }));
+  yield* Web.history(application, { window, urlOf, stateOf, navigate: "app/navigate" });   // URL ↔ state (the application's functions), optional
+
+  yield* application.invoke("app/changeItems", [{ value: items }]);      // any other producer: a host page, a headless caller
+  const current = yield* application.state;                              // one read of the committed state
 }));                                   // closing the scope ends everything
 ```
 

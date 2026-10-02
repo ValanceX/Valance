@@ -9,6 +9,7 @@ import type { BoundaryValue } from "@valancex/mesh-runtime";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
+import { handleOf, runningOf, type Running } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
 import { Effect, Exit, Layer, Stream } from "effect";
 import { describe, expect, it } from "vitest";
@@ -63,7 +64,7 @@ const steps: ReadonlyArray<Step> = [
 ];
 
 /** Runs the scenario against a target, counting how often the application's own definition was asked to build behavior. */
-const run = async (makeTarget: (operations: Array<Operation>) => Valance.TargetFactory<Valance.Target>, ctxOf: (running: Valance.Running<AppState, unknown, never>) => Pick<Ctx, "openFirst" | "back">, observe?: (step: string, state: AppState) => void) => {
+const run = async (makeTarget: (operations: Array<Operation>) => Valance.TargetFactory<Valance.Target>, ctxOf: (handle: Valance.ApplicationHandle<AppState, unknown>) => Pick<Ctx, "openFirst" | "back">, observe?: (step: string, state: AppState) => void) => {
   const base = application(await compilePrograms());
   const built: Array<Nexus.State.StateHandle<AppState>> = [];
   const app = { ...base, commands: (state: Nexus.State.StateHandle<AppState>) => { built.push(state); return base.commands(state); } };
@@ -71,18 +72,18 @@ const run = async (makeTarget: (operations: Array<Operation>) => Valance.TargetF
   const shown: Array<string> = [];
   const { platform, counts } = countingPlatform();
   const status: Array<string> = [];
-  let ended!: { running: Valance.Running<AppState, unknown, never>; mounted: Valance.Mounted<unknown> };
+  let ended!: { running: Running<AppState, unknown>; mounted: Valance.Mounted<unknown> };
 
   await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-    const started = yield* Valance.start(app, { platform });
-    const running = started as unknown as Valance.Running<AppState, unknown, never>;
+    const handle = (yield* Valance.start(app, { platform })) as unknown as Valance.ApplicationHandle<AppState, unknown>;
+    const running = runningOf(handle);
     // Which view each rendered state selected, in order.
-    const watched: Valance.Running<AppState, unknown, never> = { ...running, values: Stream.tap(running.values, (viewed) => Effect.sync(() => { shown.push(viewed.view); })) };
+    const watched = handleOf({ ...running, values: Stream.tap(running.values, (viewed) => Effect.sync(() => { shown.push(viewed.view); })) });
     const mounted = yield* Valance.mount(watched, makeTarget(operations));
     ended = { running, mounted: mounted as never };
     const ctx: Ctx = {
-      invoke: (key, value) => Effect.runPromise(running.invoke(key, value === undefined ? [] : [{ value }])).then(() => undefined),
-      ...ctxOf(running),
+      invoke: (key, value) => Effect.runPromise(handle.invoke(key, value === undefined ? [] : [{ value }])).then(() => undefined),
+      ...ctxOf(handle),
     };
     const observeStatus = Effect.gen(function* () { status.push((yield* Nexus.Application.status(running.nexus))._tag); });
 

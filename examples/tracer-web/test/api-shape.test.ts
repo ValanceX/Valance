@@ -6,7 +6,8 @@ import { Effect, Layer } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import * as A from "../src/api/shape-a.js";
+import * as Valance from "@valancex/valance";
+import * as Web from "@valancex/valance/web";
 import * as B from "../src/api/shape-b.js";
 import { application, stateOf, urlOf, type Item } from "../src/catalog/app.js";
 import { compilePrograms } from "../src/catalog/compile.js";
@@ -42,7 +43,7 @@ const historyOptions = (win: Window) => ({ window: win, urlOf, stateOf, navigate
 const same = (a: Element | null, b: Element | null) => expect(a).toBe(b);
 
 describe("API tracer: one definition, two shapes", () => {
-  it("A: the caller starts it and holds a handle; bindings attach to the handle; the caller delivers an entry and reads state", async () => {
+  it("A, now the real API: the caller starts it and holds the handle; bindings attach to it; the caller delivers an entry and reads state", async () => {
     const app = application(await compilePrograms());
     const p = page();
     const { counts, platform } = counting();
@@ -51,9 +52,9 @@ describe("API tracer: one definition, two shapes", () => {
     p.win.history.pushState = (data: unknown, unused: string, url?: string | URL | null) => { writes.push(`push ${String(url)}`); push(data, unused, url); };
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* A.start(app, { platform, state: initialStateAt(p.win, items("ABC")) });
-      yield* A.mount(handle, { container: p.container, primitives });
-      yield* A.history(handle, historyOptions(p.win));
+      const handle = yield* Valance.start(app, { platform, state: initialStateAt(p.win, items("ABC")) });
+      yield* Valance.mount(handle, Web.target({ container: p.container, primitives }));
+      yield* Web.history(handle, historyOptions(p.win));
       const section = p.container.firstElementChild;
       const alpha = p.container.querySelectorAll("div")[0];
 

@@ -787,6 +787,57 @@ A host page announces data as a window event; one producer function translates i
 
 ---
 
+## Stage 17: the first public application boundary
+
+*Implemented, not a tracer. Decision from Stages 15 and 16: the application has an external face, it is `{ state, invoke }`, and the composition machinery behind it is not part of it.*
+
+### What changed
+- **`start` returns an `ApplicationHandle<S, E>`**: `state` (one read of the committed state, `Effect<S>`) and `invoke(key, args)` (the Stage 12 entry: runs in the application's own context, no runtime, interruption and defects pass through). Frozen; no other member.
+- **`Running<S, E>` is internal** (`src/internal.ts`): `nexus`, `render`, `values`, `dispatch`, `states`, `state`, `invoke`. Its `R` parameter, unused since Stage 12, is gone. A handle is registered against its `Running` in a module-private map, so nothing reachable from a handle leads there.
+- **Bindings take the handle** and resolve the `Running` themselves: `mount`, `hydrate`, `Web.history`; `renderToHtml` takes the definition, as before. Web convenience is unchanged in behavior.
+- **`./internal`** is a new package entry (`handleOf`, `runningOf`, `Running`, `Viewed`): the binding protocol for binding authors and for tests that must reach the substrate (lifecycle status, spies on `values`/`invoke`). It is not the application API and carries no stability promise. Package `exports` blocks every other deep import.
+- No change to NEXUS, MESH, PORT, the binding table, entry names, command semantics, history, SSR, hydration, keyed identity, FiberRef isolation, the dependency graph.
+
+### Evidence
+- The compiler enforced the boundary: every test that reached `nexus`, `states`, `values`, `render` or `Running` through what `start` returns stopped compiling, and now resolves it explicitly through `runningOf`.
+- New unit tests: the handle has exactly `state` and `invoke`, is frozen, and has none of `nexus`, `values`, `dispatch`, `render`, `states`, `runtime`, `shutdown`, `status` (also asserted at the type level); `state` is a read, not a subscription; invalid arguments to a known entry fail as the command's `CommandValidationError` and change nothing.
+- The Stage 16 producer is now real author-side code (`examples/tracer-web/src/catalog/host.ts`, handed only the handle). A MESH click and the producer reach the same `catalog.open` and leave equal states, including `not-found` for an id the application does not have; the host reads state through the handle alone; its listener is removed before the application ends.
+- Inherited and unchanged (they now run through the handle): caller FiberRefs at start flow into the application, application FiberRefs do not leak back, caller interruption interrupts the command, closing the Scope releases resources exactly once.
+- Candidate A's tracer (`shape-a.ts`) was deleted: it is the real API now. Candidate B's tracer stays, composing the same bindings over the handle.
+- Matrix: build, typecheck; 29 unit, 19 jsdom, 20 Chromium.
+
+### Public-surface audit
+| Export | NEXUS / MESH / PORT types in it | Classification |
+|---|---|---|
+| `ApplicationHandle.state` | none | public |
+| `ApplicationHandle.invoke` | `Mesh.IntentArgument` (argument), `Mesh.UnmappedCommand` (error) | argument encoding: **application-facing leak, later task** (a MESH boundary value in a host's call); the error is the established error model: **intentional** |
+| `define`, `ApplicationDefinition`, `View`, `Ambient` | `StateHandle`, `Mesh.bind` / `Binding`, `Mesh.Program`, `EnvironmentShape`, `EventBusShape` | **intentional public substrate dependency**: the author writes NEXUS commands and supplies compiled MESH programs |
+| `start`, `StartOptions`, `StartError` | `Application.Platform`, `ApplicationInitError`, `StateInitError` | **intentional**: the one place services and capabilities enter |
+| `mount`, `hydrate` | `MeshDiagnostics` (error) | **intentional**, binding-level |
+| `Mounted`, `DispatchExit` | `Mesh.Dispatched`, `MeshDiagnostics`, `UnmappedCommand` | **internal-only but exported**: observation facilities (`dispatched`, `settled`, `followed`) used by tests; remove or narrow when `mount`'s result is decided |
+| `Target`, `HydratableTarget`, `TargetFactory`, `Report` | `RenderTree`, `BoundaryValue` (MESH runtime) | **intentional**: PORT's contract as a binding author uses it |
+| `Web.history`, `HistoryOptions` | `stateOf` returns a MESH `BoundaryValue` | **application-facing leak, later task** (the application's own function returns a MESH value) |
+| `Web.target`, `renderToHtml`, `Served` | PORT Web types | **intentional**, Web layer |
+| `./internal`: `Running`, `Viewed`, `handleOf`, `runningOf` | `RunningApplication`, `Render`, `MeshDiagnostics` | **internal binding protocol**, unstable; deliberately a separate entry |
+
+The handle names no runtime, no fiber, no scope and no lifecycle type. Remaining NEXUS and MESH types in the public surface are the table above; removing them is a package-boundary exercise, not part of this change.
+
+### CONFIRMED
+- VALANCE has an application-level external face.
+- It is narrower than the internal `Running`: `state` and `invoke` are application-facing; `values`, `dispatch`, `render`, `states` are internal binding/composition capabilities.
+- NEXUS runtime and fiber machinery is not part of the application face.
+- Application lifetime remains the caller's `Scope`; status and shutdown are not part of the public model.
+
+### DECISIONS
+- Custom and headless external producers are supported by the application face (a host page, a custom producer, a headless host hold the same handle as Valance's own bindings).
+- Web is a convenience and platform layer; it does not own the application concept.
+- The internal `Running` remains substrate and composition machinery, reachable only through `./internal`.
+
+### DEFERRED
+Complete removal of NEXUS and MESH types from every public signature (notably `IntentArgument`, `BoundaryValue`, `Mounted`); final package and module organization (including whether `./internal` stays a separate entry); `renderOf` and per-view hosts (a NEXUS render-from-value entry); CSS optimizer; dev server and HMR; additional platform targets; application services; async loading; rendering coalescing.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

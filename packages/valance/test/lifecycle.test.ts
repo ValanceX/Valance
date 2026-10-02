@@ -8,6 +8,7 @@ import { Cause, Chunk, Effect, Exit, Layer, Schema, Scope, Stream } from "effect
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
+import { runningOf } from "../src/internal.js";
 
 const State = Schema.Struct({ n: Schema.Number });
 
@@ -36,7 +37,9 @@ const counting = () => {
 const open = async () => {
   const { counts, platform } = counting();
   const scope = await Effect.runPromise(Scope.make());
-  const running = await Effect.runPromise(Valance.start(application, { platform }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application, { platform }).pipe(Scope.extend(scope)));
+  // `states` and `nexus` are the composition face and the substrate: reached on purpose, not through the application's handle.
+  const running = runningOf(handle);
   const close = () => Effect.runPromise(Scope.close(scope, Exit.void));
   // `states` is the current state, then every commit, until the application ends: the follower's own signal of an ending.
   const states = Effect.runPromise(Stream.runCollect(running.states).pipe(Effect.map(Chunk.toReadonlyArray)));
@@ -44,7 +47,7 @@ const open = async () => {
   return { running, counts, close, states };
 };
 
-const refused = async (running: Valance.Running<{ n: number }, unknown, never>): Promise<boolean> => {
+const refused = async (running: Pick<Valance.ApplicationHandle<{ n: number }, unknown>, "invoke">): Promise<boolean> => {
   const exit = await Effect.runPromise(Effect.exit(running.invoke("app/bump", [])));
 
   return Exit.isFailure(exit) && Cause.isDie(exit.cause);

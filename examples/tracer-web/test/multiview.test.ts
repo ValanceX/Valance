@@ -4,6 +4,7 @@ import type { WebPort } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
+import { runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
 import { renderToHtml } from "@valancex/valance/web/server";
 import { Effect, Layer } from "effect";
@@ -53,7 +54,7 @@ describe("one application, two MESH programs", () => {
       const running = yield* Valance.start(app, { platform });
       const mounted = yield* Valance.mount(running, recording(page.container, operations));
       const observe = (step: string) => Effect.gen(function* () {
-        const status = yield* Nexus.Application.status(running.nexus);
+        const status = yield* Nexus.Application.status(runningOf(running).nexus);
         seen.push({ step, text: text(page), section: page.container.firstElementChild, status: status._tag, ...counts });
       });
       const press = (index: number, expected: string) => Effect.gen(function* () {
