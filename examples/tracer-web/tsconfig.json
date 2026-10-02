@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src", "test", "browser", "async", "vitest.config.ts", "vitest.browser.config.ts", "vitest.async.config.ts", "vitest.async.browser.config.ts"]
+  "include": ["src", "test", "browser", "async", "dynamic", "vitest.config.ts", "vitest.browser.config.ts", "vitest.async.config.ts", "vitest.dynamic.config.ts", "vitest.async.browser.config.ts"]
 }
