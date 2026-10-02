@@ -838,6 +838,59 @@ Complete removal of NEXUS and MESH types from every public signature (notably `I
 
 ---
 
+## Stage 18: application API vocabulary boundary
+
+*An ownership analysis of the application-facing types Stage 17 flagged. No source changed: the evidence does not establish that any of them is owned by something other than what they already are, and each replacement would be a rename. The only measurement code was a throwaway probe, deleted.*
+
+### Method
+Ownership from semantics, traced end to end: a MESH intent reaches the table through `dispatch`; an external producer through `invoke`; both call the **same binding function**, `(args: ReadonlyArray<IntentArgument>) => Effect`, made by `Mesh.bind(command, toInput)`. History reaches it through `invoke` too, with `{ value: stateOf(url) }`.
+
+### Ownership table
+
+| Type | Declared in | Owner of the *concept* | Where the application meets it |
+|---|---|---|---|
+| `IntentArgument` (`{ value: BoundaryValue } \| { absent: true }`) | MESH runtime | MESH: the boundary data model (spec §9.8) | the `toInput` of **every binding the author writes**; the argument of `invoke`; built by `Web.history` |
+| `BoundaryValue` | MESH runtime | MESH | inside `IntentArgument.value`; `HistoryOptions.stateOf`'s return type |
+| `UnmappedCommand { component, name }` | NEXUS (`Mesh` adapter) | NEXUS adapter, over MESH's `component/name` addressing | `invoke`'s error; also what `dispatch` fails with; built by Valance in `invoke` |
+| `Binding`, `bind`, `Mesh.Program` | NEXUS (`Mesh` adapter) | NEXUS adapter | the author's command table and views |
+| `CommandValidationError` | NEXUS (`Command`) | NEXUS | flows into `E` (every `Mesh.bind` adds it); the failure of invalid arguments |
+| `MeshDiagnostics`, `Dispatched`, `DispatchExit`, `Mounted` | NEXUS adapter / Valance | MESH rejection of render or dispatch input; the render-originated dispatch result | `mount`/`hydrate`'s error and result: **binding-facing**, not on the handle |
+| `StartError`, `Platform` | NEXUS | NEXUS | `start`: whoever hosts the application |
+| `Target`, `Report`, `RenderTree` | Valance / MESH runtime | PORT's contract | bindings and binding authors |
+
+### Findings per type
+
+**1. `IntentArgument` is the application's command-argument representation, because the command table is defined in it.** The table's entries consume exactly this type; that is not a MESH-specific *transport* choice made at the door, it is the binding signature. `invoke` takes the same type because it feeds the same function. Evidence: both example applications define a `firstValue` helper over `IntentArgument` in the author's own definition; no caller needed a cast (an ordinary `ReadonlyArray<Item>` is a valid `{ value }`; the three `as never` casts in tests are on untyped helper values, not forced by the type). A VALANCE-owned argument type would either be the same structure renamed, or require a conversion `value => ({ value })` at `invoke` *and* leave the table's bindings on `IntentArgument`. The one member with independent meaning, `{ absent: true }` (an omitted optional parameter), is available to external producers as well, which is correct for one table. The data model's limits (no `undefined`, no `Date`; asserted) apply equally to both doors, which keeps "one table, one argument representation". **Verdict: MESH-owned, inherited by the table, intentional.** The only accidental part is the *name*: `IntentArgument` also describes arguments that no intent produced. A naming issue, not a semantic one.
+
+**2. `UnmappedCommand` is the one failure for "no such entry", correct for both doors, with one lossy edge.** Both `dispatch` and `invoke` fail with it; its fields mirror the table's key scheme (`component/name`, the NEXUS adapter's own-key lookup over MESH's addressing). The application's external entries borrow that scheme with a pseudo-component (`app/...`, by convention; not enforced). A VALANCE-owned replacement would add a second error for the same fact or map the first: a rename. **Verdict: intentional.** **Accidental edge (measured):** Valance derives `{ component, name }` by splitting the key, so the error does not carry the key: `"a/b/c"` and `"a/b/d"` both give `{ component: "a", name: "b" }`; `"nowhere"` gives `{ component: "nowhere", name: "" }`; `"/x"` gives `{ component: "", name: "x" }`. It is faithful for `component/name` keys and not otherwise. Fixing it means adding the key to a NEXUS-owned type (or a second error type): out of scope here, deferred.
+
+**3. `BoundaryValue` in `Web.history` is derived, not independent.** `stateOf`'s result is placed as `{ value: stateOf(url) }`, the argument of the navigate entry; history never inspects it. The author's `stateOf` returns their own `Navigation` struct, which is also their `navigate` command's input schema; `BoundaryValue` is only the compatibility constraint at the type position, and no cast was needed. It is neither URL representation nor application state. It follows `IntentArgument` one for one, so it is intentional exactly as long as that is. A history-owned type would be a rename.
+
+**4. `Mounted`, `DispatchExit`, `Dispatched`, `MeshDiagnostics`: binding- and platform-facing.** None is on `ApplicationHandle` (its error is `UnmappedCommand | E`). They appear on `mount`/`hydrate` and `renderToHtml`. `Mounted`'s members are used by tests only (Stage 11, 17). Classification only: no redesign.
+
+### Application-facing surface, classified
+
+| Leak | Where | Verdict |
+|---|---|---|
+| `IntentArgument` (and its `BoundaryValue`) | `invoke` argument; history's `stateOf` | **intentional**: the table's own argument vocabulary; name mismatch for non-intent producers is cosmetic |
+| `UnmappedCommand` | `invoke` error | **intentional**; lossy key identification is an **accidental** defect of how Valance builds it |
+| `CommandValidationError` (via `E`) | `invoke` error channel | **intentional**: NEXUS command validation |
+| `Platform`, `StartError`, `Ambient`, `StateHandle`, `Mesh.bind`, `Mesh.Program` | `start`, definition | **intentional** substrate vocabulary (author writes NEXUS commands, supplies MESH programs) |
+| `Mounted`, `DispatchExit`, `Dispatched`, `MeshDiagnostics` | `mount`, `hydrate`, `renderToHtml` | **binding-facing**; exported more widely than their audience (Stage 17) |
+| the `app/` entry namespace | author convention | **accidental**: a pseudo-component in MESH's addressing, unenforced |
+
+### Changes made
+None. Per the stop conditions: ownership is not different from where the types already sit; replacing `IntentArgument` or `UnmappedCommand` renames them (or changes NEXUS, for the key); `BoundaryValue` follows `IntentArgument`.
+
+### Deferred
+- The lossy `invoke` error for keys that are not `component/name` (a NEXUS `UnmappedCommand` change or a second error type, with evidence that a consumer needs the key).
+- Whether the entry namespace (`app/`) should be named and checked, or the table's key scheme made explicit for external entries.
+- Narrowing or removing `Mounted` / `DispatchExit` from the main entry.
+- Naming: `IntentArgument` for arguments not produced by an intent.
+- Package organization (entry layout, `./internal`), unchanged from Stage 17.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
