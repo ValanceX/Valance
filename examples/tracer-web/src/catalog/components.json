@@ -42,6 +42,9 @@
               }
             }
           ]
+        },
+        "reverse": {
+          "parameters": []
         }
       },
       "scope": {

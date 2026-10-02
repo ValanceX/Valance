@@ -681,6 +681,74 @@ The lifecycle no longer constrains the public API. Candidate A or B (Stage 11) m
 
 ---
 
+## Stage 15: public API shape tracer (two candidates, one definition)
+
+*A structural comparison, not a decision. No VALANCE source changed. The tracers are `examples/tracer-web/src/api/shape-a.ts` (52 lines) and `shape-b.ts` (43), built only from today's public exports; the spellings are local and decide nothing. One tiny test (`test/api-shape.test.ts`, 2 tests) drives both; the existing matrix ran unchanged (26 unit, 18 jsdom = 16 + 2, 20 Chromium). The shared definition gained one same-view intent (`home/reverse`), because the catalog had none and B needs a same-view update that is not an external entry.*
+
+### Concrete shapes
+
+**A. The caller starts it and holds a handle; bindings attach to the handle.**
+```ts
+const handle = yield* A.start(app, { platform, state: initialStateAt(window, items) });   // handle = { state, invoke }
+yield* A.mount(handle, { container, primitives });                                         // or A.hydrate
+yield* A.history(handle, { window, urlOf, stateOf, navigate: "app/navigate" });
+yield* handle.invoke("app/changeItems", [{ value: items }]);                               // caller delivers an entry
+const s = yield* handle.state;                                                             // caller reads state
+```
+**B. The platform owns the run; no handle.**
+```ts
+yield* B.run(app, { container, primitives, platform, state: initialStateAt(window, items), hydrate?: true,
+                    history: { window, urlOf, stateOf, navigate: "app/navigate" } });      // returns void
+```
+
+### Structural comparison (not scored)
+
+| | A | B |
+|---|---|---|
+| Author code | the definition (identical in both) | the definition (identical in both) |
+| Platform binding code | 3 calls, in an order the caller must know (start, mount or hydrate, history) | 1 call, 6 options; the order is inside |
+| External entry | `handle.invoke(key, args)`, on the default Effect runtime | none for the caller; only what the platform originates (popstate) and MESH intents |
+| State observation | `handle.state` (one read); `states` stays with the bindings | none; observable only through the DOM and the URL |
+| Lifetime | the caller's Scope, held by the caller | the caller's Scope, held by `run`; the same Scope |
+| NEXUS/MESH/PORT leak | see below | see below |
+| Invented | a handle narrower than `Running`, plus a private channel from handle to full `Running` for bindings | an explicit `hydrate` flag; `state` passed in (canonicalization stays the caller's pre-step) |
+| Harder or impossible | sequencing errors are expressible (mount twice, history before mount, bind to an ended application) | external entry, state read, headless run, a host page pushing data, the hydration result `{ adopted }` and `Mounted.followed/settled/dispatched` (the tracer returns `void`; A's wrappers also drop them) |
+| Simpler | the existing composition is kept; one handle serves several bindings; a host can push data | no handle to pass or misuse; ordering and the mount-or-hydrate call choice are not the author's |
+
+**Leakage, both shapes.** The definition's own types: `Nexus.Command`, `Nexus.Mesh.bind`, `Nexus.State.StateHandle`, and `Ambient` (`EnvironmentShape | EventBusShape`). `platform` is a `Nexus.Application.Platform`. `StartError` is NEXUS's; mount failures are `Mesh.MeshDiagnostics`. History's `stateOf` returns a MESH `BoundaryValue`. PORT shows only as `WebPrimitives` and the Web target. **A only:** `handle.invoke`'s arguments are `Mesh.IntentArgument` and its errors `Mesh.UnmappedCommand | E`. **B only:** nothing beyond the shared set, because B has no entry.
+
+### Hidden common machinery (explicit, neither shape removes it)
+
+1. **`Running`'s composition face:** `values`, `dispatch`, `render` for targets; `states`, `state`, `invoke` for history. Both shapes still build it in `start` and hand it to bindings. In B it is created inside `run` and never returned.
+2. **The ordering and scope protocol:** start, then mount or hydrate, then history, in one Scope, with bindings ending before the application. In A the caller supplies it; in B `run` does. The invariant is the same.
+3. **The binding protocol:** the set of members a binding may use on the application. A made it explicit (a WeakMap) because a narrow public handle needs it; B hides it inside `run`; neither shape can drop it.
+4. **Application policy before start** (what the URL means; canonicalization): outside both shapes, passed as `state`. A hook would be new API; neither tracer added one.
+5. **The `"app/navigate"` entry-key convention:** history requires the application to register a binding under a name the caller passes. Present in both.
+
+### Special questions
+
+**Does B eliminate a meaningful abstraction or move `Running` into Web?** It moves it. `shape-b.ts` is `start`, `mount | hydrate`, `history` in one function over the same `Running`; `Running`, the binding protocol, and `core start` all still exist and are still needed (a headless application, tests and a non-Web platform all need `start` without `run`). What B removes is the author's *knowledge of the sequence* and the handle's visibility. It also removes capabilities (entry, state read, the hydration result) unless `run` returns something, and a `run` that returns `{ invoke, state }` is A's handle. SSR is already B-shaped today: `renderToHtml(app, options)` returns `{ html, state }` and never exposes `Running`, so both shapes coexist in the present code.
+
+**Is A's `Running` an application concept or a wrapper around NEXUS execution?** Both, fused. Two members are the application's external face: `state` and `invoke` (what a caller may read and may enter). The rest (`values`, `dispatch`, `render`, `states`) are the protocol between VALANCE core and bindings; `nexus` (read only by tests) is the substrate. The tracer separated the two with no change to VALANCE and one private map, which shows they are separable and that the second set cannot be removed, only hidden.
+
+### Which parts are application concepts
+
+- **Application:** state, `view(state)`, the binding table, the scope, `urlOf` and `stateOf`, the pre-start policy, the external face `{ state, invoke }` (if an application has one).
+- **Platform:** primitives, container, hydrate or mount, history writes, `popstate`, server HTML.
+- **Substrate:** the runtime, FiberRefs, `Running`'s composition face, `Platform` (NEXUS), diagnostics.
+
+### Unresolved
+- Whether an application *author* ever needs `{ state, invoke }` or only bindings do. The tracers show what each shape costs; they cannot show need. Only B makes the author's need visible by removing the means.
+- Whether `run` must return anything, since the hydration outcome and the follower's end are information a caller may want.
+- How the page carries the server's state to the client (`state` in B, `state` option in A): unspecified in both.
+- The error and type vocabulary: NEXUS types appear in every public signature of either shape.
+- Core `start` is needed by both; whether it stays public is open.
+
+### Recommended next experiment
+Find out whether an application author has a use for an external face, with no new API: write one real author-side requirement that A can express and B cannot (a host page pushing data into a running application), and check whether it is the application's concept or the platform's. If it is the platform's, B stands and `Running` becomes internal; if it is the application's, A's handle is the application concept and B's `run` is a convenience over it.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

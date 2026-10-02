@@ -93,9 +93,14 @@ export const application = (programs: Programs) => Valance.define({
         ? { view: "not-found", items }
         : { ...current, items })).pipe(Effect.asVoid));
 
+    // A same-view intent: the data changes, the view does not.
+    const reverse = Nexus.Command.define("catalog.reverse", Schema.Struct({}), () =>
+      state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items].reverse() })).pipe(Effect.asVoid));
+
     return {
       // From MESH intents ("component/name"): what a rendered program can ask for.
       "home/open": Nexus.Mesh.bind(open, (args) => ({ id: firstValue(args) })),
+      "home/reverse": Nexus.Mesh.bind(reverse, () => ({})),
       "details/back": Nexus.Mesh.bind(home, () => ({})),
       "notfound/back": Nexus.Mesh.bind(home, () => ({})),
       // From outside MESH, through `Running.invoke`: the same commands, the same table.
