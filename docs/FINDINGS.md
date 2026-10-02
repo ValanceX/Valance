@@ -935,6 +935,65 @@ Make the capability's operation asynchronous (`lookup` returning an `Effect`), a
 
 ---
 
+## Stage 20: an asynchronous application-owned capability (tracer)
+
+*Question: does the Stage 19 architecture behave correctly when the capability's operation is genuinely asynchronous? Answer: the happy path, interruption and state semantics follow the existing Effect/NEXUS boundary with no new concept; scope closure during in-flight work exposes a lifetime boundary that is documented by NEXUS and worth knowing. No VALANCE, NEXUS, MESH or PORT source changed; no API added.*
+
+### What was built
+`src/catalog/async-service.ts` (contract: `lookup(id): Effect<CatalogEntry, LookupError>`, NEXUS and Effect only), `src/catalog/with-async-service.ts` (the catalog definition plus `app/lookupAsync`: require the capability, await `lookup`, then `state.update`), and `test/capability-async.test.ts`. The implementation is the test's external platform: a scoped resource, and a controllable `lookup` that raises "started", waits on a gate the test opens, and records its own interruption. No sleeps in the positive paths: the test waits on those signals.
+
+### Observed
+| | |
+|---|---|
+| A. suspension | the command is still running after the capability starts (`Fiber.poll` empty); state unchanged; operations `["draw"]`; on completion: continuation, commit, `values`, **update** (same section, same keyed row element); never a second draw |
+| B + D. caller interruption | `Fiber.interrupt` of the caller's `invoke`: the caller gets interruption; the capability call is interrupted (recorded); no `lookup completed`; **state unchanged, nothing rendered**; the resource is **not** released; a second lookup then runs on the same single acquired resource and commits (B only; A never) |
+| C. Scope closes mid-call | **see below** |
+| E. stale ordering | two lookups in flight at once (neither serialized nor cancelled); invoked A then B, completed B then A: both commit, state `["A0", "B", "A"]` (completion order); two updates |
+
+### Async boundary
+```text
+caller invoke  ->  inApplication: fork into the application's runtime, join the handle   (Stage 12)
+               ->  NEXUS command (app fiber)  ->  Capability.require  ->  capability.lookup   (suspends HERE)
+               ->  state.update (commit)  ->  State.values  ->  render  ->  PORT update
+```
+Asynchrony is entirely inside the command's own Effect; the handle, `values` and render path see only commits. Nothing between them knows a wait happened.
+
+### Cancellation
+Interrupting the caller's effect interrupts the application's command fiber and, through it, the in-flight capability wait. It cancels exactly that operation: the application, its state and its resource are untouched. (Mutation: removing the Stage 12 interrupt propagation fails B.)
+
+### Lifetime (the boundary)
+Closing the owning Scope while a lookup is pending, in order: `resource acquired`, `lookup started A`, `scope closing`, **`resource released`**, `scope closed`. Then, when the test opens the gate: `lookup completed A`, `invoke succeeded`.
+- Scope close **does not wait for** the in-flight command and **does not interrupt** it (no `lookup interrupted`).
+- The capability's backing resource is **released while the call is still in flight**; the call then completes against a released resource.
+- The command continues after termination, **commits to the stopped application's state** (`items` gains `A`), and the caller's `invoke` **succeeds**.
+- It is **never rendered**: the follower ended with the Scope and the target is unmounted (`["draw"]`, container empty).
+
+This agrees with NEXUS's documented rule ("effects already running when termination begins aren't interrupted by it"; the platform is "released last" relative to application resources, and an in-flight effect is not an application resource). What it means here is not obvious from either layer alone: for a resource-backed capability, the ordering is *release the resource, then let in-flight users finish*. Whether that is acceptable, or whether termination should interrupt or await admitted work, is a NEXUS lifecycle decision with a VALANCE-visible consequence. Pinned as an observation (test labelled as such), not fixed.
+
+### State semantics
+No commit before the capability completes; interruption leaves state exactly as it was (no rollback needed: the continuation never runs); after termination a still-running command can commit (above).
+
+### Stale results
+Tested (it was nearly free). Commands are not serialized and nothing is superseded: with an append-only `items` field both results land, in completion order. A field that a later result should replace would be overwritten by whichever finishes last; this tracer has no such field. Stale-result policy is entirely the application's today; no mechanism exists, and none was added.
+
+### Rendering
+Async commits behave as any commit: same-view updates, keyed row identity preserved across the commit, no extra render for a pending call (the application commits nothing while waiting), and draw only on the first render.
+
+### Breaks
+No failure in the intended behavior. The one boundary worth recording is Lifetime above (resource released under an in-flight call; post-termination commit).
+
+### New concept required
+None.
+
+### API pressure (demonstrated)
+- None for the handle: `invoke` already composes with long-running commands and propagates interruption.
+- A *question* about termination, not an API: should an application's end await or interrupt commands that were already admitted? It is NEXUS's rule today and it decides what a capability implementation may assume about its own resource.
+
+### Next probe
+Observe the same boundary from the application's side with the smallest change: a capability whose `lookup` *uses* the resource after release (the resource refuses work once released), to see what the in-flight command, the caller and the state actually receive (a typed failure, a defect, or nothing), and whether `invoke` after `start`'s Scope closes behaves the same for a command already admitted. It shows whether the lifetime boundary is a harmless ordering or a real hazard, without adding any mechanism.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
