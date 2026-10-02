@@ -6,8 +6,9 @@ import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import { userEvent } from "@vitest/browser/context";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
-import { closure, deferredCompletion, failure, shutdownProbe } from "./scenarios.js";
+import { closure, deferredCompletion, failure } from "./scenarios.js";
 import type { Driver } from "./scenarios.js";
+import { describeShutdown } from "./shutdown.spec.js";
 
 beforeAll(async () => { await init(wasmUrl); });
 
@@ -95,11 +96,6 @@ describe("async ownership tracer (Chromium)", () => {
       expect(result.unhandled).toEqual([]);
     });
   }
-
-  it("PROBE ownership: what holds in-flight work when the application ends by Application.shutdown, scope still open", async () => {
-    const out = await shutdownProbe(driver());
-
-    console.info(JSON.stringify({ shutdownProbe: out }));
-    expect(out).toHaveLength(3);
-  });
 });
+
+describeShutdown(driver);

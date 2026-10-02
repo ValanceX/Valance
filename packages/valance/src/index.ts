@@ -16,7 +16,7 @@
 import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
 
 import * as Nexus from "@valancex/nexus";
-import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Deferred, Effect, Equal, Exit, Fiber, FiberId, Layer, Option, Schema, Scope, Stream } from "effect";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;
@@ -45,6 +45,27 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
 export const define = <S, E, R extends Ambient, V extends string>(definition: ApplicationDefinition<S, E, R, V>): ApplicationDefinition<S, E, R, V> => definition;
 
 export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError;
+
+/**
+ * The dispatches an application has in flight. `Runtime.runFork` gives a root fiber that NEXUS termination does not
+ * interrupt (NEXUS runtime.md: "Effects already running when termination begins are not interrupted by it"), so
+ * whoever forks the work owns it. The application's own runtime layer (see `start`) ends them when the application
+ * terminates, by either route. Private: `connect` is the only writer.
+ */
+interface Dispatch {
+  /** The handle `Runtime.runFork` returned. */
+  fiber?: Fiber.RuntimeFiber<unknown, never> | undefined;
+  /** The fiber the dispatch actually runs in, once it has started: what a command that terminates the application runs in. */
+  execution?: Fiber.RuntimeFiber<unknown, unknown> | undefined;
+}
+
+type InFlight = Set<Dispatch>;
+
+/** Whether the current fiber was forked, directly or not, by `ancestor`. */
+const within = (ancestor: Fiber.RuntimeFiber<unknown, unknown>, id: FiberId.FiberId): Effect.Effect<boolean> =>
+  Effect.flatMap(Fiber.children(ancestor), (children) => Effect.exists(children, (child) => Equal.equals(child.id(), id) ? Effect.succeed(true) : within(child, id)));
+
+const inFlightOf = new WeakMap<object, InFlight>();
 
 export interface StartOptions<S> {
   /** Supplied to NEXUS `Application.start`, where platform services (capabilities, Clock, …) enter. */
@@ -85,7 +106,25 @@ export interface Running<S, E, R extends Ambient> {
  */
 export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<Running<S, E, R>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
-    const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
+    const inFlight: InFlight = new Set();
+    // Built in the application's own runtime scope, so this finalizer runs when the application terminates, whether by
+    // `Application.shutdown` or by the caller's scope closing, after the runtime's State has ended and before the
+    // platform's resources are released (layers are released in reverse order of construction), and before `Stopped`.
+    // A dispatch that is itself performing the termination (a command that shuts its application down) cannot be
+    // awaited from inside it: termination is uninterruptible, so it is signalled, and ends as it leaves it.
+    const dispatches = Layer.scopedDiscard(Effect.addFinalizer(() => Effect.gen(function* () {
+      const me = yield* Effect.fiberId;
+
+      yield* Effect.forEach([...inFlight], (dispatch) => Effect.gen(function* () {
+        if (dispatch.execution !== undefined && (yield* within(dispatch.execution, me))) {
+          // Told now, not awaited: the interrupt takes effect as the dispatch leaves the termination, before it runs on.
+          yield* Fiber.interruptAsFork(dispatch.execution, me);
+        } else if (dispatch.fiber !== undefined) {
+          yield* Fiber.interrupt(dispatch.fiber);
+        }
+      }), { discard: true });
+    })));
+    const definition = Nexus.Application.define({ name: app.name, runtime: dispatches });
     const nexus = yield* Nexus.Application.start(definition, options.platform === undefined ? undefined : { platform: options.platform });
     const state = yield* Nexus.Application.createState(nexus, app.state.schema, options.state ?? app.state.initial);
     const commands = app.commands(state);
@@ -101,7 +140,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       return Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render.pipe(Effect.map((render) => ({ view, render })));
     };
 
-    return {
+    const running: Running<S, E, R> = {
       nexus,
       render: Effect.flatMap(state.get, renderOf),
       values: Stream.mapEffect(state.values, renderOf),
@@ -119,6 +158,10 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : binding(args);
       },
     };
+
+    inFlightOf.set(running, inFlight);
+
+    return running;
   });
 
 /** Reports what the user did: PORT's handler identifier and payload. */
@@ -161,6 +204,7 @@ const connect = <S, E, R extends Ambient, T extends Target, A>(
     const drawn: { current: Viewed | undefined } = { current: undefined };
     const dispatched: Array<DispatchExit<E>> = [];
     const pending: Array<Fiber.RuntimeFiber<unknown, never>> = [];
+    const inFlight = inFlightOf.get(running);
 
     const target = create((handler, payload) => {
       const render = drawn.current;
@@ -170,9 +214,20 @@ const connect = <S, E, R extends Ambient, T extends Target, A>(
       }
 
       // Runs inside the application (its platform's FiberRefs apply), but nothing flows back (NEXUS I44).
-      pending.push(Nexus.Runtime.runFork(running.nexus.runtime, Effect.exit(running.dispatch(render, handler, payload)).pipe(
+      const dispatch: Dispatch = {};
+      const fiber = Nexus.Runtime.runFork(running.nexus.runtime, Effect.sync(() => { dispatch.execution = Option.getOrUndefined(Fiber.getCurrentFiber()); }).pipe(
+        Effect.andThen(Effect.exit(running.dispatch(render, handler, payload))),
         Effect.tap((exit) => Effect.sync(() => { dispatched.push(exit); }))
-      )));
+      ));
+
+      pending.push(fiber);
+
+      // The application owns it too (see `InFlight`): it ends with the application, not only with this caller's scope.
+      if (inFlight !== undefined) {
+        dispatch.fiber = fiber;
+        inFlight.add(dispatch);
+        fiber.addObserver(() => { inFlight.delete(dispatch); });
+      }
     });
 
     // `running.values` is the render of the current state, then one per later commit, atomically (NEXUS 0.10): the

@@ -8,8 +8,9 @@
 import { describe, expect, it } from "vitest";
 
 import { compileProgram } from "./compile.js";
-import { closure, deferredCompletion, failure, shutdownProbe } from "./scenarios.js";
+import { closure, deferredCompletion, failure } from "./scenarios.js";
 import type { Driver } from "./scenarios.js";
+import { describeShutdown } from "./shutdown.spec.js";
 import { load } from "../test/helpers.js";
 
 const driver = async (): Promise<Driver> => {
@@ -105,11 +106,6 @@ describe("async ownership tracer (jsdom)", () => {
       expect(result.unhandled).toEqual([]);
     });
   }
-
-  it("PROBE ownership: what holds in-flight work when the application ends by Application.shutdown, scope still open", async () => {
-    const out = await shutdownProbe(await driver());
-
-    console.info(JSON.stringify({ shutdownProbe: out }, null, 1));
-    expect(out).toHaveLength(3);
-  });
 });
+
+describeShutdown(driver);

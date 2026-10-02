@@ -204,40 +204,83 @@ export const closure = async (driver: Driver, completion: Completion) => {
 };
 
 /**
- * PROBE, not a tripwire: which boundary holds the work when the application ends by `Application.shutdown`
- * (route 1) rather than by the caller's scope closing (route 2)? Records only.
+ * Shutdown: start → work started → `loading` verified → `Application.shutdown` while the caller's scope stays
+ * open → the capability completes from outside → real scheduler turns pass → the scope closes.
+ * What may have happened since the application stopped is what the regression asserts.
  */
-export const shutdownProbe = async (driver: Driver) => {
+export const shutdown = async (driver: Driver) => {
   const { seen, operations, platform, app } = instrument(driver);
-  const record = async (running: Valance.Running<unknown, unknown, never>, mounted: Valance.Mounted<unknown>, step: string) => ({
-    step,
-    status: (await Effect.runPromise(Nexus.Application.status(running.nexus)))._tag,
-    state: await Effect.runPromise(running.state),
-    operations: [...operations],
-    seen: [...seen],
-    counts: { ...platform.counts },
-    pending: platform.pending(),
-    dispatched: mounted.dispatched.map(summarize),
-  });
-  const out: Array<unknown> = [];
+  const watching = watch();
+  const emissions = { count: 0 };
+  const snapshots: Array<unknown> = [];
+  const held: { running?: Valance.Running<unknown, unknown, never>; mounted?: Valance.Mounted<unknown> } = {};
 
-  await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-    const running = yield* Valance.start(app, { platform: platform.platform });
-    const mounted = yield* Valance.mount(running, recording(driver.container, operations));
-    const erased = running as unknown as Valance.Running<unknown, unknown, never>;
-    const erasedMounted = mounted as unknown as Valance.Mounted<unknown>;
+  try {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const running = yield* Valance.start(app, { platform: platform.platform });
 
-    yield* Effect.promise(() => driver.press(LOAD));
-    yield* Effect.promise(() => until("loading", loading(driver)));
-    out.push(yield* Effect.promise(() => record(erased, erasedMounted, "loading")));
+      yield* Stream.runForEach(running.states, () => Effect.sync(() => { emissions.count += 1; })).pipe(Effect.forkScoped);
 
-    yield* Nexus.Application.shutdown(running.nexus);
-    out.push(yield* Effect.promise(() => record(erased, erasedMounted, "after Application.shutdown, scope still open")));
+      const mounted = yield* Valance.mount(running, recording(driver.container, operations));
+      const snapshot = (step: string) => Effect.gen(function* () {
+        snapshots.push({
+          step,
+          status: (yield* Nexus.Application.status(running.nexus))._tag,
+          state: yield* running.state,
+          operations: [...operations],
+          emissions: emissions.count,
+          seen: [...seen],
+          counts: { ...platform.counts },
+          pending: platform.pending(),
+          dispatched: mounted.dispatched.map(summarize),
+        });
+      });
 
-    platform.resolve("late");
-    yield* Effect.promise(() => sleep(50));
-    out.push(yield* Effect.promise(() => record(erased, erasedMounted, "work completed after shutdown, scope still open")));
-  })));
+      yield* Effect.promise(() => driver.press(LOAD));
+      yield* Effect.promise(() => until("loading", loading(driver)));
+      yield* snapshot("loading");
 
-  return out;
+      yield* Nexus.Application.shutdown(running.nexus);
+      yield* snapshot("after Application.shutdown, scope open");
+
+      platform.resolve("late");
+      // Real scheduler turns, so a late effect has every chance to happen.
+      yield* Effect.promise(() => sleep(50));
+      yield* Effect.promise(() => sleep(50));
+      yield* snapshot("work completed after shutdown, real time passed, scope open");
+
+      // The scope closing after a shutdown must change nothing either.
+      held.running = running as unknown as Valance.Running<unknown, unknown, never>;
+      held.mounted = mounted as unknown as Valance.Mounted<unknown>;
+    })));
+
+    // The scope has closed: the platform resource, in particular, was not released twice.
+    const afterScope = {
+      step: "scope closed",
+      status: (await Effect.runPromise(Nexus.Application.status(held.running!.nexus)))._tag,
+      state: await Effect.runPromise(held.running!.state),
+      operations: [...operations],
+      emissions: emissions.count,
+      seen: [...seen],
+      counts: { ...platform.counts },
+      pending: platform.pending(),
+      dispatched: held.mounted!.dispatched.map(summarize),
+    };
+
+    return { snapshots: [...snapshots, afterScope] as ReadonlyArray<Snapshot>, logged: [...watching.logged], unhandled: [...watching.unhandled] };
+  } finally {
+    watching.stop();
+  }
 };
+
+export interface Snapshot {
+  readonly step: string;
+  readonly status: string;
+  readonly state: { readonly status: string; readonly data: string; readonly ticks: number };
+  readonly operations: ReadonlyArray<Operation>;
+  readonly emissions: number;
+  readonly seen: ReadonlyArray<string>;
+  readonly counts: Counts;
+  readonly pending: number;
+  readonly dispatched: ReadonlyArray<string>;
+}
