@@ -10,6 +10,8 @@ import { Effect } from "effect";
 import { application, primitives, stateFor } from "../src/app.js";
 import type { AppState, Programs } from "../src/app.js";
 import { compilePrograms } from "../src/compile.js";
+import { compilePrograms as compileCatalog } from "../src/catalog/compile.js";
+import type { Programs as CatalogPrograms } from "../src/catalog/app.js";
 
 export interface Served {
   readonly html: string;
@@ -23,6 +25,8 @@ export default async function setup(project: TestProject): Promise<void> {
 
   project.provide("page", {
     programs,
+    // The Application Model tracer's programs (src/catalog), compiled here: the browser never compiles MPRX.
+    catalog: await compileCatalog(),
     // The URLs the "server" is asked for. What each means is the application's (`stateFor`); count is not in a URL.
     home: await serve(stateFor("/tracer/?tab=overview")),
     about: await serve({ ...stateFor("/tracer/about?tab=details"), count: 3 }),          // case A: canonical
@@ -33,6 +37,6 @@ export default async function setup(project: TestProject): Promise<void> {
 
 declare module "vitest" {
   export interface ProvidedContext {
-    page: { readonly programs: Programs; readonly home: Served; readonly about: Served; readonly plainAbout: Served; readonly notFound: Served };
+    page: { readonly programs: Programs; readonly catalog: CatalogPrograms; readonly home: Served; readonly about: Served; readonly plainAbout: Served; readonly notFound: Served };
   }
 }

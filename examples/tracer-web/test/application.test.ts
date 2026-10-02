@@ -15,6 +15,8 @@ import { describe, expect, it } from "vitest";
 
 import { application, type AppState, type Item } from "../src/catalog/app.js";
 import { compilePrograms } from "../src/catalog/compile.js";
+import { primitives } from "../src/catalog/web.js";
+import { readFileSync } from "node:fs";
 import { load, until } from "./helpers.js";
 
 const ONE: ReadonlyArray<Item> = [{ id: "A", name: "Alpha" }];
@@ -23,11 +25,6 @@ const THREE: ReadonlyArray<Item> = [{ id: "A", name: "Alpha" }, { id: "B", name:
 
 type Operation = "draw" | "update";
 
-const primitives: Web.WebPrimitives = {
-  page: { element: "section", props: { title: Web.attribute("aria-label") } },
-  text: { element: "span" },
-  button: { element: "button", events: { click: { type: "click" } } },
-};
 
 /** A platform whose one scoped resource counts acquisition and release: the NEXUS runtime's lifetime, observed. */
 const countingPlatform = () => {
@@ -196,5 +193,13 @@ describe("the application model", () => {
 
     expect(result).toEqual({ view: "not-found", items: [{ id: "B", name: "Beta" }] });
   });
-});
 
+  it("the definition owns no platform: it imports nothing Web, PORT or history, and keeps no route store", () => {
+    const source = readFileSync(new URL("../src/catalog/app.ts", import.meta.url), "utf8");
+
+    expect(source).not.toMatch(/valance\/web|port-web|\bwindow\b|\bdocument\b|\bhistory\b|popstate|location/);
+    // The URL's two functions are pure, over the one state: no second state for "where we are".
+    expect(source).toMatch(/export const urlOf = \(state: AppState\): string/);
+    expect(source).toMatch(/export const stateOf = \(url: URL\): Navigation/);
+  });
+});

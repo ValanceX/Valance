@@ -352,7 +352,23 @@ The current implementation has a coherent behavior for this without any addition
 - *Draw/update:* unchanged. "Same view → update" is the composer's memory in `connect` (`drawn.current.view`): it belongs to the connection to a target, not to the application.
 - *Browser:* nothing in the model needed history. The scenario runs on a target with no `window`.
 
-**Substrate discrepancy (not fixed).** The brief names MESH 0.7.0 and PORT Web 0.2.2; the repo resolves 0.6.0 and 0.2.1. Bumping to the published 0.7.0/0.2.2 passes Node and jsdom but fails every Chromium test: published NEXUS 0.10.0 depends on `@valancex/mesh-runtime ^0.6.0`, so the install holds two runtimes and the browser's `init()` reaches only one. Fixing it needs a NEXUS release that accepts MESH 0.7 (or an override, which the constraints forbid). Reverted. As a consequence the tracer renders item data as scalars: MESH 0.6.0 has no repeat syntax, so keyed `mesh-each` was not exercised.
+**Substrate discrepancy (resolved in Stage 9 by NEXUS 0.10.1).** The brief names MESH 0.7.0 and PORT Web 0.2.2; the repo resolves 0.6.0 and 0.2.1. Bumping to the published 0.7.0/0.2.2 passes Node and jsdom but fails every Chromium test: published NEXUS 0.10.0 depends on `@valancex/mesh-runtime ^0.6.0`, so the install holds two runtimes and the browser's `init()` reaches only one. Fixing it needs a NEXUS release that accepts MESH 0.7 (or an override, which the constraints forbid). Reverted. As a consequence the tracer renders item data as scalars: MESH 0.6.0 has no repeat syntax, so keyed `mesh-each` was not exercised.
+
+---
+
+## Stage 9: the Application Model on NEXUS 0.10.1 / MESH 0.7.0 / PORT Web 0.2.2, with keyed identity and history
+
+**Substrate.** NEXUS 0.10.1 (patch: `mesh-runtime ^0.7.0`, nothing else) removed the Stage 8 blocker. A clean install, no overrides, resolves one each of `@valancex/nexus` 0.10.1, `@valancex/mesh-runtime` 0.7.0 (shared by NEXUS and PORT's peer), `@valancex/port-web` 0.2.2, `@valancex/mesh-compiler` 0.7.0 and `effect` 3.22.2. The existing suites passed on it unmodified (16 unit, 15 jsdom, 12 Chromium) before the tracer was touched.
+
+**Added to the catalog tracer** (`src/catalog/`, `browser/catalog.browser.test.ts`): a `mesh-each` list in the `home` view (a `row` per item, with its own `open(item.id)` button); a pure `urlOf(state)` / `stateOf(url)` in `app.ts`; a `navigate` command that completes a URL's navigation into a full state with the data the application holds; `web.ts` (primitives table and `initialStateAt`, the page's first act) outside the definition. `Web.history`, Valance, NEXUS, MESH and PORT: unchanged.
+
+**Keyed identity, Chromium (DOM objects compared, not text).** `[A B C] → [C A B] → [A C] → [A C D] → [D] → [A C D]`: A, B, C keep their elements through the reorder; through `[A C]` B's element leaves the document while A and C keep theirs; D is a new element and A, C keep theirs; through `[D]` D keeps its element and A, C leave; on reappearance A and C are new elements (the old ones stay detached) and D keeps its element. Every step is a PORT `update`; clicking a repeated row's button dispatches that item's `open`. Operations: `draw, update×5, draw`.
+
+**History, Chromium.** `/` canonical: nothing written. A same-view data change: `update`, no write, no entry. Row click → `push /items/A` + `draw`; items change on details(A): `update`, no push. Back intent → `push /`; item C → `push /items/C`. Browser Back → `app/navigate` (the one existing binding; nothing else entered from outside MESH) → home with the data the URL does not carry intact → `draw`, no write. Forward → details(C), `draw`, no write. 150 ms later: no further write, navigation or render. Three pushes in total, and `urlOf(state) === location.pathname` at every observation. Initial `/items/zzz` and `/nope` → not-found and one `replace /not-found` made by the application's `initialStateAt`, no new entry, and `Web.history` wrote nothing; `/` and `/items/B` write nothing.
+
+**Mutation checks (Chromium):** push on every state; no re-baseline after popstate; canonicalizing with push; always draw. Each fails the named tests.
+
+**What this showed about the model.** (1) One state, one lifetime and `view(state)` carried keyed identity and history with no change to Valance: `mesh-each` is a property of a program, and the composer's "same view → update" is exactly what lets PORT keep keyed nodes. (2) A URL names a *navigation*, not a state: `items` is not in it. `stateOf` returns the navigation, and the application's command turns it into a state; an unknown item, from a click or from popstate, is the application's `not-found`. This is the same shape as the earlier tracer's `Navigation`. (3) The definition stayed platform-free: a test asserts `app.ts` names no Web, PORT, `window`, `history` or `popstate`, and Part 1 runs the application in Chromium with no history at all.
 
 ---
 
