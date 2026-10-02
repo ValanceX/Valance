@@ -1,7 +1,8 @@
 // The application's lifecycle as VALANCE has it: one lifetime, the caller's Scope. What an ended application looks like
 // WITHOUT a NEXUS handle (the platform's resources, `states` completing, `invoke` refused), and that those signals agree
-// with NEXUS's own status. The one early-end route, `Application.shutdown(running.nexus)`, is pinned too: it is the only
-// way an application ends before its scope does, and so the only reason `Running.nexus` is still reachable.
+// with NEXUS's own status. The one early-end route, `Application.shutdown(running.nexus)`, is NEXUS's and is outside the
+// VALANCE model (Stage 14: the owner scope is the only lifetime VALANCE has). It is pinned as a substrate fact VALANCE
+// tolerates, not as a VALANCE promise.
 import * as Nexus from "@valancex/nexus";
 import { Cause, Chunk, Effect, Exit, Layer, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
@@ -87,7 +88,7 @@ describe("lifecycle: one lifetime, the caller's Scope", () => {
     expect(await Effect.runPromise(Nexus.Application.status(running.nexus))).toEqual({ _tag: "Stopped" });
   });
 
-  it("the early-end route: shutdown is idempotent and concurrent-safe, releases once, and leaves the scope's own close harmless", async () => {
+  it("substrate, not a VALANCE promise: NEXUS's shutdown is idempotent and concurrent-safe, releases once, and leaves the scope's own close harmless", async () => {
     const { running, counts, close, states } = await open();
 
     await Effect.runPromise(Nexus.Application.shutdown(running.nexus));

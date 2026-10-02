@@ -63,7 +63,10 @@ describe("lifecycle", () => {
     expect(await Effect.runPromise(Nexus.Application.status(out.running.nexus))).toEqual({ _tag: "Stopped" });
   });
 
-  it("Application.shutdown ends the render follower cleanly; the target stays until the scope closes", async () => {
+  // SUBSTRATE-LEVEL, outside the VALANCE model (Stage 14). The owner scope is the application's only lifetime; nothing in
+  // VALANCE asks an application to end early. This pins a TOLERANCE, not a promise: if NEXUS ends the application while the
+  // scope is open (reachable only through `running.nexus`), the follower ends cleanly and the target is left for the scope.
+  it("substrate: if NEXUS ends the application while the scope is open, the follower ends cleanly and the target stays until the scope closes", async () => {
     const app = application(await compilePrograms());
     const page = load("");
 

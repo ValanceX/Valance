@@ -644,6 +644,43 @@ Decide whether early end is part of the application model. If it is not (scope i
 
 ---
 
+## Stage 14: early termination is not part of the VALANCE model
+
+*Question: does VALANCE promise that an application may end while its owner scope is open? Answer from inspection of the source, constraints, README and examples: no. Source unchanged; two tests relabelled and this note added.*
+
+**Evidence against it being a VALANCE concept**
+1. *Constraints and docs.* C6: "the caller's Scope owns its lifetime". The README: "closing the scope ends everything". Nothing states or requires an early end.
+2. *No author asks for it.* No example application or package source calls `shutdown` or reads `status`; the only references are the doc comments below and tests.
+3. *No platform binding asks for it.* `connect`, `Web.history` and `renderToHtml` never request termination. They tolerate it: followers end when `states` ends.
+4. *Not needed by SSR, browser, history or hydration.* `renderToHtml` is start, render once, end, through its own scope; the 20 Chromium tests (history, hydration, keyed updates) never end an application early.
+5. *Only reachable through the substrate.* NEXUS documents exactly two ways an application ends (the scope, or `Application.shutdown`) and no self-termination. Without `running.nexus`, nothing can end an application before its scope.
+6. *Observable only as a follower outcome.* The sole VALANCE-visible trace is `Mounted.followed` resolving to Success, a property with **no non-test consumer**. Its Interrupted (scope closed) and Failure (render diagnostic) outcomes need no early end.
+7. *A consequence of exposing `nexus`.* The single test that exercises it reaches for `running.nexus` to do so; `connect`'s "application ended before its first render" branch is likewise reachable only that way, and is untested.
+
+**Source comments that state a substrate fact, left untouched.** `start`'s doc ("closing it, or `Application.shutdown(running.nexus)`, ends the application") and `Mounted.followed`'s doc ("Success when the application ended") describe what NEXUS can do, not what VALANCE promises. They should be reworded when the public API is decided, not before.
+
+**What remains as the invariant when the owner scope closes** (each pinned by an existing test, none needs `nexus`, except where noted):
+- the follower is interrupted, before the application ends (`followed` is Interrupted);
+- the target is unmounted (the container is emptied);
+- platform bindings end first: the popstate listener is removed (unit and Chromium);
+- the platform's resources are released exactly once;
+- `states` completes after the last commit; new events are refused as defects; the last state stays readable;
+- (NEXUS observation, redundant with the above) status `Stopped`.
+Not pinned, noted as a gap rather than filled: an in-flight dispatch being interrupted when the scope closes.
+
+**Tests.** The two early-end tests (`examples/tracer-web/test/lifecycle.test.ts`, `packages/valance/test/lifecycle.test.ts`) are relabelled: they pin a *tolerance of a substrate event*, not a VALANCE promise. They keep using `running.nexus` on purpose; the access is not hidden for grep's sake. Every other lifecycle assertion is, or can be, written on VALANCE-observable behavior (counts, `states`, `invoke`, `followed`, the container, the listener); the `status` checks remain as redundant NEXUS observation.
+
+### CONFIRMED
+The owner scope is the only application lifetime VALANCE has. Early termination is a NEXUS capability that VALANCE tolerates and does not promise, request, or depend on.
+
+### OPEN
+Whether `Running.nexus` stays on the type at all: it is now read only by tests, for substrate observation. That is a public-API question, not a lifecycle one. Also open, and unchanged: the in-flight dispatch gap above.
+
+### NEXT
+The lifecycle no longer constrains the public API. Candidate A or B (Stage 11) may be chosen without an `Application` stop or status surface. The decision that remains is whether tests get substrate access (an internal or test-only seam) or the field stays on the type.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
