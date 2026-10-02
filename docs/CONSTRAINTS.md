@@ -27,3 +27,10 @@ as "reviewed only".
 - **C8.** One `Valance.start` per application, however many MESH programs it shows; route state lives in application state; the active program is derived from it.
 - **C9.** A program change is PORT's `draw` (continuity is the composer's fact); Valance never asks PORT to `update` across programs.
 - No `@valancex/router`, route DSL, navigation registry, or route lifecycle; no second application to simulate navigation.
+
+## Added for stage 3 (URL ↔ application state; written before the code)
+
+- **C10.** Still one `Valance.start`, one state, one platform lifetime. The URL is derived from, and feeds, application `path`; it is never a second source of truth.
+- **C11.** Browser Back/Forward enters application behavior through the SAME navigate command a MESH intent uses. No second navigation pathway.
+- **C12.** MESH and PORT do not change. NEXUS changes only if the tracer proves a missing primitive.
+- No Router/Route/route DSL/registry/link primitive/guards/loaders/redirects/outlets/parameters/wildcards; exact-path comparison only.

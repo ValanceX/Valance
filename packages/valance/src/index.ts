@@ -69,6 +69,14 @@ export interface Running<S, E, R extends Ambient> {
   readonly dispatch: (viewed: Viewed, handler: string, payload?: BoundaryValue) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E, R>;
   /** The application's state, read only. */
   readonly state: Effect.Effect<S>;
+  /** The state current at subscription, then every later commit, with no gap (NEXUS `State.values`). Read only. */
+  readonly states: Stream.Stream<S>;
+  /**
+   * Runs the command bound to `key` with the given arguments, exactly as a MESH intent for that key would:
+   * through the same table `dispatch` uses, so there is one way into application behavior. For input that does
+   * not come from a MESH render (a browser event). Run it in `nexus.runtime`.
+   */
+  readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E, R>;
 }
 
 /**
@@ -103,6 +111,13 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return host === undefined ? Effect.die(new Error(`no view named ${viewed.view}`)) : host.dispatch(viewed.render, handler, payload);
       },
       state: state.get,
+      states: state.values,
+      invoke: (key, args) => {
+        const binding = Object.hasOwn(commands, key) ? commands[key] : undefined;
+        const [component = "", name = ""] = key.split("/");
+
+        return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : binding(args);
+      },
     };
   });
 

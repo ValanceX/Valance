@@ -71,3 +71,71 @@ PORT operations:  draw, update, update,        draw,                   draw,    
 
 ## Not extracted (still unjustified)
 Router package, route DSL, navigation registry/lifecycle, link primitive, URL/history sync helper, layouts/nesting, loaders, per-view state, diagnostics framework, WASM `init` helper, other targets.
+
+---
+
+## Stage 3: URL ↔ application state (Chromium)
+
+**Question.** Does `URL ↔ path state ↔ selected MESH program` already explain routing, and where does URL synchronization belong?
+
+**Mechanism (all in Valance; ~40 lines in `./web`, two additions to `Running`).**
+
+```text
+click → MESH intent → "app/navigate" binding ─┐
+popstate → running.invoke("app/navigate") ────┴─▶ ONE NEXUS command → path state ─▶ view(path)
+path state commit → path ≠ location.pathname → history.pushState        (no feedback flag: equality is the guard)
+```
+
+- `Web.history(running, { window, path, navigate })`: a scope-owned follower on `running.states` (pushState when the URL differs from the path) and one `popstate` listener (removed in the scope's finalizer, before the application ends).
+- `Running.states` (read-only `State.values`) and `Running.invoke(key, args)` (the binding table `dispatch` already uses, entered without a MESH render). Without these two the Web layer could neither observe `path` nor reach the navigate command: the previous API genuinely lacked them.
+- The application added one table entry, `"app/navigate"` (path as its argument), bound to the same `app.navigate` command as `counter/goAbout` and `about/goHome`, and a `Navigated` event the command publishes (used here as evidence that every navigation, intent or popstate, passes through one command).
+
+**Evidence (Chromium, real clicks, real `history.back()/forward()`; `browser/history.browser.test.ts`).**
+
+| Sequence | Observed |
+|---|---|
+| Initial URL `/` | URL → state (exact path) → counter program; SSR HTML hydrated (`adopted`); starting pushed no history entry. |
+| `/` → Click ×2 → About | intent → command → `pushState("/about")`; about program; count 2 shown. |
+| Back, Forward, Back | `popstate` → same command each time; URL, `path` and program agree at every observation; counter, about, counter. Count 2 → 3 after a final Click. |
+| Initial URL `/about` | about program SSR'd (server count 3) and hydrated; nothing pushed. Its Back button → `/`; browser Back → `/about`. |
+| Application lifetime | `Application.status` `Running` at all six observations; platform resource acquired once, released only at scope close (`{1, 1}`). |
+| PORT operations | `hydrate, update, update, draw, draw, draw, draw, update`: same program → update, each program change → draw, including those caused by popstate. |
+| History | One entry pushed in total; Back/Forward add none. Navigated log `["/about","/","/about","/"]`: one command, four sources (one intent, three popstate). |
+| Listener | Exactly one `popstate` listener while running, zero after the scope closes (counted by wrapping add/removeEventListener). |
+| Back right after the push (probe) | Ends consistent (`path /`, URL `/`, counter). Operations `hydrate, draw, draw`: every commit is rendered in order, the about program is drawn even though Back already happened; nothing is coalesced. Whether that Back landed mid-render depends on timing, which the test does not control. |
+
+**Tripwires, mutation-checked.** Removing `removeEventListener` fails the listener test. Replacing the URL-differs guard with "always push" fails the main test and the `/about` test.
+
+### Confirmed
+1. `URL ↔ path state ↔ selected MESH program` explained everything the tracer did: initial URL → state → program → SSR → hydrate; navigation → URL; Back/Forward → same command → state → program. No new routing concept was needed.
+2. URL synchronization is implementable entirely at the Valance Web composition boundary, with one generic observation (`states`) and one generic entry (`invoke`) on the application handle. Neither mentions URLs or the Web.
+3. One command serves MESH intents and popstate; the loop is broken by comparing the URL with the path, not by a flag.
+4. The history listener has no lifecycle leak: it ends with the caller's scope, before the application.
+5. The application never restarted across navigation (status, platform counts); state survived; MESH, PORT and NEXUS were unchanged.
+
+### Likely
+- Browser history synchronization belongs with the Web target composition in Valance (it needs the application handle and the browser window, and PORT Web by design touches nothing outside its container). A different target would have its own back-stack story; none was probed.
+- `path` and `view` stay application code. What the tracer exercised was exact-path equality only.
+- Equality-as-guard is enough while URL and path are the same string. A path ≠ URL mapping (base paths, query, hash, normalization) would make that comparison a real function the application owns.
+
+### Unresolved
+- **Query strings, hashes, base paths, trailing slashes, URL encoding:** all outside exact `pathname`.
+- **Links as anchors:** buttons only; middle-click, open-in-new-tab, and hrefs are unexercised (and would need a MESH/PORT story that was out of scope).
+- **Scroll and focus restoration** on Back/Forward.
+- **Popstate during a switch** was only probed at one timing; commits are rendered in order with no coalescing, which means rapid navigation draws every intermediate program. Whether that is wanted is a product question, not tested here.
+- **Unknown paths** still select the counter; `history` pushes whatever the application's `path` says.
+- **Failure policy:** a failed popstate navigation is logged (`Effect.logError`) and ignored; a failed render still ends the follower.
+- **Non-browser targets:** whether `states`/`invoke` suffice for them is unknown.
+- `replaceState` was used by the harness to stand in for "the server served this URL"; a real navigation to a URL was not tested.
+
+### Answers
+1. **Entirely at the Valance Web composition boundary?** Yes, with `Running.states` and `Running.invoke`.
+2. **NEXUS primitive?** No. `State.values` (Stage 1) is what `states` exposes.
+3. **MESH?** No. Navigation stayed ordinary intents; popstate never needed to be one.
+4. **PORT?** No. It has no history API and did not need one; program changes were `draw`s.
+5. **`path → view` sufficient?** For exact paths, yes.
+6. **Router justified?** No. Nothing observed required parsing, matching, registration or a route lifecycle.
+7. **Where does history sync belong?** `@valancex/valance/web`, in the same layer as the Web target.
+8. **Popstate during a switch?** See the probe row: consistent, every intermediate commit rendered.
+9. **History-listener leaks?** None observed.
+10. **Smallest next experiment:** see the report.

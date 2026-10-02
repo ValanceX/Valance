@@ -18,6 +18,16 @@ export const initial: AppState = { title: "Tracer", count: 0, stamp: 0, path: "/
 /** What a request URL means: the state the application starts in. The server and the client both start from it. */
 export const stateFor = (path: string): AppState => ({ ...initial, path });
 
+/** Published by the one navigate command, whoever asked for it: a MESH intent or the browser's Back. */
+export const Navigated = Nexus.Event.define("Navigated", Schema.Struct({ path: Schema.String }));
+
+/** The one argument of "app/navigate", as MESH's boundary gives it. Whether it is a path is the command's schema's to say. */
+const firstValue = (args: ReadonlyArray<Mesh.IntentArgument>): unknown => {
+  const first = args[0];
+
+  return first !== undefined && "value" in first ? first.value : undefined;
+};
+
 export interface Programs {
   readonly counter: Mesh.Program;
   readonly about: Mesh.Program;
@@ -37,12 +47,14 @@ export const application = (programs: Programs) => Valance.define({
     const increment = Nexus.Command.define("counter.increment", Schema.Struct({}), () =>
       Effect.flatMap(Clock.currentTimeMillis, (stamp) => state.update((current) => Effect.succeed({ ...current, count: current.count + 1, stamp }))).pipe(Effect.asVoid));
     const navigate = Nexus.Command.define("app.navigate", Schema.Struct({ path: Schema.String }), ({ path }) =>
-      state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.asVoid));
+      state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.andThen(Nexus.Event.publish(Navigated, { path }))));
 
     return {
       "counter/increment": Nexus.Mesh.bind(increment, () => ({})),
       "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about" })),
       "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/" })),
+      // Not a MESH component: the same command, for input that is not a MESH intent (the browser's popstate).
+      "app/navigate": Nexus.Mesh.bind(navigate, (args) => ({ path: firstValue(args) })),
     };
   },
 });

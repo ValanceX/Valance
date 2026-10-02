@@ -12,6 +12,7 @@ const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }
 Effect.scoped(Effect.gen(function* () {
   const running = yield* Valance.start(app, { platform, state });
   const mounted = yield* Valance.hydrate(running, Web.target({ container, primitives }));
+  yield* Web.history(running, { window, path: (state) => state.path, navigate: "app/navigate" });   // URL ↔ path, optional
 }));                                   // closing the scope ends everything
 ```
 
