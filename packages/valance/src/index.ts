@@ -279,10 +279,11 @@ const connect = <S, E, T extends Target, A>(
     // Scope finalizers run in reverse: this runs before the application ends.
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
       yield* Fiber.interrupt(follower);
-      yield* Effect.sync(() => { target.unmount(); });
       // A command an event started is the APPLICATION's once admitted (C20): closing the mount ends the follower and the target, not the command.
       // The mount only lets go of the dispatch fibers it held; the application's registry still owns, drains and interrupts them (Stage 39).
-      yield* Effect.sync(() => { pending.splice(0); });
+      // That release is the mount's own bookkeeping and happens whether or not the target's `unmount` throws: a target defect is the target's, and propagates
+      // out of the Scope's close, but it must not leave a closed mount holding dispatches (C26: `settled` on a closed mount returns at once).
+      yield* Effect.sync(() => { target.unmount(); }).pipe(Effect.ensuring(Effect.sync(() => { pending.splice(0); })));
     }));
 
     // Dispatches may start more dispatches' worth of work only through the target, so draining until empty terminates.

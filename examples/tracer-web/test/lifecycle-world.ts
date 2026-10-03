@@ -80,7 +80,7 @@ export const world = async () => {
   });
 
   let counter = 0;
-  const mountIn = async (handle: Valance.ApplicationHandle<State, unknown>) => {
+  const mountIn = async (handle: Valance.ApplicationHandle<State, unknown>, options: { readonly unmountThrows?: () => boolean } = {}) => {
     const container = win.document.createElement("main");
     const ops: Array<string> = [];
     const index = counter;
@@ -91,7 +91,7 @@ export const world = async () => {
     const target: Valance.TargetFactory<WebPort> = (report) => {
       const port = Web.target({ container, primitives })(report);
 
-      return { draw: (t) => { port.draw(t); ops.push(`draw ${text()}`); }, update: (t) => { port.update(t); ops.push(`update ${text()}`); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
+      return { draw: (t) => { port.draw(t); ops.push(`draw ${text()}`); }, update: (t) => { port.update(t); ops.push(`update ${text()}`); }, hydrate: (t) => port.hydrate(t), unmount: () => { ops.push("unmount"); if (options.unmountThrows?.() === true) { throw new Error("unmount failed"); } port.unmount(); } };
     };
     const text = (): string => container.querySelector("section")?.getAttribute("aria-label") ?? "";
     const mounted = await run(Valance.mount(handle, target).pipe(Scope.extend(scope)));
