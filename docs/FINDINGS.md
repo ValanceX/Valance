@@ -2216,6 +2216,26 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 52: the built page served by an ordinary process
+
+**Tooling found.** No TypeScript runner exists in the repository (no `tsx`, `ts-node` or loader), and Node's native type stripping cannot run the sources (NodeNext `.js` specifiers for `.ts` files). The example already has the TypeScript compiler, so the server is compiled with it, as the stage preferred; nothing was added.
+
+**Command.** `pnpm run build:page && pnpm run build:server && pnpm run serve:page` (that is `vite build`, then `tsc -p tsconfig.server.json && cp src/*.mprx src/components.json dist/server/`, then `node dist/server/serve-main.js`). `PORT` picks the port (default 4173; `PORT=0` any free port); the process prints `listening <origin> (page script <url>)` and nothing else.
+
+**Pieces.** `src/serve-main.ts` (6 lines): resolves `../page` relative to the compiled file and calls the existing `servePage`. `tsconfig.server.json`: extends the example's config with `noEmit: false`, `outDir: dist/server`, `rootDir: src`, `types: ["node"]`, and includes only `src/serve-main.ts` (tsc follows its imports: `serve.ts`, `document.ts`, `app.ts`, `compile.ts`). The `cp` copies the MPRX sources and `components.json`, which `compile.ts` reads next to itself and which `tsc` does not emit (POSIX `cp`; a Windows shell would need another spelling). `dist/` stays ignored. No change to `serve.ts`, `document.ts`, `page.ts` or any lifecycle code.
+
+**Independent of Vitest?** Yes. `node dist/server/serve-main.js` runs as a plain process: its module graph is the compiled example plus the workspace packages' own `dist`, nothing from Vitest or Vite (the server never imported either; Vite is only the page build). The smoke test imports nothing from `../src`.
+
+**Smoke (`smoke/standalone-server.test.ts`, 3 runs; the file runs with the Stage 51 smoke, 4 tests in all).** It runs `build:page` and `build:server`, starts the server as a child process on a free port and parses its `listening` line, loads `/tracer/about?tab=details` in real Chromium, and checks: `data-valance="running"`; Back (About-to-counter) and a platform-clock click work; About pushes `/tracer/about?tab=overview`; no page error; **every response the page received, assets included, has status 200**; the hashed `page-*.js` and `mesh-runtime-*.wasm` came from that process; exactly one document load; the process wrote nothing to stderr; the child is terminated with SIGTERM and exits (no stray process left).
+
+**Validation.** Example typecheck clean (the new `src/serve-main.ts` is covered by the example's `src` include); smoke 3 runs (4 of 4 each). The Stage 46 to 51 page tests and the dev-server config were not touched, so no other Chromium run. `packages/*`, NEXUS, MESH and PORT untouched. The Stage 51 MESH `node:fs/promises` build warning is unchanged and still only an observation: nothing failed at runtime.
+
+**Still not done (as scoped).** No cache policy, compression, service worker, CDN or graceful shutdown (SIGTERM ends the process). The server starts only after `build:page` has produced `dist/page` (it reads the manifest at startup) and `build:server` has produced `dist/server`; there is no single `build`. The document is still compiled and rendered per request.
+
+**Next uncertainty.** None about whether the real page can be built and served outside the test tooling: it can. Any further step (a combined build, process supervision, caching, rendering the document once at build time) is deployment engineering, not a question about VALANCE.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

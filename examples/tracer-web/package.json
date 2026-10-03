@@ -11,7 +11,9 @@
     "test:browser": "vitest run -c vitest.browser.config.ts",
     "test:bfcache": "vitest run -c vitest.bfcache.config.ts",
     "build:page": "vite build -c vite.page.config.ts",
-    "test:smoke": "vitest run -c vitest.smoke.config.ts"
+    "test:smoke": "vitest run -c vitest.smoke.config.ts",
+    "build:server": "tsc -p tsconfig.server.json && cp src/*.mprx src/components.json dist/server/",
+    "serve:page": "node dist/server/serve-main.js"
   },
   "dependencies": {
     "@valancex/valance": "workspace:*"
