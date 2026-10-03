@@ -9,49 +9,16 @@ import type { WebPort } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
-import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { userEvent } from "@vitest/browser/context";
-import { Cause, Effect, Exit, Schema, Scope } from "effect";
-import { beforeAll, describe, expect, inject, it } from "vitest";
+import { Effect, Exit, Scope } from "effect";
+import { beforeAll, describe, expect, it } from "vitest";
 
+import { application, following, label, roots, run } from "./inert-fixture.js";
 import { primitives } from "../src/catalog/web.js";
 
-const { catalog } = inject("page");
-
 beforeAll(async () => { await init(wasmUrl); });
-
-const State = Schema.Struct({ n: Schema.Number, bad: Schema.Boolean });
-type State = Schema.Schema.Type<typeof State>;
-const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
-
-/** One view whose title shows `n`; `bad` makes the title a number, which the program's manifest rejects (a MESH render failure). */
-const application = () => Valance.define({
-  name: "inert",
-  state: { schema: State, initial: { n: 0, bad: false } },
-  views: { only: { program: catalog.notfound, scope: (state: State) => ({ title: state.bad ? (42 as never) : `n${state.n}` }) } },
-  view: () => "only" as const,
-  commands: (state: Nexus.State.StateHandle<State>) => {
-    const set = (name: string, change: (current: State) => State) => Nexus.Mesh.bind(Nexus.Command.define(`t.${name}`, Schema.Struct({}), () => Effect.asVoid(state.update((current): Effect.Effect<State> => Effect.succeed(change(current))))), () => ({}));
-
-    return {
-      "app/bump": set("bump", (current) => ({ ...current, n: current.n + 1 })),
-      "app/break": set("break", (current) => ({ ...current, bad: true })),
-      "app/fix": set("fix", (current) => ({ ...current, bad: false })),
-      "notfound/back": set("back", (current) => ({ ...current, n: current.n + 1 })),   // the one button each mount renders
-    } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
-  },
-});
-
-const label = (root: Element): string | null | undefined => root.querySelector("section")?.getAttribute("aria-label");
-/** Is the mount still following the application? `followed` completes only when it stopped; its Exit says how. */
-const following = (mounted: Valance.Mounted<unknown>) => Effect.runPromise(Effect.race(
-  Effect.map(mounted.followed, (exit) => Exit.isSuccess(exit) ? "ended" : Cause.isDieType(exit.cause) ? "failed: defect" : "failed: diagnostics"),
-  Effect.succeed("following")
-));
-
-const roots = () => { const made = [document.createElement("main"), document.createElement("main"), document.createElement("main")] as const; document.body.append(...made); return made; };
 
 describe("a mount that stopped following", () => {
   it("MESH render failure: every mount ends (they render the same state); the application stays authoritative and alive, nothing recovers by itself, a fresh mount starts from the current state, closing a failed mount touches nothing else", async () => {
