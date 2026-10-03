@@ -10,6 +10,7 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { compile } from "@valancex/mesh-compiler";
+import { renderToHtml } from "@valancex/valance/web/server";
 import { Cause, Effect, Exit, Schema, Scope } from "effect";
 
 import { primitives } from "../src/catalog/web.js";
@@ -98,4 +99,53 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
 
   return { app, handle, appScope, mountOn, taps, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), state: () => run(handle.state) };
 };
+
+
+// Shared by hydrate-commit.test.ts and baseline-equivalence.test.ts: hydrate into a container, over a recording target that can throw in hydrate or update.
+export type Booted = Awaited<ReturnType<typeof boot>>;
+export type HState = Parameters<typeof boot>[0] & object;
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const A0: State = { view: "a", show: false, ids: ["A", "B"], n: 0 };
+
+export const served = (b: Booted, state: State) => run(renderToHtml(b.app, { primitives, state })).then((r) => r.html);
+
+/** Hydrate `b` into a container holding `html`. `throws` makes the target's hydrate throw before or after PORT hydrated; `reports` are the interactions PORT handed to VALANCE. */
+export const hydrateOn = async (b: Booted, html: string, options: { readonly throws?: "before" | "after"; readonly page?: ReturnType<typeof load>; readonly updateThrows?: () => boolean } = {}) => {
+  const page = options.page ?? load(html);
+  const errors: Array<string> = [];
+  const ops: Array<string> = [];
+  const reports: Array<{ readonly handler: string; readonly send: () => void }> = [];
+  const scope = await run(Scope.make());
+
+  page.window.addEventListener("error", (event) => { errors.push(event.message); });
+  if (options.page !== undefined) { page.container.innerHTML = html; }
+  const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+    const port = Web.target({ container: page.container, primitives })((handler, payload) => { reports.push({ handler, send: () => { report(handler, payload); } }); report(handler, payload); });
+
+    return {
+      draw: (t) => { port.draw(t); ops.push("draw"); },
+      update: (t) => { if (options.updateThrows?.() === true) { port.update(t); throw new Error("update failed after mutation"); } port.update(t); ops.push("update"); },
+      hydrate: (t) => {
+        if (options.throws === "before") { throw new Error("hydrate failed"); }
+        const result = port.hydrate(t);
+
+        if (options.throws === "after") { throw new Error("hydrate failed after mutation"); }
+        ops.push("hydrate");
+
+        return result;
+      },
+      unmount: () => { port.unmount(); ops.push("unmount"); },
+    };
+  };
+  const exit = await Effect.runPromise(Valance.hydrate(b.handle, factory).pipe(Scope.extend(scope), Effect.exit, Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<Valance.Mounted<never> & { readonly hydration: { readonly adopted: boolean } }, unknown> | "hung", onTimeout: () => "hung" as const })));
+  const ok = exit !== "hung" && Exit.isSuccess(exit) ? exit.value : undefined;
+
+  return {
+    exit, ok, page, ops, errors, reports, scope,
+    rows: () => Array.from(page.container.querySelectorAll("div")).map((d) => d.querySelector("span")!.textContent),
+    click: (index: number) => { page.click(page.container.querySelectorAll("div")[index]!.querySelector("button")!); },
+    close: () => run(Scope.close(scope, Exit.void)),
+  };
+};
+export const defectOf = (exit: unknown): string => Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.isDieType((exit as { cause: Cause.Cause<unknown> }).cause) ? ((exit as { cause: { defect: Error } }).cause.defect).message : "not a defect";
 
