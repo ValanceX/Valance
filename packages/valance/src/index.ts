@@ -266,7 +266,15 @@ const connect = <S, E, T extends Target, A>(
       })),
       Effect.forkIn(scope)
     );
-    const result = yield* Deferred.await(firstDone);
+    // The first render, or the follower's end. The follower's own `onExit` above completes `firstDone` when the follower ran; a follower that never got to run (its Scope
+    // was already closed, or closed before it started) is interrupted without running anything, so its exit is the only signal left: `mount` ends with that interruption.
+    const result = yield* Effect.raceFirst(
+      Deferred.await(firstDone),
+      Effect.flatMap(Fiber.await(follower), (exit) => Exit.match(exit, {
+        onFailure: (cause) => Effect.failCause(cause),
+        onSuccess: () => Effect.die(new Error("the application ended before its first render")),
+      }))
+    );
 
     // Scope finalizers run in reverse: this runs before the application ends.
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
