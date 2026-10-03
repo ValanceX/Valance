@@ -51,7 +51,9 @@ const State = Schema.Struct({ view: Schema.Literal("a", "b"), show: Schema.Boole
 type State = Schema.Schema.Type<typeof State>;
 export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 // `note` is outside every render; `tag` changes only the event argument (not the visible text); `plain` makes both views render the same title.
-const scopeOf = (title: string) => (s: State) => ({ title: s.plain === true ? "T" : `${title}${s.n}`, show: s.show, items: s.ids.map((id) => ({ id, tag: `${s.tag ?? ""}${id}` })) });
+/** Called inside every view scope function: after the follower read the state, before MESH renders it. A deterministic place to act (close an owner, commit) at exactly that point. */
+export const scopeHook: { current?: ((state: State) => void) | undefined } = {};
+const scopeOf = (title: string) => (s: State) => { scopeHook.current?.(s); return { title: s.plain === true ? "T" : `${title}${s.n}`, show: s.show, items: s.ids.map((id) => ({ id, tag: `${s.tag ?? ""}${id}` })) }; };
 
 export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }, boot_options: { readonly omit?: ReadonlyArray<string> } = {}) => {
   const taps: Array<string> = [];
