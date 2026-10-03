@@ -244,3 +244,81 @@ describe("lifecycle races: the three Scopes and what is in flight", () => {
     expect(w.listeners.size).toBe(0);
   });
 });
+
+describe("a history attached late: application state is the baseline, the browser URL is not reconciled", () => {
+  const appUrl = async (handle: Valance.ApplicationHandle<State, unknown>): Promise<string> => urlOf(await run(handle.state));
+
+  it("H1 detached navigation, then attach: attaching writes nothing, so the browser URL and the application URL differ until the next transition, which resumes the normal path", async () => {
+    const w = await world();
+    const app = await w.startApp();
+    const first = await w.attachHistory(app.handle);
+
+    expect([w.location(), await appUrl(app.handle)]).toEqual(["/x/", "/x/"]);        // A: the two agree
+    await first.close();
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/b" } }]));       // B, while history is absent
+    await sleep(40);
+    await w.attachHistory(app.handle);
+
+    expect([w.location(), await appUrl(app.handle)]).toEqual(["/x/", "/x/b"]);       // immediately after attaching: browser at A, application at B
+    expect(w.writes).toEqual([]);                                                    // nothing was reconciled
+    await run(app.handle.invoke("app/bump", []));                                    // an unrelated state change still writes nothing (C17)
+    await sleep(40);
+    expect(w.writes).toEqual([]);
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/c" } }]));       // C: the follower works again, from the baseline B
+    await sleep(40);
+    expect(w.writes).toEqual(["/x/c"]);
+    expect([w.location(), await appUrl(app.handle)]).toEqual(["/x/c", "/x/c"]);      // and they agree again
+    await app.close();
+  });
+
+  it("H2 the browser URL was changed by someone else while no history was attached: attaching leaves it alone (the application's state is the baseline, the browser URL is never compared with it)", async () => {
+    const w = await world();
+    const app = await w.startApp();
+    const first = await w.attachHistory(app.handle);
+
+    await first.close();
+    w.win.history.pushState(null, "", "/x/elsewhere");                               // not the application's write
+    const foreign = [...w.writes];
+
+    await w.attachHistory(app.handle);
+    expect(w.writes).toEqual(foreign);                                               // attaching wrote nothing, and did not undo the foreign entry
+    expect([w.location(), await appUrl(app.handle)]).toEqual(["/x/elsewhere", "/x/"]);
+    expect(await run(app.handle.state)).toMatchObject({ path: "/" });                // and the application state was not changed by it
+    await run(app.handle.invoke("app/bump", []));
+    await sleep(40);
+    expect(w.writes).toEqual(foreign);                                               // an unrelated change still writes nothing
+    await app.close();
+  });
+
+  it("H3 Back/Forward across the detached interval: every entry goes through the application's navigate with stateOf(url); the interval's own navigation has NO entry and cannot be reached", async () => {
+    const w = await world();
+    const app = await w.startApp();
+    const first = await w.attachHistory(app.handle);
+
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/a" } }]));       // entry /x/a (written)
+    await sleep(40);
+    await first.close();
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/b" } }]));       // detached: no entry
+    await sleep(40);
+    await w.attachHistory(app.handle);
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/c" } }]));       // entry /x/c (written)
+    await sleep(40);
+    expect(w.writes).toEqual(["/x/a", "/x/c"]);                                      // the browser's stack: /x/, /x/a, /x/c
+
+    const visit = async (move: "back" | "forward"): Promise<[string, string]> => {
+      w.win.history[move]();
+      await sleep(60);
+
+      return [w.location(), (await run(app.handle.state)).path];
+    };
+
+    expect(await visit("back")).toEqual(["/x/a", "/a"]);                             // an entry from BEFORE the interval: meaningful
+    expect(await visit("back")).toEqual(["/x/", "/"]);                               // the initial entry
+    expect(await visit("forward")).toEqual(["/x/a", "/a"]);
+    expect(await visit("forward")).toEqual(["/x/c", "/c"]);                          // an entry written AFTER the late attach: meaningful
+    expect(w.log.filter((entry) => entry === "commit navigate /b")).toHaveLength(1); // /b was committed once, by the detached navigation, and never revisited
+    expect(w.writes).toEqual(["/x/a", "/x/c"]);                                      // traversal wrote nothing
+    await app.close();
+  });
+});
+
