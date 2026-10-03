@@ -994,6 +994,62 @@ Observe the same boundary from the application's side with the smallest change: 
 
 ---
 
+## Stage 21: an in-flight capability call whose resource has been finalized (probe)
+
+*Question: does the Stage 20 termination ordering cause an actual resource-safety failure when an admitted command still needs its resource after the resource's finalizer has run? Method: only the external test implementation changed. Its finalizer now marks the resource closed, and past its gate the lookup uses the resource, which then fails deterministically (a typed `LookupError`, or a thrown defect). Nothing is caught, rewritten or kept alive. No VALANCE, NEXUS, MESH or PORT source changed; the four Stage 20 tests are unchanged and pass.*
+
+### Observed (`test/capability-async.test.ts`, run for the typed failure and for the defect)
+
+**Control: the Scope is not closed.** Events `resource acquired, lookup started A, lookup resumed A, lookup completed A, resource released`. The caller's `invoke` succeeds; state commits; `State.values` emitted the commit (`[1 item, 2 items]`); operations `draw, update`. The ordinary path.
+
+**Probe: the Scope closes while the lookup is suspended, then the gate opens.**
+
+```text
+resource acquired
+lookup started A
+scope closing
+resource released            <- the finalizer ran; the resource is now closed
+scope closed                 <- Scope.close returned without waiting for the call
+lookup resumed A
+resource used after release A  <- the admitted call touched the released resource
+```
+
+| | |
+|---|---|
+| Resource touched after finalization | **yes**, by the in-flight call, once its gate opened |
+| Capability operation | failed with the resource's own failure: no `lookup completed`, no result |
+| Caller's `invoke` | **the resource's own error, unchanged**: `Fail { _tag: "LookupError", id: "A" }` for the typed resource, `Die` ("resource used after release (A)") for the throwing one. Not interruption, not success |
+| Command fiber | ended with that failure or defect; nothing else observed to be affected |
+| State | unchanged (the command failed before its commit) |
+| `State.values` | emitted nothing after the start (it completed when the application ended) |
+| Rendering | none (`draw` only; container empty) |
+
+### Termination ordering
+Release of the resource, then the Scope returns, *then* the in-flight call resumes. The resource is released before its user finishes; termination neither waits for the call nor interrupts it (Stage 20). The call is not told its resource is gone: it finds out by using it.
+
+### Caller semantics
+`invoke` reports whatever the capability reports. There is no VALANCE or NEXUS signal that the application has ended; a caller of an in-flight `invoke` sees success (Stage 20, a tolerant resource), the resource's typed failure, or its defect, depending only on how the resource behaves when used after release.
+
+### State semantics
+Whether state can commit after termination depends on the command, not on the application: Stage 20 committed (the tolerant resource let the call finish, and `state.update` on a stopped application succeeded); here the resource's failure prevented the commit. Nothing stops a command from committing after termination, and nothing makes a post-termination commit reach `values` or the render (the stream has ended, the follower is gone).
+
+### Rendering
+No render occurs after termination in either case. A related fact seen in the harness: a commit is emitted by `values` but rendered asynchronously by the follower, so a Scope that closes immediately after a commit can end the follower before it draws it (the control's first version drew only `draw` before it waited). The last commit before termination is therefore not guaranteed to be rendered.
+
+### Architectural interpretation
+This is **an actual lifetime hazard, not only an observation, but it violates no existing documented invariant**: NEXUS states that effects already running when termination begins are not interrupted, and that the platform is released after the application's own resources, not after in-flight effects. The hazard is the consequence: **work admitted under an application can outlive the resources the application owns**, so a capability implementation cannot assume its resource is alive for the whole of any call made through it. Safety then depends entirely on the resource: a defensive one fails cleanly, as the probe shows (the caller gets an honest error, nothing is corrupted, nothing is committed); a tolerant one (Stage 20) lets the call finish against a released resource and commit to a stopped application. The probe demonstrates the first and Stage 20 the second; neither shows data corruption, because the test resource has none to corrupt.
+
+### New concept required
+No. Existing Effect failure and defect semantics carried the resource's failure to the caller unchanged; nothing was needed to observe it.
+
+### API pressure
+No. `ApplicationHandle` and `invoke` behaved correctly: they relayed the failure and did not hide it. The open question belongs to application termination (NEXUS): whether admitted commands should be interrupted, awaited, or deliberately left to outlive the resource. Not decided here.
+
+### Next probe
+Establish what an already-admitted command can still do *after* termination, with no mechanism added: past its gate, a command that calls `state.update`, publishes a NEXUS event, and requires a second capability, and a second `invoke` made from inside it, recording for each whether it succeeds or is refused (and as a typed failure or a defect). Stage 20 showed `state.update` succeeds; the rest decide how much of "the application is stopped" an in-flight command actually experiences, which any lifetime policy has to start from.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

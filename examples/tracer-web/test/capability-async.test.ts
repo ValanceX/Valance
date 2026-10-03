@@ -5,8 +5,9 @@ import type { WebPort } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
+import { runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
-import { Deferred, Effect, Exit, Fiber, Layer, Option, Scope } from "effect";
+import { Cause, Chunk, Deferred, Effect, Exit, Fiber, Layer, Option, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { CatalogAsync, type CatalogEntry, type LookupError } from "../src/catalog/async-service.js";
@@ -22,8 +23,9 @@ const start = { view: "home" as const, items: [{ id: "A0", name: "Alpha" }] };
  * "started", then waits on a gate the test opens with `complete(id)`; an interruption of that wait is recorded. Every
  * step is recorded in order in `events`, with the resource's acquisition and release.
  */
-const controllable = () => {
+const controllable = (options: { readonly useAfterRelease?: "fail" | "die" } = {}) => {
   const events: Array<string> = [];
+  let closed = false;                                                              // set only by the resource's own finalizer
   const gates = new Map<string, { readonly gate: Deferred.Deferred<CatalogEntry, LookupError>; readonly started: Deferred.Deferred<void> }>();
   const gateOf = (id: string) => {
     let entry = gates.get(id);
@@ -41,13 +43,24 @@ const controllable = () => {
       yield* Deferred.succeed(gateOf(id).started, undefined);
       const entry = yield* Deferred.await(gateOf(id).gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { events.push(`lookup interrupted ${id}`); })));
 
+      // Only when asked: past its gate the lookup needs the resource, which refuses work once its finalizer has run.
+      if (options.useAfterRelease !== undefined) {
+        events.push(`lookup resumed ${id}`);
+
+        if (closed) {
+          events.push(`resource used after release ${id}`);
+
+          return yield* (options.useAfterRelease === "fail" ? Effect.fail<LookupError>({ _tag: "LookupError", id }) : Effect.die(new Error(`resource used after release (${id})`)));
+        }
+      }
+
       events.push(`lookup completed ${id}`);
 
       return entry;
     }),
   };
   const platform: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.map(
-    Effect.acquireRelease(Effect.sync(() => { events.push("resource acquired"); return service; }), () => Effect.sync(() => { events.push("resource released"); })),
+    Effect.acquireRelease(Effect.sync(() => { events.push("resource acquired"); return service; }), () => Effect.sync(() => { events.push("resource released"); closed = true; })),
     (implementation) => ({ resolutions: new Map([[CatalogAsync.id, { _tag: "Available" as const, implementation }]]) })
   ));
 
@@ -201,4 +214,77 @@ describe("an asynchronous application-owned capability, through the existing bou
       expect(m.operations.every((operation, index) => (index === 0 ? operation === "draw" : operation === "update"))).toBe(true);
     })));
   });
+});
+
+// Stage 21 probe. The resource's finalizer now makes it unusable, and the lookup needs it after its gate. Nothing is caught,
+// rewritten or kept alive: this records what the existing semantics do. Run once as a control (Scope open) and once with the
+// Scope closed while the lookup is suspended, for a resource that fails with a typed error and one that throws.
+describe("an in-flight capability call whose resource has been finalized", () => {
+  type Kind = "fail" | "die";
+
+  /** Runs one lookup of A to the gate, optionally closes the Scope first, opens the gate, and records everything seen. */
+  const run = async (kind: Kind, closeScope: boolean) => {
+    const app = applicationWithAsyncCatalog(await compilePrograms());
+    const w = controllable({ useAfterRelease: kind });
+    const m = mounted();
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, state: start }).pipe(Scope.extend(scope)));
+
+    await Effect.runPromise(Valance.mount(handle, m.target).pipe(Scope.extend(scope)));
+    // The values the application emitted until it ended (the internal composition face, read on purpose).
+    const emitted = Effect.runPromise(Stream.runCollect(runningOf(handle).states).pipe(Effect.map(Chunk.toReadonlyArray)));
+    const invoke = Effect.runFork(handle.invoke("app/lookupAsync", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    expect(w.events).toEqual(["resource acquired", "lookup started A"]);         // acquired, and the lookup is in flight
+
+    if (closeScope) {
+      w.events.push("scope closing");
+      await Effect.runPromise(Scope.close(scope, Exit.void));
+      w.events.push("scope closed");
+      expect(w.events.at(-2)).toBe("resource released");                          // the finalizer has run
+    }
+
+    await Effect.runPromise(w.complete("A"));                                     // open the gate
+    const exit = await Effect.runPromise(Fiber.await(invoke));
+
+    if (!closeScope) {
+      await until(() => m.names().length === 2);                                  // the commit is rendered asynchronously: let it land before ending
+      await Effect.runPromise(Scope.close(scope, Exit.void));                     // after everything: the control ends normally
+    }
+
+    return { events: w.events, exit, state: await Effect.runPromise(handle.state), emitted: await emitted, operations: m.operations, dom: m.page.container.innerHTML };
+  };
+
+  const describeExit = (exit: Exit.Exit<unknown, unknown>) => Exit.isSuccess(exit)
+    ? { _tag: "Success" }
+    : Cause.isFailType(exit.cause) ? { _tag: "Fail", error: exit.cause.error } : Cause.isDieType(exit.cause) ? { _tag: "Die", message: (exit.cause.defect as Error).message } : { _tag: exit.cause._tag };
+
+  for (const kind of ["fail", "die"] as const) {
+    it(`control (${kind}): without closing the Scope, the same call completes and commits through the ordinary path`, async () => {
+      const r = await run(kind, false);
+
+      expect(r.events).toEqual(["resource acquired", "lookup started A", "lookup resumed A", "lookup completed A", "resource released"]);
+      expect(describeExit(r.exit)).toEqual({ _tag: "Success" });
+      expect(r.state.items).toEqual([...start.items, { id: "A", name: "item-A" }]);
+      expect(r.emitted.map((state) => state.items.length)).toEqual([1, 2]);        // State.values emitted the commit
+      expect(r.operations).toEqual(["draw", "update"]);
+    });
+
+    it(`probe (${kind}): the Scope closes while the call is suspended, then the call needs its released resource`, async () => {
+      const r = await run(kind, true);
+
+      // Exact ordering: the finalizer runs, THEN the call resumes and touches the released resource.
+      expect(r.events).toEqual([
+        "resource acquired", "lookup started A", "scope closing", "resource released", "scope closed",
+        "lookup resumed A", "resource used after release A",
+      ]);
+      // What the caller observes: the resource's own failure, unchanged. Not interruption, not success.
+      expect(describeExit(r.exit)).toEqual(kind === "fail" ? { _tag: "Fail", error: { _tag: "LookupError", id: "A" } } : { _tag: "Die", message: "resource used after release (A)" });
+      expect(r.state).toEqual(start);                                              // the command failed before its commit
+      expect(r.emitted).toEqual([start]);                                          // State.values emitted nothing after the start
+      expect(r.operations).toEqual(["draw"]);                                      // nothing rendered
+      expect(r.dom).toBe("");
+    });
+  }
 });
