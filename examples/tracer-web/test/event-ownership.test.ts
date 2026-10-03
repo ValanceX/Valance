@@ -1,10 +1,6 @@
-// Event-command ownership. The expectations below are written for TWO models of who owns a click-initiated command, selected by
-// VALANCE_EVENT_MODEL (default `mount`, the production behavior). `app` is the disposable Stage 36 spike (see docs/FINDINGS.md): the
-// same tests, run against it, with the expectations it implies. Neither set of expectations is weakened for the other.
-// (harness from Stage 35): one application, several independent mounts. Each mount is a real `Valance.mount` in ITS OWN Scope (so each has its own
-// `connect`: follower, target, pending dispatches) over the one handle returned by `Valance.start` in the application's Scope.
-// No store, no synchronisation, no new API: this only observes which lifetime owns what. Events come from real clicks in each mount's
-// own page, or from `invoke`. One MESH intent `home/open(id)` carries every behavior, selected by the clicked row's id.
+// Stage 36 probes, adopted in Stage 39: who owns a click-initiated command once it is admitted. Decision (docs/FINDINGS.md, Stage 39): the
+// APPLICATION. Closing the dispatching mount ends its follower and target; the command goes on, commits, and is rendered by the mounts that remain.
+// (Stage 36 ran these same probes against both models; the mount-owned expectations are recorded there, no longer here.)
 import type { WebPort } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
@@ -131,12 +127,9 @@ const boot = async () => {
 };
 
 
-const OWNED = process.env["VALANCE_EVENT_MODEL"] === "app";
-/** Expectation chooser: what a model implies for the same probe. */
-const model = <T>(mount: T, app: T): T => OWNED ? app : mount;
 
 describe("B: who ends a click-initiated command", () => {
-  it("B1 baseline: click in A, suspended, A stays mounted, gate released: commit, render, recorded exit (both models)", async () => {
+  it("B1 baseline: click in A, suspended, A stays mounted, gate released: commit, render, recorded exit", async () => {
     const b = await boot();
     const a = await b.mountOn("A");
 
@@ -150,7 +143,7 @@ describe("B: who ends a click-initiated command", () => {
     expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);
   });
 
-  it("B2 click in A, suspended, A unmounts (B and the application live on), gate released", async () => {
+  it("B2 click in A, suspended, A unmounts (B and the application live on), gate released: the command goes on and B renders it", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -159,17 +152,17 @@ describe("B: who ends a click-initiated command", () => {
     await a.unmount();
     await b.release("gate1", "x");
     await b.stable();
-    if (OWNED) { await b.seenEvent("B render update: g1:x"); }
+    await b.seenEvent("B render update: g1:x");
 
-    expect(b.events.includes("gate1 interrupted")).toBe(model(true, false));                      // does the command resume?
-    expect(b.commits()).toEqual(model([], ["commit g1:x"]));                                      // does state commit?
-    expect(c.label()).toBe(model("init", "g1:x"));                                                 // does B render it?
+    expect(b.events.includes("gate1 interrupted")).toBe(false);                      // does the command resume?
+    expect(b.commits()).toEqual(["commit g1:x"]);                                      // does state commit?
+    expect(c.label()).toBe("g1:x");                                                 // does B render it?
     expect(b.renders("A")).toEqual(["A render draw: init", "A unmounted"]);                       // A is silent either way
-    expect(a.mount!.dispatched.map(show)).toEqual(model([], ["succeeded"]));                      // does A's mount record the exit?
+    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);                      // does A's mount record the exit?
     expect(b.events).not.toContain("application closed");
   });
 
-  it("B3 control: the same command INVOKED instead of clicked continues in both models", async () => {
+  it("B3 control: the same command INVOKED instead of clicked continues", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
     const caller = b.invoke("gate1");
@@ -184,7 +177,7 @@ describe("B: who ends a click-initiated command", () => {
     expect(c.label()).toBe("g1:x");
   });
 
-  it("B4 unmounting the NON-dispatching mount: the command survives, in both models", async () => {
+  it("B4 unmounting the NON-dispatching mount: the command survives,", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -199,7 +192,7 @@ describe("B: who ends a click-initiated command", () => {
     expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);
   });
 
-  it("B5 a suspended click command in each mount, A unmounts, both gates released: which one survives", async () => {
+  it("B5 a suspended click command in each mount, A unmounts, both gates released: both survive", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -209,18 +202,18 @@ describe("B: who ends a click-initiated command", () => {
     await a.unmount();
     await b.release("gate1", "1"); await b.release("gate2", "2");
     await b.seenEvent("B render update: g2:2");
-    if (OWNED) { await b.seenEvent("B render update: g1:1"); }
+    await b.seenEvent("B render update: g1:1");
     await b.stable();
 
-    expect(b.events.includes("gate1 interrupted")).toBe(model(true, false));                      // A's command: interrupted with its mount, or not
+    expect(b.events.includes("gate1 interrupted")).toBe(false);                      // A's command: interrupted with its mount, or not
     expect(b.events).not.toContain("gate2 interrupted");                                          // B's command survives in both
-    expect(b.commits().sort()).toEqual(model(["commit g2:2"], ["commit g1:1", "commit g2:2"]));
+    expect(b.commits().sort()).toEqual(["commit g1:1", "commit g2:2"]);
     expect(c.mount!.dispatched.map(show)).toEqual(["succeeded"]);
   });
 });
 
 describe("D: the discriminating probes", () => {
-  it("D5a event failures are unchanged: typed failure and defect are recorded in the dispatching mount's ledger, application usable (both models)", async () => {
+  it("D5a event failures are unchanged: typed failure and defect are recorded in the dispatching mount's ledger, application usable", async () => {
     const b = await boot();
     const a = await b.mountOn("A");
 
@@ -232,7 +225,7 @@ describe("D: the discriminating probes", () => {
     expect(a.mount!.dispatched.map(show)).toEqual(["failed", "died: defect-boom", "succeeded"]);
   });
 
-  it("D5b application closes first while the dispatching mount is still open: the registry interrupts the command before the resource releases; the exit IS recorded (both models)", async () => {
+  it("D5b application closes first while the dispatching mount is still open: the registry interrupts the command before the resource releases; the exit IS recorded", async () => {
     const b = await boot();
     const a = await b.mountOn("A");
 
@@ -248,7 +241,7 @@ describe("D: the discriminating probes", () => {
     await a.unmount();
   });
 
-  it("D5c the mount closes BEFORE the application (the usual shared-scope order), command suspended: still covered before release; what the mount records differs", async () => {
+  it("D5c the mount closes BEFORE the application (the usual shared-scope order), command suspended: the registry interrupts it before release, and its exit is recorded", async () => {
     const b = await boot();
     const a = await b.mountOn("A");
 
@@ -261,10 +254,10 @@ describe("D: the discriminating probes", () => {
 
     expect(at(b.events, "open(gate1) exit: interrupted")).toBeLessThan(at(b.events, "platform resource released"));   // Stage 29 holds
     expect(b.commits()).toEqual([]);
-    expect(a.mount!.dispatched.map(show)).toEqual(model([], ["interrupted"]));                    // exit recorded only when the application, not the mount, ended it
+    expect(a.mount!.dispatched.map(show)).toEqual(["interrupted"]);                    // exit recorded only when the application, not the mount, ended it
   });
 
-  it("D7 a command still suspended at application close is covered by the Stage 29 registry in both models: exit before release, nothing commits after", async () => {
+  it("D7 a command still suspended at application close is covered by the Stage 29 registry: exit before release, nothing commits after", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -278,7 +271,7 @@ describe("D: the discriminating probes", () => {
     void a;
   });
 
-  it("D8 late mount: the dispatching mount disappears, a new mount appears, the gate opens while the application lives: who sees the commit", async () => {
+  it("D8 late mount: the dispatching mount disappears, a new mount appears, the gate opens while the application lives: the new mount renders the commit", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -289,14 +282,14 @@ describe("D: the discriminating probes", () => {
 
     await b.release("gate1", "x");
     await b.stable();
-    if (OWNED) { await b.seenEvent("C render update: g1:x"); }
+    await b.seenEvent("C render update: g1:x");
 
-    expect(b.commits()).toEqual(model([], ["commit g1:x"]));
-    expect(late.label()).toBe(model("init", "g1:x"));
-    expect((await b.state()).value).toBe(model("init", "g1:x"));
+    expect(b.commits()).toEqual(["commit g1:x"]);
+    expect(late.label()).toBe("g1:x");
+    expect((await b.state()).value).toBe("g1:x");
   });
 
-  it("D6 who holds the recorded exit: the dispatching mount's `dispatched`, whichever model (the ledger belongs to the mount that dispatched, even closed, as long as someone holds Mounted)", async () => {
+  it("D6 who holds the recorded exit: the dispatching mount's `dispatched` (the ledger belongs to the mount that dispatched, even closed, as long as someone holds Mounted)", async () => {
     const b = await boot();
     const a = await b.mountOn("A");
 
@@ -306,7 +299,7 @@ describe("D: the discriminating probes", () => {
     await b.release("gate1", "x");
     await b.stable();
 
-    expect(a.mount!.dispatched.map(show)).toEqual(model([], ["succeeded"]));                      // under `app` the exit lands in a CLOSED mount's ledger, after its unmount
+    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);                      // under `app` the exit lands in a CLOSED mount's ledger, after its unmount
     expect(b.renders("A")).toEqual(["A render draw: init", "A unmounted"]);                       // and nothing is drawn into the closed target
   });
 });

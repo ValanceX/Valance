@@ -280,11 +280,11 @@ const lifeThenRelease = async (settleFirst: boolean) => {
 };
 
 describe("G, H, J, K: mount close, and what the application can see", () => {
-  it("G mount close WITHOUT settled: suspended events are interrupted (no exit recorded), completed ones were already recorded; once the mount is unreachable every fiber and exit is collectable", async () => {
+  it("G close WITHOUT settled: the two suspended events are interrupted by the application's drain and record `interrupted` (Stage 39: not by the mount); once the mount is unreachable every fiber and exit is collectable", async () => {
     const run = await lifeThenRelease(false);
 
     expect(run.before.dispatched).toBe(5);
-    expect(run.after.dispatched).toBe(5);                                         // the two suspended events left no entry (interrupted by the close finalizer)
+    expect(run.after.dispatched).toBe(7);                                         // the two suspended events recorded their interrupted exits when the registry drained them
     await collect();
     expect(alive(run.canaries.fibers)).toBe(0);                                   // nothing outlives the mount
     expect(alive(run.canaries.exits)).toBe(0);

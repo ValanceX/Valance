@@ -240,22 +240,23 @@ describe("F, I: async commands and mounts", () => {
     expect(c.label()).toBe("g1:z");
   });
 
-  it("I (counterexample) a CLICK-initiated command is owned by the mount that dispatched it: unmounting A mid-command INTERRUPTS it although the application and mount B live on; nothing commits, B sees nothing", async () => {
+  it("I (Stage 39) a CLICK-initiated command is the application's once admitted, like an invoked one: unmounting A mid-command does NOT interrupt it; it commits, B renders it, and A's closed mount records the exit", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
     a.clickRow("gate1");                                                            // real click in A's page: PORT report, A's `connect`, dispatch
     await b.started("gate1");
-    await a.unmount();                                                              // A's `connect` finalizer interrupts A's pending dispatch fibers
+    await a.unmount();                                                              // A's follower and target end; its dispatch fibers are let go, not interrupted
     await b.release("gate1", "z");
+    await b.seenEvent("B render update: g1:z");
     await b.stable();
 
-    expect(b.events).toContain("gate1 interrupted");
-    expect(b.events).toContain("open(gate1) exit: interrupted");
-    expect(b.commits()).toEqual([]);
-    expect(c.label()).toBe("init");
-    expect((await b.state()).value).toBe("init");
-    expect(b.events).not.toContain("application closed");                           // the application is alive; only A's dispatch is gone
+    expect(b.events).not.toContain("gate1 interrupted");
+    expect(b.commits()).toEqual(["commit g1:z"]);
+    expect(c.label()).toBe("g1:z");
+    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);                    // the exit lands in the dispatching mount's ledger, though that mount is closed
+    expect(b.renders("A")).toEqual(["A render draw: init", "A unmounted"]);         // nothing is drawn into the closed target
+    expect(b.events).not.toContain("application closed");
   });
 });
 

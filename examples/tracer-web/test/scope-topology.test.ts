@@ -157,7 +157,7 @@ describe("closing the application with a command suspended: the order in each to
           "platform resource released", "application closed",                                   // NEXUS terminated, resources last
         ]);
         expect(b.commits()).toEqual([]);
-        expect(a.mount!.dispatched.map(show)).toEqual([]);                                      // a click command: interrupted by the mount finalizer, no exit (Stage 33 F)
+        expect(a.mount!.dispatched.map(show)).toEqual(kind === "click" ? ["interrupted"] : []);   // a click command is the application's: the registry interrupts it and the dispatching mount records the exit (Stage 39)
         expect(show(await Effect.runPromise(a.mount!.followed) as never)).toBe("interrupted");   // the follower was ended by the MOUNT's finalizer
       });
     }
@@ -257,7 +257,7 @@ describe("mounts close, the application remains", () => {
   }
 
   for (const kind of ["invoked", "click"] as const) {
-    it(`B6 control, independent: closing the dispatching mount mid-command with the application alive: ${kind === "invoked" ? "the invoked command survives" : "the click command is interrupted (existing mount-owned behavior; the Stage 36 decision is NOT taken here)"}`, async () => {
+    it(`B6 control, independent: closing the dispatching mount mid-command with the application alive: the ${kind} command survives (Stage 39: a click command is the application's once admitted)`, async () => {
       const b = await boot("independent");
       const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -265,11 +265,12 @@ describe("mounts close, the application remains", () => {
       await b.started("gate1");
       await a.unmount();
       await b.release("gate1", "x");
+      await b.seenEvent("B render update: g1:x");
       await settle(b);
 
-      expect(b.events.includes("gate1 interrupted")).toBe(kind === "click");
-      expect(b.commits()).toEqual(kind === "click" ? [] : ["commit g1:x"]);
-      expect(c.label()).toBe(kind === "click" ? "init" : "g1:x");
+      expect(b.events).not.toContain("gate1 interrupted");
+      expect(b.commits()).toEqual(["commit g1:x"]);
+      expect(c.label()).toBe("g1:x");
       expect(b.events).not.toContain("application closed");
     });
   }

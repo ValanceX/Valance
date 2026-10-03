@@ -1,4 +1,4 @@
-// Stage 39: who ends an ADMITTED click command? Real Chromium, real PORT web target, real clicks, one independent mount (its own Scope), one
+// Stage 39: who ends an ADMITTED click command? (Decision: the application.) Real Chromium, real PORT web target, real clicks, one independent mount (its own Scope), one
 // command held pending on a gate the test owns. Two experiments, each ending exactly one of the two lifetimes while the other stays open.
 import type { WebPort } from "@valancex/port-web";
 
@@ -82,16 +82,16 @@ describe("an admitted click command, pending, in Chromium with an independent mo
     await s.entered();
     await a.close();                                                                  // the mount ends; nothing touches the application's Scope
     await s.release("late");
-    await expect.poll(() => s.events.includes("command exit: interrupted") || s.events.includes("command exit: succeeded")).toBe(true);
+    await expect.poll(() => s.events.includes("command exit: succeeded")).toBe(true);
 
-    // OBSERVED (current behavior): the command is interrupted by the mount's finalizer (the only lifetime that ended); no commit; the exit is NOT
-    // recorded in the closed mount's ledger.
-    expect(s.events).toEqual(["command entered", "A unmounted", "command interrupted", "command exit: interrupted"]);
-    expect((await s.state()).value).toBe("init");
-    expect(a.mounted.dispatched.map(show)).toEqual([]);
+    // OBSERVED (Stage 39, application-owned): the mount's end does not touch the command. It resumes when its gate opens, commits, and the exit lands in
+    // the closed mount's ledger. (Before Stage 39 this was `command interrupted` by the mount's finalizer, no commit, no exit; see docs/FINDINGS.md.)
+    expect(s.events).toEqual(["command entered", "A unmounted", "command resumed", "command exit: succeeded"]);
+    expect((await s.state()).value).toBe("late");
+    expect(a.mounted.dispatched.map(show)).toEqual(["succeeded"]);
     const b = await s.mountIn("B");                                                   // the application is fully usable: a new mount observes and modifies state
 
-    expect(b.label()).toBe("init");
+    expect(b.label()).toBe("late");                                                   // the new mount observes what the surviving command committed
     await b.click("set");
     await expect.poll(() => b.label()).toBe("set");
     await s.closeApp();
@@ -107,7 +107,7 @@ describe("an admitted click command, pending, in Chromium with an independent mo
     await s.entered();
     await s.closeApp();                                                               // the application ends; the mount's Scope stays open
     await s.release("late");
-    await expect.poll(() => s.events.includes("application-owned") || a.mounted.dispatched.length > 0).toBe(true);
+    await expect.poll(() => a.mounted.dispatched.length).toBe(1);
 
     // OBSERVED: the command is interrupted by the application's registry, BEFORE the platform resource is released (nothing released under it); the
     // mount is still drawn and its follower ended Success; the exit is recorded in the live mount's ledger; state stays readable.

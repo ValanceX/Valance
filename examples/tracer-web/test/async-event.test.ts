@@ -300,7 +300,7 @@ describe("I, J: events after a failure, and concurrent event commands", () => {
 });
 
 describe("F, K: drain through the event boundary", () => {
-  it("F a suspended event command is interrupted at drain and exits before the resource releases; no commit, value or render; the dispatch leaves no exit", async () => {
+  it("F a suspended event command is interrupted at drain (by the application's registry) and exits before the resource releases; no commit, value or render; the interrupted exit IS recorded", async () => {
     const b = await boot();
 
     b.click("slowA");
@@ -314,7 +314,7 @@ describe("F, K: drain through the event boundary", () => {
     expect(b.events.some((event) => event.startsWith("commit"))).toBe(false);
     expect(b.values()).toEqual(["values: init"]);
     expect(b.renders().filter((event) => event.startsWith("render update"))).toEqual([]);
-    expect(b.mount.dispatched.length).toBe(0);                                    // `connect`'s finalizer interrupts the dispatch fiber first: no exit is recorded
+    expect(b.mount.dispatched.map(show)).toEqual(["interrupted"]);   // the registry interrupts it (Stage 39: the mount does not); the dispatch fiber records the interrupted exit
   });
 
   it("F after the drain, the old button can no longer report anything: the target was unmounted before the drain began, so no event reaches admission", async () => {

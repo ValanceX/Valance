@@ -187,7 +187,7 @@ export type DispatchExit<E> = Exit.Exit<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDi
 export interface Mounted<E> {
   /** Every dispatch Valance made for a reported event, as it settled. */
   readonly dispatched: ReadonlyArray<DispatchExit<E>>;
-  /** Succeeds once every dispatch made so far has settled. */
+  /** Succeeds once every dispatch made so far has settled. Covers the dispatches this mount still holds: a closed mount holds none, and what it dispatched is the application's to finish. */
   readonly settled: Effect.Effect<void>;
   /** Completes when Valance stops following renders: Success when the application ended, a Failure when a render failed, Interrupted when the scope closed. */
   readonly followed: Effect.Effect<Exit.Exit<void, Nexus.Mesh.MeshDiagnostics>>;
@@ -256,7 +256,9 @@ const connect = <S, E, T extends Target, A>(
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
       yield* Fiber.interrupt(follower);
       yield* Effect.sync(() => { target.unmount(); });
-      yield* Effect.forEach(pending.splice(0), Fiber.interrupt, { discard: true });
+      // A command an event started is the APPLICATION's once admitted (C20): closing the mount ends the follower and the target, not the command.
+      // The mount only lets go of the dispatch fibers it held; the application's registry still owns, drains and interrupts them (Stage 39).
+      yield* Effect.sync(() => { pending.splice(0); });
     }));
 
     // Dispatches may start more dispatches' worth of work only through the target, so draining until empty terminates.

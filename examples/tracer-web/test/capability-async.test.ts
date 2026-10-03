@@ -1363,7 +1363,7 @@ describe("where VALANCE owns command lifetime: the two entry paths", () => {
     expect(w.events).not.toContain("resource used after release A0");
   });
 
-  it("baseline, MESH dispatch (nothing added): the command IS interrupted, before the resource is released, by VALANCE's own connect finalizer", async () => {
+  it("baseline, MESH dispatch (nothing added): the command IS interrupted, before the resource is released, by the application's registry (Stage 39: the mount no longer does it)", async () => {
     const { w, m, handle, mount, closeScope, before, yields } = await start_("dispatch", {});
 
     w.events.push("scope closing");
@@ -1374,7 +1374,7 @@ describe("where VALANCE owns command lifetime: the two entry paths", () => {
 
     strictlyIn(w, "scope closing", "command exit: interrupted", "resource released", "scope closed");
     expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);          // it never reaches the resource
-    expect(mount.dispatched).toEqual([]);                                          // the interrupted dispatch leaves no result for the target
+    expect(mount.dispatched.map((exit) => Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause) ? "interrupted" : "other")).toEqual(["interrupted"]);   // the interrupted dispatch records its exit (the target is gone, so nothing renders)
     expect(await ids(handle)).toEqual(["A0"]);
     expect(m.operations).toEqual(["draw"]);
   });
