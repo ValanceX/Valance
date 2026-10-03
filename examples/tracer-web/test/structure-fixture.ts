@@ -53,10 +53,11 @@ export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(e
 // `note` is outside every render; `tag` changes only the event argument (not the visible text); `plain` makes both views render the same title.
 const scopeOf = (title: string) => (s: State) => ({ title: s.plain === true ? "T" : `${title}${s.n}`, show: s.show, items: s.ids.map((id) => ({ id, tag: `${s.tag ?? ""}${id}` })) });
 
-export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }) => {
+export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }, boot_options: { readonly omit?: ReadonlyArray<string> } = {}) => {
   const taps: Array<string> = [];
   const seen: Array<{ readonly id: string; readonly n: number; readonly tag: string; readonly view: string }> = [];
-  const gate: { current?: Promise<void> } = {};
+  const started: Array<string> = [];
+  const gate: { current?: Promise<void>; readonly byId: Map<string, Promise<void>>; commit?: boolean; uninterruptible?: boolean } = { byId: new Map() };
   const app = Valance.define({
     name: "same-view", state: { schema: State, initial },
     views: { a: { program: programs.va, scope: scopeOf("A") }, b: { program: programs.vb, scope: scopeOf("B") } },
@@ -64,15 +65,20 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     commands: (state: Nexus.State.StateHandle<State>) => {
       const set = (name: string, change: (c: State) => State) => Nexus.Mesh.bind(Nexus.Command.define(`s.${name}`, Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed(change(c))))), () => ({}));
       // `gate.current` (a promise) holds a tap BEFORE it reads state; `seen` is the state a tap observed when it actually ran.
-      const tap = Nexus.Mesh.bind(Nexus.Command.define("s.tap", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.gen(function* () {
-        if (gate.current !== undefined) { yield* Effect.promise(() => gate.current!); }
+      const tap = Nexus.Mesh.bind(Nexus.Command.define("s.tap", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.suspend(() => { const body = Effect.gen(function* () {
+        started.push(id);
+        const held = gate.byId.get(id) ?? gate.current;
+
+        if (held !== undefined) { yield* Effect.promise(() => held); }
         const now = yield* state.get;
+
+        if (gate.commit === true) { yield* state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, note: `${c.note ?? ""}${id}` })); }   // the commit, recorded in commit order
 
         seen.push({ id, n: now.n, tag: now.tag ?? "", view: now.view });
         taps.push(id);
-      })), (args) => ({ id: "value" in args[0]! ? args[0].value : "" }));
+      }); return gate.uninterruptible === true ? Effect.uninterruptible(body) : body; })), (args) => ({ id: "value" in args[0]! ? args[0].value : "" }));
 
-      return {
+      const table = {
         "app/ids": Nexus.Mesh.bind(Nexus.Command.define("s.ids", Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, ids })))), (args) => ({ ids: "value" in args[0]! ? args[0].value : [] })),
         "app/show": set("show", (c) => ({ ...c, show: true })),
         "app/hide": set("hide", (c) => ({ ...c, show: false })),
@@ -85,6 +91,8 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
         "app/same": set("same", (c) => c),                                    // the very same state object
         "va/tap": tap, "vb/tap": tap,
       } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
+
+      return Object.fromEntries(Object.entries(table).filter(([key]) => !(boot_options.omit ?? []).includes(key)));
     },
   });
   const appScope = await run(Scope.make());
@@ -115,7 +123,7 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     };
   };
 
-  return { app, handle, appScope, mountOn, taps, seen, gate, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), state: () => run(handle.state) };
+  return { app, handle, appScope, mountOn, taps, seen, started, gate, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), rawInvoke: (key: string) => handle.invoke(key, []), state: () => run(handle.state) };
 };
 
 
