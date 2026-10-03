@@ -2285,6 +2285,33 @@ So the browser receives an immutable definition-in-code plus immutable data (pro
 
 ---
 
+## Stage 54: one pressure point in the real page (focus after a program change): host-owned, not a contract deficiency
+
+**Survey.** Read `page.ts`, `shape-b.ts`, `app.ts`, `document.ts`, the public surface (`ApplicationHandle` = `{state, invoke}`, `Target`/`TargetFactory`, `Mounted`, `Web.history`) and PORT Web's primitive and event tables, looking for behavior that is awkward, duplicated, host-owned or inexpressible. Considered and set aside: (a) the host passing five pieces of URL knowledge plus the string key `"app/navigate"` to `Web.history` (convenience, documented in Stage 4/7); (b) `<title>`: the application has one constant `title` and no per-view title, so `document.title` staying "Tracer" is absent data, not a missing seam; (c) navigation expressed as buttons, not links: PORT's `EventRealization` has only `type` and `payload` (no way to condition or suppress a dispatch for a modified click), so true `<a href>` links with open-in-new-tab are not cleanly expressible; a real PORT limitation, but a feature the page does not have and nothing in the page needs, so not pressure from the page. The one behavior that is real, observable and crosses every boundary is below.
+
+**Candidate: keyboard focus is lost when navigation changes the program.** Observed in the real page in Chromium (dev-server page, one throwaway probe): with focus on the counter view's "Click" button, activating it updates in place (same program): the same node survives and `document.activeElement` stays on it. With focus on "About", activating it changes the program: afterwards `document.activeElement` is `<body>`. The URL changed correctly (`/tracer/about?tab=overview`); the keyboard user is left at the top of the document.
+
+**Flow and ownership.**
+```text
+focused <button> (the user)            DOM, PORT's realization
+  click -> PORT report -> MESH dispatch -> NEXUS command app.navigate        application intent: "go to /about"
+  state commit -> values -> view(state) selects another program               application (view) + MESH (render)
+  connect: new view != drawn view  ->  target.draw(tree)                      VALANCE decides draw vs update (the only party that knows the program changed)
+  PORT draw replaces the container's nodes                                    PORT: the focused node no longer exists
+  focus policy ("where does a user land after navigating?")                   nobody: not in the intent, not in the template, not in PORT
+```
+It crosses an ownership boundary at the PORT `draw`: the application cannot express focus (an intent has no such vocabulary and a template has no focus prop), and PORT, by design, realizes the tree and touches nothing else.
+
+**Insufficient, or merely inconvenient? Inconvenient (host-owned); the contract suffices.** A second probe showed the public seam already carries it: a host that wraps the `TargetFactory` (exported, the same wrapping the repository's tests use to record operations) and moves focus after `port.draw(tree)` gets the focus back inside the container (`BUTTON "Back"`, `main.contains(activeElement)`), using only `Valance.start`, `Valance.mount`, `Valance.TargetFactory` and `Web.target`. Valance already delivers the one fact a host needs (this is a `draw`, not an `update`). So no NEXUS, MESH, PORT or VALANCE change is warranted. What remains is inconvenience in the example: `run` (`shape-b.ts`) builds its `Web.target` internally, so `page.ts` cannot add such a wrapper without bypassing `run`; and nobody has decided the page's focus policy (a product choice, and an application-specific one: first control? the heading?).
+
+**Smallest probe that would prove a real deficiency (not run, not needed so far).** A page requirement whose host cannot be expressed through the wrapped target: e.g. restoring focus to the element the user was on AFTER a same-program `update` that PORT replaced (keyed list reorders keep nodes, Stage 8), or announcing a navigation to assistive technology from application intent. Neither exists in the page. Until one does, there is no deficiency to prove.
+
+**Validation.** Static inspection plus two throwaway Chromium probes (deleted; nothing added to the repository besides this note). No suites run. `packages/*`, NEXUS, MESH and PORT untouched.
+
+**Result.** One concrete pressure point found and classified: host-owned and inconvenient, not insufficient. Nothing to build.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
