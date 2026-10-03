@@ -12,8 +12,16 @@ export default defineConfig({
         if (request.url === undefined || !request.url.startsWith("/tracer")) { next(); return; }
 
         try {
+          let html = await renderDocument(request.url);
+
+          // Test-only fault injection for the startup-failure tracer (Stage 47): a corrupt embedded state, as a stale or damaged server payload would be, and an
+          // inline observer that records what the page reports, installed BEFORE the page script runs. The page script itself is untouched.
+          if (request.url.includes("__corrupt=state")) {
+            html = html.replace('"count":0', '"count":"zero"').replace("<script type=\"application/json\"", "<script>window.__seen=[];addEventListener('error',(e)=>__seen.push('error: '+e.message));addEventListener('unhandledrejection',(e)=>__seen.push('unhandledrejection: '+String(e.reason)));for(const k of ['error','warn','log']){const o=console[k];console[k]=(...a)=>{__seen.push(k+': '+a.map(String).join(' '));o.apply(console,a);};}</script><script type=\"application/json\"");
+          }
+
           response.setHeader("content-type", "text/html; charset=utf-8");
-          response.end(await renderDocument(request.url));
+          response.end(html);
         } catch (error) {
           next(error);
         }

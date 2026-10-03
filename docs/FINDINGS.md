@@ -2121,6 +2121,26 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 47: what a real page does when `run` cannot start (observed, then a page-only policy)
+
+**Failure exercised.** The embedded state in the server's document is corrupt (`count` is `"zero"`, not a number), as a stale or damaged server payload would be. `Valance.start` inside `run` rejects it with the typed `StartError` `InitialValueInvalid`, citing the schema's reason. It goes through the real page (document, `src/page.ts`, `run`, Chromium) and needs no change to any package. The corruption is injected by the dev server route for requests carrying `__corrupt=state` (test-only code in `vitest.browser.config.ts`, which also installs an inline observer before the page script to record any error event, unhandled rejection and `console.error/warn/log`); `src/page.ts`'s startup path is exactly the real one. A missing `wasm` was not used: it fails earlier, at the page script's top-level `init`, outside `run`.
+
+**Observed behavior, before any policy** (one focused Chromium run first, recording only; confirmed by a temporary exit observer that the fiber ended with `Failure(InitialValueInvalid ...)`, then removed): the server-rendered HTML stayed exactly as drawn (`About Tracer: 0 clickstab: detailsBack`); nothing was mounted and the server's buttons were inert (a click changed nothing); no `data-valance` marker was ever set; **no uncaught error, no unhandled rejection, no console output of any level**; the server received nothing but the document, script and wasm requests (no reporting channel exists). `Effect.runFork` of the failing effect swallows the failure; the page's Scope (`Effect.scoped`) closed with the fiber, so no application or mount remained alive.
+
+**Is that a policy gap?** Yes, a concrete and small one. It is silent: neither the page nor its operator learns that the page never started, while the page still looks alive (live-looking server HTML with dead buttons). This is the same class of silence Stages 44 and 45 removed for the host's abnormal mount end, one level earlier. It is not a VALANCE deficiency: `run` failed with a precise typed error exactly as the public contract says; the page script chose to ignore it.
+
+**Page-only policy (4 lines in `src/page.ts`).** If the page fiber fails for any reason other than interruption (closing the page's Scope on `pagehide` stays silent), the page marks `data-valance="failed"` (the counterpart of `"running"`) and reports once with the cause (`Effect.logError("the page could not start", Cause.pretty(cause))`). No fallback UI (the server's HTML stays as it is), no retry, no error boundary, no logging abstraction, no VALANCE API. The successful path is unchanged (the Stage 46 page test still passes).
+
+**After the policy (4 runs).** The page ends with `data-valance="failed"`; the server HTML is untouched; exactly one report is emitted, through Effect's default logger (every level goes through `console.log`, not `console.error`): `level=ERROR ... message="the page could not start" ... InitialValueInvalid ... Expected number, actual "zero"`; no uncaught error or rejection; clicks are still inert. A corollary found on the way: the Stage 46 page test's "a normal end is silent" check hooked only `console.error`, which could never have seen the host's reports (they use `console.log`); it now hooks `error`, `warn` and `log`, and still passes, so the silence of a normal end is now actually verified.
+
+**Not covered (left as is).** A missing or unreachable `wasm` (the page script's top-level `await init(...)` rejects before `run` is reached): the module fails as an uncaught error, which the browser does report in its console; no policy was added because that failure is outside `run` and already visible. No server-side error reporting exists for any page failure (a product decision, nothing in the repository asks for one).
+
+**Validation.** Focused Chromium: `browser/page-failure.browser.test.ts` (new) and `browser/page.browser.test.ts`, 2 tests, 4 runs; example typecheck clean. No package, jsdom or full-suite runs: no package source changed and the only shared file touched (`vitest.browser.config.ts`) only acts on the `__corrupt` flag. `packages/*`, NEXUS, MESH and PORT untouched.
+
+**Next uncertainty.** None about page startup under `run`. The remaining open integration question is what a real deployment does with these reports (they stop at the browser console; there is no collection endpoint), which is a product decision, not an architecture one.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
