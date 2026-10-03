@@ -1765,6 +1765,59 @@ Application (start's Scope)
 
 ---
 
+## Stage 36: who owns a click-initiated command, observed under both models (evidence; no production change kept)
+
+**Phase A, the current boundary, read in `packages/valance/src/index.ts`.**
+```text
+PORT click -> target's report callback (in connect)
+  -> Effect.runFork(Effect.exit(running.dispatch(render, handler, payload)).pipe(tap(push to dispatched)))   = the OUTER dispatch fiber
+       forked with the global Effect.runFork: no parent Scope, held only by connect's `pending` array
+  -> running.dispatch = inApplication(host.dispatch(...))
+  -> inApplication: Nexus.Runtime.runFork(nexus.runtime, admit(effect))                                      = the INNER command fiber
+       admit registers the inner fiber in the application registry (Stage 29); Fiber.join(inner) with onInterrupt(interrupt inner)
+  -> binding -> command Effect
+```
+1. The outer fiber is forked in the target's report callback. 2. No Scope owns it: `pending` (connect's closure) holds it. 3. Mount close interrupts it because connect's finalizer runs `forEach(pending.splice(0), Fiber.interrupt)`, and `inApplication`'s `onInterrupt` then interrupts the inner fiber: the mount reaches the command through that interruption edge. 4. The registry sees the INNER fiber only. 5. The command fiber is already forked by `inApplication` under the application's runtime and registered there: command ownership is already the application's; changing the fork would change nothing. What ties a click-initiated command to its mount is only the finalizer's interruption of the joiner. 6. `Mounted.dispatched` does not require that: the outer fiber pushes its exit from its own `tap`; it works the same if that fiber outlives the mount.
+
+**Current model (production, unchanged): "mount-owned event execution".** Command = application-owned (registered) AND ended by the dispatching mount's close.
+
+**Phase B, characterisation** (`examples/tracer-web/test/event-ownership.test.ts`, 11 tests, default expectations = production). B1 baseline commits and renders and records `succeeded`. B2 click in A, A unmounts, B and the application alive: the command is interrupted, nothing commits, B renders nothing, A's ledger has no entry. B3 invoke control: continues. B4 unmounting the non-dispatching mount: survives. B5 two click commands, A unmounts: A's is interrupted, B's commits. D5b/D5c/D7 drain and D8 late mount also characterised.
+
+**Phase C, the disposable spike (commit `f951d72`, reverted in `6112b1d`; re-apply with `git revert 6112b1d`).** The whole change is 2 lines in `connect`'s finalizer: `forEach(pending.splice(0), Fiber.interrupt)` becomes `pending.splice(0)` (the mount lets go of the joiners and no longer interrupts them). No new API, no new type, no change to dispatch, `Mounted`, `settled`, or the registry. This was possible without any abstraction: the existing `inApplication` entry point already makes the command application-owned, so the spike only removes the extra interruption.
+
+**Phase D, the same 11 tests run with `VALANCE_EVENT_MODEL=app` (3 runs, all pass with the app expectations):**
+
+| Question | Mount-owned event (production) | Application-owned event (spike) |
+|---|---|---|
+| Mount unmount interrupts the event command? | Yes, the dispatching mount's (B2, B5, D8) | No |
+| Remaining/late mount sees the eventual commit? | No: nothing commits (B renders `init`; a mount made later draws `init`) | Yes: B renders it; a late mount C renders it (D8) |
+| Application command registry owns it? | Yes (inner fiber registered) | Yes, identical (D7: exit before release in both) |
+| Event Exit has a natural owner? | Only if the command ends while the mount is open; an interrupted-by-close dispatch leaves no Exit at all | The dispatching mount's `dispatched`, even when that mount is already closed (B2/D6: `succeeded` appears after its unmount); nothing is drawn into the closed target |
+| Exit retention survives mount close? | Exits recorded before close stay while a holder keeps `Mounted`; none is created for the interrupted ones | Yes, and the closed mount's bookkeeping (`dispatched` array, held by the still-running outer fibers) stays reachable until its outstanding commands exit; the mount can no longer `settle` them (`pending` was emptied) |
+| Application drain interrupts it? | Yes (D5b, D7) | Yes (D5b, D7) |
+| Drain with the mount closed first (shared-scope order, D5c) | Command interrupted by the mount's finalizer first; no Exit recorded (Stage 33 F) | Command interrupted by the registry; an `interrupted` Exit IS recorded in the mount's ledger |
+| Resource safety preserved? | Yes (exit before release) | Yes (exit before release; all Stage 29 contract tests pass under the spike) |
+| Multiple mounts remain independent? | Yes (B4, B5) | Yes (B4, B5) |
+| Requires a new abstraction? | No | No (2-line change) |
+| Requires NEXUS/MESH/PORT change? | No | No |
+Chromium 21/21 and unit 29/29 under the spike. **Existing tests that encode the mount-owned model** and fail under the spike (the only collateral): Stage 26 baseline MESH dispatch ("the interrupted dispatch leaves no result"), Stage 33 F ("no exit recorded at drain"), Stage 34 G (the exit count after a shared-scope close: 7 instead of 5, the two suspended events now record `interrupted`), Stage 35 I counterexample. All four assert what a mount close does to a click-initiated command; none asserts anything about state, resources or the registry.
+
+**Phase F, the semantic distinction.**
+1. *What a mount owns:* rendering, observation (its follower on the shared value stream), the event listener, and event-dispatch bookkeeping (`pending`, `dispatched`). Command execution is not among them in either model: the inner command fiber is the application's from the moment `inApplication` forks it. What differs is only whether the mount's teardown also cancels the commands its events started.
+2. *What an event is:* today an application command invocation whose caller is a mount-owned joiner fiber; the mount owns the caller, the application owns the command, and tearing down the caller cancels the command. The spike makes the joiner outlive the mount, so the event becomes an invocation with a mount only as source.
+3. *What `Mounted.dispatched` is:* the ledger of command executions initiated by that mount, in settle order. Under the mount model it can only hold commands that ended while the mount was open (or that the application, not the mount, ended); under the spike it can still receive entries after the mount closed. It is not a mount-local UI history in either model: its entries are commands, not clicks.
+4. *When the source disappears:* mount model: the command is cancelled with its caller, state is unchanged, other mounts and later mounts never see its result, resources are untouched (released after the interruption). App model: the command runs to its end, state commits, remaining and later mounts render it, the commit is invisible to the source (unmounted), the closed mount's ledger records the exit, and the command ends earlier only through the application drain.
+
+**Stop conditions:** none occurred. The spike needed no public API; the Stage 29 registry/drain contract held (D5b, D7, contracts 1 to 5); Exit retention does not depend on mount-owned fibers (it works with them outliving the mount); no command escaped the registry; the models are distinguishable (B2, B5, D8); no undocumented invariant was found that neither model preserves.
+
+**Architectural conclusion.** Both models are coherent and cost one finalizer line apart. Mount-owned means "the user left the place the event came from, so what it started is cancelled"; application-owned means "the event only initiated an application command; its fate belongs to the application". Neither touches state ownership, multi-mount observation, rendering or remount behavior. The boundary each requires is already there (the interruption edge in `connect`'s finalizer versus `inApplication`'s registration). What remains is a product decision about intended semantics (whether leaving a mount cancels the work its events started). No constraint added: nothing here is an invariant, only a choice between two behaviors.
+
+**Results (production tip, spike reverted):** unit 29/29, jsdom 162/162 (151 + 11 new, identical on 3 runs), Chromium 21/21, typecheck and build clean. `git diff b627d44 HEAD -- packages` is empty. Under the spike (not kept): the 11 new tests pass with `VALANCE_EVENT_MODEL=app` (3 runs); jsdom has the 4 existing + 5 default-expectation failures listed above; unit 29/29 and Chromium 21/21. The Stage 34 1000-click test kept its 60s timeout and did not flake.
+
+**Next uncertainty:** the product decision above, nothing else: what should leaving the mount that initiated a command mean for that command.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
