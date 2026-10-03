@@ -1,6 +1,6 @@
 # Tracer findings: `@valancex/valance` 0.0.1
 
-> **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract) and the [Milestone](#milestone-validated-valance-composition) at the end. Stages 3 to 6 are kept as the evidence trail.
+> **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are, in this order: the [Architectural checkpoint](#architectural-checkpoint-stage-56-what-the-real-vertical-slice-has-demonstrated) and the [Canonical lifecycle architecture](#canonical-lifecycle-architecture-consolidated-at-stage-41-evidence-in-stages-29-to-40) at the top, and [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract). The [Milestone](#milestone-validated-valance-composition) at the end is the Stage 7-era milestone, kept as history. Stages 3 to 6 are kept as the evidence trail.
 
 ## Canonical lifecycle architecture (consolidated at Stage 41; evidence in Stages 29 to 40)
 
@@ -48,6 +48,55 @@ This section is the one statement of the application / mount / command lifecycle
 
 
 *Evidence base: NEXUS 0.10.0 (published; tag `v0.10.0`, `a0116367`. Stages 1 to 7 ran against a packed tarball of that revision, byte-identical to the published package, sha256 `ed578f5e…`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
+
+## Architectural checkpoint (Stage 56): what the real vertical slice has demonstrated
+
+*Documentation only. It adds no finding; it sorts Stages 1 to 55 into what is validated, what is deliberately someone else's, and what is still unproven. Evidence base at this checkpoint (all green, re-run for it): published NEXUS 0.10.1, MESH 0.7.0 and PORT Web 0.2.2 (MESH and PORT never modified; NEXUS changed only by `values` in 0.10.0 and the 0.10.1 compatibility release); `@valancex/valance` 0.0.1, unpublished; 30 package unit tests, 182 jsdom tests, 29 Chromium tests, 4 built-page smoke tests, 1 real-bfcache test; typecheck and build clean.*
+
+**The path, end to end, every stage exercised in real Chromium on a real page.**
+```text
+MPRX source --MESH compiler (Node)--> template-v1 + manifest  (a `Mesh.Program`: data)
+  --> Valance.define: views -> programs, view(state), commands            the application definition: code, shared by server and browser bundle
+  --> Valance.start: NEXUS application + ONE state + platform + command registry (application Scope)
+  --> state.values (current + later renders, atomic) --> MESH render-v1 (WASM runtime)
+  --> connect: same view = update, other view = draw                     the composer's fact (Valance)
+  --> PORT Web target: realize into the DOM (client) / renderToHtml (server)  --> real DOM, hydration adopts server HTML
+  --> user click --> PORT report --> MESH dispatch (intent -> command binding) --> inApplication (admission, registry)
+  --> NEXUS command --> state.update --> values --> render --> update | draw
+  --> page lifecycle: the page Scope, Web.history (pushState/popstate in place), pagehide, bfcache, built and served as an ordinary process
+```
+
+**1. Validated by the real vertical slice.**
+- *Behavior exercised end to end:* SSR, hydration adoption and mismatch redraw; keyed identity through reorder, insertion and removal; same-program update vs program-change draw; in-place history (push, traversal, canonicalization) on one document and one running application; a click command that reads the platform clock; async commands, composition, failure and interruption; startup failure of a real page; a genuine back/forward-cache restore; the page built with `vite build` and served by a plain Node process with no dev server.
+- *Public seams actually used by real code:* `define`, `start`, `ApplicationHandle` (`state`, `invoke`), `mount`/`hydrate` with a `TargetFactory` (including a host-wrapped one), `Web.target`, `Web.history`, `renderToHtml`, and `Mounted` (`followed`, `settled`, `dispatched`) consumed by the example host. `./internal` is used only by binding code and tests, as intended; `DispatchExit` lives there.
+- *Ownership decisions that survived real integration:* the application's Scope owns NEXUS, the one state, the command registry and the platform resources, and ends in a fixed order (admission closes, admitted commands are interrupted and awaited, NEXUS terminates, resources release last, `Scope.close` returns); a mount's Scope is the caller's, unrelated to the application's, so shared, parented and independent arrangements are all valid and an independent mount may outlive its application as a drawn, inert target; admission, admitted-command lifetime, mount lifetime and application lifetime are four different things; a click command is the application's once admitted (the mount is its source, the dispatching mount's ledger records its exit); `Mounted.dispatched` is a mount-owned diagnostic ledger and `settled` a barrier over an open mount's own dispatches; URL is not state (the application owns what a URL means); the server hands the browser immutable data (compiled programs, a first state), never runtime state, and the payload is a pure function of (build, URL); the page ends on a non-persisted `pagehide` and survives a persisted one. Details: the Canonical lifecycle architecture and Stages 44 to 55.
+
+**2. Known, and intentionally host- or application-owned.** VALANCE exposes enough information for each of these and does not prescribe them:
+- URL meaning, canonicalization, and the key of the navigate command (`urlOf`, `stateOf`, `stateFor`, `initialStateAt`, `"app/navigate"`).
+- How a failure becomes visible: only the command that catches it and commits ordinary state, or the host that reads `Mounted.dispatched` (no error state, boundary, retry or event bus exists or is indicated).
+- Stale-result handling (completion order wins; an application can drop a stale result with a ticket in its own state).
+- Focus after a program change (the `TargetFactory` wrapper sees `draw` vs `update`; a wrapper is about 5 lines) and, more generally, anything about presenting a navigation.
+- The page's own lifecycle policy: closing the page Scope on `pagehide` only when not persisted, the startup-failure marker and report, reporting `followed`/`settled`/`dispatched` at an abnormal mount end.
+- Payload serialization, where compilation happens (per request here), bundle/server pairing, and everything deployment (caching, compression, supervision).
+- Example conveniences that are not VALANCE API and not deficiencies: `run`, `serve.ts`, `document.ts`, `page.ts`, the dev-server route. In particular `run` hides its target; a page that needs a different one composes `start` + `hydrate` + `Web.history` itself (Stage 55).
+- Scope arrangement for several mounts; retention of the event-exit ledger; data age after a restore.
+
+**3. Still unproven** (genuine assumptions with no exercise, listed rather than manufactured):
+- *A second target.* Everything ran through PORT Web. `Target`/`TargetFactory` is the stated seam for any PORT, but no other PORT (native, canvas, terminal) has used it.
+- *A real asynchronous resource in a real page.* Capabilities, command lifetime and drain (Stages 19 to 32) were validated with controllable test resources in jsdom; the real page has only the platform `Clock`. A network or storage capability living in the browser across navigation and bfcache is unexercised.
+- *Data that ages.* No application behavior depends on data age (Stage 50), so any resume policy after a restore is unobserved; likewise stale results under real latency.
+- *Long-lived pages.* The mount's ledger and `pending` list grow per event for the life of the mount (Stage 34, linear and mount-scoped); no page has run long enough for that to matter.
+- *Several mounts in a real browser page.* Multi-mount ownership was exercised in jsdom (Stages 35 to 37) and one Chromium case (Stage 38); the real page has one mount.
+- *Other browsers.* Only Chromium (and its bfcache) was driven; history and bfcache behavior in Firefox and WebKit is unverified.
+- *Published-package consumption.* `@valancex/valance` is unpublished; an external project consuming it, and the stability of `./internal`, are untested.
+- *Server-side commands.* The server only starts, renders once and ends; no command runs server-side.
+- *Not VALANCE's but visible:* links as links (PORT's event realization cannot condition a dispatch on a modified click) are not expressible; nothing in the page needs them.
+
+**Contradictions and gaps found while consolidating.** One factual contradiction, now fixed: the file's reading guide called the end-of-file Milestone authoritative, but it describes the Stage 7-era state (NEXUS 0.10.0, MESH 0.6.0, PORT Web 0.2.1, 16 + 12 + 12 tests, "not introduced: a link primitive") and no longer matches the dependencies or the evidence; it is now marked historical and the reading guide points to this checkpoint and the canonical lifecycle section. Nothing else contradicts: the constraints (C6, C20 to C26), the canonical lifecycle section and the stage conclusions agree, and the supersession notes cover the pre-Stage-39 mount-interruption statements. No architectural gap was found that the evidence forces.
+
+**Next architectural question.** The evidence gives none. No stage since 44 has produced a failure that the public contract could not express; each probe ended as "host-owned" or "coherent". The tracer bullet has reached a useful stopping point. The items under "still unproven" are not a queue: each should be taken up only when a real requirement appears (a second PORT, a browser capability that does real IO, a page that lives long or shows aging data), and the first of those would define the next stage.
+
+---
 
 ## Stage 1: the first-render observation boundary (fixed in NEXUS)
 
@@ -2333,6 +2382,8 @@ The NEXUS to MESH to PORT behavior (URL, rendering, in-place updates, popstate) 
 ---
 
 ## Milestone: validated VALANCE composition
+
+*(Historical: the Stage 7-era milestone. Its dependency versions (NEXUS 0.10.0, MESH 0.6.0, PORT Web 0.2.1) and test counts are out of date; the current evidence base and the surviving architecture are in the "Architectural checkpoint" at the top of this file.)*
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
 
