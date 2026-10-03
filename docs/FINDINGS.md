@@ -2195,6 +2195,27 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 51: the real page without the dev server (built, served, loaded)
+
+**What existed.** Only vitest configs: the page was served by the dev server plugin. `vite` was present only as a transitive dependency of `vitest`; the example had no build script, no Vite config for a build, and no way to serve outside the tests. `vitest/node` exposes `createViteServer` but no `build`, so the only ways to build with existing tooling were to reach vite through vitest's internals or to name it. It was made explicit: `vite@7.3.6` as a `devDependency` of the example (the lockfile gains 3 lines; it is the same version already resolved for vitest, no new package).
+
+**Production-shaped path (small, no framework).**
+- `pnpm run build:page` = `vite build -c vite.page.config.ts`: the page script `src/page.ts` is the only Rollup input (no HTML entry; the document is rendered per request); output `dist/page/assets/page-<hash>.js` (253 kB, 82 kB gzip) and `mesh-runtime-<hash>.wasm` (630 kB), plus `.vite/manifest.json` naming the entry. `target: esnext` for the page script's top-level await. The `?url` import of the WASM became an emitted, hashed asset that the built script references by name. (`dist/` is git-ignored.)
+- `src/serve.ts` (`servePage`): `node:http`, 50 lines: `/tracer*` is answered with `renderDocument(url, builtScript)` (the manifest's entry URL), `/assets/*` with the built files (`.wasm` as `application/wasm`), anything else 404. No cache headers, compression or CDN behavior.
+- `src/document.ts`: `renderDocument(url, script = "/src/page.ts")`: the script URL became a parameter, default unchanged, so the dev server route is untouched. The document, the payload and `page.ts` are otherwise identical in both paths.
+
+**Smoke (`pnpm run test:smoke`, `smoke/built-page.test.ts`, 3 tests, 4 runs).** It runs the production build command, serves the output, and loads it in real Chromium. Verified: (1) the build contains the page script, the WASM and the manifest, the manifest's entry is what the server references, and the script contains the WASM's hashed filename; (2) the served document has the server-rendered HTML, the JSON payload with programs and state, the built script tag, and no `/src/page.ts`; (3) in Chromium the application starts (`data-valance="running"`), an existing interaction works (About-to-counter, a click stamped by the platform clock), history behaves as before (pushState on About, and Back handled in place by popstate), the page raises no uncaught error, **no request goes to `/src`, `/@` or `/node_modules`**, the built script and the hashed WASM are fetched, and exactly one document was loaded. The page is not fundamentally dependent on the Vitest browser fixture.
+
+**Validation.** Example typecheck clean; smoke 4 runs; because `document.ts` (shared page infrastructure) changed, the three dev-server page tests that use it (page, failure, navigation) were rerun: 3 of 3. No full Chromium, package, jsdom or bfcache run. `packages/*`, NEXUS, MESH and PORT are untouched.
+
+**Observed, not acted on.** `vite build` warns that `node:fs/promises` is externalized for browser compatibility in `@valancex/mesh-runtime/dist/engine.js` (a Node-only loading path in the published MESH runtime; the browser path used by the page loads the WASM through `fetch` and works, as the smoke test shows). It is a substrate observation, not a page defect.
+
+**Boundaries left (not built).** No standalone server command: the example's sources use NodeNext `.js` specifiers for `.ts` files, so running `serve.ts` outside vitest needs a TypeScript runner or an SSR build, neither of which was added. The document is compiled and rendered on every request (MPRX compile included). No caching, compression, service worker or deployment configuration, as scoped.
+
+**Next uncertainty.** Whether the example should have a standalone way to run the server (a TS runner or an SSR build of `serve.ts`), which is the last difference between "served by a test" and "served by a process"; it is a tooling decision, not an architecture one.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

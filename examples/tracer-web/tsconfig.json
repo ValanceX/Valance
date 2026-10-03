@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src", "test", "browser", "bfcache", "vitest.config.ts", "vitest.browser.config.ts", "vitest.bfcache.config.ts"]
+  "include": ["src", "test", "browser", "bfcache", "smoke", "vite.page.config.ts", "vitest.config.ts", "vitest.browser.config.ts", "vitest.bfcache.config.ts", "vitest.smoke.config.ts"]
 }

@@ -9,7 +9,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:browser": "vitest run -c vitest.browser.config.ts",
-    "test:bfcache": "vitest run -c vitest.bfcache.config.ts"
+    "test:bfcache": "vitest run -c vitest.bfcache.config.ts",
+    "build:page": "vite build -c vite.page.config.ts",
+    "test:smoke": "vitest run -c vitest.smoke.config.ts"
   },
   "dependencies": {
     "@valancex/valance": "workspace:*"
@@ -26,6 +28,7 @@
     "jsdom": "^26.0.0",
     "playwright": "1.56.1",
     "typescript": "^5.6.0",
+    "vite": "7.3.6",
     "vitest": "^3.2.0"
   }
 }

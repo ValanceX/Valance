@@ -7,11 +7,12 @@ import { Effect } from "effect";
 import { application, primitives, stateFor } from "./app.js";
 import { compilePrograms } from "./compile.js";
 
-export const renderDocument = async (url: string): Promise<string> => {
+/** `script` is the URL of the page script: the dev server's module path by default, or a built asset's URL (./serve.ts). Everything else about the document is the same. */
+export const renderDocument = async (url: string, script = "/src/page.ts"): Promise<string> => {
   const programs = await compilePrograms();
   const state = stateFor(url);
   const { html } = await Effect.runPromise(renderToHtml(application(programs), { primitives, state }));
   const boot = JSON.stringify({ programs, state }).replaceAll("<", "\\u003c");
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Tracer</title></head><body><main id="app">${html}</main><script type="application/json" id="valance-boot">${boot}</script><script type="module" src="/src/page.ts"></script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Tracer</title></head><body><main id="app">${html}</main><script type="application/json" id="valance-boot">${boot}</script><script type="module" src="${script}"></script></body></html>`;
 };
