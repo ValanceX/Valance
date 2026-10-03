@@ -43,6 +43,7 @@ This section is the one statement of the application / mount / command lifecycle
 **7. Constraint map.** C6 (the caller's Scope owns lifetime) with C24 (mounts), C20 to C23 (command lifetime, admission, ownership boundary, liveness), C25 (event commands), C26 (the ledger). Stage 30's clarification of C20: "draining begins" means the application's Scope closing; `Application.shutdown(running.nexus)` is the substrate's early end, reachable only through `./internal`, and does not pass the drain.
 
 **8. Superseded statements (kept as history, do not cite).** (a) Stages 26 to 28, 34 to 37: that a mount's close interrupts the commands its events started (removed in Stage 39). (b) Stages 28 to 33: "the target is unmounted before the drain" without the shared/parented qualifier (Stage 37). (c) Stage 11, invariant 3 without "one Scope" (Stage 38). (d) Stage 36's two-model tables describe the alternatives; the application-owned column is the adopted one.
+(e) Stages 3 and 11 (and the invariant and table row quoted from Stage 11): that every commit is rendered, in order, with no coalescing. Stage 16 made a mount present the latest state available when it reaches it; the new rule is C32, and the older "every intermediate commit rendered" statements are history.
 
 **9. Outside this contract.** Packaging of `Mounted` and `DispatchExit` is not lifecycle; it was decided in Stage 42 (`Mounted` stays on the main entry as the declared result of `mount`/`hydrate`; the diagnostic `DispatchExit` lives behind `./internal`). The shape of `Mounted` itself was decided in Stage 43 (kept: every member is mount-owned information no other public surface provides). Stale-result handling, error presentation and event-exit retention policy are application or product policy (Stages 31 to 34).
 
@@ -626,7 +627,7 @@ Each is marked with its evidence and how it was changed.
 11. **Application code is platform-independent.** *Kept for the catalog application only.* The first tracer's `app.ts` imports `Web` for its primitives table; the rule is stricter than the earlier example holds to.
 12. **(added) Realization continuity belongs to the connection to a target, not to the application.** The record of what was drawn lives in `connect`; a second target would keep its own.
 13. **(added) A URL names a navigation, not a state.** `stateOf(url)` yields the part of the state a URL carries, and a command completes it with data the application holds, deciding unknown items itself (`not-found`).
-14. **(added) Every commit is rendered, in order, with no gap and no coalescing.** Atomic current-and-following (`values`) plus an in-order follower. Whether coalescing is ever wanted is not tested.
+14. **(added) Every commit is rendered, in order, with no gap and no coalescing.** Atomic current-and-following (`values`) plus an in-order follower. Whether coalescing is ever wanted is not tested. *(Superseded by Stage 16/C32: a mount presents the latest state and may skip superseded intermediates; order, convergence and the atomic first draw stay.)*
 
 ### 7. Deferred work
 
@@ -647,7 +648,7 @@ Each is marked with its evidence and how it was changed.
 | Program-acquisition tooling (the copied `compile.ts`) | **a later product layer**: it is a build step |
 | Failure policy (render / dispatch diagnostics, failed popstate) | **architecture not proven**: only a logged, ignored policy exists |
 | Multiple targets per application, per-view state, layouts, async loading | **architecture not proven**: never exercised |
-| Rendering coalescing | **architecture not proven**: every intermediate commit is rendered |
+| Rendering coalescing | **architecture not proven**: every intermediate commit is rendered *(superseded: Stage 16/C32, a mount may skip superseded intermediates)* |
 
 ### 8. Recommendation for the next coding task
 

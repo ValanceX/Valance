@@ -300,6 +300,7 @@ it("probe: Back the moment the push lands, while the about program may still be 
     expect((yield* running.state).path).toBe("/");
   }));
 
-  // Every commit is rendered, in order, and none is coalesced or skipped.
-  expect(operations).toEqual(["hydrate", "draw", "draw"]);
+  // (Stage 3: every commit was rendered here. Since Stage 16 a mount presents the latest state, so this asserts what the probe's timing produced, not a guarantee: C32.)
+  expect(operations[0]).toBe("hydrate");                                              // then whatever the mount presented on the way to the final state (home), at most about and home
+  expect(operations.length).toBeLessThanOrEqual(3);
 });

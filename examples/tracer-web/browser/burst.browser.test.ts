@@ -119,4 +119,34 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
     await run(Scope.close(t.scope, Exit.void));                                            // (the application's Scope also holds both mounts)
     t.roots.forEach((root) => { root.remove(); });
   });
+
+  it("DOM-resident state follows the PRESENTED sequence: a skipped round trip A→B→A keeps the elements (and focus); the same round trip presented step by step replaces them", async () => {
+    // Skipped: one command commits B then A back to back, so a mount that reaches the stream afterwards reads A and updates A.
+    const skipped = await start(1);
+    const keep = skipped.roots[0]!.querySelector("button")!;
+
+    keep.focus();
+    expect(document.activeElement).toBe(keep);
+    await run(skipped.invoke("app/round-trip"));
+    await settle();
+    expect(skipped.logs[0]).toEqual(["draw A0", "update A0"]);                           // B was never presented, so A→A is an update
+    expect(skipped.roots[0]!.querySelector("button")).toBe(keep);                        // same element ...
+    expect(document.activeElement).toBe(keep);                                           // ... so the focus the user had is still there
+    expect(await run(skipped.handle.state)).toEqual({ view: "a", n: 0 });
+    await skipped.close();
+
+    // Presented: the same two commits with the mount reaching each one in between: B is drawn, then A is drawn afresh.
+    const presented = await start(1);
+    const lost = presented.roots[0]!.querySelector("button")!;
+
+    lost.focus();
+    await run(presented.invoke("app/toggle"));
+    await settle();
+    await run(presented.invoke("app/toggle"));
+    await settle();
+    expect(presented.logs[0]).toEqual(["draw A0", "draw B0", "draw A0"]);
+    expect(presented.roots[0]!.querySelector("button")).not.toBe(lost);                  // a different element ...
+    expect(document.activeElement).not.toBe(lost);                                       // ... and the focus did not survive the presented round trip
+    await presented.close();
+  });
 });
