@@ -2076,6 +2076,28 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 45: can a real host observe event-command outcomes with `settled` + `dispatched`? (yes, at the moments the host has)
+
+**Scenario exercised (the existing web host, `src/api/shape-b.ts` `run`, and the Stage 44 test).** The page's events are real clicks on the rendered page (PORT report, MESH dispatch). The host has no event path of its own (clicks originate inside the mount), so the only natural moments at which it can want an event's outcome are the ones it already observes: the mount's end. At the page's abnormal end, which Stage 44 already reports via `Mounted.followed`, the operator also needs what the page's events had done. `run` now retains `Mounted` and, in the same forked fiber, awaits `settled` (the dispatches the still-open mount holds), reads `dispatched`, and logs a tally (`N succeeded, M failed, K interrupted`, success, failure and interruption distinguished by the Exit) plus one error per failed command. No polling, subscription, callback, id or history API; it runs once.
+
+**Observed (focused test, `test/host-run.test.ts`, 5 runs).** Click 1: an event command fails (typed) on a healthy page. The host reports nothing at that moment (log empty after the command has failed): the failure sits in `dispatched` unannounced. Click 2: a successful event command whose commit cannot be rendered (a manifest violation) ends the page's updates; `followed` resolves with a Failure; the host logs the error once, awaits `settled`, reads `dispatched`, and reports `1 succeeded, 1 failed, 0 interrupted` and the one failed command. Closing the Scope afterwards still unmounts the target (the host's observation is not a second owner).
+
+**Are `settled` + `dispatched` sufficient?**
+- *For reporting event outcomes at the mount's abnormal end: yes.* The two members gave the host everything the report needs, distinguishing success and failure, with no API change. `settled` has real meaning there: the mount is still open (its Scope has not closed), so it waits for the dispatches in flight before the host reads the ledger.
+- *At a normal Scope close: not applicable.* The host stays silent (`followed` is `Interrupted`), and `settled` would be vacuous there anyway (a closing or closed mount holds no dispatches, Stage 40).
+- *For reporting a failure WHEN it happens: no, and it was observed, not argued.* Nothing triggers the host between the failed click and the mount's end. This is the Stage 33/34/44 gap, now seen from a host: the members give the host the information, but only at moments the host itself has; there is no moment between events. The tracer host has no such moment (`run` has no event path of its own), and no real consumer yet needs in-life reporting, so no need for a trigger is demonstrated and none is proposed.
+- *Reachability caveat.* Through `run` (one caller Scope for application and mount) the abnormal end is reachable via a failing render; the "application ended under an open mount" branch needs an early end or an independent Scope, neither of which `run` exposes. The branch is exercised by the Stage 38/40 tests, not by this host.
+
+**Is this a genuine host responsibility or test-shaped?** A modest, coherent extension of the Stage 44 duty, not a product feature: the host already reports that the page went inert, and a report that says what the page's events had done is what an operator reading that log would want. It is not a manufactured action: it adds no new host operation, only completes the report at the one moment the host already acts. What it does not establish is a demand for in-life reporting; that remains untested because no real page needs it yet.
+
+**API verdict.** The existing public API (`Mounted.followed`, `settled`, `dispatched`) was sufficient for this scenario. No `packages/*` change; NEXUS, MESH and PORT untouched.
+
+**Validation.** Focused: `test/host-run.test.ts` and the existing `test/api-shape.test.ts` (the other consumer of `run`), 3 tests, 5 runs; the example typecheck. No package, Chromium or full-suite runs (no package source changed).
+
+**Next uncertainty.** Whether any real page needs failures reported when they happen rather than at the mount's end. Until a page does, the host contract "read `dispatched` at moments the host controls" is the observed behavior, and a trigger would be a product requirement to be shown, not a gap to be assumed.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

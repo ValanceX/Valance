@@ -41,12 +41,30 @@ export const run = <S, E, R extends Ambient, V extends string>(app: Valance.Appl
     // The host's one duty toward the mount (Stage 44): the page can stop following the application (a render fails after the first draw, or the
     // application ends under an open mount) and nothing else says so. `Mounted.followed` is the only public observation of that; the host reports it,
     // the way `catalog/host.ts` reports a failed entry. A normal end (the Scope closing) is `Interrupted` and silent. The mount stays the Scope's.
-    yield* Effect.forkIn(
-      Effect.flatMap(mounted.followed, (exit) => Exit.isSuccess(exit)
-        ? Effect.logWarning("the application ended; the page is inert")
-        : Cause.isInterruptedOnly(exit.cause) ? Effect.void : Effect.logError("the page stopped following the application", Cause.pretty(exit.cause))),
-      yield* Effect.scope
-    );
+    // Stage 45: when the page went inert abnormally, the operator also needs what the page's events had done: the host waits for the dispatches the still-open
+    // mount holds (`settled`), then reads what they produced (`dispatched`) and reports the failed ones. No polling and no notification: it runs once, at the one
+    // moment the host has (the mount's abnormal end).
+    const report = (exit: Exit.Exit<void, unknown>) => Effect.gen(function* () {
+      if (Exit.isSuccess(exit)) {
+        yield* Effect.logWarning("the application ended; the page is inert");
+      } else if (Cause.isInterruptedOnly(exit.cause)) {
+        return;
+      } else {
+        yield* Effect.logError("the page stopped following the application", Cause.pretty(exit.cause));
+      }
+
+      yield* mounted.settled;
+      const outcomes = mounted.dispatched;
+      const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.isInterruptedOnly(outcome.cause));
+
+      yield* Effect.logInfo(`event commands in this mount: ${outcomes.filter(Exit.isSuccess).length} succeeded, ${failed.length} failed, ${outcomes.length - outcomes.filter(Exit.isSuccess).length - failed.length} interrupted`);
+
+      for (const outcome of failed) {
+        yield* Effect.logError("event command failed", Exit.isFailure(outcome) ? Cause.pretty(outcome.cause) : "");
+      }
+    });
+
+    yield* Effect.forkIn(Effect.flatMap(mounted.followed, report), yield* Effect.scope);
 
     if (options.history !== undefined) {
       yield* Web.history(running, options.history);
