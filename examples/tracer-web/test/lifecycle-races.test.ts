@@ -1,101 +1,11 @@
 // Stage 22: lifecycle races on the public model. Three caller-owned Scopes (application, mount, history), real jsdom window and history, a gated application command
 // reached from a real click. Each scenario records which Scope was closed, what was in flight, and what then happened.
-import type { WebPort } from "@valancex/port-web";
-
-import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
-import * as Web from "@valancex/valance/web";
-import { Deferred, Effect, Exit, Schema, Scope } from "effect";
-import { JSDOM } from "jsdom";
+import { Effect, Exit } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
-import { primitives } from "../src/catalog/web.js";
 import { until } from "./helpers.js";
-
-const State = Schema.Struct({ path: Schema.String, n: Schema.Number });
-type State = Schema.Schema.Type<typeof State>;
-const programs = await compilePrograms();
-const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const urlOf = ({ path }: State): string => path === "/" ? "/x/" : `/x${path}`;
-const stateOf = (url: URL): { readonly path: string } => ({ path: url.pathname.replace(/^\/x/, "") || "/" });
-
-/** One world: a window with real history, the application (its command log, a gate), and helpers to mount and attach history in Scopes of their own. */
-const world = async () => {
-  const dom = new JSDOM(`<!doctype html><body></body>`, { url: "http://localhost/x/" });
-  const win = dom.window as unknown as Window;
-  const log: Array<string> = [];
-  const gate = Effect.runSync(Deferred.make<void>());
-  const writes: Array<string> = [];
-  const listeners = new Set<unknown>();
-  const push = win.history.pushState.bind(win.history);
-  const add = win.addEventListener.bind(win);
-  const remove = win.removeEventListener.bind(win);
-
-  win.history.pushState = (data, unused, target) => { writes.push(String(target)); push(data, unused, target); };
-  win.addEventListener = ((type: string, listener: EventListener, options?: boolean | AddEventListenerOptions) => { if (type === "popstate") { listeners.add(listener); } add(type, listener, options); }) as typeof win.addEventListener;
-  win.removeEventListener = ((type: string, listener: EventListener, options?: boolean | EventListenerOptions) => { if (type === "popstate") { listeners.delete(listener); } remove(type, listener, options); }) as typeof win.removeEventListener;
-
-  const app = Valance.define({
-    name: "races",
-    state: { schema: State, initial: { path: "/", n: 0 } },
-    views: { only: { program: programs.notfound, scope: (state: State) => ({ title: `n${state.n}${state.path}` }) } },
-    view: () => "only" as const,
-    commands: (state: Nexus.State.StateHandle<State>) => {
-      const bind = (name: string, body: () => Effect.Effect<unknown>) => Nexus.Mesh.bind(Nexus.Command.define(`t.${name}`, Schema.Struct({}), () => Effect.asVoid(body())), () => ({}));
-
-      return {
-        "app/bump": bind("bump", () => Effect.tap(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 1 })), () => Effect.sync(() => { log.push("commit bump"); }))),
-        "app/navigate": Nexus.Mesh.bind(Nexus.Command.define("t.navigate", Schema.Struct({ path: Schema.String }), ({ path }) => Effect.asVoid(Effect.tap(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, path })), () => Effect.sync(() => { log.push(`commit navigate ${path}`); })))), (args) => (args[0] as { value: unknown }).value),
-        // The mount's one button: a command that waits at a gate the test owns, then commits (an event command: the application's once admitted, C25).
-        "notfound/back": bind("gated", () => Effect.gen(function* () {
-          log.push("gated started");
-          yield* Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { log.push("gated interrupted"); })));
-          yield* state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 100 }));
-          log.push("commit gated");
-        })),
-      } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
-    },
-  });
-
-  let counter = 0;
-  const mountIn = async (handle: Valance.ApplicationHandle<State, unknown>) => {
-    const container = win.document.createElement("main");
-    const ops: Array<string> = [];
-    const index = counter;
-
-    counter += 1;
-    win.document.body.append(container);
-    const scope = await run(Scope.make());
-    const target: Valance.TargetFactory<WebPort> = (report) => {
-      const port = Web.target({ container, primitives })(report);
-
-      return { draw: (t) => { port.draw(t); ops.push(`draw ${text()}`); }, update: (t) => { port.update(t); ops.push(`update ${text()}`); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
-    };
-    const text = (): string => container.querySelector("section")?.getAttribute("aria-label") ?? "";
-    const mounted = await run(Valance.mount(handle, target).pipe(Scope.extend(scope)));
-
-    return { index, container, ops, scope, mounted, text, close: () => run(Scope.close(scope, Exit.void)), click: () => { container.querySelector("button")!.dispatchEvent(new (win as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent("click", { bubbles: true })); } };
-  };
-  const attachHistory = async (handle: Valance.ApplicationHandle<State, unknown>) => {
-    const scope = await run(Scope.make());
-
-    await run(Web.history(handle, { window: win, urlOf, stateOf, navigate: "app/navigate" }).pipe(Scope.extend(scope)));
-    await sleep(40);
-
-    return { scope, close: () => run(Scope.close(scope, Exit.void)) };
-  };
-  const startApp = async () => {
-    const scope = await run(Scope.make());
-    const handle = await run(Valance.start(app).pipe(Scope.extend(scope)));
-
-    return { scope, handle, close: () => run(Scope.close(scope, Exit.void)) };
-  };
-
-  return { win, log, gate, writes, listeners, location: () => win.location.pathname, mountIn, attachHistory, startApp, release: () => Effect.runSync(Deferred.succeed(gate, undefined)) };
-};
+import { run, sleep, urlOf, world, type State } from "./lifecycle-world.js";
 
 const clickOn = (win: Window, element: Element): void => { element.dispatchEvent(new (win as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent("click", { bubbles: true })); };
 
