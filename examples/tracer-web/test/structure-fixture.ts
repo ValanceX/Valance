@@ -85,7 +85,9 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     const ops: Array<string> = [];
     const trees: Array<string> = [];
     const reports: Array<{ readonly handler: string; readonly payload: unknown; readonly send: () => void }> = [];
+    let reporter: ((handler: string, payload: never) => void) | undefined;
     const factory: Valance.TargetFactory<WebPort> = (report) => {
+      reporter = report;
       const port = Web.target({ container: page.container, primitives })((handler, payload) => { reports.push({ handler, payload, send: () => { report(handler, payload); } }); report(handler, payload); });
 
       return { draw: (t) => { port.draw(t); ops.push("draw"); trees.push(JSON.stringify(t)); }, update: (t) => { const when = options.updateThrows?.(); if (when === "before") { throw new Error("update failed"); } port.update(t); if (when === "after") { throw new Error("update failed after mutation"); } ops.push("update"); trees.push(JSON.stringify(t)); options.onUpdate?.(); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
@@ -94,7 +96,7 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     const mounted = await run(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
 
     return {
-      page, ops, trees, mounted, scope, reports,
+      page, ops, trees, mounted, scope, reports, report: (handler: string, payload: unknown) => { reporter!(handler, payload as never); },
       title: () => page.container.querySelector("section")?.getAttribute("aria-label"),
       shown: () => page.container.textContent!.includes("shown"),
       rows: () => Array.from(page.container.querySelectorAll("div")).map((d) => d.querySelector("span")!.textContent),
