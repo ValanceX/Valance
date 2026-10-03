@@ -1,0 +1,9 @@
+<page title={title}>
+  <text>{unread} unread</text>
+  <mesh-each items={items} as="m" key={m.id}>
+    <row>
+      <text>{m.mark} {m.subject}</text>
+      <button on.click={open(m.id)}>Open</button>
+    </row>
+  </mesh-each>
+</page>
