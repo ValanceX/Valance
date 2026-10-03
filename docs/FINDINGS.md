@@ -1540,6 +1540,29 @@ Documentation: this section is the source of the findings; the constraint is rec
 
 ---
 
+## Stage 30: closing the lifecycle boundary (audit; no mechanism change)
+
+**Shutdown-path map.** Every `Application.start`, `Scope.close` and shutdown site in `packages/*/src`, `examples/*/src` and tests was read.
+
+| path | VALANCE drain | NEXUS termination | resource release |
+|---|---|---|---|
+| caller's Scope closes (the model's one route; includes `renderToHtml`, whose `Effect.scoped` closes it) | **yes**, first (finalizer right after `Application.start`) | after the drain | last |
+| `connect` / `history` finalizers (unmount, follower, pending dispatches) | not the drain; they run just BEFORE it (registered later) | n/a | n/a |
+| `Application.shutdown(running.nexus)` | **no** | starts at once | by the resources' own policy |
+| anything else | none exists: VALANCE source never calls `Application.shutdown`; NEXUS has no self-termination (Stage 14) | | |
+
+**`Application.shutdown` (Case A in intent, with a real bypass on the internal face).** It is NEXUS's. It is not in `ApplicationHandle` (frozen `{state, invoke}`), no VALANCE source or example calls it, and `start`'s doc already calls it outside the model. It is reachable only by a caller that imports `./internal` and reads `runningOf(handle).nexus` (7 test sites in Stage 13; today one, `lifecycle.test.ts`). Two characterisation tests now pin it (`early end through the substrate`): during an in-flight command NEXUS refuses new work with its own message and VALANCE does not interrupt anything; with a non-self-draining resource the resource is released under the command (the pre-contract Stage 22 behavior); a later Scope close finds nothing left and is harmless. This does not violate C20 to C23: their trigger is the Scope closing, and that is stated explicitly now. No production correction: making the drain observe a NEXUS-initiated shutdown would need a NEXUS hook or a handle method, i.e. a lifecycle API, which Stage 14/17 decided against. Open only if the early end ever becomes a public route.
+
+**Commit during drain: Interpretation A.** Observed precisely: an uninterruptible command that commits during the drain is **published to `values`** (NEXUS is still alive) but **not rendered**, because `connect`'s follower and target are finalized just before the drain (Stage 29 said "published"; rendering never happens, now asserted: `operations == ["draw"]`). Nothing in `CONSTRAINTS.md` or `FINDINGS.md` says "no state change once draining begins": C20 says commands stay owned until they exit; Stage 22/29 record that admitted work commits both before and after NEXUS termination; `values` ends only at NEXUS termination. Interpretation B would require suppressing commits of commands the contract deliberately lets finish (an uninterruptible region cannot be cut short without forced interruption, which is excluded). So the behavior follows from "stop admitting, drain what exists" and is unchanged. The reader-visible consequence: during a drain the state stream may still emit; after the Scope closes it has ended.
+
+**C20 to C23:** preserved (C20 trigger clarified, no weakening). No public API, drain signal, timeout or NEXUS/MESH/PORT change.
+
+**Results:** unit 29/29, jsdom 73/73 (71 + 2 characterisation tests), Chromium 20/20, typecheck and build clean.
+
+The lifecycle boundary is closed. Next exploration: async/data flow under this command-lifetime model.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

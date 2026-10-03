@@ -86,7 +86,7 @@ export interface ApplicationHandle<S, E> {
 /**
  * Starts the application. Its lifetime is the caller's `Scope`: closing it ends the application and its state, and
  * Valance keeps nothing that outlives that scope. (NEXUS can also end an application early; that is the substrate's,
- * is outside this model, and nothing here asks for it.)
+ * is outside this model, and nothing here asks for it. The command drain below belongs to the Scope close, so that route does not pass it.)
  */
 export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<ApplicationHandle<S, E>, StartError, Scope.Scope> =>
   Effect.gen(function* () {

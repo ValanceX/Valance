@@ -1076,7 +1076,7 @@ describe("a platform-owned registry of admitted command fibers", () => {
     expect(show(exit)).toBe("interrupted");
     expect(await ids(handle)).toEqual(["A0", "in-region"]);                       // a commit after the drain began, while the resource was still valid
     expect((await emitted).map((state) => state.items.length)).toEqual([1, 2]);    // published: the application is still alive during the drain
-    expect(m.operations[0]).toBe("draw");
+    expect(m.operations).toEqual(["draw"]);                                       // ... but NOT rendered: `connect`'s follower and target ended just before the drain
   });
 
   // The documented liveness limitation, kept as a probe: safety holds (the resource stays alive), the drain does not complete.
@@ -1835,5 +1835,47 @@ describe("the VALANCE command-lifetime contract", () => {
 
     await Effect.runPromise(Fiber.join(closing));
     await Effect.runPromise(Fiber.await(held));
+  });
+});
+
+// Stage 30: the one other way an application can end, `Application.shutdown(running.nexus)`. It is NEXUS's, reachable only through the
+// `./internal` composition face (the public handle has no shutdown; no VALANCE source or example calls it). Characterised, not guarded:
+// it starts NEXUS termination without VALANCE's drain, so the command-lifetime contract (triggered by the caller's Scope closing) does not
+// apply to it. The caller's Scope close that necessarily follows still drains.
+describe("early end through the substrate (outside the VALANCE model)", () => {
+  it("Application.shutdown(running.nexus) does not pass through the VALANCE drain; the Scope close that follows does", async () => {
+    const { w, handle, closeScope } = await boot();
+    const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    w.events.push("shutdown requested");
+    const shutdown = Effect.runFork(Nexus.Application.shutdown(runningOf(handle).nexus));
+
+    await Effect.runPromise(w.draining);                                          // the resource's own drain waits for the in-flight call: NEXUS began, VALANCE did not interrupt
+    expect(w.events).not.toContain("lookup interrupted A");                       // not drained: the command is still running
+    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))))).toBe("died: NEXUS: the runtime has begun terminating");   // NEXUS's refusal, not VALANCE's
+
+    await Effect.runPromise(w.complete("A"));                                     // only the command's own completion lets the substrate path finish
+    await Effect.runPromise(Fiber.join(shutdown));
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("succeeded");
+    expect(w.events).not.toContain("resource used after release A");              // safe here only because this fixture's resource drains itself (Stage 23)
+
+    await Effect.runPromise(Fiber.join(closeScope()));                            // the Scope's own close afterwards finds nothing left and is harmless
+  });
+
+  it("and without a self-draining resource, that path releases the resource under the admitted command (the pre-contract Stage 22 behavior): the contract is not claimed for it", async () => {
+    const app = applicationWithAsyncCatalog(await compilePrograms());
+    const w = controllable({ useAfterRelease: "fail" });
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, state: start }).pipe(Scope.extend(scope)));
+    const invoked = Effect.runFork(handle.invoke("app/lookupAsync", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    await Effect.runPromise(Nexus.Application.shutdown(runningOf(handle).nexus));  // returns without waiting for, or interrupting, the command
+    await Effect.runPromise(w.complete("A"));
+
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
+    expect(w.events).toContain("resource used after release A");
+    await Effect.runPromise(Scope.close(scope, Exit.void));                       // harmless afterwards
   });
 });
