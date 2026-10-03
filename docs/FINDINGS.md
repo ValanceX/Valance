@@ -1050,6 +1050,81 @@ Establish what an already-admitted command can still do *after* termination, wit
 
 ---
 
+## Stage 22: the execution boundary after termination (observation-only probe)
+
+*Question: after the owning Scope closes, what can an already-admitted command still do, and, separately, what can a new invocation do? Method: reuse the Stage 20/21 controllable gate. One admitted command resolves the original capability, suspends behind the gate, and after the Scope has closed attempts each operation in turn. Only the probe records each step's exit (the step's effect is unmodified); nothing is guarded, caught on the application's behalf, or made to fail. No VALANCE, NEXUS, MESH or PORT source changed; Stage 19 to 21 tests untouched (`test/capability-async.test.ts`, run eight times: stable).*
+
+### Trace (one run; the same each time)
+```text
+resource acquired            second resource acquired      command admitted      command suspended
+scope closing
+second resource released     resource released             (reverse of acquisition)
+event subscriber stream ended                                (ended by the time the Scope returned)
+scope closed                 <- returned without waiting for the admitted command
+
+-- B. new invocations, with the admitted command still suspended --
+invoke app/lookupAsync     (needs a capability)   died: NEXUS: the runtime has begun terminating
+invoke app/home            (needs none)           died: NEXUS: the runtime has begun terminating
+invoke nowhere/at-all      (unknown entry)        failed (typed) UnmappedCommand
+
+-- A. the admitted command, resumed after termination --
+state.update                              succeeded
+event publish                             succeeded
+require second capability                 succeeded
+use second capability                     failed (typed) SecondClosed        (the released resource was touched)
+original capability (captured): lookup B  failed (typed) LookupError         (the released resource was touched)
+command completing; caller's invoke       succeeded
+```
+
+### Already-admitted command (A): everything it attempted ran; nothing was refused
+| Operation | Result |
+|---|---|
+| `state.update` | **succeeded and committed**; readable afterwards (`["A0", "P1"]`) |
+| event publish | **succeeded**; reached no subscriber (`delivered` is only the event sent before termination); the subscriber's stream had already ended |
+| `Capability.require` of a second capability | **succeeded**: the environment's resolutions are still in memory; it returned the same implementation |
+| using that second capability | the **released** resource was touched; its own typed failure |
+| original capability, again | the released resource was touched; its own typed failure |
+
+### New invocation (B): different from A, and not uniform
+A new `invoke` of any **known** entry, with or without a capability, is **refused by the runtime as a defect** ("NEXUS: the runtime has begun terminating"), even while the old command is still running. An **unknown** entry is the ordinary **typed** `UnmappedCommand`: the key is looked up before the runtime is entered, so admission is never reached. Nothing was added to produce either.
+
+### Termination boundary (factually)
+- **Stopped:** new work through the runtime (so every new `invoke` of a known entry and any new runtime work); the event bus (subscriptions end normally); the application's state stream (`values` / `states`); the render follower and the mounted target; and the platform's resources, which are released (in the reverse of acquisition).
+- **Still executable, for work already admitted:** everything it does inline in its own fiber: writing the state it already holds, publishing events, resolving capabilities from the environment, and calling the released resources by reference.
+- `Scope.close` neither waits for nor interrupts admitted work.
+
+### Resource lifetime
+Released resources stay *reachable*: the environment still resolves them, and `Capability.require` gives no signal that anything was released. Whether a released resource can be *used* is entirely that resource's behavior (here it refuses; Stage 20's did not).
+
+### Caller semantics
+The caller of an admitted command receives whatever the command returns (here success, because the probe recorded each step); resource failures arrive as the resource's own typed errors. A caller of a new `invoke` receives an **untyped defect** whose only identification is an `Error` message. There is no `ApplicationStopped`-like type and none was added.
+
+### State semantics
+Post-termination state commits **remain possible** for admitted work and are **readable** through the handle. They are not published: the state stream had ended.
+
+### Event semantics
+Post-termination publication **succeeds and is unobservable**: the bus closed at the start of termination.
+
+### Rendering
+Nothing reaches the follower after termination (`draw` only, container empty), and the state stream emitted only the start. Command execution, effects, values publication and rendering are separate here: the command ran completely while the last two were gone.
+
+### Consistency with NEXUS's documentation
+Every observation matches what NEXUS documents: admitted effects are not interrupted by termination (application.md), publish never fails and reaches no one after the bus closes (event.md), and new work through a terminating runtime is refused (event.md, runtime.md). The probe adds the composition: for an in-flight command, "the application is stopped" is experienced only as no new entrances, no listeners and refusing resources, while its own writes still land.
+
+### Architectural interpretation (no policy chosen)
+Termination closes the application's entrances and its observers and releases its resources; it does not close the computation already running inside it. The state handle, the event bus's publish side and the environment stay callable from inside admitted work, but nothing outside can observe those effects except by reading the state afterwards.
+
+### New concept required
+No. Every behavior was visible with existing Effect, NEXUS and VALANCE primitives.
+
+### API pressure
+No. `ApplicationHandle` is unchanged and behaved as defined. The refusal being an untyped defect is a fact, recorded; no consumer in these tracers needs to distinguish it.
+
+### Next probe
+Whether the policy needs NEXUS at all: make the **platform implementation itself** drain its in-flight users before it releases, using only ordinary Effect (for instance, a call-tracking semaphore the finalizer acquires fully before closing the resource), and observe what `Scope.close` then does while a call is suspended (waits, and for how long), what the admitted command experiences, and what a new `invoke` experiences meanwhile. It shows, with no change to NEXUS, whether "await admitted work before releasing" is already expressible by the resource owner, which decides whether a lifetime policy belongs in NEXUS or in the implementation.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

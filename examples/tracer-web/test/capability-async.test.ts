@@ -7,25 +7,32 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
-import { Cause, Chunk, Deferred, Effect, Exit, Fiber, Layer, Option, Scope, Stream } from "effect";
+import { Cause, Chunk, Deferred, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { CatalogAsync, type CatalogEntry, type LookupError } from "../src/catalog/async-service.js";
 import { compilePrograms } from "../src/catalog/compile.js";
+import type { AppState } from "../src/catalog/app.js";
 import { applicationWithAsyncCatalog } from "../src/catalog/with-async-service.js";
 import { primitives } from "../src/catalog/web.js";
 import { load, until } from "./helpers.js";
 
 const start = { view: "home" as const, items: [{ id: "A0", name: "Alpha" }] };
 
+// A second application-owned capability, for the boundary probe: another resource the same platform supplies and releases.
+type SecondClosed = { readonly _tag: "SecondClosed" };
+interface SecondService { readonly touch: () => Effect.Effect<string, SecondClosed> }
+const Second = Nexus.Capability.define<SecondService>("example/second");
+
 /**
  * The external platform: a controllable asynchronous implementation backed by a scoped resource. `lookup(id)` raises
  * "started", then waits on a gate the test opens with `complete(id)`; an interruption of that wait is recorded. Every
  * step is recorded in order in `events`, with the resource's acquisition and release.
  */
-const controllable = (options: { readonly useAfterRelease?: "fail" | "die" } = {}) => {
+const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; readonly second?: boolean } = {}) => {
   const events: Array<string> = [];
   let closed = false;                                                              // set only by the resource's own finalizer
+  let secondClosed = false;
   const gates = new Map<string, { readonly gate: Deferred.Deferred<CatalogEntry, LookupError>; readonly started: Deferred.Deferred<void> }>();
   const gateOf = (id: string) => {
     let entry = gates.get(id);
@@ -59,9 +66,20 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die" } = {
       return entry;
     }),
   };
+  const acquireCatalog = Effect.acquireRelease(Effect.sync(() => { events.push("resource acquired"); return service; }), () => Effect.sync(() => { events.push("resource released"); closed = true; }));
+  const second: SecondService = { touch: () => Effect.suspend(() => {
+    events.push("second resource touched");
+
+    return secondClosed ? Effect.fail<SecondClosed>({ _tag: "SecondClosed" }) : Effect.succeed("second:ok");
+  }) };
+  const acquireSecond = Effect.acquireRelease(Effect.sync(() => { events.push("second resource acquired"); return second; }), () => Effect.sync(() => { events.push("second resource released"); secondClosed = true; }));
+  // One platform, one scoped Environment. Resources acquired in this order are released in the reverse order.
   const platform: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.map(
-    Effect.acquireRelease(Effect.sync(() => { events.push("resource acquired"); return service; }), () => Effect.sync(() => { events.push("resource released"); closed = true; })),
-    (implementation) => ({ resolutions: new Map([[CatalogAsync.id, { _tag: "Available" as const, implementation }]]) })
+    Effect.all([acquireCatalog, options.second === true ? Effect.map(acquireSecond, (value) => Option.some(value)) : Effect.succeed(Option.none<SecondService>())]),
+    ([implementation, secondImplementation]) => ({ resolutions: new Map<string, Nexus.Capability.CapabilityResolution<unknown>>([
+      [CatalogAsync.id, { _tag: "Available" as const, implementation }],
+      ...(Option.isSome(secondImplementation) ? [[Second.id, { _tag: "Available" as const, implementation: secondImplementation.value }] as const] : []),
+    ]) })
   ));
 
   return {
@@ -287,4 +305,156 @@ describe("an in-flight capability call whose resource has been finalized", () =>
       expect(r.dom).toBe("");
     });
   }
+});
+
+// Stage 22 probe: the execution boundary after termination, mapped in two separate cases. Nothing here is guarded, caught on
+// behalf of the application, or made to fail. The only instrumentation is that each step of the admitted command records its
+// own exit before the next step runs, so one run maps every operation (the step's effect itself is unmodified).
+describe("what remains executable after the application's Scope closes", () => {
+  const Probed = Nexus.Event.define("Probed", Schema.Struct({ id: Schema.String }));
+
+  /** How an exit looks in the trace: the kind, and the typed error or the defect's message. */
+  const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit)
+    ? "succeeded"
+    : Cause.isFailType(exit.cause) ? `failed (typed) ${JSON.stringify(exit.cause.error)}`
+    : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}`
+    : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : `other: ${exit.cause._tag}`;
+
+  /** The admitted command: acquires nothing itself, resolves the original capability, suspends behind `gate`, then, after the Scope has closed, tries each operation in turn. */
+  const probeApplication = (programs: Awaited<ReturnType<typeof compilePrograms>>, w: ReturnType<typeof controllable>, gate: Deferred.Deferred<void>, suspended: Deferred.Deferred<void>) => {
+    const base = applicationWithAsyncCatalog(programs);
+
+    return Valance.define({
+      ...base,
+      commands: (state: Nexus.State.StateHandle<AppState>) => {
+        const step = <A, F, R>(name: string, effect: Effect.Effect<A, F, R>) => Effect.gen(function* () {
+          w.events.push(`op started: ${name}`);
+          const exit = yield* Effect.exit(effect);
+
+          w.events.push(`op ${name}: ${show(exit)}`);
+
+          return exit;
+        });
+        const probe = Nexus.Command.define("t.probe", Schema.Struct({}), () => Effect.gen(function* () {
+          w.events.push("command admitted");
+          const catalog = yield* Nexus.Capability.require(CatalogAsync);         // resolved while the application is running
+          w.events.push("command suspended");
+          yield* Deferred.succeed(suspended, undefined);
+          yield* Deferred.await(gate);
+          w.events.push("command resumed");
+
+          yield* step("state.update", state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items, { id: "P1", name: "committed-after" }] })));
+          yield* step("event publish", Nexus.Event.publish(Probed, { id: "P1" }));
+          const second = yield* step("require second capability", Nexus.Capability.require(Second));
+
+          if (Exit.isSuccess(second)) {
+            yield* step("use second capability", second.value.touch());
+          }
+
+          yield* step("original capability (captured): lookup B", catalog.lookup("B"));
+          w.events.push("command completing");
+        }));
+
+        return { ...base.commands(state), "app/probe": Nexus.Mesh.bind(probe, () => ({})) };
+      },
+    });
+  };
+
+  it("A + B: an already-admitted command, and a new invocation, after the Scope has closed", async () => {
+    const w = controllable({ useAfterRelease: "fail", second: true });
+    const m = mounted();
+    const gate = await Effect.runPromise(Deferred.make<void>());
+    const suspended = await Effect.runPromise(Deferred.make<void>());
+    const app = probeApplication(await compilePrograms(), w, gate, suspended);
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, state: start }).pipe(Scope.extend(scope)));
+    const running = runningOf(handle);
+
+    await Effect.runPromise(Valance.mount(handle, m.target).pipe(Scope.extend(scope)));
+
+    // Three separate things to watch, so "not rendered" is never read as "did not run":
+    //   the command's own effects (state, events, capabilities)  <- the trace and the state read
+    //   values publication                                       <- `emitted`, the application's state stream
+    //   the render follower                                      <- `m.operations`
+    const emitted = Effect.runPromise(Stream.runCollect(running.states).pipe(Effect.map(Chunk.toReadonlyArray)));
+    const delivered: Array<string> = [];
+    Effect.runFork(Nexus.Runtime.runFork(running.nexus.runtime, Stream.runForEach(Nexus.Event.subscribe(Probed), ({ id }) => Effect.sync(() => { delivered.push(id); })).pipe(Effect.tap(() => Effect.sync(() => { w.events.push("event subscriber stream ended"); })))).pipe(Fiber.await));
+
+    // The subscription is live: an event published through the runtime before termination arrives.
+    for (let attempt = 0; attempt < 200 && !delivered.includes("before"); attempt += 1) {
+      await Nexus.Runtime.run(running.nexus.runtime, Nexus.Event.publish(Probed, { id: "before" }));
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect(delivered).toContain("before");
+    await Effect.runPromise(w.complete("B"));                                     // so the original capability's second use does not suspend
+
+    const invoked = Effect.runFork(handle.invoke("app/probe", []));
+    await Effect.runPromise(Deferred.await(suspended));
+    w.events.push("scope closing");
+    await Effect.runPromise(Scope.close(scope, Exit.void));
+    w.events.push("scope closed");
+    await until(() => w.events.includes("event subscriber stream ended"));
+
+    // B. A NEW invocation after termination, while the admitted command is still suspended. Observed, not guarded.
+    const fresh: Array<readonly [string, string]> = [];
+
+    for (const [label, key, args] of [
+      ["capability command", "app/lookupAsync", [{ value: "C" }]],
+      ["command without a capability", "app/home", []],
+      ["unknown entry", "nowhere/at-all", []],
+    ] as const) {
+      const exit = await Effect.runPromise(Effect.exit(handle.invoke(key, args)));
+
+      fresh.push([label, show(exit)]);
+      w.events.push(`new invoke after close: ${label}: ${show(exit)}`);
+    }
+
+    // A. Resume the admitted command: every operation it attempts now runs after termination.
+    await Effect.runPromise(Deferred.succeed(gate, undefined));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    w.events.push(`caller invoke of the admitted command: ${show(exit)}`);
+    const after = (marker: string) => w.events.slice(w.events.indexOf(marker));
+    const index = (event: string) => w.events.indexOf(event);
+
+    // Termination, in order: the resources are released (in the reverse of their acquisition), the Scope returns; the event
+    // stream the application's subscribers hold has ended by then. Nothing waited for, or interrupted, the admitted command.
+    expect(w.events.slice(0, 4)).toEqual(["resource acquired", "second resource acquired", "command admitted", "command suspended"]);
+    expect(index("scope closing")).toBeLessThan(index("second resource released"));
+    expect(index("second resource released")).toBeLessThan(index("resource released"));
+    expect(index("resource released")).toBeLessThan(index("scope closed"));
+    expect(index("event subscriber stream ended")).toBeLessThan(index("command resumed"));
+    expect(w.events.some((event) => event.includes("interrupted"))).toBe(false);
+
+    // B. A new invocation after termination: refused by the runtime as a defect, whether or not the command needs a capability.
+    // An unknown entry never reaches the runtime: it is the ordinary typed UnmappedCommand.
+    expect(fresh).toEqual([
+      ["capability command", "died: NEXUS: the runtime has begun terminating"],
+      ["command without a capability", "died: NEXUS: the runtime has begun terminating"],
+      ["unknown entry", 'failed (typed) {"_tag":"UnmappedCommand","component":"nowhere","name":"at-all"}'],
+    ]);
+
+    // A. The already-admitted command, resumed after termination, in order. Every operation ran; none was refused.
+    expect(after("command resumed")).toEqual([
+      "command resumed",
+      "op started: state.update", "op state.update: succeeded",
+      "op started: event publish", "op event publish: succeeded",
+      "op started: require second capability", "op require second capability: succeeded",
+      "op started: use second capability", "second resource touched", 'op use second capability: failed (typed) {"_tag":"SecondClosed"}',
+      "op started: original capability (captured): lookup B", "lookup started B", "lookup resumed B", "resource used after release B",
+      'op original capability (captured): lookup B: failed (typed) {"_tag":"LookupError","id":"B"}',
+      "command completing",
+      "caller invoke of the admitted command: succeeded",
+    ]);
+
+    // State: the post-termination commit happened and is readable.
+    expect((await Effect.runPromise(handle.state)).items.map((item) => item.id)).toEqual(["A0", "P1"]);
+    // Values publication and the render follower never saw it: the state stream and the follower had ended with the Scope.
+    expect((await emitted).map((state) => state.items.map((item) => item.id))).toEqual([["A0"]]);
+    expect(m.operations).toEqual(["draw"]);
+    expect(m.page.container.innerHTML).toBe("");
+    // Events: the post-termination publish succeeded and reached no subscriber.
+    expect(delivered).toEqual(["before"]);
+  });
 });
