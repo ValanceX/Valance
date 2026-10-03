@@ -2159,6 +2159,26 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 49: a real back/forward-cache restore (hypothesis confirmed; one page-local fix)
+
+**Why a Node-driven top-level tab.** bfcache only applies to top-level documents, never to the iframes the vitest browser mode uses, so the Stage 46 to 48 iframe tests cannot exercise it. `bfcache/page-bfcache.test.ts` (own config `vitest.bfcache.config.ts`, script `test:bfcache`) starts the dev server programmatically, launches Chromium through Playwright, loads the tracer page in a top-level tab, moves to another document and goes Back. Nothing is synthesized: `pagehide` and `pageshow` are the browser's own, recorded per document in `sessionStorage`.
+
+**Can bfcache be observed at all here?** Not with Playwright's defaults. Observed first: with default launch arguments (Playwright's `--disable-back-forward-cache`, and the headless shell build) Back creates a **new Document** (new id, `pagehide persisted=false`, `pageshow persisted=false`, navigation type `back_forward`) rebuilt from the history entry's URL with count 0: ordinary navigation, not the hypothesis. The same with the flag removed on the headless shell. Only the full Chromium build (`channel: "chromium"`) with Playwright's disabling flag removed, i.e. the browser's own default behavior restored, restores from bfcache. That is the only departure from Playwright's defaults, stated in the test; nothing forces the cache.
+
+**Observed with the page as it was (the test written first and seen failing).** A genuine restore: the log shows `pagehide persisted=true` then `pageshow persisted=true` on the same document; the Document, the window marker and the single `navigate` navigation entry are the same, and `data-valance` still reads `"running"`. But **the target was blank** (`text` was `""`) and no button existed: the page's Scope had been closed by the `pagehide` handler, so the mount was unmounted and the application ended while the page was merely being stored. The restored page was a blank document with a stale "running" marker: worse than the server HTML a startup failure leaves behind.
+
+**Fix (page-local, one line in `src/page.ts`).** The `pagehide` handler ends the page only when `event.persisted` is false. A persisted `pagehide` means the same document may be restored by `pageshow`; the application is simply frozen with the page and resumes with it. No `pageshow` handler, no restart, no lifecycle framework, no persistence layer, no VALANCE change. A document that is truly going away (`persisted` false) closes its Scope exactly as before (the Stage 46 to 48 tests still close the page with `pagehide`; a synthetic event has `persisted` undefined and takes the same branch).
+
+**After the fix (3 runs).** The restored page is the same document with its marker, the target still drawn with the in-memory count (`1 clicks, ...`), `data-valance` `running`, a click reaches the same application (`2 clicks`), and the history binding is alive (About changes the URL). No new navigation entry.
+
+**Validation.** One real-Chromium test (`pnpm run test:bfcache`), 3 runs, failing before the fix and passing after; the three existing page browser tests that load `page.ts` (Stage 46 page, 47 failure, 48 navigation), 3 tests, passing; example typecheck clean. The shared dev-server config was not touched, so the full Chromium suite was not rerun. `packages/*`, NEXUS, MESH and PORT untouched.
+
+**Not covered.** A page evicted from the cache is discarded by the browser without further events (nothing to clean up: the Scope's resources are JS-heap objects). Behavior of a document restored after a long freeze (timers, clocks, a platform `Clock` capability reading wall time) was not examined.
+
+**Next uncertainty.** What the application should assume about time and data after a restore: the page resumes with its in-memory state exactly as left, possibly long after, while nothing tells the application it was frozen (a stale `stamp` is only the visible example). Whether anything needs to react to a restore is a product question that the first real page with time-sensitive data would answer.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

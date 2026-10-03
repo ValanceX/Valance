@@ -1,5 +1,5 @@
 // The browser half of a real page: the module the document loads. It reads what the server embedded, starts the MESH runtime, and calls the web host
-// (`run`, ./api/shape-b.ts) once, hydrating the server's HTML. The page's lifetime is the one Scope here: it ends when the page is hidden, which
+// (`run`, ./api/shape-b.ts) once, hydrating the server's HTML. The page's lifetime is the one Scope here: it ends when the document is going away (`pagehide`, not persisted), which
 // unmounts the target and ends the application, exactly as closing any Scope does. If `run` cannot start, the page reports it (see below). Nothing in this file owns the mount or reads `Mounted`: that is `run`'s.
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -26,4 +26,6 @@ const page = Effect.runFork(Effect.scoped(Effect.gen(function* () {
     : Effect.zipRight(Effect.sync(() => { container.dataset["valance"] = "failed"; }), Effect.logError("the page could not start", Cause.pretty(cause))))
 )));
 
-addEventListener("pagehide", () => { void Effect.runPromise(Fiber.interrupt(page)); });
+// `pagehide` ends the page only when the document is going away. With `persisted` the browser is storing this same document in the back/forward cache and may restore it
+// with `pageshow`: closing the Scope then would restore a blank target and a dead application (observed, Stage 49), so a persisted `pagehide` leaves the page running.
+addEventListener("pagehide", (event) => { if (!event.persisted) { void Effect.runPromise(Fiber.interrupt(page)); } });

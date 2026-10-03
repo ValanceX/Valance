@@ -8,7 +8,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:browser": "vitest run -c vitest.browser.config.ts"
+    "test:browser": "vitest run -c vitest.browser.config.ts",
+    "test:bfcache": "vitest run -c vitest.bfcache.config.ts"
   },
   "dependencies": {
     "@valancex/valance": "workspace:*"
