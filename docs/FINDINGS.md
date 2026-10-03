@@ -2098,6 +2098,29 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 46: the first real page entry (a document, a script, `run`)
+
+**Boundary found.** There was none. `examples/tracer-web` had no document, no page script and no server: the "page" was the vitest browser iframe; `browser/setup.ts` (Node) rendered HTML with `renderToHtml` and handed it, the compiled programs and the state to the tests through `provide`; every browser test then built its own container and called `start` + `hydrate` itself. `run` (Stages 44 and 45) was called only by `api-shape.test.ts` and `host-run.test.ts`. So the test setup was a server and a fixture, not a page entry; a real entry was missing.
+
+**Smallest entry implemented (three small files and one dev-server route, no framework, no VALANCE change).**
+- `src/document.ts` (Node): `renderDocument(url)` turns a request URL into a complete HTML document: the application rendered with the public server path (`renderToHtml`, `stateFor(url)` being the application's meaning of the URL), the compiled programs and the state in one JSON block (the browser never compiles MPRX), and a script tag.
+- `src/page.ts` (browser): reads the JSON block, starts the MESH runtime, applies the application's first act (`initialStateAt`, canonicalize the URL), and calls the existing host `run` once with `hydrate: true` and the `history` option, inside one Scope that closes on `pagehide`. It owns nothing of the mount and reads no `Mounted`: that is `run`'s.
+- `vitest.browser.config.ts`: a 12-line dev-server route answering requests under the application's own base path (`/tracer`) with `renderDocument`; the same server then transforms and serves `src/page.ts`. (The repository has no other server and no `vite` dependency of its own; adding one was not warranted.)
+
+**Proven by one focused Chromium tracer (`browser/page.browser.test.ts`, 3 runs).** The browser requests `/tracer/about?tab=details`, loads the server-rendered document into its own window, shows the server's HTML before the script runs, and the page script mounts through `run` (readiness marker `data-valance="running"`). Clicks work (About-to-counter draws a different program; the next click updates the same `section` in place through a command reading the platform clock), the `history` option takes effect (About reaches the browser's URL, `/tracer/about?tab=overview`), and hiding the page closes the page's one Scope: the target is unmounted by the Scope (not by the page script). The mount/hydrate path is the unchanged public one (`run` calls `Valance.hydrate`); lifecycle ownership is as established (the Scope owns the mount; `Mounted` stays observation only; no notification API).
+
+**What the page can observe of the host's lifecycle reporting.** The host reports only abnormal ends (Stages 44 and 45). A normal end (`pagehide`) is silent, and the test asserts that no error is reported. The abnormal end, a render failing after the first draw, is **not reachable from this application through a real page** without manufacturing a failure: its scopes always satisfy their programs' manifests, and PORT does not throw on foreign DOM mutation. The abnormal-end report therefore remains exercised by `test/host-run.test.ts` (a deliberately violating scope), not by a real page. This is recorded as the remaining gap, not worked around.
+
+**Validation.** Static: example typecheck clean. Focused: `browser/page.browser.test.ts`, 3 runs, passing. Because the shared browser config changed, the existing Chromium suite was run once: 27 of 27 (26 + the new one). No package or jsdom runs: no package source changed.
+
+**Changes.** `examples/tracer-web/src/document.ts`, `src/page.ts`, `vitest.browser.config.ts`, `browser/page.browser.test.ts`, this section. Nothing in `packages/*`, NEXUS, MESH or PORT.
+
+**Not established (left for a product integration).** The page is served only by the test dev server: there is no production build, static serving or cache story, and the wasm is located through Vite's `?url`. The document is rendered per request. No page-level failure UX exists: when `run` itself fails (a `StartError`), the page script's top-level rejects and the page stays as the server drew it.
+
+**Next uncertainty.** What a real page does when `run` fails to start (a bad embedded state, a missing wasm): the page entry is where that is decided, and the first real page has no policy for it yet.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
