@@ -2054,6 +2054,28 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 44: the first host integration of `Mounted` (the web host `run` consumes `followed`)
+
+**Candidate hosts found.** `examples/tracer-web/src/catalog/host.ts` (`fromWindowEvent`): a real producer that sees only `ApplicationHandle.invoke` and decides how failure is handled (logged, never thrown into the page's event loop); it never touches `Mounted`. `examples/tracer-web/src/api/shape-b.ts` (`run`): the repository's web host function, `start` + `mount | hydrate` + `history` in one operation, importing only the public entries (`@valancex/valance`, `@valancex/valance/web`); it called `mount`/`hydrate` and **discarded** the `Mounted` result. The browser tests build their own pages and are fixtures, not hosts. So `run` is the smallest existing place where VALANCE is consumed as a host-facing runtime; it did not yet consume the public mount contract.
+
+**What a host owes that only `Mounted` can tell it.** Stage 43 listed what each member gives. For a host whose job is to put the application on a page, the one duty already visible in this tracer is the one `host.ts` already shows for entries, "a decision about failure": the page can stop following the application and nothing else says so. Observed before this stage (`test/host-run.test.ts`, written first): with `run`, a render that fails after the first draw (a scope violating the program's manifest) ends the follower, the page stops updating, the application keeps running, and **nothing is reported anywhere** (no log; the test timed out waiting for one). `Mounted.followed` is the only public observation of that end (Failure for a render failure, Success if the application ended under an open mount, Interrupted for a normal Scope close).
+
+**Integration.** `run` retains the `Mounted` it gets and forks one fiber into the caller's Scope that awaits `followed` and reports an abnormal end (error log for a failure, warning for "the application ended; the page is inert", nothing for the normal Scope close). It adds no abstraction and no second owner: the mount remains the Scope's (the test asserts the container is still unmounted when the Scope closes). 12 lines in the example host.
+
+**Public capability exercised:** `Mounted.followed`, through `Valance.mount` / `Valance.hydrate`, by a host that imports only public entries.
+
+**Was the existing API sufficient?** Yes. `followed` gave the host exactly the information it needed with no change to `Mounted`, `mount`, `hydrate` or any VALANCE package source. No deficiency appeared, so none is proposed.
+
+**Why this qualifies.** It is code that consumes VALANCE through the public host contract rather than through test or internal access, for a responsibility the host actually has (telling its operator that its page went inert); its test is a regression guard for that responsibility, not a coverage test of settled semantics. It is a tracer host, not a product: it exists under `examples/`, and nothing ships.
+
+**What remains missing for a production host.** (1) `settled` and `dispatched` are still consumed only by tests. The analogous host duty for them, reporting the failure of an event-triggered command, has no host consumer here because `dispatched` is a passive array: a host can read it at moments it chooses (for example after `settled`), and nothing notifies it of a new entry. Whether hosts should have to poll or whether that need is real enough to justify anything is a product question, recorded and not designed. (2) A real entry point (page script) that calls `run`: the repository's pages are served by test setup, so no end-to-end consumer of `run` exists beyond its own test.
+
+**Validation.** Focused: `test/host-run.test.ts` (new, written first and seen failing, then passing) and `test/api-shape.test.ts` (the existing `run` consumer), 3 tests, 3 runs; the example's typecheck. No package source changed, so no package typecheck/build, no Chromium, no full suite.
+
+**Next uncertainty.** How a host should learn that an event-triggered command failed (the Stage 33 gap) given that `dispatched` has no notification: whether polling `dispatched` after `settled` is an acceptable host contract or whether the first real page entry will show a need.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

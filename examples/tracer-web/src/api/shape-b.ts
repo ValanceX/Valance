@@ -5,6 +5,7 @@
 //   platform : run(app, { container, primitives, platform?, state?, hydrate?, history? })
 //   lifetime : the caller's Scope (the one thing `run` needs from outside)
 //
+// (Stage 44: this is the repository's web host, and it consumes the public `Mounted` result: see `followed` below.)
 // What had to be invented: nothing structural: `run` is today's `start` + `mount | hydrate` + `history`, in that order,
 // in one function. It still creates, holds and passes a `Running`; the handle is hidden, not removed. Decisions that were
 // the caller's sequencing in A become options or stay the caller's: `hydrate` is an explicit flag (detecting server HTML
@@ -16,7 +17,7 @@ import type { WebPrimitives } from "@valancex/valance/web";
 
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import { Effect, Scope } from "effect";
+import { Cause, Effect, Exit, Scope } from "effect";
 
 export interface RunOptions<S> {
   readonly container: Element;
@@ -35,7 +36,17 @@ export const run = <S, E, R extends Ambient, V extends string>(app: Valance.Appl
     const running = yield* Valance.start(app, { ...(options.platform === undefined ? {} : { platform: options.platform }), ...(options.state === undefined ? {} : { state: options.state }) });
     const target = Web.target({ container: options.container, primitives: options.primitives });
 
-    yield* options.hydrate === true ? Valance.hydrate(running, target) : Valance.mount(running, target);
+    const mounted = yield* options.hydrate === true ? Valance.hydrate(running, target) : Valance.mount(running, target);
+
+    // The host's one duty toward the mount (Stage 44): the page can stop following the application (a render fails after the first draw, or the
+    // application ends under an open mount) and nothing else says so. `Mounted.followed` is the only public observation of that; the host reports it,
+    // the way `catalog/host.ts` reports a failed entry. A normal end (the Scope closing) is `Interrupted` and silent. The mount stays the Scope's.
+    yield* Effect.forkIn(
+      Effect.flatMap(mounted.followed, (exit) => Exit.isSuccess(exit)
+        ? Effect.logWarning("the application ended; the page is inert")
+        : Cause.isInterruptedOnly(exit.cause) ? Effect.void : Effect.logError("the page stopped following the application", Cause.pretty(exit.cause))),
+      yield* Effect.scope
+    );
 
     if (options.history !== undefined) {
       yield* Web.history(running, options.history);
