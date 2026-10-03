@@ -1125,6 +1125,55 @@ Whether the policy needs NEXUS at all: make the **platform implementation itself
 
 ---
 
+## Stage 23: can the resource owner keep its resource alive until admitted users finish? (probe)
+
+*Question: can a capability's resource make its own lifetime safe by draining in-flight users before finalization, using only ordinary Effect? Method: only the external test platform changed. The resource counts its in-flight lookups (a call registers when it starts and leaves by any exit: completion, failure, interruption), and its finalizer waits for the count to reach zero before marking the resource closed. No source change in VALANCE, NEXUS, MESH or PORT; Stage 19 to 22 tests untouched; positive paths synchronize on signals; the one place a block must be shown uses a bounded run of cooperative yields (`test/capability-async.test.ts`, 13 tests, stable over 8 runs; a finalizer that does not wait fails exactly the dependent probes).*
+
+### Observed
+
+| Probe | Result |
+|---|---|
+| **A. control** | in flight 0, 1, then 0; `Scope.close`: `finalizer started`, `resource released`, no draining. The tracking is sound |
+| **B. termination while a lookup is suspended** | **`Scope.close` does not return**: the finalizer reaches `finalizer draining: 1 in flight` and waits. The lookup is then allowed to finish and **completes against a live resource** (no `resource used after release`). Then `in flight: 0`, `finalizer drained`, `resource released`, `scope closed` |
+| **C. circular wait** | **yes, and it is a deadlock** (below) |
+| **D. new invocation while draining** | refused as a defect, `NEXUS: the runtime has begun terminating`, exactly as after termination (Stage 22). The drain did not reopen admission, and nothing in the runtime was touched |
+| **E. the admitted command after the drain** | the caller's `invoke` succeeds; the state commit lands (`["A0", "A"]`); `State.values` had already ended (emitted only the start) and nothing was rendered (`draw` only) |
+| **F. a command admitted but not yet inside the resource** | **not protected** (below) |
+
+### Deadlock analysis (probe C)
+Setup: the in-flight lookup's gate can only be opened by the application's own `app/signal`, which is a **new invocation** (a host-driven handshake). Trace after termination begins:
+
+```text
+scope closing
+finalizer started
+finalizer draining: 1 in flight          <- waits for the lookup
+new invoke app/signal: died: NEXUS: the runtime has begun terminating   <- the lookup's only way forward is refused
+(2000 cooperative yields: nothing can move)
+Scope.close: still pending     admitted command: still pending     in flight: 1
+```
+The dependency is circular: **finalization waits for the command; the command waits for an admission that termination has already closed.** `Scope.close` blocks indefinitely. Recorded as a blocked lifecycle, with no workaround added. The test releases it only by opening the gate from *outside* the application's admission (cleanup, which also proves the block was exactly this dependency).
+
+NEXUS documents that "admission never waits, so an admitted effect that requests more work can't deadlock". That guarantee is NEXUS's own. A resource-local drain **reintroduces waiting after admission has closed**, so the guarantee no longer covers an application that adds a drain.
+
+### Gap (probe F)
+The resource sees only calls that have **entered** it. A command already admitted, with its capability resolved, but not yet inside a lookup, is invisible: the finalizer finds nothing in flight, closes and releases at once, and the command's later lookup finds the closed resource (`resource used after release`, a typed `LookupError`). Likewise, a tracked call leaves when the lookup *returns*, which is before the command's own continuation (the state commit); in this run the commit landed before the finalizer finished draining, but nothing guarantees it.
+
+### What this shows about resource ownership
+- **A resource can make calls that are already inside it safe, with ordinary Effect, and without any change to NEXUS.** Probes A, B, D and E are a clean drain: `Scope.close` waits indirectly, the call finishes with a valid resource, then the resource releases; admission stays closed.
+- **It cannot make the stronger statement "an admitted command finishes while its resources are valid".** The resource owner knows its own calls, not the commands admitted by the application: F.
+- **And the mechanism can hang termination** when admitted work depends on anything termination closes (new admission here; plausibly observers and events, which have already ended by the time platform resources release): C.
+
+### NEXUS pressure
+Only for the stronger guarantee, and conditional on wanting it. No NEXUS change is required for resource-local draining of calls in progress. The set of **admitted, unfinished work** is a fact only the runtime has (it admits work); the resource owner cannot see it, so neither an await nor an interruption of *admitted commands* can be built at the resource boundary (F). Whether to want that guarantee, and whether it should be "await" (which C shows can hang) or "interrupt", is not decided here.
+
+### New concept required
+No. Ordinary Effect (a counter, a `Deferred`, `acquireUseRelease`, a waiting finalizer) was enough for everything resource-local. The observation is a visibility gap on an existing runtime fact, not a new concept.
+
+### Next probe
+The third option at the same boundary, still with no NEXUS change: the resource-owned finalizer **interrupts** its tracked in-flight calls (each call registers its fiber; the finalizer interrupts them and waits for their exit) instead of waiting for them. Run B, C and F again and compare: whether the caller gets interruption and nothing commits, whether C's circular wait disappears (an interrupt does not need admission), and whether F is still unprotected. It completes the comparison of the two resource-local policies (drain, interrupt) before deciding whether either belongs in NEXUS.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

@@ -29,10 +29,14 @@ const Second = Nexus.Capability.define<SecondService>("example/second");
  * "started", then waits on a gate the test opens with `complete(id)`; an interruption of that wait is recorded. Every
  * step is recorded in order in `events`, with the resource's acquisition and release.
  */
-const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; readonly second?: boolean } = {}) => {
+const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; readonly second?: boolean; readonly drain?: boolean } = {}) => {
   const events: Array<string> = [];
   let closed = false;                                                              // set only by the resource's own finalizer
   let secondClosed = false;
+  // Resource-owned draining (Stage 23; only when `drain` is set): the resource counts its own in-flight users.
+  let inFlight = 0;
+  let idle: Deferred.Deferred<void> | undefined;
+  const draining = Effect.runSync(Deferred.make<void>());                         // raised when the finalizer begins to wait
   const gates = new Map<string, { readonly gate: Deferred.Deferred<CatalogEntry, LookupError>; readonly started: Deferred.Deferred<void> }>();
   const gateOf = (id: string) => {
     let entry = gates.get(id);
@@ -44,7 +48,7 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
 
     return entry;
   };
-  const service: CatalogAsync = {
+  const serviceBase: CatalogAsync = {
     lookup: (id) => Effect.gen(function* () {
       events.push(`lookup started ${id}`);
       yield* Deferred.succeed(gateOf(id).started, undefined);
@@ -66,7 +70,37 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
       return entry;
     }),
   };
-  const acquireCatalog = Effect.acquireRelease(Effect.sync(() => { events.push("resource acquired"); return service; }), () => Effect.sync(() => { events.push("resource released"); closed = true; }));
+  // A user registers when its lookup starts and leaves when it ends, by any exit (completion, failure, interruption).
+  const service: CatalogAsync = options.drain !== true ? serviceBase : {
+    lookup: (id) => Effect.acquireUseRelease(
+      Effect.sync(() => { inFlight += 1; events.push(`in flight: ${inFlight} (lookup ${id} entered)`); }),
+      () => serviceBase.lookup(id),
+      () => Effect.suspend(() => {
+        inFlight -= 1;
+        events.push(`in flight: ${inFlight} (lookup ${id} left)`);
+
+        return inFlight === 0 && idle !== undefined ? Deferred.succeed(idle, undefined) : Effect.void;
+      })
+    ),
+  };
+  const release = options.drain !== true
+    ? Effect.sync(() => { events.push("resource released"); closed = true; })
+    : Effect.gen(function* () {
+      // Drain first: wait until every tracked user has left, and only then mark the resource closed.
+      events.push("finalizer started");
+
+      if (inFlight > 0) {
+        idle = yield* Deferred.make<void>();
+        events.push(`finalizer draining: ${inFlight} in flight`);
+        yield* Deferred.succeed(draining, undefined);
+        yield* Deferred.await(idle);
+        events.push("finalizer drained");
+      }
+
+      closed = true;
+      events.push("resource released");
+    });
+  const acquireCatalog = Effect.acquireRelease(Effect.sync(() => { events.push("resource acquired"); return service; }), () => release);
   const second: SecondService = { touch: () => Effect.suspend(() => {
     events.push("second resource touched");
 
@@ -86,6 +120,8 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
     events,
     platform,
     started: (id: string) => Deferred.await(gateOf(id).started),
+    inFlight: () => inFlight,
+    draining: Deferred.await(draining),
     complete: (id: string) => Deferred.succeed(gateOf(id).gate, { id, name: `item-${id}` }),
   };
 };
@@ -103,6 +139,13 @@ const mounted = () => {
 
   return { page, operations, target, names };
 };
+
+/** How an exit looks in the trace: the kind, and the typed error or the defect's message. */
+const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit)
+  ? "succeeded"
+  : Cause.isFailType(exit.cause) ? `failed (typed) ${JSON.stringify(exit.cause.error)}`
+  : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}`
+  : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : `other: ${exit.cause._tag}`;
 
 describe("an asynchronous application-owned capability, through the existing boundary", () => {
   it("A: the command suspends on the capability and commits only when it completes; the ordinary render path then updates", async () => {
@@ -313,13 +356,6 @@ describe("an in-flight capability call whose resource has been finalized", () =>
 describe("what remains executable after the application's Scope closes", () => {
   const Probed = Nexus.Event.define("Probed", Schema.Struct({ id: Schema.String }));
 
-  /** How an exit looks in the trace: the kind, and the typed error or the defect's message. */
-  const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit)
-    ? "succeeded"
-    : Cause.isFailType(exit.cause) ? `failed (typed) ${JSON.stringify(exit.cause.error)}`
-    : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}`
-    : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : `other: ${exit.cause._tag}`;
-
   /** The admitted command: acquires nothing itself, resolves the original capability, suspends behind `gate`, then, after the Scope has closed, tries each operation in turn. */
   const probeApplication = (programs: Awaited<ReturnType<typeof compilePrograms>>, w: ReturnType<typeof controllable>, gate: Deferred.Deferred<void>, suspended: Deferred.Deferred<void>) => {
     const base = applicationWithAsyncCatalog(programs);
@@ -456,5 +492,186 @@ describe("what remains executable after the application's Scope closes", () => {
     expect(m.page.container.innerHTML).toBe("");
     // Events: the post-termination publish succeeded and reached no subscriber.
     expect(delivered).toEqual(["before"]);
+  });
+});
+
+// Stage 23 probe: can the RESOURCE OWNER keep its resource alive until admitted users finish, with only ordinary Effect?
+// The test platform's resource counts its in-flight lookups and its finalizer waits for them to leave before it marks the
+// resource closed. Nothing in NEXUS, VALANCE, the command or the application changes. Positive paths synchronize on signals,
+// never on time; where a block has to be shown, a bounded run of cooperative yields stands in for "no progress is possible".
+describe("a resource that drains its in-flight users before it is released", () => {
+  const firstValue = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => {
+    const first = args[0];
+
+    return first !== undefined && "value" in first ? first.value : undefined;
+  };
+
+  /** The application: the async catalog, plus a lookup command that logs its steps, and a command that opens a lookup's gate. */
+  const drainApplication = (programs: Awaited<ReturnType<typeof compilePrograms>>, w: ReturnType<typeof controllable>, before?: { readonly waiting: Deferred.Deferred<void>; readonly go: Deferred.Deferred<void> }) => {
+    const base = applicationWithAsyncCatalog(programs);
+
+    return Valance.define({
+      ...base,
+      commands: (state: Nexus.State.StateHandle<AppState>) => {
+        const lookup = Nexus.Command.define("t.drainLookup", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.gen(function* () {
+          w.events.push("command admitted");
+          const catalog = yield* Nexus.Capability.require(CatalogAsync);
+
+          // Probe F only: admitted, and not yet inside the resource.
+          if (before !== undefined) {
+            w.events.push("command waiting before its lookup");
+            yield* Deferred.succeed(before.waiting, undefined);
+            yield* Deferred.await(before.go);
+          }
+
+          const entry = yield* catalog.lookup(id);
+
+          w.events.push("command: lookup returned");
+          yield* state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items, { id: entry.id, name: entry.name }] }));
+          w.events.push("command: state committed");
+        }));
+        // What a host-driven handshake looks like: the only thing that opens the gate is another invocation of the application.
+        const signal = Nexus.Command.define("t.signal", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.asVoid(w.complete(id)));
+
+        return {
+          ...base.commands(state),
+          "app/drainLookup": Nexus.Mesh.bind(lookup, (args) => ({ id: firstValue(args) })),
+          "app/signal": Nexus.Mesh.bind(signal, (args) => ({ id: firstValue(args) })),
+        };
+      },
+    });
+  };
+
+  const boot = async (before?: Parameters<typeof drainApplication>[2]) => {
+    const w = controllable({ useAfterRelease: "fail", drain: true });
+    const m = mounted();
+    const app = drainApplication(await compilePrograms(), w, before);
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, state: start }).pipe(Scope.extend(scope)));
+
+    await Effect.runPromise(Valance.mount(handle, m.target).pipe(Scope.extend(scope)));
+    const emitted = Effect.runPromise(Stream.runCollect(runningOf(handle).states).pipe(Effect.map(Chunk.toReadonlyArray)));
+    const closeScope = () => Effect.runFork(Scope.close(scope, Exit.void).pipe(Effect.tap(() => Effect.sync(() => { w.events.push("scope closed"); }))));
+    const poll = async (fiber: Fiber.RuntimeFiber<unknown, unknown>) => Option.isSome(await Effect.runPromise(Fiber.poll(fiber)));
+
+    return { w, m, scope, handle, emitted, closeScope, poll };
+  };
+
+  const trace = (w: ReturnType<typeof controllable>) => "TRACE\n" + w.events.map((event, index) => `${String(index).padStart(2)} ${event}`).join("\n");
+
+  it("probe A (control): a lookup that finishes before termination leaves nothing in flight, and the finalizer has nothing to drain", async () => {
+    const { w, handle, closeScope } = await boot();
+    const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    expect(w.inFlight()).toBe(1);
+    await Effect.runPromise(w.complete("A"));
+    await Effect.runPromise(Fiber.join(invoked));
+    expect(w.inFlight()).toBe(0);                                                 // the tracking is sound: it returned to zero
+
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    expect(w.events).toEqual([
+      "resource acquired", "command admitted", "in flight: 1 (lookup A entered)", "lookup started A", "lookup resumed A", "lookup completed A",
+      "in flight: 0 (lookup A left)", "command: lookup returned", "command: state committed",
+      "finalizer started", "resource released", "scope closed",                    // no "draining": there was nothing to wait for
+    ]);
+  });
+
+  it("probes B + D + E: termination while a lookup is suspended: Scope.close waits for it, the resource stays valid, new work is still refused", async () => {
+    const { w, m, handle, emitted, closeScope, poll } = await boot();
+    const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    w.events.push("scope closing");
+    const closing = closeScope();
+
+    await Effect.runPromise(w.draining);                                          // the finalizer has reached its wait: a signal, not a delay
+
+    // B. Scope.close has NOT returned, because the resource's finalizer is waiting for the in-flight lookup.
+    expect(await poll(closing)).toBe(false);
+    expect(w.inFlight()).toBe(1);
+    expect(w.events.slice(-2)).toEqual(["finalizer started", "finalizer draining: 1 in flight"]);
+    expect(w.events).not.toContain("resource released");
+
+    // D. A new invocation while the application is draining is refused exactly as after termination (Stage 22): the drain
+    // did not reopen admission. Nothing in the runtime was changed to make this so.
+    for (const [key, args] of [["app/lookupAsync", [{ value: "C" }]], ["app/home", []]] as const) {
+      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))).toBe("died: NEXUS: the runtime has begun terminating");
+    }
+
+    expect(await poll(closing)).toBe(false);                                      // still waiting
+
+    // The lookup is allowed to finish. It does so against a LIVE resource.
+    await Effect.runPromise(w.complete("A"));
+    await Effect.runPromise(Fiber.join(closing));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+    const at = (event: string) => w.events.indexOf(event);
+
+    expect(w.events).not.toContain("resource used after release A");
+    expect(at("lookup completed A")).toBeLessThan(at("in flight: 0 (lookup A left)"));
+    expect(at("in flight: 0 (lookup A left)")).toBeLessThan(at("finalizer drained"));
+    expect(at("finalizer drained")).toBeLessThan(at("resource released"));
+    expect(at("resource released")).toBeLessThan(at("scope closed"));
+
+    // E. The admitted command: result, commit, publication, rendering.
+    expect(show(exit)).toBe("succeeded");                                         // the caller's invoke
+    expect(w.events).toContain("command: state committed");
+    expect((await Effect.runPromise(handle.state)).items.map((item) => item.id)).toEqual(["A0", "A"]);   // the commit happened
+    expect((await emitted).map((state) => state.items.length)).toEqual([1]);       // but `values` had already ended: not published
+    expect(m.operations).toEqual(["draw"]);                                       // and not rendered
+    expect(m.page.container.innerHTML).toBe("");
+  });
+
+  it("probe C: when the in-flight lookup can only be completed by a NEW invocation, the drain waits forever and Scope.close never returns", async () => {
+    const { w, handle, closeScope, poll } = await boot();
+    const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    w.events.push("scope closing");
+    const closing = closeScope();
+
+    await Effect.runPromise(w.draining);
+
+    // The only thing that opens this gate is the application's own `app/signal`, which is a new invocation: refused.
+    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/signal", [{ value: "A" }]))))).toBe("died: NEXUS: the runtime has begun terminating");
+
+    // Bounded, deterministic evidence of no progress: a long run of cooperative yields in which nothing can happen, because
+    // every path forward needs the gate. (A proof of absence needs a bound; this is the harness's, not production's.)
+    await Effect.runPromise(Effect.forEach(Array.from({ length: 2000 }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+
+    expect(await poll(closing)).toBe(false);                                      // Scope.close is blocked
+    expect(await poll(invoked)).toBe(false);                                      // the admitted command is blocked
+    expect(w.inFlight()).toBe(1);
+    expect(w.events).not.toContain("lookup completed A");
+    expect(w.events).not.toContain("finalizer drained");
+    expect(w.events).not.toContain("resource released");
+
+    // Test cleanup only: open the gate from OUTSIDE the application's admission. It proves the block was exactly this
+    // dependency: finalization waits for the command, the command waits for an admission that finalization has closed.
+    await Effect.runPromise(w.complete("A"));
+    await Effect.runPromise(Fiber.join(closing));
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("succeeded");
+  });
+
+  it("probe F: draining protects calls already inside the resource, not an admitted command that has not reached it yet", async () => {
+    const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, handle, closeScope } = await boot(before);
+    const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(Deferred.await(before.waiting));                      // admitted, resolved the capability, not yet inside a lookup
+    expect(w.inFlight()).toBe(0);
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));                            // nothing to drain: closes and releases at once
+
+    expect(w.events.slice(-4)).toEqual(["scope closing", "finalizer started", "resource released", "scope closed"]);
+
+    await Effect.runPromise(Deferred.succeed(before.go, undefined));              // the command now goes to use its resource
+    await Effect.runPromise(w.started("A"));
+    await Effect.runPromise(w.complete("A"));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    expect(w.events).toContain("resource used after release A");                  // it found the resource closed
+    expect(show(exit)).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
   });
 });
