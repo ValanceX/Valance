@@ -76,3 +76,9 @@ as "reviewed only".
 ## Status (Web.history exploration closed)
 
 C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated once, in `docs/FINDINGS.md` Stage 7. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).
+
+## Added for the navigation boundary (probes in `examples/tracer-web/test/history-boundary.test.ts`)
+
+- **C27, the navigate key is the application's, not Valance's.** `"app/navigate"` appears in no Valance source: it is the name of one binding in the application's table, and `HistoryOptions.navigate` is how history is told it. MESH intents, `invoke` and popstate reach that one binding, so there is one semantic entry point. Valance does not know the command's argument shape: it passes `stateOf(url)` through unread.
+- **C28, history fails closed and logs.** A popstate whose navigate key is unbound (`UnmappedCommand`), whose argument the command rejects (`CommandValidationError`), or whose `urlOf`/`stateOf` throws, changes no state and writes no URL; the failure is logged (`Effect.logError`), never returned (`history` has no error channel), and later navigation still synchronizes. Browser URL and application state may then differ until the next application navigation; restoring one is the application's policy. Invariant added: a defect in the application's `urlOf` or `stateOf` never ends the history follower.
+- Not decided (not needed by any evidence): whether every committed view transition must be realized or may be coalesced.

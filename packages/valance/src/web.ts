@@ -38,6 +38,8 @@ export interface HistoryOptions<S> {
  * application's?": a page sitting at a noncanonical URL (a history entry the application did not write) is left
  * alone, and an unrelated state change is not a navigation. Canonicalizing the URL is the application's, before start.
  *
+ * A defect in the application's `urlOf` or `stateOf` is logged and ends only that synchronization step, never the follower.
+ *
  * A popstate whose navigation fails, or leaves the state unchanged, is not repaired: nothing is written, the browser
  * stays at the URL history gave it, the baseline is the (unchanged) state's own URL, and the failure is only logged.
  * Browser URL and application URL then differ until the next application navigation; restoring one is the application's.
@@ -60,7 +62,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         Stream.map(running.states, (state) => ({ _tag: "state" as const, state })),
         Stream.map(Stream.fromQueue(popped), (href) => ({ _tag: "popstate" as const, href }))
       ),
-      (event) => event._tag === "state"
+      (event) => (event._tag === "state"
         ? Effect.sync(() => {
           const url = options.urlOf(event.state);
 
@@ -79,6 +81,11 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
           // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
           last = options.urlOf(yield* running.state);
         })
+      ).pipe(
+        // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
+        // It never ends the follower, which would silently stop every later URL write; the baseline stays where it was.
+        Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause))
+      )
     ).pipe(Effect.forkIn(scope));
 
     const onPopState = (): void => { Queue.unsafeOffer(popped, win.location.href); };
