@@ -185,9 +185,18 @@ export type TargetFactory<T extends Target> = (report: Report) => T;
 export type DispatchExit<E> = Exit.Exit<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
 
 export interface Mounted<E> {
-  /** Every dispatch Valance made for a reported event, as it settled. */
+  /**
+   * The exit of every dispatch this mount made for a reported event, appended as each one settles (settle order, never removed, never reordered).
+   * The only place the outcome of an event-triggered command is recorded: a failure or a defect appears nowhere else (not in state, values or the render).
+   * It belongs to the mount that dispatched, so exits keep arriving after that mount closed (a command is the application's once admitted, and ends with
+   * the application at the latest). It is an observation facility for hosts and tests, not part of the application programming model: nothing in
+   * Valance reads it, and `ApplicationHandle` does not expose it. It lives as long as the `Mounted` value is held.
+   */
   readonly dispatched: ReadonlyArray<DispatchExit<E>>;
-  /** Succeeds once every dispatch made so far has settled. Covers the dispatches this mount still holds: a closed mount holds none, and what it dispatched is the application's to finish. */
+  /**
+   * A barrier: succeeds once every dispatch this OPEN mount has made so far has settled (and those made while it waits). It does not read `dispatched`.
+   * A closed mount holds no dispatches, so `settled` returns at once and does not wait for the exits that are still to arrive in `dispatched`.
+   */
   readonly settled: Effect.Effect<void>;
   /** Completes when Valance stops following renders: Success when the application ended, a Failure when a render failed, Interrupted when the scope closed. */
   readonly followed: Effect.Effect<Exit.Exit<void, Nexus.Mesh.MeshDiagnostics>>;
