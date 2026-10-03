@@ -44,7 +44,7 @@ This section is the one statement of the application / mount / command lifecycle
 
 **8. Superseded statements (kept as history, do not cite).** (a) Stages 26 to 28, 34 to 37: that a mount's close interrupts the commands its events started (removed in Stage 39). (b) Stages 28 to 33: "the target is unmounted before the drain" without the shared/parented qualifier (Stage 37). (c) Stage 11, invariant 3 without "one Scope" (Stage 38). (d) Stage 36's two-model tables describe the alternatives; the application-owned column is the adopted one.
 
-**9. Outside this contract.** Packaging of `Mounted` and `DispatchExit` is not lifecycle; it was decided in Stage 42 (`Mounted` stays on the main entry as the declared result of `mount`/`hydrate`; the diagnostic `DispatchExit` lives behind `./internal`). Stale-result handling, error presentation and event-exit retention policy are application or product policy (Stages 31 to 34).
+**9. Outside this contract.** Packaging of `Mounted` and `DispatchExit` is not lifecycle; it was decided in Stage 42 (`Mounted` stays on the main entry as the declared result of `mount`/`hydrate`; the diagnostic `DispatchExit` lives behind `./internal`). The shape of `Mounted` itself was decided in Stage 43 (kept: every member is mount-owned information no other public surface provides). Stale-result handling, error presentation and event-exit retention policy are application or product policy (Stages 31 to 34).
 
 
 *Evidence base: NEXUS 0.10.0 (published; tag `v0.10.0`, `a0116367`. Stages 1 to 7 ran against a packed tarball of that revision, byte-identical to the published package, sha256 `ed578f5e…`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
@@ -2021,6 +2021,36 @@ Consolidated Stages 29 to 40 into the section "Canonical lifecycle architecture"
 **Validation (focused).** `pnpm -r run typecheck` clean (every consumer, including all tests, still typechecks); package build clean (`dist/index.d.ts` imports `DispatchExit` from `./internal.js` and no longer exports it); `@valancex/valance` unit suite 30/30 (29 + the new surface check). Chromium and the jsdom lifecycle matrix were not run: the change is type-only and no runtime code differs.
 
 **Next uncertainty:** whether `mount`'s result shape should be narrowed or split (public `hydration` and the follower outcome versus the diagnostic `dispatched`/`settled`), the remaining half of the Stage 17 note "remove or narrow when `mount`'s result is decided". It is an API-shape decision about `mount`, not about packaging or lifecycle.
+
+---
+
+## Stage 43: the public shape of `Mounted` (decision: keep; static audit, no probe)
+
+**Current shape (declarations read).** `mount(application, create): Effect<Mounted<E>, MeshDiagnostics, Scope>`; `hydrate(application, create): Effect<Mounted<E> & { hydration: H }, MeshDiagnostics, Scope>`. `Mounted<E>` has three members, `dispatched`, `settled`, `followed`; `hydrate` adds `hydration` (PORT's adoption result, "unchanged"). Internally `connect` also produces `first` (the first draw or hydrate result); `mount` drops it and `hydrate` renames it `hydration`, so the two operations return the shapes they need (`hydrate` has something `mount` does not: an adoption result), by construction, not by leak.
+
+**Usage (searched all of `packages/*/{src,test}`, `examples/*/{src,test,browser}`, README, docs).**
+
+| Member | Production host use | Test use | Public reason |
+|---|---|---|---|
+| `hydration` (hydrate only) | none in the repository (the README and `examples/.../shape-b.ts` discard the result) | `tracer.test`, `multiview.test`, browser catalog/history/tracer tests: adoption vs mismatch asserted | returned by a public operation; PORT's adoption result is information a host (logging, telemetry, mismatch handling) has no other way to get |
+| `followed` | none | `lifecycle`, `application`, `scope-topology`, browser mount-lifetime/event-ledger/event-lifetime | the only public observation of how a mount ended (application ended = `Success`, render failure, Scope closed = `Interrupted`); the Stage 38 contract names it as the documented outcome of an application ending under an open mount |
+| `settled` | none | ~12 files; every event test | the only way to wait for the event dispatches a mount made (they run in fibers nobody else can see); the capability exists nowhere else |
+| `dispatched` | none | ~13 files | the only record of event-command outcomes (Stage 33: failures appear nowhere else) |
+No member has a production host consumer in the repository, because the repository has no production host beyond tracers: `shape-b.ts` (the Stage 15 shape experiment) calls `mount`/`hydrate` and ignores the result, which shows a host may ignore `Mounted`, not that no host needs it.
+
+**What a host needs after `mount`/`hydrate`.** Nothing, to run (the mount ends with its Scope, Stage 38). To coordinate: how and when its mount ended (`followed`), when its event dispatches have finished (`settled`, e.g. before it closes the mount or inspects what it caused), what its events produced (`dispatched`: error reporting for event commands that have no caller), and, for `hydrate`, whether the server output was adopted.
+
+**Decision rule applied.** Keep a member public when it represents information not otherwise observable through the public API and a credible host use exists, or when a public operation naturally returns it. All four qualify: `hydration` (returned by `hydrate`, unobservable elsewhere), `followed` (unobservable elsewhere, needed to coordinate with the mount's end), `settled` (no other way to await event dispatches), `dispatched` (no other record of event outcomes; entries stay readable although `DispatchExit` is no longer nameable from the entry, Stage 42). None is derivable from `ApplicationHandle` (`state`, `invoke`). Narrowing any of them would delete a capability, not hide an implementation detail: the state they expose is closure-private, so there is no internal path to fall back to.
+
+**Split?** No. A split needs different consumers and different ownership or lifetime boundaries. All members have the same consumer class (hosts and binding authors, which tests are instances of), the same owner (the mount) and the same lifetime (the mount's, with the ledger's tail from Stage 40). The diagnostic or synchronization character is a matter of documentation, which Stage 40 and this stage provide; a second type would add a name without a boundary.
+
+**Decision: keep** (outcome A). `Mounted` is intentionally a host-facing, mount-owned result: its current shape is a deliberate union of one lifecycle observation (`followed`), one barrier (`settled`), one diagnostic ledger (`dispatched`) and, for `hydrate`, PORT's result (`hydration`). `mount()` and `hydrate()` do not need the same shape and do not return it (`hydrate`'s adds `hydration`).
+
+**Change.** An interface-level doc comment on `Mounted` stating this (comment only; the member comments are Stage 40's and unchanged). No runtime or type change; no test added (nothing changed to prove). The canonical lifecycle section's item 9 now points here.
+
+**Validation.** Static audit and declaration inspection only; package typecheck after the comment edit (clean). No probe: no semantic uncertainty remained after the audit. Chromium, jsdom and the unit suites were not run.
+
+**Next uncertainty.** None about `Mounted`. The Stage 17 deferred items are now all decided (`ApplicationHandle` Stage 17, vocabulary Stage 18, exports Stage 42, shape Stage 43). What the repository still lacks is a real production host that exercises these members; until one exists, "credible host use" rests on the absence of any other observation path, not on a consumer.
 
 ---
 

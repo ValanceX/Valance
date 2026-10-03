@@ -182,6 +182,12 @@ export interface HydratableTarget<H> extends Target {
 /** Builds a target that reports to `report`. */
 export type TargetFactory<T extends Target> = (report: Report) => T;
 
+/**
+ * What `mount` returns (and `hydrate` returns with `hydration` added): a host's view of ONE mount, owned by that mount's Scope. Every member is
+ * mount-owned information that no other public surface gives a host: `followed` is the only way to learn how the mount ended (the application ended, a render
+ * failed, or its Scope closed), `settled` the only way to wait for the event dispatches the mount made, `dispatched` the only record of their outcomes.
+ * Hosts that need none of them can ignore the value. The lifecycle of each member is stated in "Canonical lifecycle architecture" (docs/FINDINGS.md).
+ */
 export interface Mounted<E> {
   /**
    * The exit of every dispatch this mount made for a reported event, appended as each one settles (settle order, never removed, never reordered).
