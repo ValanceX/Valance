@@ -1455,6 +1455,91 @@ An uninterruptible command that needs a new invocation: the invocation is refuse
 
 ---
 
+## Stage 29: the command-lifetime contract, adopted
+
+Stage 27 proved the mechanism in tests, Stage 28 proved it fits the real `start()`/`inApplication()`; Stage 29 adopts it. The Stage 28 spike (`77605eb`) was re-applied (comments rewritten, one no-op helper removed; materially the same +28/−1 lines in `packages/valance/src/index.ts`), the 20 tests that characterised the old semantics were reconciled one by one, and four contract tests were kept. No NEXUS, MESH or PORT change; no public API change.
+
+### The contract
+- **Command lifetime.** A VALANCE command admitted through the application's command boundary remains owned by the application until it exits. When application draining begins, VALANCE closes command admission and drains all already-admitted commands before NEXUS termination and platform-resource release.
+- **Admission during drain.** No new VALANCE command may be admitted after draining begins.
+- **Liveness limitation.** An uninterruptible admitted command that depends on new VALANCE admission can prevent application shutdown from completing. The application remains alive rather than releasing resources underneath the command. This is a documented liveness limitation, not a bug: no evidence yet that it violates a required product invariant.
+- **Rule that follows:** a command admitted before draining must not rely on admission of a new VALANCE command after draining begins. It is a command-lifetime rule, not a generic fiber rule.
+
+Safety (no command runs against a released resource) is guaranteed; liveness (shutdown completes) is guaranteed only for interruptible commands.
+
+### Ownership boundary
+VALANCE owns commands admitted through `inApplication`, the registry that tracks them, admission closure, and their drain. It does not own arbitrary application fibers, daemon fibers, escaped fibers, or fibers detached from a command. Structured children of a command are covered by the command's lifetime. Pinned by D2/D3 below (a `fork` child is interrupted with its command; a `forkDaemon` child still reaches the released resource). The registry is not a general fiber supervisor.
+
+### The exact admission boundary
+`inApplication` (the one place an event enters the application's execution, reached by `ApplicationHandle.invoke` and by MESH dispatch) now runs `Nexus.Runtime.runFork(nexus.runtime, admit(effect))`. `admit` is an `acquireUseRelease` whose acquire step, as the first step of the command's own fiber, checks `admissionClosed` and registers the fiber in ONE synchronous step; the release step unregisters on every exit. A refusal is a defect (`VALANCE: admission is closed (draining)`). Two refusals therefore exist and are distinct: during the drain the call reaches NEXUS's admission and is refused inside the fiber NEXUS admitted, by VALANCE; after the Scope has fully closed, NEXUS's own refusal (`NEXUS: the runtime has begun terminating`) is unchanged. An unknown entry is still the typed `UnmappedCommand` and never reaches admission.
+
+### The exact drain ordering
+```text
+admission open -> command admitted (registered) -> command runs
+caller's Scope closes
+  VALANCE finalizer (registered right after Application.start; Scope finalizers run in reverse):
+    admissionClosed = true               (synchronous)
+    Fiber.interrupt every registered command, awaiting each ACTUAL exit
+  NEXUS finalizer: runtime terminates
+  platform finalizers: resources release (last)
+  Scope.close returns
+```
+No second lifecycle framework: the existing Scope finalizer order is the mechanism.
+
+### Classification of the 20 former failures
+Method: for each, the unmodified test and its setup were read (what was admitted, when termination began, what the command did afterwards, what it touched, what was asserted), then re-run on the production implementation; the received event trace was compared with the assertion. 12 were A, 8 were B, **none C, none D**. No failure was unexplained by the new contract.
+
+**A, obsolete expectation (12)**: the test asserted that an admitted command continues after termination began.
+- Stage 20 C: closing the Scope neither waited for nor interrupted the in-flight call, the resource was released under it, and the call committed to a stopped application. Now: call interrupted, resource released after, nothing commits.
+- Stage 21 probe (fail) and (die): the call resumed and touched the released resource (typed failure or defect). Now: interrupted before release; neither use-after-release mode can occur.
+- Stage 22 A+B: after close, every operation of the admitted command (state commit, event publish, capability use, captured capability) ran; the post-termination commit was readable. Now none of them run, the commit never happens, the caller observes interruption; the new-invocation refusal after close is unchanged (NEXUS's).
+- Stage 23 C: the resource-local drain waited forever (circular wait) for a command needing a new invocation. Now the interruptible command is interrupted; `Scope.close` returns by itself.
+- Stage 23 F and Stage 24 F: an admitted command that had not reached the resource went on to a released resource. Now interrupted where it waits; it never reaches or registers with the resource.
+- Stage 24 G: the resource's interruption of its call left the containing command running. Now the command's own fiber is interrupted; it cannot capture the interruption and continue.
+- Stage 25 H: coverage was "by convention" (an unwrapped command was invisible to a platform registry). Now every command is covered at the boundary; the unwrapped command is interrupted.
+- Stage 26 baseline invoke: the invoke path was the uncovered one. Now it is interrupted before release (like dispatch always was).
+- Stage 26 probe A invoke path: the platform registry did the interrupting. Now VALANCE's registry gets there first; the platform registry finds nothing.
+- Stage 26 probe E: a snapshot drain by the caller's registry missed a late command, which escaped to the released resource. Now VALANCE's own registry (drained after the caller's, before NEXUS) interrupts it; no use after release.
+
+**B, still-required behavior (8)**: the property survives independently of the old post-termination model; the test was adapted to the new lifecycle, not weakened.
+- Stage 23 B+D+E: the resource is never released while a call is in it. Now holds because the command has already exited (the resource's drain finds nothing in flight); strengthened to an explicit ordering (`scope closing < lookup interrupted < in flight: 0 < finalizer started < resource released < scope closed`).
+- Stage 24 B: call exited, caller left, then release; nothing commits. Same ordering, with VALANCE as the interrupter.
+- Stage 25 B, C, D1: admitted-not-yet-at-resource command interrupted; command interrupted as a whole with the call exiting as a consequence; a command cannot catch the interruption of its own fiber and carry on. Orderings now run through VALANCE's drain (`command exit` before the platform registry finalizer, before resource release).
+- Stage 25 D2 + E: an uninterruptible command keeps the drain waiting for its ACTUAL exit; new invocations are refused. Now refused by VALANCE (not NEXUS); it finishes its region, commits against a live resource, then the pending interruption takes effect.
+- Stage 25 D2b: the circular wait for an uninterruptible, admission-dependent command. Kept as the documented liveness limitation (new refusal message; the drain is observed closed by a bounded poll, since the drain runs on its own fiber).
+- Stage 25 D3: a daemon child still escapes the command and fails against the released resource (ownership boundary).
+
+**C (architectural dependency): none.** All 20 live in `capability-async.test.ts`, in probe applications that characterise Stage 20 to 26 mechanisms. The 8 older jsdom files (24 tests), the 29 package unit tests and the Chromium suite never depended on post-termination execution and passed unmodified both with the spike and now. **D: none.**
+
+### Tests changed, and why
+Only `examples/tracer-web/test/capability-async.test.ts` (+ the production source and docs). Every changed test keeps its question and its original probe name stem, is marked `(command lifetime)` / `(still required)` / `(liveness limitation)` and has a comment saying what the old semantics were; no assertion was merely re-valued. Not changed: Stage 20 A/B+D/E, Stage 21 controls, Stage 23/24 A controls, Stage 25 ordering control, Stage 26 probe B/C/D1/D2/E2 and baseline MESH dispatch (they asserted behavior that is unchanged), and all of Stage 27. Stage 28's five probes were renamed `contract 1` to `contract 5` (the four contract tests plus the liveness case):
+1. admitted command is interrupted and has exited before NEXUS terminates and the resource releases (`command admitted < scope closing < command exit: interrupted < resource released < scope closed`);
+2. a late `invoke` during the drain is refused by VALANCE as a defect, the binding does not run, the resource is untouched;
+3. a command inside a capability call: `lookup interrupted < command exit < resource released`, no use after release;
+4. MESH dispatch: ordinary dispatch and rendering unchanged; a suspended dispatched command exits interrupted exactly once;
+5. the documented liveness limitation.
+
+### Mutation check
+With the production source reverted to the Stage 27 tip, 24 of 71 tests fail (the 20 reconciled ones, plus contract 1, 2, 3 and 5; contract 4 passes on both by design). With the implementation, 0 fail.
+
+### Results
+| | before Stage 28 | spike, unreconciled | Stage 29 |
+|---|---|---|---|
+| package unit | 29/29 | 29/29 | 29/29 |
+| jsdom (examples/tracer-web) | 66/66 | 71 (66 + the 5 Stage 28 probes): 51 pass, 20 fail | 71/71, identical on 3 consecutive runs |
+| Chromium | 20/20 | 20/20 | 20/20 |
+Typecheck and build clean.
+
+### Behavioral changes
+Intended: closing the Scope interrupts admitted commands (callers observe interruption); no command runs, commits or publishes after termination; no use after release; during the drain VALANCE (not NEXUS) refuses new commands. Unchanged: error types, capability behavior, command mapping and `UnmappedCommand`, state validation, rendering, hydration, events, NEXUS's refusal after the Scope closes, MESH dispatch (VALANCE's connect finalizer still interrupts pending dispatch fibers first; the registry sees an already-empty set: one exit, once). One observation: a command that is inside an uninterruptible region during the drain still commits while NEXUS is alive, and that commit IS published (`values` emits it), because the application has not yet terminated; before, a post-termination commit was never published.
+
+### Remaining
+Liveness limitation above (policy open). VALANCE still exposes no drain signal; the direct `Application.shutdown(running.nexus)` route outside the VALANCE model bypasses the drain (untested, as in Stage 28). The Stage 28 section's "disposition of the 20 characterization tests" is resolved here.
+
+Documentation: this section is the source of the findings; the constraint is recorded as C20 to C23 in `docs/CONSTRAINTS.md` and summarised in the `packages/valance/src/index.ts` header.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

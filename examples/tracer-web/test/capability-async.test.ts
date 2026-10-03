@@ -285,7 +285,10 @@ describe("an asynchronous application-owned capability, through the existing bou
   // OBSERVATION, not a guarantee VALANCE makes. NEXUS documents that effects already running when termination begins are
   // not interrupted by it; this pins what that means with a resource-backed asynchronous capability. It is evidence for a
   // later decision, and must change if that decision changes the behavior.
-  it("C (observation): closing the Scope during an in-flight call neither waits for it nor interrupts it; the resource is released under it; it can still commit to the stopped application", async () => {
+  // Stage 29: this test characterised the pre-contract lifecycle (closing the Scope neither waited for nor interrupted an in-flight call; the
+  // resource was released under it; it committed to a stopped application). Under the command-lifetime contract, closing the Scope
+  // interrupts the admitted command, awaits its exit, and only then releases the resource.
+  it("C (command lifetime): closing the Scope during an in-flight call interrupts it and awaits its exit; the resource is released after; nothing commits", async () => {
     const app = applicationWithAsyncCatalog(await compilePrograms());
     const w = controllable();
     const m = mounted();
@@ -297,19 +300,14 @@ describe("an asynchronous application-owned capability, through the existing bou
 
     await Effect.runPromise(w.started("A"));
     w.events.push("scope closing");
-    await Effect.runPromise(Scope.close(scope, Exit.void));                       // returns: it does not wait for the in-flight call
+    await Effect.runPromise(Scope.close(scope, Exit.void));                       // waits for the command's actual exit; needs no gate
     w.events.push("scope closed");
 
-    expect(w.events).toEqual(["resource acquired", "lookup started A", "scope closing", "resource released", "scope closed"]);
-    expect(w.events).not.toContain("lookup interrupted A");                       // not interrupted
+    expect(w.events).toEqual(["resource acquired", "lookup started A", "scope closing", "lookup interrupted A", "resource released", "invoke ended otherwise", "scope closed"]);
+    expect(show(await Effect.runPromise(Fiber.await(invoke)))).toBe("interrupted");   // the caller observes interruption, untranslated
     expect(m.page.container.innerHTML).toBe("");                                  // the target is gone
-
-    await Effect.runPromise(w.complete("A"));                                     // the call, released-from-under, completes
-    await Effect.runPromise(Fiber.join(invoke));
-
-    expect(w.events.slice(5)).toEqual(["lookup completed A", "invoke succeeded"]);
-    expect((await Effect.runPromise(handle.state)).items).toEqual([...start.items, { id: "A", name: "item-A" }]);   // committed to a stopped application
-    expect(m.operations).toEqual(["draw"]);                                       // and never rendered: the follower ended with the Scope
+    expect((await Effect.runPromise(handle.state)).items).toEqual(start.items);   // nothing committed, before or after termination
+    expect(m.operations).toEqual(["draw"]);
   });
 
   it("E (observation): two calls in flight are not serialized or cancelled; both commit, in completion order, as updates", async () => {
@@ -395,17 +393,15 @@ describe("an in-flight capability call whose resource has been finalized", () =>
       expect(r.operations).toEqual(["draw", "update"]);
     });
 
-    it(`probe (${kind}): the Scope closes while the call is suspended, then the call needs its released resource`, async () => {
+    // Stage 29: formerly "the call resumes and touches the released resource". The call is now interrupted before the resource is
+    // released, so neither use-after-release mode (typed failure, defect) can occur: the resource is never used after release.
+    it(`probe (${kind}): the Scope closes while the call is suspended: the call is interrupted and exits BEFORE the resource is released; it never touches the released resource`, async () => {
       const r = await run(kind, true);
 
-      // Exact ordering: the finalizer runs, THEN the call resumes and touches the released resource.
-      expect(r.events).toEqual([
-        "resource acquired", "lookup started A", "scope closing", "resource released", "scope closed",
-        "lookup resumed A", "resource used after release A",
-      ]);
-      // What the caller observes: the resource's own failure, unchanged. Not interruption, not success.
-      expect(describeExit(r.exit)).toEqual(kind === "fail" ? { _tag: "Fail", error: { _tag: "LookupError", id: "A" } } : { _tag: "Die", message: "resource used after release (A)" });
-      expect(r.state).toEqual(start);                                              // the command failed before its commit
+      expect(r.events).toEqual(["resource acquired", "lookup started A", "scope closing", "lookup interrupted A", "resource released", "scope closed"]);
+      expect(r.events).not.toContain("resource used after release A");
+      expect(show(r.exit)).toBe("interrupted");                                     // the caller observes interruption, not the resource's failure
+      expect(r.state).toEqual(start);                                              // the command never reached its commit
       expect(r.emitted).toEqual([start]);                                          // State.values emitted nothing after the start
       expect(r.operations).toEqual(["draw"]);                                      // nothing rendered
       expect(r.dom).toBe("");
@@ -459,7 +455,7 @@ describe("what remains executable after the application's Scope closes", () => {
     });
   };
 
-  it("A + B: an already-admitted command, and a new invocation, after the Scope has closed", async () => {
+  it("A + B (command lifetime): an already-admitted command is interrupted before termination, so nothing it would have done runs; a new invocation after close is still refused by NEXUS", async () => {
     const w = controllable({ useAfterRelease: "fail", second: true });
     const m = mounted();
     const gate = await Effect.runPromise(Deferred.make<void>());
@@ -491,11 +487,13 @@ describe("what remains executable after the application's Scope closes", () => {
     const invoked = Effect.runFork(handle.invoke("app/probe", []));
     await Effect.runPromise(Deferred.await(suspended));
     w.events.push("scope closing");
-    await Effect.runPromise(Scope.close(scope, Exit.void));
+    await Effect.runPromise(Scope.close(scope, Exit.void));                       // interrupts and awaits the admitted command, then terminates
     w.events.push("scope closed");
     await until(() => w.events.includes("event subscriber stream ended"));
 
-    // B. A NEW invocation after termination, while the admitted command is still suspended. Observed, not guarded.
+    // B. A new invocation after close: refused by the NEXUS runtime as a defect, exactly as before (unchanged), whether or not the
+    // command needs a capability. VALANCE's own refusal applies earlier, DURING the drain (see "closing VALANCE's own entrance").
+    // An unknown entry never reaches the runtime: it is the ordinary typed UnmappedCommand.
     const fresh: Array<readonly [string, string]> = [];
 
     for (const [label, key, args] of [
@@ -503,57 +501,39 @@ describe("what remains executable after the application's Scope closes", () => {
       ["command without a capability", "app/home", []],
       ["unknown entry", "nowhere/at-all", []],
     ] as const) {
-      const exit = await Effect.runPromise(Effect.exit(handle.invoke(key, args)));
-
-      fresh.push([label, show(exit)]);
-      w.events.push(`new invoke after close: ${label}: ${show(exit)}`);
+      fresh.push([label, show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))]);
     }
 
-    // A. Resume the admitted command: every operation it attempts now runs after termination.
+    // A. The admitted command was interrupted while suspended. Opening its gate afterwards changes nothing: it is gone.
     await Effect.runPromise(Deferred.succeed(gate, undefined));
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
     w.events.push(`caller invoke of the admitted command: ${show(exit)}`);
-    const after = (marker: string) => w.events.slice(w.events.indexOf(marker));
     const index = (event: string) => w.events.indexOf(event);
 
-    // Termination, in order: the resources are released (in the reverse of their acquisition), the Scope returns; the event
-    // stream the application's subscribers hold has ended by then. Nothing waited for, or interrupted, the admitted command.
+    // Termination, in order: the admitted command exits first (interrupted), then the resources are released in the reverse of their acquisition, then the Scope returns.
     expect(w.events.slice(0, 4)).toEqual(["resource acquired", "second resource acquired", "command admitted", "command suspended"]);
     expect(index("scope closing")).toBeLessThan(index("second resource released"));
     expect(index("second resource released")).toBeLessThan(index("resource released"));
     expect(index("resource released")).toBeLessThan(index("scope closed"));
-    expect(index("event subscriber stream ended")).toBeLessThan(index("command resumed"));
-    expect(w.events.some((event) => event.includes("interrupted"))).toBe(false);
+    expect(index("event subscriber stream ended")).toBeLessThan(index("scope closed"));
+    expect(show(exit)).toBe("interrupted");                                       // the caller observes interruption
 
-    // B. A new invocation after termination: refused by the runtime as a defect, whether or not the command needs a capability.
-    // An unknown entry never reaches the runtime: it is the ordinary typed UnmappedCommand.
+    // Nothing the command would have done after its suspension ran: no state commit, no publish, no capability use, no resume.
+    for (const event of ["command resumed", "command completing", "second resource touched", "resource used after release B"]) {
+      expect(w.events).not.toContain(event);
+    }
+
+    expect(w.events.some((event) => event.startsWith("op started"))).toBe(false);
     expect(fresh).toEqual([
       ["capability command", "died: NEXUS: the runtime has begun terminating"],
       ["command without a capability", "died: NEXUS: the runtime has begun terminating"],
       ["unknown entry", 'failed (typed) {"_tag":"UnmappedCommand","component":"nowhere","name":"at-all"}'],
     ]);
-
-    // A. The already-admitted command, resumed after termination, in order. Every operation ran; none was refused.
-    expect(after("command resumed")).toEqual([
-      "command resumed",
-      "op started: state.update", "op state.update: succeeded",
-      "op started: event publish", "op event publish: succeeded",
-      "op started: require second capability", "op require second capability: succeeded",
-      "op started: use second capability", "second resource touched", 'op use second capability: failed (typed) {"_tag":"SecondClosed"}',
-      "op started: original capability (captured): lookup B", "lookup started B", "lookup resumed B", "resource used after release B",
-      'op original capability (captured): lookup B: failed (typed) {"_tag":"LookupError","id":"B"}',
-      "command completing",
-      "caller invoke of the admitted command: succeeded",
-    ]);
-
-    // State: the post-termination commit happened and is readable.
-    expect((await Effect.runPromise(handle.state)).items.map((item) => item.id)).toEqual(["A0", "P1"]);
-    // Values publication and the render follower never saw it: the state stream and the follower had ended with the Scope.
+    expect((await Effect.runPromise(handle.state)).items.map((item) => item.id)).toEqual(["A0"]);   // no post-termination commit
     expect((await emitted).map((state) => state.items.map((item) => item.id))).toEqual([["A0"]]);
     expect(m.operations).toEqual(["draw"]);
     expect(m.page.container.innerHTML).toBe("");
-    // Events: the post-termination publish succeeded and reached no subscriber.
     expect(delivered).toEqual(["before"]);
   });
 });
@@ -653,52 +633,45 @@ describe("a resource that drains its in-flight users before it is released", () 
     ]);
   });
 
-  it("probes B + D + E: termination while a lookup is suspended: Scope.close waits for it, the resource stays valid, new work is still refused", async () => {
+  // Stage 29: formerly "Scope.close waits for the lookup to finish, which it then does against a live resource, committing". Under the
+  // command-lifetime contract VALANCE interrupts the command first, so the resource's own drain finds nothing in flight: the
+  // still-required property (the resource is never released while a call is in it) now holds because the command has already exited.
+  it("probes B + D + E (command lifetime): termination while a lookup is suspended: the command is interrupted and has left the resource before its finalizer runs; nothing commits", async () => {
     const { w, m, handle, emitted, closeScope, poll } = await boot();
     const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
 
     await Effect.runPromise(w.started("A"));
-    w.events.push("scope closing");
-    const closing = closeScope();
-
-    await Effect.runPromise(w.draining);                                          // the finalizer has reached its wait: a signal, not a delay
-
-    // B. Scope.close has NOT returned, because the resource's finalizer is waiting for the in-flight lookup.
-    expect(await poll(closing)).toBe(false);
     expect(w.inFlight()).toBe(1);
-    expect(w.events.slice(-2)).toEqual(["finalizer started", "finalizer draining: 1 in flight"]);
-    expect(w.events).not.toContain("resource released");
-
-    // D. A new invocation while the application is draining is refused exactly as after termination (Stage 22): the drain
-    // did not reopen admission. Nothing in the runtime was changed to make this so.
-    for (const [key, args] of [["app/lookupAsync", [{ value: "C" }]], ["app/home", []]] as const) {
-      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))).toBe("died: NEXUS: the runtime has begun terminating");
-    }
-
-    expect(await poll(closing)).toBe(false);                                      // still waiting
-
-    // The lookup is allowed to finish. It does so against a LIVE resource.
-    await Effect.runPromise(w.complete("A"));
-    await Effect.runPromise(Fiber.join(closing));
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));                            // completes by itself: no gate is opened, no drain is waited on
     const exit = await Effect.runPromise(Fiber.await(invoked));
     const at = (event: string) => w.events.indexOf(event);
 
+    expect(await poll(invoked)).toBe(true);
+    expect(w.inFlight()).toBe(0);
+    expect(w.events).not.toContain("finalizer draining: 1 in flight");           // the resource had nothing left to drain
     expect(w.events).not.toContain("resource used after release A");
-    expect(at("lookup completed A")).toBeLessThan(at("in flight: 0 (lookup A left)"));
-    expect(at("in flight: 0 (lookup A left)")).toBeLessThan(at("finalizer drained"));
-    expect(at("finalizer drained")).toBeLessThan(at("resource released"));
+    expect(w.events).not.toContain("lookup completed A");
+
+    // Ordering: the call was interrupted and left the resource, THEN the resource's finalizer ran, THEN it released.
+    expect(at("scope closing")).toBeLessThan(at("lookup interrupted A"));
+    expect(at("lookup interrupted A")).toBeLessThan(at("in flight: 0 (lookup A left)"));
+    expect(at("in flight: 0 (lookup A left)")).toBeLessThan(at("finalizer started"));
+    expect(at("finalizer started")).toBeLessThan(at("resource released"));
     expect(at("resource released")).toBeLessThan(at("scope closed"));
 
-    // E. The admitted command: result, commit, publication, rendering.
-    expect(show(exit)).toBe("succeeded");                                         // the caller's invoke
-    expect(w.events).toContain("command: state committed");
-    expect((await Effect.runPromise(handle.state)).items.map((item) => item.id)).toEqual(["A0", "A"]);   // the commit happened
-    expect((await emitted).map((state) => state.items.length)).toEqual([1]);       // but `values` had already ended: not published
-    expect(m.operations).toEqual(["draw"]);                                       // and not rendered
+    // The caller observes interruption; no commit, publication or rendering.
+    expect(show(exit)).toBe("interrupted");
+    expect(w.events).not.toContain("command: state committed");
+    expect((await Effect.runPromise(handle.state)).items.map((item) => item.id)).toEqual(["A0"]);
+    expect((await emitted).map((state) => state.items.length)).toEqual([1]);
+    expect(m.operations).toEqual(["draw"]);
     expect(m.page.container.innerHTML).toBe("");
   });
 
-  it("probe C: when the in-flight lookup can only be completed by a NEW invocation, the drain waits forever and Scope.close never returns", async () => {
+  // Stage 29: formerly "the drain waits forever because the command needs a NEW invocation". An INTERRUPTIBLE command is now interrupted
+  // by VALANCE's drain, so the circular wait does not arise (the uninterruptible case is the documented liveness limitation, below).
+  it("probe C (command lifetime): a lookup that could only be completed by a NEW invocation is interrupted by the drain; Scope.close returns by itself", async () => {
     const { w, handle, closeScope, poll } = await boot();
     const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
 
@@ -706,30 +679,21 @@ describe("a resource that drains its in-flight users before it is released", () 
     w.events.push("scope closing");
     const closing = closeScope();
 
-    await Effect.runPromise(w.draining);
+    try {
+      await Effect.runPromise(Effect.forEach(Array.from({ length: 2000 }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
 
-    // The only thing that opens this gate is the application's own `app/signal`, which is a new invocation: refused.
-    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/signal", [{ value: "A" }]))))).toBe("died: NEXUS: the runtime has begun terminating");
-
-    // Bounded, deterministic evidence of no progress: a long run of cooperative yields in which nothing can happen, because
-    // every path forward needs the gate. (A proof of absence needs a bound; this is the harness's, not production's.)
-    await Effect.runPromise(Effect.forEach(Array.from({ length: 2000 }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
-
-    expect(await poll(closing)).toBe(false);                                      // Scope.close is blocked
-    expect(await poll(invoked)).toBe(false);                                      // the admitted command is blocked
-    expect(w.inFlight()).toBe(1);
-    expect(w.events).not.toContain("lookup completed A");
-    expect(w.events).not.toContain("finalizer drained");
-    expect(w.events).not.toContain("resource released");
-
-    // Test cleanup only: open the gate from OUTSIDE the application's admission. It proves the block was exactly this
-    // dependency: finalization waits for the command, the command waits for an admission that finalization has closed.
-    await Effect.runPromise(w.complete("A"));
-    await Effect.runPromise(Fiber.join(closing));
-    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("succeeded");
+      expect(await poll(closing)).toBe(true);                                     // the same bounded run in which Stage 23 saw no progress
+      expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");
+      expect(w.events).not.toContain("lookup completed A");
+      expect(w.events.slice(-2)).toEqual(["resource released", "scope closed"]);
+    } finally {
+      await Effect.runPromise(w.complete("A"));                                   // harness only: never leave a fiber hanging if the assertions above failed
+    }
   });
 
-  it("probe F: draining protects calls already inside the resource, not an admitted command that has not reached it yet", async () => {
+  // Stage 29: formerly "the resource's drain does not cover an admitted command that has not reached it; it finds the resource closed".
+  // That gap is the reason the lifetime lives in VALANCE: the command is interrupted where it waits and never reaches the resource.
+  it("probe F (command lifetime): an admitted command that has not reached the resource is interrupted by the drain and never reaches it", async () => {
     const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
     const { w, handle, closeScope } = await boot(before);
     const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
@@ -737,17 +701,17 @@ describe("a resource that drains its in-flight users before it is released", () 
     await Effect.runPromise(Deferred.await(before.waiting));                      // admitted, resolved the capability, not yet inside a lookup
     expect(w.inFlight()).toBe(0);
     w.events.push("scope closing");
-    await Effect.runPromise(Fiber.join(closeScope()));                            // nothing to drain: closes and releases at once
-
-    expect(w.events.slice(-4)).toEqual(["scope closing", "finalizer started", "resource released", "scope closed"]);
-
-    await Effect.runPromise(Deferred.succeed(before.go, undefined));              // the command now goes to use its resource
-    await Effect.runPromise(w.started("A"));
-    await Effect.runPromise(w.complete("A"));
+    await Effect.runPromise(Fiber.join(closeScope()));
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
-    expect(w.events).toContain("resource used after release A");                  // it found the resource closed
-    expect(show(exit)).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
+    expect(w.events.slice(-4)).toEqual(["scope closing", "finalizer started", "resource released", "scope closed"]);
+    expect(show(exit)).toBe("interrupted");
+
+    await Effect.runPromise(Deferred.succeed(before.go, undefined));              // its way to the resource is open now: nothing is there to use it
+    await Effect.runPromise(Effect.forEach(Array.from({ length: 500 }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);
+    expect(w.events).not.toContain("resource used after release A");
   });
 });
 
@@ -774,7 +738,10 @@ describe("a resource that interrupts its in-flight users when it is finalized", 
     ]);
   });
 
-  it("probe B: the finalizer interrupts the in-flight lookup; the command ends interrupted, nothing commits, the resource releases only after the call and its caller have left", async () => {
+  // Stage 29: formerly the RESOURCE's finalizer interrupted the call. Now VALANCE interrupts the whole command first; the call exits as a
+  // consequence, so the resource's own finalizer has no tracked call left to interrupt. The still-required ordering is unchanged:
+  // call exited, caller left, THEN the resource releases.
+  it("probe B (command lifetime): the command is interrupted as a whole; the call and its caller have left before the resource releases; nothing commits", async () => {
     const { w, m, handle, emitted, closeScope, poll } = await boot(undefined, "interrupt");
     const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
 
@@ -786,12 +753,11 @@ describe("a resource that interrupts its in-flight users when it is finalized", 
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
     expect(await poll(closing)).toBe(true);
-    // The call was interrupted by the resource, not completed; the resource closed only after it had exited and its caller had left.
     expect(w.events).toContain("lookup interrupted A");
     expect(w.events).not.toContain("lookup completed A");
-    expect(at(w, "lookup interrupted A")).toBeLessThan(at(w, "finalizer: tracked calls exited"));
+    expect(w.events).not.toContain("finalizer: tracked calls exited");            // the resource had no tracked call left to interrupt
+    expect(at(w, "scope closing")).toBeLessThan(at(w, "lookup interrupted A"));
     expect(at(w, "lookup call joined: interrupted")).toBeLessThan(at(w, "in flight: 0 (lookup A left)"));
-    expect(at(w, "finalizer: tracked calls exited")).toBeLessThan(at(w, "resource released"));
     expect(at(w, "in flight: 0 (lookup A left)")).toBeLessThan(at(w, "resource released"));
     expect(at(w, "resource released")).toBeLessThan(at(w, "scope closed"));
     expect(w.events).not.toContain("resource used after release A");
@@ -828,7 +794,9 @@ describe("a resource that interrupts its in-flight users when it is finalized", 
     }
   });
 
-  it("probe F: interruption protects calls already registered with the resource, not an admitted command that has not reached it", async () => {
+  // Stage 29: formerly the command registered with the resource only after it was released, and found it closed. Now it is interrupted
+  // where it waits and never registers.
+  it("probe F (command lifetime): an admitted command that has not reached the resource is interrupted by the drain and never registers with it", async () => {
     const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
     const { w, handle, closeScope } = await boot(before, "interrupt");
     const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
@@ -836,22 +804,22 @@ describe("a resource that interrupts its in-flight users when it is finalized", 
     await Effect.runPromise(Deferred.await(before.waiting));
     expect(w.inFlight()).toBe(0);
     w.events.push("scope closing");
-    await Effect.runPromise(Fiber.join(closeScope()));                            // nothing registered: nothing to interrupt
-
-    expect(w.events.slice(-4)).toEqual(["scope closing", "finalizer started", "resource released", "scope closed"]);
-
-    await Effect.runPromise(Deferred.succeed(before.go, undefined));              // the command now goes to the resource
-    await Effect.runPromise(w.started("A"));
-    await Effect.runPromise(w.complete("A"));
+    await Effect.runPromise(Fiber.join(closeScope()));
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
-    // It REGISTERS after the resource was released (the resource refuses nobody), and finds it closed.
-    expect(at(w, "resource released")).toBeLessThan(at(w, "in flight: 1 (lookup A entered)"));
-    expect(w.events).toContain("resource used after release A");
-    expect(show(exit)).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
+    expect(w.events.slice(-4)).toEqual(["scope closing", "finalizer started", "resource released", "scope closed"]);
+    expect(show(exit)).toBe("interrupted");
+
+    await Effect.runPromise(Deferred.succeed(before.go, undefined));              // the command's way to the resource is open: nothing is there to use it
+    await Effect.runPromise(Effect.forEach(Array.from({ length: 500 }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+
+    expect(w.events.some((event) => event.startsWith("in flight: 1"))).toBe(false);
+    expect(w.events).not.toContain("resource used after release A");
   });
 
-  it("probe G: interrupting the resource's call does not interrupt the containing command; the command only ends if it lets the interruption propagate", async () => {
+  // Stage 29: formerly the resource interrupted only its own call and the containing command carried on (it captured the call's exit).
+  // Now the COMMAND's fiber is interrupted: the interruption is not a value the command can observe and continue from.
+  it("probe G (command lifetime): the interruption reaches the containing command itself; it cannot capture its call's interruption and carry on", async () => {
     const { w, handle, closeScope } = await boot(undefined, "interrupt");
     const invoked = Effect.runFork(handle.invoke("app/drainLookupCapturing", [{ value: "A" }]));
 
@@ -860,10 +828,10 @@ describe("a resource that interrupts its in-flight users when it is finalized", 
     await Effect.runPromise(Fiber.join(closeScope()));
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
-    expect(w.events).toContain("command: lookup exit: interrupted");              // the command saw its call interrupted ...
-    expect(w.events).toContain("command: still running after its call ended");   // ... and was still running: it was not itself interrupted
-    expect(at(w, "lookup call joined: interrupted")).toBeLessThan(at(w, "command: still running after its call ended"));
-    expect(show(exit)).toBe("succeeded");                                         // so the caller's invoke succeeded
+    expect(w.events).not.toContain("command: lookup exit: interrupted");          // the command never got to look at its call's exit ...
+    expect(w.events).not.toContain("command: still running after its call ended");   // ... and never ran on
+    expect(show(exit)).toBe("interrupted");                                       // the caller observes interruption
+    expect(at(w, "lookup call joined: interrupted")).toBeLessThan(at(w, "resource released"));
     expect(w.events).not.toContain("resource used after release A");
   });
 });
@@ -1014,7 +982,10 @@ describe("a platform-owned registry of admitted command fibers", () => {
     ]);
   });
 
-  it("probe B: an admitted command that has not reached the resource is interrupted, and can never reach it afterwards", async () => {
+  // Stage 29 (tests 25 B, C, D1, D2, D3, H): the platform-owned registry was an alternative to what VALANCE now does itself. It still
+  // runs, but VALANCE's drain reaches every command first, so the platform registry finds nothing left to interrupt. Each probe keeps its
+  // question and now asserts the contract: the command exits (interrupted) BEFORE the platform registry finalizer, and before the resource.
+  it("probe B (command lifetime): an admitted command that has not reached the resource is interrupted by VALANCE's drain, and can never reach it afterwards", async () => {
     const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
     const { w, m, handle, emitted, closeScope, yields } = await bootTracked({ before });
     const invoked = Effect.runFork(handle.invoke("app/trackedLookup", [{ value: "A" }]));
@@ -1024,8 +995,8 @@ describe("a platform-owned registry of admitted command fibers", () => {
     await Effect.runPromise(Fiber.join(closeScope()));                            // completes by itself: the command is interrupted promptly
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
-    expect(w.events).toContain("registry interrupting 1 admitted command(s)");
-    strictlyIn(w, "scope closing", "registry finalizer started", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    expect(w.events).not.toContain("registry interrupting 1 admitted command(s)");   // the platform registry had nothing left to do
+    strictlyIn(w, "scope closing", "registry: command left (0)", "command exit: interrupted", "registry finalizer started", "registry released", "resource released", "scope closed");
     expect(show(exit)).toBe("interrupted");                                       // the caller receives interruption
     expect(await ids(handle)).toEqual(["A0"]);                                    // nothing committed
     expect((await emitted).map((state) => state.items.length)).toEqual([1]);
@@ -1037,7 +1008,7 @@ describe("a platform-owned registry of admitted command fibers", () => {
     expect(w.events).not.toContain("resource used after release A");
   });
 
-  it("probe C: a command inside a capability call is interrupted as a whole; the call exits as a consequence; the resource releases after the command has exited", async () => {
+  it("probe C (command lifetime): a command inside a capability call is interrupted as a whole; the call exits as a consequence; the resource releases after the command has exited", async () => {
     const { w, handle, closeScope } = await bootTracked();
     const invoked = Effect.runFork(handle.invoke("app/trackedLookup", [{ value: "A" }]));
 
@@ -1047,14 +1018,14 @@ describe("a platform-owned registry of admitted command fibers", () => {
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
     // No separate interrupt of the call was issued: interrupting the command fiber reached the call it was inside.
-    strictlyIn(w, "registry interrupting 1 admitted command(s)", "lookup interrupted A", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    strictlyIn(w, "scope closing", "lookup interrupted A", "command exit: interrupted", "registry finalizer started", "registry released", "resource released", "scope closed");
     expect(w.events).not.toContain("lookup completed A");
     expect(w.events).not.toContain("resource used after release A");
     expect(show(exit)).toBe("interrupted");
     expect(await ids(handle)).toEqual(["A0"]);
   });
 
-  it("probe D1: a command cannot handle the interruption of its own fiber and carry on; its handler never runs", async () => {
+  it("probe D1 (command lifetime): a command cannot handle the interruption of its own fiber and carry on; its handler never runs", async () => {
     const { w, handle, closeScope } = await bootTracked();
     const invoked = Effect.runFork(handle.invoke("app/trackedCatches", [{ value: "A" }]));
 
@@ -1067,10 +1038,10 @@ describe("a platform-owned registry of admitted command fibers", () => {
     expect(w.events).not.toContain("command: continued after catching");
     expect(w.events).not.toContain("command: state committed");
     expect(show(exit)).toBe("interrupted");
-    strictlyIn(w, "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released");
+    strictlyIn(w, "command exit: interrupted", "registry finalizer started", "registry released", "resource released");
   });
 
-  it("probes D2 + E: an uninterruptible command keeps the registry (and Scope.close) waiting for its ACTUAL exit; new invocations stay refused meanwhile", async () => {
+  it("probes D2 + E (command lifetime): an uninterruptible command keeps the drain (and Scope.close) waiting for its ACTUAL exit; new invocations are refused by VALANCE meanwhile; nothing is released", async () => {
     const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
     const { w, m, handle, emitted, closeScope, poll, yields } = await bootTracked({ region });
     const invoked = Effect.runFork(handle.invoke("app/trackedRegion", []));
@@ -1079,37 +1050,37 @@ describe("a platform-owned registry of admitted command fibers", () => {
     w.events.push("scope closing");
     const closing = closeScope();
 
-    await Effect.runPromise(w.registryReached);
-    await yields(1000);
+    await yields(1000);                                                           // the harness's bound: nothing can complete while the region is held
 
-    // The interrupt was REQUESTED, but the command has not exited: the registry does not treat the request as termination.
-    expect(w.events).toContain("registry interrupting 1 admitted command(s)");
+    // The interrupt was REQUESTED, but the command has not exited: the drain does not treat the request as termination. Neither
+    // the platform registry nor the resource has been reached.
     expect(await poll(closing)).toBe(false);
     expect(await poll(invoked)).toBe(false);
-    expect(w.events).not.toContain("registry released");
+    expect(w.events).not.toContain("registry finalizer started");
     expect(w.events).not.toContain("resource released");
 
-    // E. New work during the registry's drain is refused exactly as after termination: admission was not reopened.
+    // E. New work during the drain is refused by VALANCE's own admission (a defect inside an application fiber NEXUS still admits).
     for (const [key, args] of [["app/home", []], ["app/trackedLookup", [{ value: "Z" }]]] as const) {
-      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))).toBe("died: NEXUS: the runtime has begun terminating");
+      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))).toBe("died: VALANCE: admission is closed (draining)");
     }
 
     await Effect.runPromise(Deferred.succeed(region.gate, undefined));
     await Effect.runPromise(Fiber.join(closing));
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
-    // The command finished its uninterruptible region (and committed inside it, with termination already underway), then the
-    // pending interruption took effect at once: nothing after the region ran.
+    // The command finished its uninterruptible region (and committed inside it, with the drain already underway, against a LIVE
+    // resource), then the pending interruption took effect at once: nothing after the region ran.
     expect(w.events).toContain("command: committed inside the region");
     expect(w.events).not.toContain("command: ran past its uninterruptible region");
-    strictlyIn(w, "command: committed inside the region", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    strictlyIn(w, "command: committed inside the region", "command exit: interrupted", "registry finalizer started", "registry released", "resource released", "scope closed");
     expect(show(exit)).toBe("interrupted");
-    expect(await ids(handle)).toEqual(["A0", "in-region"]);                       // a post-termination-request commit, while the resource was still valid
-    expect((await emitted).map((state) => state.items.length)).toEqual([1]);       // not published
-    expect(m.operations).toEqual(["draw"]);
+    expect(await ids(handle)).toEqual(["A0", "in-region"]);                       // a commit after the drain began, while the resource was still valid
+    expect((await emitted).map((state) => state.items.length)).toEqual([1, 2]);    // published: the application is still alive during the drain
+    expect(m.operations[0]).toBe("draw");
   });
 
-  it("probe D2b: an uninterruptible command that needs a NEW invocation to finish blocks the registry indefinitely (the Stage 23 cycle, at command level)", async () => {
+  // The documented liveness limitation, kept as a probe: safety holds (the resource stays alive), the drain does not complete.
+  it("probe D2b (liveness limitation): an uninterruptible command that needs a NEW invocation to finish blocks the drain indefinitely; the application stays alive and the resource is not released", async () => {
     const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
     const { w, handle, closeScope, poll, yields } = await bootTracked({ region });
     const invoked = Effect.runFork(handle.invoke("app/trackedRegion", []));
@@ -1119,14 +1090,22 @@ describe("a platform-owned registry of admitted command fibers", () => {
     const closing = closeScope();
 
     try {
-      await Effect.runPromise(w.registryReached);
-      // The only application door to this region's gate is a new invocation: refused.
-      expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/signal2", [{ value: "x" }]))))).toBe("died: NEXUS: the runtime has begun terminating");
+      // The drain starts on its own fiber: wait until admission is observed closed (a bounded poll, not a delay).
+      let refused = "";
+
+      for (let attempt = 0; attempt < 1000 && !refused.startsWith("died: VALANCE"); attempt += 1) {
+        refused = show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))));
+        await yields(1);
+      }
+
+      expect(refused).toBe("died: VALANCE: admission is closed (draining)");
+      // The only application door to this region's gate is a new invocation: refused by VALANCE.
+      expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/signal2", [{ value: "x" }]))))).toBe("died: VALANCE: admission is closed (draining)");
       await yields(2000);
 
       expect(await poll(closing)).toBe(false);                                    // Scope.close is blocked
       expect(await poll(invoked)).toBe(false);
-      expect(w.events).not.toContain("registry: admitted commands exited");
+      expect(w.events).not.toContain("registry finalizer started");
       expect(w.events).not.toContain("resource released");
     } finally {
       await Effect.runPromise(Deferred.succeed(region.gate, undefined));          // harness cleanup, from outside the application's admission
@@ -1136,7 +1115,7 @@ describe("a platform-owned registry of admitted command fibers", () => {
     await Effect.runPromise(Fiber.await(invoked));
   });
 
-  it("probe D3: work a command hands to an untracked (daemon) fiber escapes the registry and can still reach the released resource", async () => {
+  it("probe D3 (still required): work a command hands to a daemon fiber is outside the command lifetime and can still reach the released resource", async () => {
     const escape = { forked: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
     const { w, handle, closeScope, yields } = await bootTracked({ escape });
 
@@ -1150,31 +1129,28 @@ describe("a platform-owned registry of admitted command fibers", () => {
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
     expect(show(exit)).toBe("interrupted");                                       // the registered command fiber was interrupted and exited ...
-    strictlyIn(w, "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    strictlyIn(w, "command exit: interrupted", "registry finalizer started", "registry released", "resource released", "scope closed");
 
-    await Effect.runPromise(Deferred.succeed(escape.gate, undefined));            // ... but the fiber it forked as a daemon was not the registry's
+    await Effect.runPromise(Deferred.succeed(escape.gate, undefined));            // ... but the fiber it forked as a daemon was not the command's to own
     await yields(500);
 
     strictlyIn(w, "scope closed", "escaped work resumed", "resource used after release B");
     expect(w.events).toContain('escaped work: lookup B: failed (typed) {"_tag":"LookupError","id":"B"}');
   });
 
-  it("probe H: coverage is by convention: a command that does not use the wrapper is invisible to the registry and behaves as in Stage 22", async () => {
+  it("probe H (command lifetime): coverage no longer depends on the command using a wrapper: an unwrapped command is interrupted too, before the resource releases", async () => {
     const { w, handle, closeScope } = await bootTracked();
     const invoked = Effect.runFork(handle.invoke("app/lookupAsync", [{ value: "A" }]));      // the application's own command: not wrapped
 
     await Effect.runPromise(w.started("A"));
     w.events.push("scope closing");
-    await Effect.runPromise(Fiber.join(closeScope()));                            // the registry has nothing registered: nothing to interrupt
-
-    expect(w.events.slice(-5)).toEqual(["scope closing", "registry finalizer started", "registry released", "resource released", "scope closed"]);
-    expect(w.events).not.toContain("registry interrupting 1 admitted command(s)");
-
-    await Effect.runPromise(w.complete("A"));                                     // the command, never told anything, goes on
+    await Effect.runPromise(Fiber.join(closeScope()));
     const exit = await Effect.runPromise(Fiber.await(invoked));
 
-    expect(w.events).toContain("resource used after release A");
-    expect(show(exit)).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
+    expect(w.events.slice(-5)).toEqual(["lookup interrupted A", "registry finalizer started", "registry released", "resource released", "scope closed"]);
+    expect(w.events).not.toContain("registry interrupting 1 admitted command(s)");   // the platform registry still has nothing registered
+    expect(w.events).not.toContain("resource used after release A");
+    expect(show(exit)).toBe("interrupted");
   });
 });
 
@@ -1368,17 +1344,23 @@ describe("where VALANCE owns command lifetime: the two entry paths", () => {
     return { ...booted, before, invoked };
   };
 
-  it("baseline, invoke (nothing added): the command is NOT interrupted when the Scope closes; it goes on to the released resource", async () => {
+  // Stage 29 (tests: baseline invoke, probe A, probe E): "nothing added" is now the VALANCE command boundary itself. The invoke path used
+  // to be the uncovered one; both entry paths are now covered by the same registry, in `start()`.
+  it("baseline, invoke (VALANCE's own boundary, nothing added): the command IS interrupted, before the resource is released", async () => {
     const { w, closeScope, before, invoked } = await start_("invoke", {});
 
     w.events.push("scope closing");
     await Effect.runPromise(Fiber.join(closeScope()));
+    const exit = await Effect.runPromise(Fiber.await(invoked!));
+
     await Effect.runPromise(Deferred.succeed(before.go, undefined));
     await Effect.runPromise(w.complete("A0"));
+    await Effect.runPromise(Effect.forEach(Array.from({ length: 500 }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
 
-    expect(show(await Effect.runPromise(Fiber.await(invoked!)))).toBe('failed (typed) {"_tag":"LookupError","id":"A0"}');
-    strictlyIn(w, "scope closing", "resource released", "scope closed", "resource used after release A0");
-    expect(w.events).not.toContain("command exit: interrupted");
+    expect(show(exit)).toBe("interrupted");
+    strictlyIn(w, "scope closing", "command exit: interrupted", "resource released", "scope closed");
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);          // it never reaches the resource
+    expect(w.events).not.toContain("resource used after release A0");
   });
 
   it("baseline, MESH dispatch (nothing added): the command IS interrupted, before the resource is released, by VALANCE's own connect finalizer", async () => {
@@ -1397,14 +1379,15 @@ describe("where VALANCE owns command lifetime: the two entry paths", () => {
     expect(m.operations).toEqual(["draw"]);
   });
 
-  it("probe A, invoke path: a central wrapper over the binding table registers the command's own fiber; the registry interrupts and awaits it before the resource releases", async () => {
+  it("probe A, invoke path: a platform wrapper over the table registers the command, but VALANCE's own registry interrupts and awaits it first; the platform registry finds nothing left", async () => {
     const { w, handle, closeScope, invoked } = await start_("invoke", { wrap: "platform" });
 
     w.events.push("scope closing");
     await Effect.runPromise(Fiber.join(closeScope()));
 
     expect(w.events).toContain("table wrapper: app/slowOpen registered");           // no command registered itself
-    strictlyIn(w, "table wrapper: app/slowOpen registered", "scope closing", "registry finalizer started", "registry interrupting 1 admitted command(s)", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    strictlyIn(w, "table wrapper: app/slowOpen registered", "scope closing", "command exit: interrupted", "registry: command left (0)", "registry finalizer started", "registry released", "resource released", "scope closed");
+    expect(w.events).not.toContain("registry interrupting 1 admitted command(s)");
     expect(show(await Effect.runPromise(Fiber.await(invoked!)))).toBe("interrupted");
     expect(await ids(handle)).toEqual(["A0"]);
     expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);
@@ -1475,7 +1458,7 @@ describe("where VALANCE owns command lifetime: the two entry paths", () => {
     });
   }
 
-  it("probe E: a registry owned by the caller's Scope drains BEFORE NEXUS terminates, but admission is still open during the drain, so a snapshot drain misses a late command", async () => {
+  it("probe E (command lifetime): a registry owned by the caller's Scope drains BEFORE NEXUS terminates with admission still open, so its snapshot misses a late command; VALANCE's own registry then interrupts it before the resource releases", async () => {
     const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
     const { w, m, handle, closeScope, poll, yields, valanceReached } = await bootTable({ wrap: "valance", region });
     const held = Effect.runFork(handle.invoke("app/slowRegion", []));
@@ -1506,11 +1489,15 @@ describe("where VALANCE owns command lifetime: the two entry paths", () => {
     strictlyIn(w, "scope closing", "valance registry finalizer started", "valance registry drained", "resource released", "scope closed");
     // After the Scope closes admission IS refused ...
     expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))))).toBe("died: NEXUS: the runtime has begun terminating");
-    // ... but the late command was never interrupted: it escaped, and reaches the released resource.
+    // ... and the late command, which this snapshot drain missed, was NOT left to escape: VALANCE's own registry (drained after the
+    // caller's, before NEXUS) held it, interrupted it and awaited its exit before the resource was released.
+    expect(show(await Effect.runPromise(Fiber.await(late)))).toBe("interrupted");
+    expect(w.events.filter((event) => event === "command exit: interrupted").length).toBe(2);   // the held command and the late one
+    expect(w.events.lastIndexOf("command exit: interrupted")).toBeGreaterThan(at(w, "valance registry drained"));   // the late one exited after the caller's drain ...
+    expect(w.events.lastIndexOf("command exit: interrupted")).toBeLessThan(at(w, "resource released"));            // ... and before the resource released
     await Effect.runPromise(w.complete("L"));
-    expect(show(await Effect.runPromise(Fiber.await(late)))).toBe('failed (typed) {"_tag":"LookupError","id":"L"}');
-    strictlyIn(w, "scope closed", "resource used after release L");
-    expect(m.operations).toEqual(["draw"]);
+    expect(w.events).not.toContain("resource used after release L");
+    expect(m.operations[0]).toBe("draw");
   });
 
   it("probe E2: during the VALANCE-level drain a command that needs a NEW invocation to finish CAN get it: the Stage 23/25 circular wait does not arise here", async () => {
@@ -1697,13 +1684,17 @@ describe("closing VALANCE's own entrance when its drain begins", () => {
   });
 });
 
-// Stage 28: the REAL mechanism. VALANCE's own `start` now registers each command's own fiber at `inApplication`, closes
-// admission when its Scope finalizer runs (added right after `Application.start`, so before NEXUS terminates), and interrupts and
-// awaits what is registered. Nothing here wraps the table or owns a registry: the application below is the plain one, so what is
-// observed is production-shaped code alone. VALANCE exposes no drain signal, so "the drain has begun" is established by an
-// ordering VALANCE itself guarantees (the target is unmounted by `connect`'s finalizer, which runs just before the drain's) plus
-// a bounded run of cooperative yields: a harness observation, not a mechanism.
-describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
+// Stage 29: the VALANCE COMMAND-LIFETIME CONTRACT (production tests; the contract-defining cases, nothing more).
+//   Command lifetime: a command admitted through the application's command boundary (`inApplication`, reached by both
+//   `ApplicationHandle.invoke` and MESH dispatch) remains owned by the application until it exits. When draining begins, VALANCE
+//   closes admission and interrupts and awaits every already-admitted command BEFORE NEXUS terminates and platform resources release.
+//   Admission during drain: no new command is admitted once draining has begun (a refusal, as a defect).
+//   Liveness limitation: an uninterruptible admitted command that depends on a NEW admission can keep shutdown from completing.
+//   The application stays alive rather than releasing resources under the command.
+// The application below is the plain one: nothing here wraps the table or owns a registry. VALANCE exposes no drain signal, so
+// "the drain has begun" is established by an ordering VALANCE itself guarantees (the target is unmounted by `connect`'s finalizer,
+// which runs just before the drain's) plus a bounded run of cooperative yields: a harness observation, not a mechanism.
+describe("the VALANCE command-lifetime contract", () => {
   const REFUSED = "died: VALANCE: admission is closed (draining)";
   const at = (w: ReturnType<typeof controllable>, event: string) => w.events.indexOf(event);
   const strictlyIn = (w: ReturnType<typeof controllable>, ...order: ReadonlyArray<string>) => {
@@ -1729,7 +1720,7 @@ describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
     return closing;
   };
 
-  it("probe A: an admitted command is interrupted, and has exited, before NEXUS terminates and the resource releases", async () => {
+  it("contract 1: an admitted command is interrupted, and has exited, before NEXUS terminates and the resource releases", async () => {
     const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
     const { w, m, handle, emitted, closeScope } = await bootTable({ before });
     const invoked = Effect.runFork(handle.invoke("app/slowOpen", [{ value: "A0" }]));
@@ -1746,7 +1737,7 @@ describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
     expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);   // the resource was never reached
   });
 
-  it("probe B: a late ApplicationHandle.invoke is refused by VALANCE as a defect; the binding does not run and the resource is untouched", async () => {
+  it("contract 2: a late ApplicationHandle.invoke is refused by VALANCE as a defect; the binding does not run and the resource is untouched", async () => {
     const region = await gates();
     const booted = await bootTable({ region });
     const { w, handle, poll } = booted;
@@ -1775,7 +1766,7 @@ describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
     expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);                      // nothing escaped
   });
 
-  it("probe C: a command inside a capability call is interrupted; the call exits as a consequence; the resource is valid until the command has exited", async () => {
+  it("contract 3: a command inside a capability call is interrupted; the call exits as a consequence; the resource is valid until the command has exited", async () => {
     const { w, handle, closeScope } = await bootTable({});
     const invoked = Effect.runFork(handle.invoke("app/slowOpen", [{ value: "A0" }]));
 
@@ -1789,7 +1780,7 @@ describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
     expect(await ids(handle)).toEqual(["A0"]);
   });
 
-  it("probe D: MESH dispatch: ordinary dispatch still works; a suspended dispatched command is interrupted once, before the resource releases", async () => {
+  it("contract 4: MESH dispatch: ordinary dispatch still works; a suspended dispatched command is interrupted once, before the resource releases", async () => {
     // Ordinary dispatch, end to end through PORT, `connect` and the same command boundary.
     {
       const { w, m, handle, closeScope } = await bootTable({});
@@ -1820,7 +1811,7 @@ describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
     }
   });
 
-  it("probe E (known liveness question): an uninterruptible command that needs a NEW invocation blocks the drain; the resource stays alive", async () => {
+  it("contract 5 (documented liveness limitation): an uninterruptible command that needs a NEW invocation blocks the drain; the resource stays alive", async () => {
     const region = await gates();
     const booted = await bootTable({ region });
     const { w, handle, poll, yields } = booted;

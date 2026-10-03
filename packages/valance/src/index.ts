@@ -11,6 +11,9 @@
  *                          server output for) the current render, follows later renders as updates, and
  *                          dispatches each reported event with the render that was drawn.
  *
+ * Command lifetime: commands admitted through `invoke` or MESH dispatch are owned by the application until they exit; closing the
+ * caller's Scope closes admission and drains them before NEXUS terminates and platform resources release (docs/FINDINGS.md, Stage 29).
+ *
  * Nothing here is target-specific. A target is whatever satisfies `Target`, which is PORT's
  * contract (draw / update / unmount, plus hydrate where a PORT has one) and nothing more.
  */
@@ -90,10 +93,10 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
     const nexus = yield* Nexus.Application.start(definition, options.platform === undefined ? undefined : { platform: options.platform });
 
-    // SPIKE (Stage 28): VALANCE owns the lifetime of the commands it admits. Scratch, not a design.
-    //   The registry: the fibers of the commands currently running, and whether VALANCE still admits new ones.
-    //   Its finalizer is added HERE, right after `Application.start` registered NEXUS's own: Scope finalizers run in reverse,
-    //   so this one runs BEFORE NEXUS terminates the application and releases the platform's resources.
+    // Command lifetime: a command admitted through `inApplication` stays owned by the application until it exits. When the
+    // application's Scope closes, VALANCE closes admission and interrupts and awaits every admitted command BEFORE NEXUS
+    // terminates and the platform releases its resources. This finalizer is added right after `Application.start` registered
+    // NEXUS's own; Scope finalizers run in reverse order, so it runs first. It owns commands only, not daemons or escaped fibers.
     const admitted = new Set<Fiber.RuntimeFiber<unknown, unknown>>();
     let admissionClosed = false;
 
@@ -119,20 +122,19 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
     // `runFork`: the handle holds none of them, so joining it imports nothing into the caller). The caller's
     // interruption interrupts the event; results, typed failures and defects pass through unchanged.
-    // SPIKE: the command registers ITS OWN fiber as its first step. The admission check and the registration are one
+    // Admission: the command registers ITS OWN fiber as its first step. The admission check and the registration are one
     // synchronous step inside that fiber (no gap in which the drain's snapshot could be taken between them); a refusal is a
-    // defect, by Effect's own means. It leaves the registry on every exit.
-    const own = (fiber: Fiber.RuntimeFiber<unknown, unknown>) => fiber;
+    // defect, by Effect's own means. The command leaves the registry on every exit.
     const admit = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F, R> => Effect.acquireUseRelease(
       Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => {
         if (admissionClosed) {
           throw new Error("VALANCE: admission is closed (draining)");
         }
 
-        admitted.add(own(fiber as Fiber.RuntimeFiber<unknown, unknown>));
+        admitted.add(fiber as Fiber.RuntimeFiber<unknown, unknown>);
       })),
       () => effect,
-      () => Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => { admitted.delete(own(fiber as Fiber.RuntimeFiber<unknown, unknown>)); }))
+      () => Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => { admitted.delete(fiber as Fiber.RuntimeFiber<unknown, unknown>); }))
     );
     const inApplication = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F> => Effect.suspend(() => {
       const handle = Nexus.Runtime.runFork(nexus.runtime, admit(effect));

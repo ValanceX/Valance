@@ -54,6 +54,13 @@ as "reviewed only".
 
 - **C19.** The `Web.history` contract is tested at unit level (`packages/valance/test/history.test.ts`); Chromium stays the acceptance check. No new options, API, rollback or resynchronization.
 
+## Added for stage 29 (command lifetime; adopted from the Stage 27/28 evidence)
+
+- **C20, command lifetime (safety).** A command admitted through the application's command boundary (`inApplication`, reached by both `ApplicationHandle.invoke` and MESH dispatch) remains owned by the application until it exits. When draining begins (the caller's Scope closes), VALANCE closes admission and interrupts and awaits every already-admitted command BEFORE NEXUS terminates and platform resources release. *(tripwire: `examples/tracer-web/test/capability-async.test.ts`, "the VALANCE command-lifetime contract")*
+- **C21, admission during drain.** No new command is admitted after draining begins; the refusal is a defect (`VALANCE: admission is closed (draining)`). The check and the registration are one synchronous step. *(tripwire: same)*
+- **C22, ownership boundary.** The registry owns commands, not application fibers: daemon and escaped fibers are outside it; structured children are covered by their command. It is internal: `ApplicationHandle` exposes no lifecycle, drain, shutdown or registry. NEXUS, MESH and PORT are unchanged.
+- **C23, liveness limitation (documented, not solved).** An uninterruptible admitted command that depends on a NEW admission can keep shutdown from completing; the application stays alive and its resources are not released under the command. No timeout, forced interruption, watchdog or fallback admission. *(tripwire: contract 5)*
+
 ## Status (Web.history exploration closed)
 
 C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated once, in `docs/FINDINGS.md` Stage 7. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).
