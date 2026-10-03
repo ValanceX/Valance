@@ -86,3 +86,7 @@ C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is
 ## Added for multi-mount semantics (`examples/tracer-web/test/multi-mount-views.test.ts`)
 
 - **C29, one application, N mounted presentations.** A started application has one NEXUS runtime, state, resource lifetime and `view(state)`; each mount owns only a target, the render it drew, and its own draw/update continuity. The view is the application's, so every mount shows the same one (there is no per-mount view); a report is dispatched against its own mount's drawn render; closing a mount ends that presentation and nothing of the application; application resources are released by the application's Scope, after every mount that shares it.
+
+## Added for lifecycle ownership (`examples/tracer-web/test/lifecycle-ownership.test.ts`)
+
+- **C30, every binding lives in the Scope it was given.** Like a mount (C24), `Web.history` owns its listener and follower through its own Scope, related to the application's only by what the caller passes. In a shared Scope it ends before the application; in its own Scope it outlives the application as an inert listener (the follower ended with the state stream, navigation is refused, nothing is written) until that Scope closes. A closed mount leaves its container empty and the container takes a new mount; mount and hydrate are per-mount choices. Two live mounts on one container are not a supported arrangement (PORT promises no container exclusivity, and Valance does not know containers).
