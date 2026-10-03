@@ -96,6 +96,6 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     };
   };
 
-  return { handle, appScope, mountOn, taps, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), state: () => run(handle.state) };
+  return { app, handle, appScope, mountOn, taps, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), state: () => run(handle.state) };
 };
 
