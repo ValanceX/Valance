@@ -261,7 +261,7 @@ describe("F, I: async commands and mounts", () => {
 });
 
 describe("G, H: commands from either mount", () => {
-  it("G a click in A and a click in B each run an application command: both mounts see each commit; one commit per click", async () => {
+  it("G a click in A and a click in B each run an application command: both mounts see each commit (the test waits for each render); one commit per click", async () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
@@ -278,7 +278,7 @@ describe("G, H: commands from either mount", () => {
   });
 
   for (const [order, first, second] of [["gate1 then gate2", "gate1", "gate2"], ["gate2 then gate1", "gate2", "gate1"]] as const) {
-    it(`H a suspended command in each mount, completed ${order}: the two commands run concurrently, completion order decides the state, both mounts follow every commit`, async () => {
+    it(`H a suspended command in each mount, completed ${order}: the two commands run concurrently, completion order decides the state, both mounts follow each commit (the test waits for each render)`, async () => {
       const b = await boot();
       const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 

@@ -145,7 +145,7 @@ const slice = (b: Booted, from: string) => b.events.slice(at(b.events, from));
 const joinAll = (...fibers: Array<Fiber.RuntimeFiber<unknown, unknown>>) => Promise.all(fibers.map((fiber) => Effect.runPromise(Fiber.await(fiber))));
 
 describe("A: sequential composition is ordinary sequencing", () => {
-  it("start A, await, commit, start B, await, commit: B does not start until A's commit; each commit is its own value and render", async () => {
+  it("start A, await, commit, start B, await, commit: B does not start until A's commit; each commit is its own value (and, the test waiting for each render, its own render)", async () => {
     const b = await boot();
     const caller = b.invoke("seq");
 
@@ -153,6 +153,7 @@ describe("A: sequential composition is ordinary sequencing", () => {
     await yields(300);
     expect(b.events.includes("B started")).toBe(false);                        // B has not begun: sequencing is the command's own order
     await b.release("A", "a");
+    await b.seen("render update: a");                                          // the test paces itself on the presentation: a mount may skip a superseded state (C32)
     await b.started("B");
     expect(b.events.indexOf("commit a")).toBeLessThan(b.events.indexOf("B started"));
     await b.release("B", "b");
