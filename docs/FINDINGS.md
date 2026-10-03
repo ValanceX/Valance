@@ -2312,6 +2312,26 @@ It crosses an ownership boundary at the PORT `draw`: the application cannot expr
 
 ---
 
+## Stage 55: can a real page inject its own target through the public path? (yes; the limit is the example's `run`, not VALANCE)
+
+**Public composition path (traced).** `run` is the example's own sugar (`examples/tracer-web/src/api/shape-b.ts`), not a VALANCE export. What it does, a page can do itself with exports only: `Valance.start(app, { state })` returns the handle; `Valance.hydrate(handle, create)` (or `mount`) takes `create: TargetFactory<Target>`, a function from `report` to the object with `draw`/`update`/`hydrate`/`unmount`; `Web.target({ container, primitives })` is just one such factory; `Web.history(handle, options)` binds the URL. So the target wrapper IS reachable through the existing startup path: the factory is an argument of `hydrate`/`mount`. Nothing in `start`, `mount`, `hydrate` or `Web.history` builds a target on the caller's behalf.
+
+**Where the boundary stops.** Only in `run`: it constructs `Web.target({ container, primitives })` itself and exposes no hook for another, so a page that calls `run` cannot pass a wrapper. That is a limit of the example's convenience function. A page that wants a different target composes the three public calls directly; the cost is that it then also owns what `run` bundled around them in Stages 44 and 45 (retaining `Mounted` and reporting its abnormal end and the event outcomes), because that host duty lives in `run`, not in VALANCE. Not a VALANCE contract deficiency; and `run` was deliberately not changed to make this possible.
+
+**Probe (throwaway, deleted).** A temporary page script composed `start` + `hydrate(wrapped factory)` + `Web.history` directly, served by the dev route with an alternate script URL. The wrapper changed one thing: after `port.draw(tree)` it focused the first `button` of the new view. Real Chromium, 3 runs, all passing:
+- Hydration is not a program change: after load focus stays on `body` (Valance calls `hydrate`, not `draw`).
+- Back (About to counter, a program change): URL `/tracer/?tab=overview`, the counter view renders, **focus lands on `BUTTON "Click"`**.
+- Click (same program): the same node is updated in place, still focused, `1 clicks`; behavior unchanged (the wrapper's `update` is a pass-through).
+- About (counter to About): URL `/tracer/about?tab=overview`, the About view renders, **focus on `BUTTON "Back"`**.
+- `history.back()` (a popstate-driven program change): the counter view returns, focus on `BUTTON "Click"`: the draw/update split holds for navigation from either source.
+The NEXUS to MESH to PORT behavior (URL, rendering, in-place updates, popstate) is unchanged by the wrapper.
+
+**Verdict.** Focus restoration is host-local and viable through the public path, with a wrapper of about 5 lines. The experiment (script, config tweak, test) was removed: the repository has no decided focus policy (first control? the heading?) and adopting it in `page.ts` would mean bypassing `run`, giving up its reporting duties or duplicating them, so it is not product behavior of the example. The one remaining friction is the example's: `run` cannot take a target. If a real page ever needs this, the choice is to compose directly (as the probe did) or to widen `run`, which is an example-design decision, not a VALANCE one.
+
+**Validation.** One Chromium probe, 3 runs; example typecheck clean while the experiment existed. No suites. Nothing remains in the repository except this note. `packages/*`, NEXUS, MESH and PORT untouched.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
