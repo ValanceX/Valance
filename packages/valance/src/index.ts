@@ -12,7 +12,7 @@
  *                          dispatches each reported event with the render that was drawn.
  *
  * Command lifetime: commands admitted through `invoke` or MESH dispatch are owned by the application until they exit; closing the
- * caller's Scope closes admission and drains them before NEXUS terminates and platform resources release (docs/FINDINGS.md, Stage 29).
+ * caller's Scope closes admission and drains them before NEXUS terminates and platform resources release (docs/FINDINGS.md, "Canonical lifecycle architecture").
  *
  * Nothing here is target-specific. A target is whatever satisfies `Target`, which is PORT's
  * contract (draw / update / unmount, plus hydrate where a PORT has one) and nothing more.

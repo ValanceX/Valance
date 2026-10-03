@@ -19,7 +19,7 @@ Effect.scoped(Effect.gen(function* () {
 }));                                   // closing the scope ends everything
 ```
 
-Here one Scope holds the application and its mount, so closing it ends both (mount first, then the application). `start` and `mount` each take *a* Scope from the caller and relate them in no other way: a mount placed in its own Scope ends with that Scope, and if the application ends first it stays drawn but no longer updates (events and commands reaching the ended application are refused). See `docs/FINDINGS.md`, Stage 38.
+Here one Scope holds the application and its mount, so closing it ends both (mount first, then the application). `start` and `mount` each take *a* Scope from the caller and relate them in no other way: a mount placed in its own Scope ends with that Scope, and if the application ends first it stays drawn but no longer updates (events and commands reaching the ended application are refused). The whole application / mount / command lifecycle is stated once in `docs/FINDINGS.md`, "Canonical lifecycle architecture".
 
 - `docs/CONSTRAINTS.md`: the MUST / MUST NOT list the tracer was held to.
 - `docs/FINDINGS.md`: what the tracer proved, what it invalidated, what is unresolved.

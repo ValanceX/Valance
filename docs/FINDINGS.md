@@ -2,6 +2,51 @@
 
 > **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract) and the [Milestone](#milestone-validated-valance-composition) at the end. Stages 3 to 6 are kept as the evidence trail.
 
+## Canonical lifecycle architecture (consolidated at Stage 41; evidence in Stages 29 to 40)
+
+This section is the one statement of the application / mount / command lifecycle. It adds no new finding. The stages below are the chronological evidence, and where an older paragraph conflicts with this section, this section governs (the superseded statements are indexed at its end, and the older paragraphs keep their original text). Constraint numbers refer to `docs/CONSTRAINTS.md`.
+
+**1. Two Scopes, two owners.** `start` and `mount`/`hydrate` each take *a* Scope from the caller and create none.
+
+| | owned through the application's Scope | owned through a mount's Scope |
+|---|---|---|
+| contents | NEXUS runtime, application state and `State.values`, the command registry, platform resources | the follower, the target, the mount-local pending dispatch machinery (`pending`), the diagnostic exit ledger (`dispatched`) |
+| ends when | that Scope closes | that Scope closes (or, for the follower only, when the application's value stream ends) |
+
+**2. Application shutdown (Stage 29, unchanged).** When the application's Scope closes: admission closes (synchronously); every admitted command is interrupted and awaited; then NEXUS terminates the runtime and ends the state stream; platform resources are released last; then `Scope.close` returns. No command exits after resources release. The registry is the application's, covers `invoke` and event commands alike, and owns commands only (daemon and escaped fibers are outside it; structured children are covered by their command). An uninterruptible command that needs new admission can hold the drain open: the application then stays alive and its resources are not released under it (documented liveness limitation, C23).
+
+**3. A mount's lifetime is the caller's Scope's (Stage 38, C24).** `mount` does not relate its Scope to the application's. All three arrangements are valid: *shared* (one Scope holds both: the README usage; mounts end first, in reverse creation order, then the application), *parented* (`Scope.fork` of the application's Scope: same order, and a mount can still close alone), *independent* (own Scope). Consequently application close does **not** always unmount a target: it does so only for shared or parented mounts. For an independent mount the application's close leaves the target drawn and inert: state stays readable, commands and events are refused (`NEXUS: the runtime has begun terminating`), the follower has ended with `Success`, and the target is released only when the mount's own Scope closes. That is intended, not an accidental capability. A mount created after the application ended fails by itself (`the application ended before its first render`). With no mount at all the application is fully alive.
+
+**4. Four notions that are not one lifecycle (Stage 39, C25).**
+
+| notion | owner | decided by |
+|---|---|---|
+| admission | the application | `inApplication`: refused as a defect once draining begins (`VALANCE: admission is closed (draining)`), by NEXUS after termination; never by the mount |
+| admitted command lifetime | the application | the registry; ends when the command exits or the application's drain interrupts it. **Closing the mount that reported an event does not end its command** |
+| mount lifetime | the caller (the mount's Scope) | follower and target end with that Scope |
+| application lifetime | the caller (the application's Scope) | closing it runs section 2 |
+
+`invoke` and a click enter the same boundary and are the same kind of command. The mount is the *source* of a click (its drawn render selects the intent, its ledger records the exit); the application is the *owner* of everything that happens to the command.
+
+**5. The event-exit ledger and `settled` (Stage 40, C26).** `Mounted.dispatched` is a mount-owned, append-only record, in settle order, of the exits of the dispatches that mount made; entries are never removed or reordered. It keeps receiving exits after the mount's target has closed, until every command that mount dispatched has exited (at the latest the application's close, except under C23). It is not application state, not on `ApplicationHandle`, not read by Valance, and not part of the application programming model: a diagnostic observation facility for hosts and tests, alive as long as `Mounted` is held. It is the only place an event command's outcome is recorded (a failure or defect is visible nowhere else). `Mounted.settled` is a barrier over the dispatches an *open* mount still holds; it does not read `dispatched`, and on a closed mount it returns at once without waiting for exits still to arrive. No ids, subscriptions, retention or cleanup exist.
+
+**6. What not to assume.**
+- Mounts are not application-owned; the two Scopes are related only by what the caller passes.
+- Application close does not always unmount every target (section 3).
+- Closing a mount does not interrupt the commands its events started; application close does (through the registry).
+- Event admission and event execution lifetime are different things with the same owner; neither is the mount's.
+- `settled` does not wait for all historical or future exits, only for the open mount's held dispatches, and never reads the ledger.
+- The ledger is not application state and not a public event history; do not build behavior on it.
+- "The target is unmounted before the drain" is a property of shared or parented Scopes, not an invariant.
+- State, `values` and the registry are unaffected by any mount arrangement; resource safety (command exit before resource release) is independent of mount Scopes.
+
+**7. Constraint map.** C6 (the caller's Scope owns lifetime) with C24 (mounts), C20 to C23 (command lifetime, admission, ownership boundary, liveness), C25 (event commands), C26 (the ledger). Stage 30's clarification of C20: "draining begins" means the application's Scope closing; `Application.shutdown(running.nexus)` is the substrate's early end, reachable only through `./internal`, and does not pass the drain.
+
+**8. Superseded statements (kept as history, do not cite).** (a) Stages 26 to 28, 34 to 37: that a mount's close interrupts the commands its events started (removed in Stage 39). (b) Stages 28 to 33: "the target is unmounted before the drain" without the shared/parented qualifier (Stage 37). (c) Stage 11, invariant 3 without "one Scope" (Stage 38). (d) Stage 36's two-model tables describe the alternatives; the application-owned column is the adopted one.
+
+**9. Outside this contract.** Whether `Mounted` and `DispatchExit` stay exported from the main entry or move behind `./internal` is a packaging decision (Stage 17/18 deferred item), not a lifecycle one; it is recorded here and not decided. Stale-result handling, error presentation and event-exit retention policy are application or product policy (Stages 31 to 34).
+
+
 *Evidence base: NEXUS 0.10.0 (published; tag `v0.10.0`, `a0116367`. Stages 1 to 7 ran against a packed tarball of that revision, byte-identical to the published package, sha256 `ed578f5e…`), MESH runtime/compiler 0.6.0, PORT Web 0.2.1; Node 22; Chromium 1194 via Playwright 1.56.1. No MESH or PORT source was changed. Constraints written before code: [CONSTRAINTS.md](./CONSTRAINTS.md).*
 
 ## Stage 1: the first-render observation boundary (fixed in NEXUS)
@@ -1295,7 +1340,7 @@ dispatch  PORT click -> target report -> connect: Effect.runFork(Effect.exit(run
 | Path | When the Scope closes with a command suspended before any capability |
 |---|---|
 | **invoke** | **not interrupted**: `scope closing`, `resource released`, `scope closed`; the command later goes on to the released resource (Stage 22) |
-| **MESH dispatch** | **already interrupted, before the resource is released, by VALANCE itself**: `scope closing`, `command exit: interrupted`, `resource released`. The cause is `connect`'s Scope finalizer, which interrupts and awaits its `pending` fibers; `inApplication` then interrupts the NEXUS handle. It never reaches the resource. The interrupted dispatch leaves no `Mounted.dispatched` entry |
+| **MESH dispatch** | **already interrupted, before the resource is released, by VALANCE itself**: `scope closing`, `command exit: interrupted`, `resource released`. The cause is `connect`'s Scope finalizer, which interrupts and awaits its `pending` fibers; `inApplication` then interrupts the NEXUS handle. It never reaches the resource. The interrupted dispatch leaves no `Mounted.dispatched` entry | *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 
 So VALANCE **already owns** the lifetime of MESH-dispatched commands today (for as long as a target is mounted), and does **not** own invoke-entered ones. The two paths are asymmetric.
 
@@ -1346,7 +1391,7 @@ Whether that entrance closure is sound with the drain, test-only: add a guard to
 *Question: is a VALANCE-level drain sound if VALANCE refuses new entries from the moment the drain starts, and does closing admission recreate the circular wait? Method: the Stage 26 Scope-owned registry plus exactly one test-only behavior: once its finalizer starts, the central binding-table wrapper refuses any new registration. The refusal is a thrown `Error` inside the registration step (a defect by Effect's own means; no error type invented), and the check and the add are one synchronous step, since a gap between them is the race being closed. No public API, no NEXUS change, no production VALANCE change; Stage 19 to 26 tests untouched (`test/capability-async.test.ts`, 42 tests, stable over 8 runs; with the guard disabled exactly B and C2 fail).*
 
 ### Closed admission
-**When it closes:** at the very start of the VALANCE registry's finalizer, which is the Scope finalizer registered right after `Valance.start`. `connect`'s finalizers (follower, pending MESH dispatches, unmount) run before it, by reverse registration order; NEXUS's termination runs after it. **What happens to a new entry:** refused at the central wrapper as a defect, `VALANCE: admission is closed (draining)`, the binding never runs.
+**When it closes:** at the very start of the VALANCE registry's finalizer, which is the Scope finalizer registered right after `Valance.start`. `connect`'s finalizers (follower, pending MESH dispatches, unmount) run before it, by reverse registration order; NEXUS's termination runs after it. **What happens to a new entry:** refused at the central wrapper as a defect, `VALANCE: admission is closed (draining)`, the binding never runs. *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 
 ### Probes
 | | |
@@ -1396,7 +1441,7 @@ Whether this mechanism survives being production-shaped, before any design: spik
 - **Drain:** a Scope finalizer added immediately after `Application.start`: close admission, interrupt every registered fiber, await each one's actual exit (`Fiber.interrupt`).
 
 ### Finalizer ordering (observed, not forced)
-Registration order in the caller's Scope: NEXUS's shutdown (`Application.start`) → the VALANCE drain → `connect`'s finalizers (follower, pending MESH dispatches, unmount) and any history finalizer, added later. Scope close runs them in reverse:
+Registration order in the caller's Scope: NEXUS's shutdown (`Application.start`) → the VALANCE drain → `connect`'s finalizers (follower, pending MESH dispatches, unmount) and any history finalizer, added later. Scope close runs them in reverse: *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 
 ```text
 history / connect finalizers  (follower ends, pending dispatches interrupted, target unmounted)
@@ -1409,7 +1454,7 @@ Observed in the traces: `scope closing`, `command exit: interrupted`, `resource 
 | Path | Covered? |
 |---|---|
 | `ApplicationHandle.invoke` | **yes**: registered, interrupted and awaited by the drain; the caller observes `interrupted`; state unchanged; the resource never reached |
-| MESH dispatch | **yes**, at the same boundary; VALANCE's existing `connect` pending-fiber interruption acts first (one exit, once; no double interruption observed) |
+| MESH dispatch | **yes**, at the same boundary; VALANCE's existing `connect` pending-fiber interruption acts first (one exit, once; no double interruption observed) | *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 | Structured child (`Effect.fork`) | **yes**: interrupted with its command (Stage 26's test still passes with the spike present) |
 | Daemon / detached fiber | **no**, as designed: it escapes (Stage 26's daemon test still passes with the spike present) |
 
@@ -1708,7 +1753,7 @@ No stop condition occurred. No constraint added: "failure is not rendered" is cu
 - It never touches `dispatched`: entries are identical, in the same order, before and after, cumulative across cycles, never reset.
 So `settled` is a barrier, not a cleanup primitive; `pending` emptying is incidental to it.
 
-**Mount close (G, H).** Close without `settled`: suspended events are interrupted and leave no ledger entry; already-completed ones keep theirs; once the mount is unreachable every fiber and every Exit is collectable (7 of 7 fibers, all exit canaries). Settle first and then close: the same end state, with both formerly-suspended events recorded. So `settled` is not required for lifecycle correctness. While a caller still holds `Mounted`, the close finalizer empties `pending` (fibers released at close) but the recorded Exits stay as long as the holder keeps `Mounted.dispatched`.
+**Mount close (G, H).** Close without `settled`: suspended events are interrupted and leave no ledger entry; already-completed ones keep theirs; once the mount is unreachable every fiber and every Exit is collectable (7 of 7 fibers, all exit canaries). Settle first and then close: the same end state, with both formerly-suspended events recorded. So `settled` is not required for lifecycle correctness. While a caller still holds `Mounted`, the close finalizer empties `pending` (fibers released at close) but the recorded Exits stay as long as the holder keeps `Mounted.dispatched`. *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 
 **Retention scope.** Mount-scoped. Nothing outlives the mount; no fiber survives its mount (the finalizer interrupts and drops them). Retention does not affect command ownership, drain, resource release or later dispatch: the arrays are bookkeeping after completion, and none of Stages 29 to 33's ordering results depend on them.
 
@@ -1753,7 +1798,7 @@ Application (start's Scope)
 
 **Application close vs mounts.** With independent Scopes, closing the application's Scope does not unmount any mount: their targets stay drawn (last page still present) until each mount's own Scope closes, which then unmounts each exactly once. So the Stage 29/30 statement "the target is unmounted before the drain" holds only when the mount is closed first or lives in the same Scope as the application (finalizer order); it is a consequence of scope placement, not of the library.
 
-**Lifecycle coupling.** Distinct: state lifetime, values subscriptions, command lifetime (application) and mount lifetime (render, target, follower). Coupled in exactly one place: a click-initiated command is also bound to its dispatching mount (`pending`). Nothing else couples them: no mount can end, mutate or diverge the application's state; one mount's teardown never interrupts another mount's observation.
+**Lifecycle coupling.** Distinct: state lifetime, values subscriptions, command lifetime (application) and mount lifetime (render, target, follower). Coupled in exactly one place: a click-initiated command is also bound to its dispatching mount (`pending`). Nothing else couples them: no mount can end, mutate or diverge the application's state; one mount's teardown never interrupts another mount's observation. *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 
 **Stop conditions.** Only one was touched: (4) a command is mount-owned, in the click-initiated case above, as already implemented since Stage 26 and documented by Stage 34; no other mount, state or the application was affected, so I recorded and continued. Not occurred: another mount mutating or terminating state, state diverging, teardown of one mount interrupting another, a synchronization abstraction becoming necessary, any NEXUS/MESH/PORT change.
 
@@ -1822,8 +1867,8 @@ Chromium 21/21 and unit 29/29 under the spike. **Existing tests that encode the 
 
 **Phase A, implementation (read, not inferred).**
 - *Application Scope:* `start` takes the caller's Scope from the environment (`Effect<..., Scope.Scope>`); it creates none. Acquisition order inside it: `Application.start` registers NEXUS's finalizer (platform resources release inside NEXUS's shutdown), then `start` registers the command-registry finalizer (Stage 29: close admission, interrupt and await admitted commands). Scope finalizers run in reverse, so the registry drains before NEXUS terminates and before the platform releases. State and `values` are NEXUS-owned resources of this same Scope (the state stream ends when NEXUS terminates).
-- *Mount Scope:* `mount`/`hydrate` also take the caller's Scope from the environment and create none. `connect` forks the follower into that Scope (`forkIn(scope)`) and registers one finalizer in it: interrupt the follower, `target.unmount()`, interrupt the mount's `pending` dispatch fibers. Nothing parents a mount Scope under the application Scope or the reverse: the public API takes "a Scope" for each and relates them only through what the caller passes. There is no `Mounted` close handle; a mount ends only when its Scope closes (or the application ends it, below).
-- *Render lifetime:* mount, then follower (a stream of `running.values`), then `draw`/`update` on the target; the finalizer above ends the follower, unmounts, and interrupts the mount's pending dispatches; the dispatch Exits stay in the mount's closure (`dispatched`, Stage 34). The follower also ends by itself, with Success, when the value stream ends (application terminated).
+- *Mount Scope:* `mount`/`hydrate` also take the caller's Scope from the environment and create none. `connect` forks the follower into that Scope (`forkIn(scope)`) and registers one finalizer in it: interrupt the follower, `target.unmount()`, interrupt the mount's `pending` dispatch fibers. Nothing parents a mount Scope under the application Scope or the reverse: the public API takes "a Scope" for each and relates them only through what the caller passes. There is no `Mounted` close handle; a mount ends only when its Scope closes (or the application ends it, below). *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
+- *Render lifetime:* mount, then follower (a stream of `running.values`), then `draw`/`update` on the target; the finalizer above ends the follower, unmounts, and interrupts the mount's pending dispatches; the dispatch Exits stay in the mount's closure (`dispatched`, Stage 34). The follower also ends by itself, with Success, when the value stream ends (application terminated). *(Pre-Stage-39 behavior: a mount's close interrupted the commands its events started. Removed in Stage 39; see "Canonical lifecycle architecture" at the top of this file.)*
 - *Command lifetime (unchanged):* `invoke` and click both reach `inApplication` and the registry; a click additionally has a mount-owned joiner in `pending` (Stage 36, left as is).
 
 **Topologies expressible with public APIs** (all three probed in `examples/tracer-web/test/scope-topology.test.ts`, 14 tests, jsdom): *shared* (start and mount in the same Scope: what the README, every example and every browser/capability test in this repository do), *parented* (each mount in `Scope.fork(applicationScope)`), *independent* (each mount in its own Scope). Effect provides all three; VALANCE neither requires nor prevents any. The README's canonical usage is the shared Scope ("closing the scope ends everything").
@@ -1946,6 +1991,14 @@ Finalizer ledger: *mount finalizer* (owner: the mount's Scope; trigger: that Sco
 **Results:** unit 29/29, jsdom 176/176, Chromium 26/26 (24 + 2 new, identical on 5 runs; the new file alone 12 more), typecheck and build clean.
 
 **Next uncertainty:** none about the ledger. The deferred item from Stage 17/18, whether `Mounted`/`DispatchExit` should stay exported from the main entry or move behind `./internal`, remains a packaging decision, not a lifecycle one. The lifecycle contracts of Stages 29, 38, 39 and 40 are now consistent and ready to be consolidated into one architecture statement.
+
+---
+
+## Stage 41: lifecycle consolidation (documentation only)
+
+Consolidated Stages 29 to 40 into the section "Canonical lifecycle architecture" at the top of this file (application Scope, mount Scope, caller-controlled relationship, shutdown order, independent-mount behavior, the admission / command / mount / application distinction, the ledger and `settled`, what not to assume, a constraint map, an index of superseded statements). Historical stages were not rewritten; nine paragraphs that describe the pre-Stage-39 mount-side interruption gained a one-line pointer. `docs/CONSTRAINTS.md`: C26 promoted (the ledger as a mount-owned diagnostic facility, an architectural boundary with a tripwire in the handle-shape tests); the Stage 30 clarification relabelled "C20, trigger and scope" (it had been numbered as a second C20); C25 moved to follow C23; a pointer to the canonical section added. README and the `Valance` module header point to it.
+
+**One discrepancy found while consolidating (in the brief, not in the repository).** The Stage 41 brief states the application shutdown order as "admitted commands drain/interruption, then platform resources released, then NEXUS/application closes". The order validated since Stage 29 and observed in every later stage is: admission closes, admitted commands are interrupted and awaited, NEXUS terminates the runtime and ends the state stream, platform resources are released LAST, then `Scope.close` returns (platform resources are NEXUS-owned and release inside its shutdown). The canonical section states the validated order; nothing in the repository contradicted itself. No production behavior changed.
 
 ---
 
