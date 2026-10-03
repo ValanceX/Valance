@@ -1,0 +1,5 @@
+<page title={label}>
+  <text>Settings: {count}</text>
+  <button on.click={increment()}>+1</button>
+  <button on.click={goHome()}>Home</button>
+</page>
