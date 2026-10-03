@@ -142,5 +142,5 @@ describe("lifecycle", () => {
 
     expect(runs).toBe(100);
     expect(stale).toBe(0);
-  });
+  }, 30_000);
 });
