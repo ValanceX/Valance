@@ -1563,6 +1563,40 @@ The lifecycle boundary is closed. Next exploration: async/data flow under this c
 
 ---
 
+## Stage 31: async data flow, observed (evidence; no abstraction added)
+
+**Tracer.** `examples/tracer-web/test/async-flow.test.ts` (13 tests, tests only; no source file changed). An ordinary application: state `{ value: string }`, one view (the existing `notfound` program, `title = value`, so the value shows as the page's `aria-label`), commands `startA` and `startB` that begin an async operation, suspend on a gate the test opens (a `Deferred` per invocation, handed out by invocation index), and then `state.update` the value the test released. Real `Valance.start`, `mount`, `State.values` (read through `runningOf(handle).states`, as in Stages 20 to 28) and PORT's draw/update. One ordered trace records command steps, `values` emissions and render operations. A pseudo platform resource (a Scope finalizer registered before `start`, so it runs after NEXUS terminates) marks "resource released". No timers; "does not happen" is a bounded run of cooperative yields.
+
+**Data path (Probe A).** Suspended: nothing in the trace but `A#0 started` (no commit, no emission, no render; state still `init`). After the gate opens, the observed order is `A resumed -> A committed -> command exit -> caller returns -> values emits -> render update`. The command's commit is synchronous inside the command; `values` and the render follower observe it afterwards, asynchronously. Async work enters as an ordinary command, mutates ordinary state, and the existing `state -> values -> render/update` pipeline carries it with no async awareness (render: `update`, same nodes).
+
+**B, sequential.** Two runs of the same command give three emissions (`init, a1, a2`) and `draw, update, update`: independent transitions, nothing replaced or coalesced.
+
+**C and D, concurrent and stale.** A and B started in that order; gates opened `B then A` give final state `from-A`, emissions `init, from-B, from-A`, renders `draw, update, update`; opened `A then B` give final state `from-B`. **Completion order decides the state. VALANCE has no notion that A became stale when B started**: the older invocation overwrites the newer result. Both intermediate values are emitted and rendered (no skipping). Recorded as the current semantics, not as correct or incorrect.
+
+**E, caller interruption.** Interrupting the caller interrupts the command and its pending gate wait (`gate wait interrupted`, `command exit: interrupted`, caller sees `interrupted`). Opening the gate afterwards changes nothing: no commit, emission or render. The application stays healthy (the next command runs end to end). The command does not stay registered: the later Scope close does not interrupt it again (its exit appears once), which is the only external evidence, since the registry is not observable. Cancellation here is entirely the existing chain `caller -> command fiber -> the async wait`; it is distinct from shutdown (separate test).
+
+**F, children.**
+- *F1:* a `fork` child that the command does not wait for is interrupted when the command exits (the child must already be at its gate to observe this; a child interrupted before its first step records nothing at all). Opening the gate later changes nothing. So async work started inside a command and not awaited does not outlive it.
+- *F3:* a `fork` child the command waits for is inside the command lifetime: the drain interrupts the command and the child, before the resource releases.
+- *F2/F4:* a `forkDaemon` child is outside VALANCE's command ownership. While the application lives it commits, emits and renders like any commit. Pending at drain, it survives the Scope close and commits afterwards: the commit is neither emitted (`values` has ended) nor rendered, and state is still readable. This is the Stage 22/25 daemon finding, now with data attached.
+
+**G and H, drain.** A command suspended at Scope close is interrupted (never resumed) before the resource releases; opening the gate afterwards does nothing; the caller sees `interrupted`. Two suspended commands (H): both exit interrupted before the resource releases; neither commits. **Race (extra probe, resolves the "gate openable around the same time" ambiguity):** the gate opened in the same turn as the close begins, 25 repeats per variant, 5 full runs, always the same outcome: the command **completes and commits** (its waiter resumes before the drain's interrupt reaches it), `values` emits it, it is **not rendered** (the follower is already finalized), and the command exits before the resource releases. That is the Stage 29/30 "commit during drain is allowed" case, reached by a real async race, not a new behavior. (The "close forked first" variant is nominal: `Scope.close` starts on its own fiber after the caller's turn, so the waiter resumes first either way.)
+
+**Rendering.** Does not need async awareness: it sees only state, and each committed state is one `update`. Two consequences of the commit-per-completion model are visible, not problems yet: intermediate and stale states are all rendered, and renders trail the commit.
+
+**Architectural pressure (observed, not decided).**
+- Async data is not fundamentally different from an ordinary command that suspends: the same command, state, values and render path, the same ownership and cancellation chain.
+- Cancellation is owned by the caller through command interruption; nothing else is needed for it to work.
+- **Stale results are a real semantic gap, not a mechanism gap:** nothing in VALANCE can say that an operation became obsolete. The race exists today with two commands or two invocations of one command. Whether VALANCE should own that, or whether it is application policy expressible with existing state (the application can store what it is waiting for), is the open question; no probe here needed request identity to function.
+- No evidence that the lifecycle is insufficient: command lifetime covered every command-owned async case (E, F1, F3, G, H). The only async work outside it is work the author deliberately detached (daemon).
+- No stop condition occurred: no NEXUS, MESH, PORT or rendering change, no new public concept, no new lifecycle race.
+
+**Rejected as premature (and not built):** async state abstraction, Resource/Query/Future/PromiseState, request identity, latest-wins or stale suppression, cancellation tokens, loading/error conventions, retry, debounce.
+
+**Results:** unit 29/29, jsdom 86/86 (73 + 13 new, identical on 3 full runs; the tracer file alone on 5 runs, including 2 x 25 race repeats each), Chromium 20/20, typecheck and build clean. No constraint added: nothing here is an invariant yet.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
