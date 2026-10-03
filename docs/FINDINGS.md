@@ -1687,6 +1687,45 @@ No stop condition occurred. No constraint added: "failure is not rendered" is cu
 
 ---
 
+## Stage 34: ownership and retention of event-dispatch exits, observed (evidence; no source change)
+
+**Method.** `examples/tracer-web/test/event-retention.test.ts` (15 tests, jsdom). The real path (click, PORT report, `connect`, `running.dispatch`, command) with one piece of test instrumentation: the Running's `dispatch` is wrapped (as Stage 28 wrapped `invoke`) to attach two WeakRef canaries per event: a FIBER canary pinned only by the fiber `connect` forks for the event (set in its FiberRefs), and an EXIT canary placed in the Exit's value or typed error. Liveness is read after a forced full GC; counts are logical (how many canaries are alive), never bytes or time. `pending` is private to `connect`; this is how it is observed without changing source. (A defect cannot be marked with an exit canary: re-raising it inside the dispatch fiber pins that fiber, which I verified is an artifact of the instrumentation, so defect exits are measured through `dispatched.length` and the fiber canary only.) Chromium was not run for these: retention is runtime-independent; the Chromium suite is unchanged (21/21).
+
+**What the implementation is (read, then confirmed).** In `connect`: `pending` is a `Fiber[]` of the fibers forked for each event; `dispatched` is a `DispatchExit[]` that each fiber appends to as its last step (`Effect.tap`). `settled` is `Effect.suspend(() => pending.length === 0 ? void : forEach(pending.splice(0), Fiber.await).andThen(settled))`. The close finalizer interrupts the follower, unmounts the target, then `forEach(pending.splice(0), Fiber.interrupt)`. Both arrays are closure state of one `connect` call; `dispatched` is also handed out as `Mounted.dispatched` (typed `ReadonlyArray`, the live array).
+
+**Ownership.** `pending` and `dispatched` are owned by the mount: created by `connect`, reachable only from its closure, the target's report callback and the `Mounted` value the caller holds. They are released when nothing references the mount.
+
+**One event (A).** After completion: 1 Exit in `dispatched`, the fiber still held by `pending`. Completed does not mean released. `settled` then drops the fiber and leaves the Exit.
+
+**Many events (B, C).** Logical growth is linear and exact: N events give N recorded Exits and N held fibers (N = 10, 100, 1000 measured), until `settled` or the Scope close. `settled` then releases the N fibers; the N Exits remain. Typed failures and defects are retained exactly like successes (C, 100 each): same ledger, same fiber retention, same effect of `settled`. Retention is by completion, not by outcome.
+
+**Mixed (D).** success, failure, success, defect, async success, async failure: one ledger in settle order (the later event that completed first appears first); all six fibers held; one `settled` releases them all. One mechanism for every outcome, sync or async.
+
+**`settled` (E, F, I).** It is synchronization, with the side effect of emptying `pending`:
+- It snapshots-and-removes the fibers currently in `pending` and awaits them; it never interrupts anything and never fails (it returns normally after failed or defective events and does not say which ones failed).
+- It waits while work is suspended (two suspended events: still waiting after 500 yields, and after one of them finished), and it also awaits events dispatched while it waits (it loops until `pending` is empty). While waiting, the running fibers stay held.
+- It is reusable and scoped to what is pending at the time: settle, more events, settle again each releases only the fibers held then; with nothing pending it returns at once and changes nothing.
+- It never touches `dispatched`: entries are identical, in the same order, before and after, cumulative across cycles, never reset.
+So `settled` is a barrier, not a cleanup primitive; `pending` emptying is incidental to it.
+
+**Mount close (G, H).** Close without `settled`: suspended events are interrupted and leave no ledger entry; already-completed ones keep theirs; once the mount is unreachable every fiber and every Exit is collectable (7 of 7 fibers, all exit canaries). Settle first and then close: the same end state, with both formerly-suspended events recorded. So `settled` is not required for lifecycle correctness. While a caller still holds `Mounted`, the close finalizer empties `pending` (fibers released at close) but the recorded Exits stay as long as the holder keeps `Mounted.dispatched`.
+
+**Retention scope.** Mount-scoped. Nothing outlives the mount; no fiber survives its mount (the finalizer interrupts and drops them). Retention does not affect command ownership, drain, resource release or later dispatch: the arrays are bookkeeping after completion, and none of Stages 29 to 33's ordering results depend on them.
+
+**Unread failure (J).** A failed or defective event leaves nothing visible except the ledger: state, `State.values`, the page, `settled`, and the public handle (`{state, invoke}`, no failure surface) carry on unchanged. Confirms Stage 33: an application that never reads `Mounted.dispatched` never learns of the failure.
+
+**What `dispatched` is (K).** An append-only completion ledger in settle order: entries appear at completion (never while a command is suspended), are never removed or reordered, and cover every outcome. It is not a pending-work tracker (suspended events are only in `pending`, which is not exposed) and not an event history in the sense of click order.
+
+**Stop conditions:** none occurred. No completed event is retained beyond the mount's lifetime; mount close releases everything; `settled` is not required for correctness; no new abstraction was needed.
+
+**Architectural pressure (classification):** exit retention policy: **unresolved** (the current behavior is a linear, mount-scoped ledger with no consumer; whether that is intended is an author decision, not a correctness problem); automatic pruning: **not required** (nothing demonstrates a correctness problem; pruning would only change memory for long mounts); event history API: **not required**; error propagation API: **not required** (Stage 33's explicit-state route works); event error boundary: **not required**; lifecycle change: **not required**; NEXUS, MESH, PORT change: **not required**. No constraint added.
+
+**Results:** unit 29/29, jsdom 137/137 (122 + 15 new, identical on 3 full runs; the Stage 34 file alone on 5 runs), Chromium 21/21, typecheck and build clean.
+
+**Next uncertainty:** whether the unbounded, unread ledger is an intended product behavior or an accident, i.e. whether the event boundary has a defined observer at all (the only reader is a caller who holds `Mounted`; in the repository's own examples nobody does). That is a product-intent question the experiments cannot answer.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
