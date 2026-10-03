@@ -155,7 +155,7 @@ describe("B, C: many events, success and failure", () => {
       expect(await b.census()).toEqual({ dispatched: count, fibersAlive: count, exitsAlive: count, total: count });   // logical growth: N events -> N and N
       await b.settled();
       expect(await b.census()).toEqual({ dispatched: count, fibersAlive: 0, exitsAlive: count, total: count });
-    });
+    }, 60_000);                                                                   // 1000 real clicks take ~4.5s in jsdom: more than vitest's 5s default when the suite runs in parallel
   }
 
   for (const [kind, id] of [["typed failures", "fail"], ["defects", "die"]] as const) {

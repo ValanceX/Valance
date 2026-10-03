@@ -1726,6 +1726,45 @@ So `settled` is a barrier, not a cleanup primitive; `pending` emptying is incide
 
 ---
 
+## Stage 35: one application, several mounts, observed (evidence; no source change)
+
+**Method.** `examples/tracer-web/test/multi-mount.test.ts` (14 tests, jsdom). One `Valance.start` in the application's Scope; several real `Valance.mount` calls over the same handle, each in ITS OWN Scope and over its own page (independent `connect` lifetimes: follower, target, pending dispatches). Real clicks in each mount's own page, or `invoke`; one MESH intent `home/open(id)` bound to every behavior. Two independent subscribers to the application's state stream stand in for "what each observer is handed". No store, no sync, no new API.
+
+**Topology actually implemented.**
+```text
+Application (start's Scope)
+  |- state (one NEXUS state)         owned here, survives every mount
+  |- State.values / states           one stream per subscriber over the same commits
+  |- commands + command registry     owned here (Stage 29)
+  |- Valance.mount(...) x N          each its own Scope, follower, target, `drawn` render,
+                                     `pending`, `dispatched` (Stage 34)
+```
+`mount` does not own the application and the application does not know its mounts: nothing in `start` references a mount, and each `connect` closes over its own state. Mounting twice on one handle is simply allowed (no exclusivity).
+
+**State ownership (A, B, E, J, K).** Application-owned. Both mounts begin from the same state and mounting commits nothing. One command is one commit; the state stream hands every subscriber the identical value object (no per-subscriber copy), and each live mount renders it once. A mount made after the state changed draws the current state, not the initial one. With every mount unmounted, commands still run and commit; a later mount draws the then-current state (the state stream kept running through the empty period).
+
+**Observation and render lifetime (B, C, D, F).** Each mount independently follows the same value stream with its own render lifetime. Unmounting B (or A, the first mount) removes only that mount's follower and target: the other keeps updating, the application and its commands are untouched, the unmounted page records nothing afterwards. An async command that is suspended while B unmounts commits normally; A updates, B stays silent.
+
+**Command ownership (F, G, H, I).** Two kinds, observed separately:
+- **Invoked** commands are application-owned: unmounting any mount (even the one the caller associates with it) mid-command leaves it running; it commits and the remaining mount renders it.
+- **Click-initiated** commands are application-owned AND ALSO owned by the mount that dispatched them: `connect`'s finalizer interrupts that mount's `pending` dispatch fibers. **Counterexample (stop condition 4, reported not fixed):** click in A starts a suspended command; unmount A while B stays mounted and the application stays alive: the command is interrupted (`gate interrupted`, exit `interrupted`), nothing commits, B sees nothing, the application is unaffected. The same command invoked instead continues. This is the Stage 26/34 `pending` behavior meeting a second mount; it is not new code, but with several mounts "which lifetime ends a click-initiated command" has a visible answer: the dispatching mount's. A click in A and a click in B each run an application command (one commit per click, both mounts follow, the exit is recorded in the dispatching mount's `dispatched` only). Two suspended commands from two mounts run concurrently; completion order decides the state in both orders and both mounts follow every commit (no stale handling, as before).
+
+**Failing mount (L).** A mount whose first draw fails fails by itself (a defect from `mount`); the application, its state and the other mount are unaffected, closing its Scope is harmless, and a retry mounts fine.
+
+**Application close vs mounts.** With independent Scopes, closing the application's Scope does not unmount any mount: their targets stay drawn (last page still present) until each mount's own Scope closes, which then unmounts each exactly once. So the Stage 29/30 statement "the target is unmounted before the drain" holds only when the mount is closed first or lives in the same Scope as the application (finalizer order); it is a consequence of scope placement, not of the library.
+
+**Lifecycle coupling.** Distinct: state lifetime, values subscriptions, command lifetime (application) and mount lifetime (render, target, follower). Coupled in exactly one place: a click-initiated command is also bound to its dispatching mount (`pending`). Nothing else couples them: no mount can end, mutate or diverge the application's state; one mount's teardown never interrupts another mount's observation.
+
+**Stop conditions.** Only one was touched: (4) a command is mount-owned, in the click-initiated case above, as already implemented since Stage 26 and documented by Stage 34; no other mount, state or the application was affected, so I recorded and continued. Not occurred: another mount mutating or terminating state, state diverging, teardown of one mount interrupting another, a synchronization abstraction becoming necessary, any NEXUS/MESH/PORT change.
+
+**Architectural pressure (classification):** multi-mount abstraction: **not required** (mounting twice already works); shared store: **not required**; observer registry: **not required** (each mount subscribes to the same stream); mount-specific state: **not required**; lifecycle change: **unresolved** (only the click-initiated-command-ownership question above); NEXUS, MESH, PORT change: **not required**. No constraint added.
+
+**Results:** unit 29/29, jsdom 151/151 (137 + 14 new, identical on 4 full runs after a Stage 34 test timeout fix: its 1000-click case takes about 4.5s and timed out once in a loaded run, given a 60s limit; its logic is unchanged), Chromium 21/21, typecheck and build clean. Browser behavior was not separately probed: nothing here depends on the runtime.
+
+**Next uncertainty:** whether a click-initiated command should end when the mount that dispatched it unmounts while the application lives on (it does today), or belong to the application like an invoked one. The experiments show the behavior and cannot say which is intended.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
