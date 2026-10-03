@@ -1696,3 +1696,153 @@ describe("closing VALANCE's own entrance when its drain begins", () => {
     strictlyIn(w, "command: left its region", "command exit: interrupted", "valance registry drained", "resource released", "scope closed");
   });
 });
+
+// Stage 28: the REAL mechanism. VALANCE's own `start` now registers each command's own fiber at `inApplication`, closes
+// admission when its Scope finalizer runs (added right after `Application.start`, so before NEXUS terminates), and interrupts and
+// awaits what is registered. Nothing here wraps the table or owns a registry: the application below is the plain one, so what is
+// observed is production-shaped code alone. VALANCE exposes no drain signal, so "the drain has begun" is established by an
+// ordering VALANCE itself guarantees (the target is unmounted by `connect`'s finalizer, which runs just before the drain's) plus
+// a bounded run of cooperative yields: a harness observation, not a mechanism.
+describe("VALANCE's own command lifetime (the production-shaped spike)", () => {
+  const REFUSED = "died: VALANCE: admission is closed (draining)";
+  const at = (w: ReturnType<typeof controllable>, event: string) => w.events.indexOf(event);
+  const strictlyIn = (w: ReturnType<typeof controllable>, ...order: ReadonlyArray<string>) => {
+    for (const [index, event] of order.entries()) {
+      expect(at(w, event), event).toBeGreaterThanOrEqual(0);
+
+      if (index > 0) {
+        expect(at(w, order[index - 1]!), `${order[index - 1]} < ${event}`).toBeLessThan(at(w, event));
+      }
+    }
+  };
+  const ids = async (handle: Valance.ApplicationHandle<AppState, unknown>) => (await Effect.runPromise(handle.state)).items.map((item) => item.id);
+  const gates = async () => ({ entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) });
+  const invokeExit = async (handle: Valance.ApplicationHandle<AppState, unknown>, key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument> = []) => show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))));
+  /** Closes the Scope and waits until the drain has begun, by VALANCE's own ordering (target unmounted) plus a bounded run of yields. */
+  const closeAndReachDrain = async (booted: Awaited<ReturnType<typeof bootTable>>) => {
+    booted.w.events.push("scope closing");
+    const closing = booted.closeScope();
+
+    await until(() => booted.m.page.container.innerHTML === "");
+    await booted.yields(1000);
+
+    return closing;
+  };
+
+  it("probe A: an admitted command is interrupted, and has exited, before NEXUS terminates and the resource releases", async () => {
+    const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, m, handle, emitted, closeScope } = await bootTable({ before });
+    const invoked = Effect.runFork(handle.invoke("app/slowOpen", [{ value: "A0" }]));
+
+    await Effect.runPromise(Deferred.await(before.waiting));                      // admitted through the real command path; at no resource yet
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    strictlyIn(w, "command admitted", "scope closing", "command exit: interrupted", "resource released", "scope closed");
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");   // the caller observes interruption
+    expect(await ids(handle)).toEqual(["A0"]);                                    // nothing committed
+    expect((await emitted).map((state) => state.items.length)).toEqual([1]);       // values never emitted a post-start result
+    expect(m.operations).toEqual(["draw"]);
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);   // the resource was never reached
+  });
+
+  it("probe B: a late ApplicationHandle.invoke is refused by VALANCE as a defect; the binding does not run and the resource is untouched", async () => {
+    const region = await gates();
+    const booted = await bootTable({ region });
+    const { w, handle, poll } = booted;
+    const held = Effect.runFork(handle.invoke("app/slowRegion", []));
+
+    await Effect.runPromise(Deferred.await(region.entered));
+    const closing = await closeAndReachDrain(booted);
+
+    expect(await poll(closing)).toBe(false);                                      // held open by the uninterruptible command
+    expect(w.events).not.toContain("resource released");                          // NEXUS has not begun to terminate
+    const admitted = w.events.filter((event) => event === "command admitted").length;
+
+    // The exact failure: a defect with VALANCE's message (NEXUS's own refusal reads "the runtime has begun terminating").
+    // Because the guard runs as the first step of the fiber NEXUS has already admitted, the call DID reach NEXUS's admission;
+    // it was refused inside that fiber. The binding never ran (no new `command admitted`), no resource was touched.
+    expect(await invokeExit(handle, "app/home")).toBe(REFUSED);
+    expect(await invokeExit(handle, "app/slowOpen", [{ value: "L" }])).toBe(REFUSED);
+    expect(w.events.filter((event) => event === "command admitted")).toHaveLength(admitted);
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);
+
+    await Effect.runPromise(Deferred.succeed(region.gate, undefined));
+    await Effect.runPromise(Fiber.join(closing));
+    await Effect.runPromise(Fiber.await(held));
+
+    expect(await invokeExit(handle, "app/home")).toBe("died: NEXUS: the runtime has begun terminating");   // afterwards NEXUS's own refusal
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);                      // nothing escaped
+  });
+
+  it("probe C: a command inside a capability call is interrupted; the call exits as a consequence; the resource is valid until the command has exited", async () => {
+    const { w, handle, closeScope } = await bootTable({});
+    const invoked = Effect.runFork(handle.invoke("app/slowOpen", [{ value: "A0" }]));
+
+    await Effect.runPromise(w.started("A0"));
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    strictlyIn(w, "scope closing", "lookup interrupted A0", "command exit: interrupted", "resource released", "scope closed");
+    expect(w.events).not.toContain("resource used after release A0");               // no use-after-release
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");
+    expect(await ids(handle)).toEqual(["A0"]);
+  });
+
+  it("probe D: MESH dispatch: ordinary dispatch still works; a suspended dispatched command is interrupted once, before the resource releases", async () => {
+    // Ordinary dispatch, end to end through PORT, `connect` and the same command boundary.
+    {
+      const { w, m, handle, closeScope } = await bootTable({});
+
+      await Effect.runPromise(handle.invoke("app/changeItems", [{ value: [{ id: "A0", name: "Alpha" }, { id: "B0", name: "Beta" }] as never }]));
+      await until(() => m.page.container.querySelectorAll("div").length === 2);
+      m.page.click([...m.page.container.querySelectorAll("button")].find((button) => button.textContent === "Reverse")!);
+      await until(() => m.page.container.querySelector("div span")?.textContent === "Beta");
+      expect(m.operations).toEqual(["draw", "update", "update"]);                  // the MESH intent ran and rendered as before
+
+      await Effect.runPromise(Fiber.join(closeScope()));                           // and left nothing in the way of the drain
+      expect(w.events.slice(-1)).toEqual(["scope closed"]);
+    }
+
+    // A suspended dispatched command: VALANCE's existing pending-fiber interruption acts first; the registry adds no second interruption.
+    {
+      const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
+      const { w, handle, clickOpen, closeScope } = await bootTable({ before });
+
+      clickOpen();
+      await Effect.runPromise(Deferred.await(before.waiting));
+      w.events.push("scope closing");
+      await Effect.runPromise(Fiber.join(closeScope()));
+
+      strictlyIn(w, "scope closing", "command exit: interrupted", "resource released", "scope closed");
+      expect(w.events.filter((event) => event.startsWith("command exit:"))).toEqual(["command exit: interrupted"]);   // one exit, once
+      expect(await ids(handle)).toEqual(["A0"]);
+    }
+  });
+
+  it("probe E (known liveness question): an uninterruptible command that needs a NEW invocation blocks the drain; the resource stays alive", async () => {
+    const region = await gates();
+    const booted = await bootTable({ region });
+    const { w, handle, poll, yields } = booted;
+    const held = Effect.runFork(handle.invoke("app/slowRegion", []));
+
+    await Effect.runPromise(Deferred.await(region.entered));
+    const closing = await closeAndReachDrain(booted);
+
+    try {
+      // The only door to its gate is a new invocation: refused by the closed entrance.
+      expect(await invokeExit(handle, "app/openRegion")).toBe(REFUSED);
+      await yields(2000);
+
+      expect(await poll(closing)).toBe(false);                                    // Scope.close is blocked
+      expect(await poll(held)).toBe(false);                                       // so is the command
+      expect(w.events).not.toContain("command: left its region");
+      expect(w.events).not.toContain("resource released");                        // NEXUS never began; the resource is alive
+    } finally {
+      await Effect.runPromise(Deferred.succeed(region.gate, undefined));          // cleanup only, from outside, after the block has been observed
+    }
+
+    await Effect.runPromise(Fiber.join(closing));
+    await Effect.runPromise(Fiber.await(held));
+  });
+});
