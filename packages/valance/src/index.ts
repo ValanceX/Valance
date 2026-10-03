@@ -256,8 +256,7 @@ const connect = <S, E, T extends Target, A>(
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
       yield* Fiber.interrupt(follower);
       yield* Effect.sync(() => { target.unmount(); });
-      // SPIKE (Stage 36): the mount no longer interrupts the commands its events started; it only lets go of them. They are the application's.
-      yield* Effect.sync(() => { pending.splice(0); });
+      yield* Effect.forEach(pending.splice(0), Fiber.interrupt, { discard: true });
     }));
 
     // Dispatches may start more dispatches' worth of work only through the target, so draining until empty terminates.
