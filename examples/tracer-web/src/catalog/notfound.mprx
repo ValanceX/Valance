@@ -1,0 +1,4 @@
+<page title={title}>
+  <text>Not found</text>
+  <button on.click={back()}>Back</button>
+</page>

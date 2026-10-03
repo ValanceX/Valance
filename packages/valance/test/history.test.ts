@@ -7,12 +7,13 @@
 //   popstate       invoke(navigate, stateOf(location)), then the resulting state's urlOf is the baseline; never a write
 //   never          compare the browser URL with urlOf(state)
 import type { Mesh } from "@valancex/nexus";
-import type { Running } from "../src/index.js";
+import type { Running } from "../src/internal.js";
 
 import * as Nexus from "@valancex/nexus";
 import { Effect, Layer, Schema, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
+import { handleOf } from "../src/internal.js";
 import { history } from "../src/web.js";
 
 const App = Schema.Struct({ path: Schema.String, n: Schema.Number });
@@ -63,7 +64,7 @@ const scenario = <A>(initial: { readonly browser: string; readonly state: App },
   const state = yield* Nexus.Application.createState(nexus, App, initial.state);
   const browser = fakeWindow(initial.browser);
   const invoked: Array<unknown> = [];
-  const running: Running<App, never, never> = {
+  const running: Running<App, never> = {
     nexus,
     render: Effect.die("unused"),
     values: Stream.empty,
@@ -80,7 +81,7 @@ const scenario = <A>(initial: { readonly browser: string; readonly state: App },
     },
   };
 
-  yield* history(running, { window: browser.window, urlOf, stateOf, navigate: "navigate" });
+  yield* history(handleOf(running), { window: browser.window, urlOf, stateOf, navigate: "navigate" });
   // The follower consumes in its own fiber; give it room to catch up before observing.
   const settle = Effect.sleep("30 millis");
   yield* settle;

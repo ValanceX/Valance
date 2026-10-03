@@ -1,0 +1,11 @@
+<page title={title}>
+  <text>{count} items: {summary}</text>
+  <button on.click={open(firstId)}>Open first</button>
+  <button on.click={reverse()}>Reverse</button>
+  <mesh-each items={items} as="item" key={item.id}>
+    <row>
+      <text>{item.name}</text>
+      <button on.click={open(item.id)}>Open</button>
+    </row>
+  </mesh-each>
+</page>

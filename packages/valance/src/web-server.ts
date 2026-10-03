@@ -10,6 +10,7 @@ import type { Ambient, ApplicationDefinition, StartError, StartOptions } from ".
 import { realizeHtml } from "@valancex/port-web/server";
 import { Effect } from "effect";
 
+import { runningOf } from "./internal.js";
 import { start } from "./index.js";
 
 export interface Served<S> {
@@ -23,7 +24,7 @@ export const renderToHtml = <S, E, R extends Ambient, V extends string>(
   options: StartOptions<S> & { readonly primitives: WebPrimitives }
 ): Effect.Effect<Served<S>, StartError | Mesh.MeshDiagnostics> =>
   Effect.scoped(Effect.gen(function* () {
-    const running = yield* start(app, options);
+    const running = runningOf(yield* start(app, options));
     const viewed = yield* running.render;
 
     return { html: realizeHtml(viewed.render.tree, options.primitives), state: yield* running.state };

@@ -54,6 +54,25 @@ as "reviewed only".
 
 - **C19.** The `Web.history` contract is tested at unit level (`packages/valance/test/history.test.ts`); Chromium stays the acceptance check. No new options, API, rollback or resynchronization.
 
+## Added for stage 29 (command lifetime; adopted from the Stage 27/28 evidence)
+
+*The whole lifecycle (application, mount, event command, ledger) is stated once in `docs/FINDINGS.md`, "Canonical lifecycle architecture". C20 to C26 are its invariants.*
+
+- **C20, command lifetime (safety).** A command admitted through the application's command boundary (`inApplication`, reached by both `ApplicationHandle.invoke` and MESH dispatch) remains owned by the application until it exits. When draining begins (the caller's Scope closes), VALANCE closes admission and interrupts and awaits every already-admitted command BEFORE NEXUS terminates and platform resources release. *(tripwire: `examples/tracer-web/test/capability-async.test.ts`, "the VALANCE command-lifetime contract")*
+- **C21, admission during drain.** No new command is admitted after draining begins; the refusal is a defect (`VALANCE: admission is closed (draining)`). The check and the registration are one synchronous step. *(tripwire: same)*
+- **C22, ownership boundary.** The registry owns commands, not application fibers: daemon and escaped fibers are outside it; structured children are covered by their command. It is internal: `ApplicationHandle` exposes no lifecycle, drain, shutdown or registry. NEXUS, MESH and PORT are unchanged.
+- **C20, trigger and scope (Stage 30, clarifies C20).** "Draining begins" means the caller's Scope closing, the only route in the VALANCE model. The drain constrains admission and the lifetime of admitted commands; it does not forbid state changes by commands that are still running (Stage 30, Interpretation A). `Application.shutdown(running.nexus)`, reachable only through `./internal`, is the substrate's early end: it does not pass the drain and the contract is not claimed for it.
+- **C23, liveness limitation (documented, not solved).** An uninterruptible admitted command that depends on a NEW admission can keep shutdown from completing; the application stays alive and its resources are not released under the command. No timeout, forced interruption, watchdog or fallback admission. *(tripwire: contract 5)*
+- **C25, event commands (Stage 39).** A command admitted from a mount's event is the application's, exactly like an invoked one: it remains owned by the application until it exits. Closing the mount that reported the event ends that mount's follower and target, not the command; the application's close interrupts it through the registry (C20 to C22). The mount remains the source: its ledger (`Mounted.dispatched`) records the exit, even after it closed. *(tripwire: `test/event-ownership.test.ts`, `browser/event-lifetime.browser.test.ts`)*
+
+## Added for stage 38 (mount lifetime)
+
+- **C24, a mount's lifetime is the caller's Scope's.** `mount`/`hydrate` end with the Scope the caller supplies (target and follower finalized by it, target first), and relate to the application's Scope in no other way. The application ending ends the mount's follower, not its target. An independent mount may therefore outlive its application as a drawn, inert target until its own Scope closes. This is permitted, not an error. *(tripwire: `browser/mount-lifetime.browser.test.ts`, `test/scope-topology.test.ts`)*
+
+## Added for stage 40/41 (the event-exit ledger)
+
+- **C26, the event-exit ledger is a mount-owned diagnostic observation facility.** `Mounted.dispatched` is append-only (settle order, never removed or reordered), belongs to the mount that dispatched, keeps receiving exits after that mount's target closed until its commands have exited, and lives as long as `Mounted` is held. It is not application state, is not exposed by `ApplicationHandle`, is read by nothing in Valance, and is not part of the application programming model. `Mounted.settled` is a barrier over an open mount's own held dispatches, does not read the ledger, and on a closed mount returns at once. *(tripwire: `packages/valance/test/entry.test.ts` (the handle is `{state, invoke}`: `packages/valance/test/entry.test.ts`), `browser/event-ledger.browser.test.ts`)*
+
 ## Status (Web.history exploration closed)
 
 C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated once, in `docs/FINDINGS.md` Stage 7. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).

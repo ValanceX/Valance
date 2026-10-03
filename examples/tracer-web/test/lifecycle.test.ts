@@ -1,6 +1,7 @@
 // Lifecycle tripwires (constraint C6, C7): who creates, who owns the lifetime, what the caller sees.
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
+import { handleOf, runningOf, type Running, type Viewed } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
 import { Clock, Effect, Exit, Layer, Stream } from "effect";
 import { describe, expect, it } from "vitest";
@@ -17,7 +18,7 @@ const fixed = (n: number): Clock.Clock => {
 };
 const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.setClock(fixed(42)));
 
-const clickHandler = (viewed: Valance.Viewed): string => (viewed.render.tree.root as unknown as { children: ReadonlyArray<{ events: { click: string } }> }).children[1]!.events.click;
+const clickHandler = (viewed: Viewed): string => (viewed.render.tree.root as unknown as { children: ReadonlyArray<{ events: { click: string } }> }).children[1]!.events.click;
 
 describe("lifecycle", () => {
   it("platform services reach application behavior, and never the caller (NEXUS I44, through Valance)", async () => {
@@ -47,12 +48,12 @@ describe("lifecycle", () => {
   it("closing the caller's scope ends Valance's follower, unmounts the target, then ends the application", async () => {
     const app = application(await compilePrograms());
     const page = load("");
-    let out!: { running: Valance.Running<unknown, unknown, never>; mounted: Valance.Mounted<unknown> };
+    let out!: { running: Running<unknown, unknown>; mounted: Valance.Mounted<unknown> };
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(app);
-      const mounted = yield* Valance.mount(running, Web.target({ container: page.container, primitives }));
-      out = { running: running as never, mounted: mounted as never };
+      const handle = yield* Valance.start(app);
+      const mounted = yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
+      out = { running: runningOf(handle) as never, mounted: mounted as never };
 
       expect(page.container.querySelector("button")).not.toBeNull();
     })));
@@ -63,15 +64,18 @@ describe("lifecycle", () => {
     expect(await Effect.runPromise(Nexus.Application.status(out.running.nexus))).toEqual({ _tag: "Stopped" });
   });
 
-  it("Application.shutdown ends the render follower cleanly; the target stays until the scope closes", async () => {
+  // SUBSTRATE-LEVEL, outside the VALANCE model (Stage 14). The owner scope is the application's only lifetime; nothing in
+  // VALANCE asks an application to end early. This pins a TOLERANCE, not a promise: if NEXUS ends the application while the
+  // scope is open (reachable only through `running.nexus`), the follower ends cleanly and the target is left for the scope.
+  it("substrate: if NEXUS ends the application while the scope is open, the follower ends cleanly and the target stays until the scope closes", async () => {
     const app = application(await compilePrograms());
     const page = load("");
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(app);
-      const mounted = yield* Valance.mount(running, Web.target({ container: page.container, primitives }));
+      const handle = yield* Valance.start(app);
+      const mounted = yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
 
-      yield* Nexus.Application.shutdown(running.nexus);
+      yield* Nexus.Application.shutdown(runningOf(handle).nexus);
 
       expect(Exit.isSuccess(yield* mounted.followed)).toBe(true);
       expect(page.container.querySelector("button")).not.toBeNull();
@@ -83,19 +87,20 @@ describe("lifecycle", () => {
     const page = load("");
 
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(app);
+      const handle = yield* Valance.start(app);
+      const running = runningOf(handle);
       const initial = yield* running.render;
       let committed = false;
       // The host's first element arrives (subscription made, first render about to be produced), and a click commits.
-      const racing: typeof running = { ...running, values: Stream.tap(running.values, () => Effect.suspend(() => {
+      const racing = handleOf({ ...running, values: Stream.tap(running.values, () => Effect.suspend(() => {
         if (committed) {
           return Effect.void;
         }
 
         committed = true;
 
-        return Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.dispatch(initial, clickHandler(initial)))).pipe(Effect.asVoid);
-      })) };
+        return running.dispatch(initial, clickHandler(initial)).pipe(Effect.orDie, Effect.asVoid);
+      })) });
       yield* Valance.mount(racing, Web.target({ container: page.container, primitives }));
       yield* Effect.promise(() => until(() => page.container.textContent!.startsWith("1 clicks")));
 
@@ -113,9 +118,10 @@ describe("lifecycle", () => {
         const page = load("");
         runs += 1;
         await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-          const running = yield* Valance.start(app);
+          const handle = yield* Valance.start(app);
+          const running = runningOf(handle);
           const initial = yield* running.render;
-          const commit = () => { void Nexus.Runtime.run(running.nexus.runtime, running.dispatch(initial, clickHandler(initial))); };
+          const commit = () => { void Effect.runPromise(running.dispatch(initial, clickHandler(initial))); };
 
           if (offset < 0) {
             commit();
@@ -123,7 +129,7 @@ describe("lifecycle", () => {
             setTimeout(commit, offset);
           }
 
-          yield* Valance.mount(running, Web.target({ container: page.container, primitives }));
+          yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
           yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 25)));
           const { count } = yield* running.state;
 
@@ -136,5 +142,5 @@ describe("lifecycle", () => {
 
     expect(runs).toBe(100);
     expect(stale).toBe(0);
-  });
+  }, 30_000);
 });

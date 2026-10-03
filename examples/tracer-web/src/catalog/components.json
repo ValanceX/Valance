@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "types": {},
+  "components": {
+    "page": {
+      "props": {
+        "title": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "text": {
+      "props": {},
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "button": {
+      "props": {},
+      "events": {
+        "click": {}
+      },
+      "commands": {},
+      "scope": {}
+    },
+    "home": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "open": {
+          "parameters": [
+            {
+              "name": "id",
+              "type": {
+                "kind": "string"
+              }
+            }
+          ]
+        },
+        "reverse": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "title": {
+          "kind": "string"
+        },
+        "count": {
+          "kind": "number"
+        },
+        "summary": {
+          "kind": "string"
+        },
+        "firstId": {
+          "kind": "string"
+        },
+        "items": {
+          "kind": "list",
+          "element": {
+            "kind": "record",
+            "fields": {
+              "id": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "name": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "details": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "back": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "title": {
+          "kind": "string"
+        },
+        "id": {
+          "kind": "string"
+        },
+        "name": {
+          "kind": "string"
+        },
+        "count": {
+          "kind": "number"
+        },
+        "summary": {
+          "kind": "string"
+        }
+      }
+    },
+    "notfound": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "back": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "title": {
+          "kind": "string"
+        }
+      }
+    },
+    "row": {
+      "props": {},
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "mesh-each": {
+      "props": {
+        "items": {
+          "type": {
+            "kind": "list",
+            "element": {
+              "kind": "any"
+            }
+          },
+          "required": true
+        },
+        "as": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "key": {
+          "type": {
+            "kind": "any"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {}
+    }
+  }
+}

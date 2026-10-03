@@ -16,6 +16,7 @@ import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
+import { runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
 import { userEvent } from "@vitest/browser/context";
 import { Effect, Fiber, Layer, Stream } from "effect";
@@ -60,7 +61,7 @@ const countingPlatform = () => {
 /** Starts the application at the URL the "server" served, hydrates, and keeps URL and state in step. */
 const run = async <A>(served: typeof page.home, startUrl: string, options: { readonly canonicalize: boolean }, body: (context: {
   readonly main: HTMLElement;
-  readonly running: Valance.Running<typeof served.state, Nexus.Command.CommandValidationError, Nexus.Event.EventBusShape>;
+  readonly running: Valance.ApplicationHandle<typeof served.state, Nexus.Command.CommandValidationError>;
   readonly navigated: Array<string>;
   readonly counts: { acquired: number; released: number };
   readonly hydration: unknown;
@@ -90,7 +91,7 @@ const run = async <A>(served: typeof page.home, startUrl: string, options: { rea
       const mounted = yield* Valance.hydrate(running, recording(main, operations));
       yield* Web.history(running, { window, urlOf, stateOf, navigate: "app/navigate" });
       // Every Navigated, whoever asked for it.
-      const watcher = Nexus.Runtime.runFork(running.nexus.runtime, Stream.runForEach(Nexus.Event.subscribe(Navigated), ({ path, tab }) => Effect.sync(() => { navigated.push(`${path}|${tab}`); })));
+      const watcher = Nexus.Runtime.runFork(runningOf(running).nexus.runtime, Stream.runForEach(Nexus.Event.subscribe(Navigated), ({ path, tab }) => Effect.sync(() => { navigated.push(`${path}|${tab}`); })));
       yield* Effect.sleep("20 millis");
 
       const value = yield* body({ main, running, navigated, counts, hydration: mounted.hydration, entriesAtStart, writes });
@@ -126,7 +127,7 @@ it("/tracer/about?tab=details → navigate (application) → Back → Forward: U
 
     const observe = (step: string) => Effect.gen(function* () {
       const state = yield* running.state;
-      const status = yield* Nexus.Application.status(running.nexus);
+      const status = yield* Nexus.Application.status(runningOf(running).nexus);
       trace.push({ step, url: url(), path: state.path, tab: state.tab, count: state.count, about: text(main).startsWith("About"), acquired: c.acquired, released: c.released, status: status._tag });
     });
 
@@ -206,7 +207,7 @@ const cases = [
 it.each(cases)("initial URL $name ($start): the application's entry canonicalizes with replace; nothing is ever pushed", async ({ served, start, state, program, writes, url: finalUrl }) => {
   const { result, counts, operations } = await run<{ record: unknown; hydration: unknown; status: string }>(served, start, { canonicalize: true }, ({ main, running, hydration, writes: log }) => Effect.gen(function* () {
     const current = yield* running.state;
-    const status = yield* Nexus.Application.status(running.nexus);
+    const status = yield* Nexus.Application.status(runningOf(running).nexus);
 
     return { record: { initial: start, state: { path: current.path, tab: current.tab }, program: text(main).slice(0, program.length), writes: [...log], finalUrl: url() }, hydration, status: status._tag };
   }));
@@ -221,8 +222,8 @@ it.each(cases)("initial URL $name ($start): the application's entry canonicalize
 // The guard: when does Web.history push? Never because the URL merely differs from urlOf(state); only when the
 // application's own URL (urlOf(state)) changes between synchronized states. Popstate re-baselines and never writes.
 const ABOUT_OVERVIEW = "/tracer/about?tab=overview";
-const increment = (running: Valance.Running<typeof page.home.state, Nexus.Command.CommandValidationError, Nexus.Event.EventBusShape>) =>
-  Effect.promise(() => Nexus.Runtime.run(running.nexus.runtime, running.invoke("counter/increment", [])));
+const increment = (running: Valance.ApplicationHandle<typeof page.home.state, Nexus.Command.CommandValidationError>) =>
+  running.invoke("counter/increment", []).pipe(Effect.orDie);
 
 // Case A: the page sits at a noncanonical URL (the application did not canonicalize it); an unrelated commit is not a navigation.
 it.each([cases[1], cases[2]])("guard A, $name: an unrelated state change at a noncanonical URL writes nothing", async ({ served, start }) => {
