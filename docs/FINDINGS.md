@@ -1597,6 +1597,53 @@ The lifecycle boundary is closed. Next exploration: async/data flow under this c
 
 ---
 
+## Stage 32: async composition and ownership, observed (evidence; no source change)
+
+**Tracer.** `examples/tracer-web/test/async-compose.test.ts` (22 tests, tests only). Same method as Stage 31: real `Valance.start`, commands, state, `State.values`, mount/render, a pseudo platform resource (a Scope finalizer registered before `start`, so it runs after NEXUS terminates), deterministic `Deferred` gates, one ordered trace, no timers. State `{ value, ticket }`; every command composes gate-controlled operations with plain Effect only: sequencing, `Effect.all`, `Effect.either`, `Effect.fork` + `Fiber.join`, `Effect.forkDaemon`. Commands were driven through `ApplicationHandle.invoke`; the MESH dispatch path was not exercised by these probes (same boundary, `inApplication`, but not re-tested here).
+
+**A, sequential.** Plain sequencing expresses it. B does not start until A's commit; trace `A started, A done, commit a, B started, B done, commit b, exit, caller returns`; three values (`init, a, b`), `draw, update, update`.
+
+**B, parallel owned.** One command owning two operations (`Effect.all`, each branch commits): it stays alive after the first branch finishes and exits only after the second (no `exit` event before the second commit); both orders give commits in completion order, last completion wins. Contrast, same two operations joined and committed ONCE (`all` then one `commit`): one transition (`a+b`) in either completion order, no intermediate state. So "what becomes state, and when" is decided by the command's own structure, not by anything VALANCE adds.
+
+**C, partial failure** is ordinary Effect failure and nothing more:
+- C3 both succeed: command succeeds.
+- C1 A commits, then B fails: the command fails with B's typed error; A's commit stays (no rollback exists or is implied); nothing after.
+- C2, A fails first: `Effect.all` interrupts B (`B interrupted`); the command fails with A's error; opening B's gate later changes nothing; no commit at all. The caller's exit is a composite cause (the typed failure plus the interrupted sibling, `Parallel`), an ordinary Effect fact that a naive `isFailType` check misses.
+- C2, B succeeds first then A fails: B's commit stays; command fails with A's error.
+- Caught failure (`Effect.either` per branch): the sibling is NOT interrupted; the command succeeds and commits the settled outcome (`A:ok,B:failed`) once.
+Failure never reaches state, values or the render by itself: only what the command chooses to commit does.
+
+**D, owned vs detached.**
+- D1 (`fork` + `join`, owned): at drain the command and its child are interrupted before the resource releases; a gate opened afterwards changes nothing. Observation: the child's interruption is recorded after the command body's last step (children are interrupted as part of the command fiber's exit) and before the resource releases.
+- D2 detached, application alive: after the command has exited, the daemon work still commits, emits and renders like any commit.
+- D2 detached at drain: nothing is interrupted (the command is gone); the gate opened after the Scope closed commits after termination, unemitted and unrendered. (A gate opened between "drain begins" and "NEXUS terminates" cannot be held open deterministically here: the drain does not wait for detached work.)
+No third category appeared: work is command-owned (including structured children) or deliberately detached.
+
+**E, composed workflow at drain.** Two pending operations: both interrupted, the command exits interrupted before the resource releases, nothing commits. With one operation already committed: that commit stays, the pending one is interrupted, exit before release. The Stage 29 contract covers the whole composition; it needed nothing composition-specific.
+
+**F, race against drain (125 repeats, 5 runs).** Both gates opened in the same turn as the close begins: always the same outcome. The whole composition completes first (`commit a, commit b, command exit`), then the follower is unmounted, then the resource releases, then the Scope returns; **`values: a` emits before the unmount and `values: b` is delivered after `scope closed`** (the collector fiber drains already-committed values after the Scope returned; it is the commit that happened before termination, not a post-termination commit); nothing is rendered. Exit before release in every run. No new race: this is the Stage 31 shape with two operations.
+
+**G, one command owning A+B vs two commands.** In states, emissions and renders they are identical (both orders). They differ exactly in failure and cancellation scope: inside one command a failing branch interrupts its sibling (C2) and interrupting the owning command's caller stops both operations; with two commands a failing B leaves A running and committing, and interrupting one caller leaves the other running. That distinction already exists at the command boundary and is sufficient to express both cases.
+
+**H, stale results.** Two commands, B completes then A: A overwrites B (Stage 31). The same race with the policy written by the application in ordinary state (a `ticket` incremented at start, checked after the await): the stale result is dropped (`commit b` only, final `b`) with no new VALANCE concept. Cost observed: the tickets are state, so each start emits a value (`init t1`, `init t2`) and the unchanged view is re-rendered. Composition does not make stale-result policy unavoidable; whether the ergonomics warrant framework help is a separate, unobserved question.
+
+**Architectural pressure (classification):**
+- Async abstraction (Query/Resource/Future/PromiseState): **not required**: every workflow was ordinary Effect inside a command.
+- VALANCE-specific async failure semantics: **not required**: Effect causes carry it; failure is not state unless the command commits it.
+- Third ownership category: **not required**: command-owned (with structured children) vs detached sufficed.
+- Request identity / latest-wins / cancellation tokens: **not required**: cancellation is the interruption chain; staleness is expressible as application state.
+- Rendering async awareness: **not required**: it remained downstream of state in every probe.
+- Lifecycle changes: **not required**: Stage 29 covers composed work unchanged.
+- Framework-owned stale-result handling as an ergonomic convenience: **unresolved** (capable without it; the cost shown above is real but small).
+
+No stop condition occurred. No constraint added: nothing here is an invariant beyond Stages 29 to 31.
+
+**Results:** unit 29/29, jsdom 108/108 (86 + 22 new, identical on 3 full runs; the tracer file alone 5 runs, 25-repeat race inside), Chromium 20/20, typecheck and build clean.
+
+**Next uncertainty:** how a failed or interrupted command becomes visible to the application and its view on the UI-driven (MESH dispatch) path. Here failure reaches only the `invoke` caller; state and render see nothing unless the command catches and commits. Whether that is enough for event-triggered work was not probed.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
