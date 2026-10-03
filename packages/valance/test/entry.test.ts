@@ -71,6 +71,15 @@ describe("application event entry", () => {
     expect(state.n).toBe(7);
   });
 
+  it("package surface (Stage 42): `Mounted` is on the entry as the declared result of `mount`/`hydrate`; the diagnostic `DispatchExit` is not (it lives behind ./internal)", () => {
+    // @ts-expect-error `DispatchExit` is not exported from the package entry (it is diagnostic, behind ./internal)
+    const absent: Valance.DispatchExit<never> | undefined = undefined;
+
+    void absent;
+    expectTypeOf<Valance.Mounted<never>["dispatched"]>().not.toBeAny();         // its structure stays readable through `Mounted`
+    expect(Object.keys(Valance).sort()).toEqual(["define", "hydrate", "mount", "start"]);
+  });
+
   it("the handle is the application's face and nothing else: state and invoke, frozen, with no composition or substrate", async () => {
     await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const handle = yield* Valance.start(application);

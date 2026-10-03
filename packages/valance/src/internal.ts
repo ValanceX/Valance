@@ -8,8 +8,15 @@
  * through the `./internal` entry, binding authors and tests) can resolve one. Unstable by design.
  */
 import type * as Nexus from "@valancex/nexus";
-import type { Effect, Stream } from "effect";
+import type { Effect, Exit, Stream } from "effect";
 import type { ApplicationHandle } from "./index.js";
+
+/**
+ * How one event dispatch ended, as `Mounted.dispatched` records it: what MESH dispatched, or why it did not (a MESH diagnostic, an unmapped
+ * command, the command's own typed failure, a defect, interruption). A diagnostic type: it is not nameable from the package entry, which commits to
+ * no consumer of it (Stage 42); readers of `dispatched` use its structure.
+ */
+export type DispatchExit<E> = Exit.Exit<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
 
 /** A MESH render, and which view's program made it. Program continuity is "same view as the drawn one". */
 export interface Viewed {

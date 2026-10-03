@@ -20,7 +20,7 @@
 import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
 
 import * as Nexus from "@valancex/nexus";
-import { handleOf, runningOf, type Running, type Viewed } from "./internal.js";
+import { handleOf, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
@@ -181,8 +181,6 @@ export interface HydratableTarget<H> extends Target {
 
 /** Builds a target that reports to `report`. */
 export type TargetFactory<T extends Target> = (report: Report) => T;
-
-export type DispatchExit<E> = Exit.Exit<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
 
 export interface Mounted<E> {
   /**
