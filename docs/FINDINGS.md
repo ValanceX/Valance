@@ -2141,6 +2141,24 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 48: the real page across URL changes (observed; no change needed)
+
+**What the existing path promises (read first).** `Web.history` (documented in `packages/valance/src/web.ts`, Stage 7): an application URL change is a `history.pushState` (never a document navigation); a `popstate` is delivered to the application's own navigate command through `invoke`, in place; the URL carries only what `urlOf`/`stateOf` say (here `path` and `tab`, not `count`). `run` does not react to history itself: it passes the `history` option to `Web.history`, whose fiber lives in the page's one Scope with the mount. `page.ts` calls `run` once.
+
+**Observed in one focused Chromium tracer (`browser/page-navigation.browser.test.ts`, 5 runs; the Stage 46 test covers only the click-to-URL step and is not duplicated).** One document loaded from the dev server, then:
+1. *Event-triggered URL changes:* Back (About to counter) and About (counter to About) each push one entry (`/tracer/?tab=overview`, then `/tracer/about?tab=overview`); an update the URL does not carry (the click counter) writes nothing. `history.length` grew by exactly 2; `frame.contentDocument` is the same object, a marker set on the window survives, and `performance.getEntriesByType("navigation")` stays at 1: **the browser requested no new document.** The mechanism is in-place history.
+2. *Traversal:* `history.back()` twice and `forward()` once move the URL and the rendered view each time; the counter view comes back with **count 1 and the same stamp**, which no new document could reproduce. Same document, same marker, still one navigation entry, no report of any level: **the same running application handles the popstate** (popstate becomes `invoke("app/navigate")`).
+3. *Reload:* `location.reload()` is a genuinely new document (a different `Document`, the marker gone, a new `data-valance="running"`): the page starts again and the application is rebuilt **from the URL alone** (`/tracer/?tab=overview` renders the counter view with count 0). What the URL does not carry does not survive; that is the documented "URL is not state" split, not a defect.
+4. *Page end:* `pagehide` closes the page's one Scope: the target is unmounted AND the history binding is gone: a `history.back()` afterwards moves the browser's URL (the browser's, not the page's) and the page neither navigates nor redraws nor reports anything.
+
+**Is the lifecycle coherent?** Yes. URL change is in-place history on one document and one running application; a reload is a new page that rebuilds from the URL; the page's one Scope owns both the mount and the history binding and ends them together. No bug, no ambiguous contract, no example change; no new test duplicates Stage 46 (this one asserts different facts: document identity, navigation count, traversal, state survival, reload, post-close inertness).
+
+**Validation.** Focused Chromium only: the new test, 5 runs; example typecheck clean. The shared browser config and page infrastructure were not changed this stage, so the existing Chromium suite was not rerun. `packages/*`, NEXUS, MESH and PORT untouched.
+
+**Next uncertainty.** `page.ts` treats `pagehide` as the final end of the page. A real browser can also fire `pagehide` with `persisted: true` when it puts the page in the back/forward cache and later restores that same document with `pageshow`; in that case the Scope has been closed and nothing restarts it, so a restored page would show the server's last drawn HTML with a dead application. This is a hypothesis about real browser behavior that the synthetic `pagehide` used here cannot confirm; it needs one real bfcache navigation to observe, and is the next concrete page-lifecycle question.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
