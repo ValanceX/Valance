@@ -1275,6 +1275,72 @@ Whether the convention gap (H) can be closed **in VALANCE composition, with no N
 
 ---
 
+## Stage 26: where VALANCE owns command lifetime (the two entry paths, tested)
+
+*Question: can VALANCE own the lifetime of every command that enters through its existing command boundary, without changing NEXUS? Method: drive both real entry paths (`ApplicationHandle.invoke`, and a real MESH click through PORT and `connect`'s dispatch) against one application, first with nothing added, then with ONE central wrapper over the whole binding table (no command registers itself), then with a registry owned by the caller's Scope instead of the platform. Test-only; no source change in VALANCE, NEXUS, MESH or PORT; Stage 19 to 25 tests untouched (`test/capability-async.test.ts`, 36 tests, stable over 8 runs; a VALANCE-level drain that requests nothing fails E and E2).*
+
+### The two entry paths (from the source, then confirmed by the traces)
+```text
+invoke    caller fiber -> ApplicationHandle.invoke -> key lookup in the binding table (outside the runtime:
+          unknown key = typed UnmappedCommand) -> inApplication(binding(args))
+          -> Nexus.Runtime.runFork -> NEXUS handle -> the application fiber runs binding(args)
+
+dispatch  PORT click -> target report -> connect: Effect.runFork(Effect.exit(running.dispatch(...)))   [a VALANCE `pending` fiber]
+          -> running.dispatch -> inApplication(host.dispatch(render, handler, payload))
+          -> Nexus.Runtime.runFork -> NEXUS handle -> the application fiber: NEXUS adapter -> MESH dispatch -> commands[key](args)
+```
+**Shared boundary: yes, at two levels.** (1) `inApplication` (VALANCE), which both paths call; there VALANCE holds the NEXUS **handle**, not the fiber (NEXUS's documented proxy; interrupting it interrupts and awaits the real fiber, as every trace here shows). (2) The binding table entry, `commands[key]`, called by both inside the **actual command fiber**. Evidence: one central wrapper registered `app/slowOpen` (by invoke) and `home/open` (a real MESH intent, by dispatch), and also `app/home`, `app/changeItems` and `home/reverse` (application-defined entries), each with its own key and the real fiber (`Effect.withFiberRuntime`).
+
+### Baseline: nothing added (the finding that changes the picture)
+| Path | When the Scope closes with a command suspended before any capability |
+|---|---|
+| **invoke** | **not interrupted**: `scope closing`, `resource released`, `scope closed`; the command later goes on to the released resource (Stage 22) |
+| **MESH dispatch** | **already interrupted, before the resource is released, by VALANCE itself**: `scope closing`, `command exit: interrupted`, `resource released`. The cause is `connect`'s Scope finalizer, which interrupts and awaits its `pending` fibers; `inApplication` then interrupts the NEXUS handle. It never reaches the resource. The interrupted dispatch leaves no `Mounted.dispatched` entry |
+
+So VALANCE **already owns** the lifetime of MESH-dispatched commands today (for as long as a target is mounted), and does **not** own invoke-entered ones. The two paths are asymmetric.
+
+### With the central table wrapper (platform-owned registry)
+- **invoke:** registered; registry interrupts and awaits at platform release; the order of Stage 25: `registry finalizer started`, `command exit: interrupted`, `registry released`, `resource released`; the caller receives `interrupted`; state unchanged; the resource is never reached.
+- **dispatch:** registered by the same wrapper, but `connect`'s finalizer interrupts it first: `command exit: interrupted`, `registry: command left (0)`, and only then `registry finalizer started`, which finds nothing to interrupt. The registry is redundant for this path.
+
+### Command coverage
+Every ordinary entry went through the wrapper (invoke and dispatch, application-defined and probe-defined keys), each leaving cleanly; no ordinary path escaped. `Web.history`'s popstate uses `invoke` (source, not exercised). A command could escape only in the instant between admission and the wrapper's first step, which is not observable. The wrapper lives in the test; VALANCE's `start` receives the table (`app.commands(state)`) and so is the place a production version could apply it. Not done here.
+
+### Child fibers
+A structured child (`Effect.fork`) is interrupted with its command (`command exit: interrupted`, then `child (fork) interrupted`). A **daemon child escapes**: it survives the command's exit, the registry's and the resource's release and the Scope's close, then uses the released resource and fails with its own error. Command lifetime covers the command fiber and its structured children, not detached work.
+
+### VALANCE versus NEXUS ordering (probe E, a registry owned by the caller's Scope, drained by a finalizer added right after `start`)
+```text
+scope closing
+valance registry finalizer started   (interrupts the registered command; here an uninterruptible one holds it)
+  [ NEXUS has NOT begun to terminate: nothing is released ]
+valance registry drained
+resource released          <- NEXUS termination and platform release, after VALANCE's drain
+scope closed
+```
+- **VALANCE can drain before NEXUS releases anything**, with the existing composition: Scope finalizers run in reverse registration order, and `Application.start`'s was registered first. Nothing was forced.
+- **But admission is still open during that drain.** A new `invoke` was **accepted** (NEXUS refuses only once its own termination begins), and a command admitted after the drain began registered `AFTER the drain began`, was not in the drain's snapshot, stayed in flight, and after the Scope closed **reached the released resource** (`resource used after release L`). A VALANCE-level drain that does not close VALANCE's own entrance is unsound.
+- **A benefit of the same fact (E2):** because admission is still open, a command that needs a **new invocation** to finish can get it, so the circular wait of Stages 23 and 25 does not arise at this level: the drain completes by itself, with no external cleanup.
+
+### Architectural interpretation
+**What VALANCE can guarantee today with existing primitives:**
+- MESH-dispatched commands are interrupted and awaited before NEXUS terminates (already true while a target is mounted).
+- `invoke`-entered commands can be owned the same way: a registry at the binding table or `inApplication`, drained by a Scope finalizer registered after `start`, runs before NEXUS terminates and before any resource is released; it needs the table (or `inApplication`) and `Effect.withFiberRuntime`, both available to VALANCE.
+- The registry's drain runs while admission is open, so a sound version must close VALANCE's own entrance when the drain starts (demonstrated necessary), which also brings back the cycle E2 avoids (new invocations are then refused). The two cannot both be had.
+
+**What remains outside VALANCE's control:** daemon-detached work; an uninterruptible command that waits on something that has already closed; the instant between admission and registration; and what a command does with its own state commits before it is interrupted (a commit made inside an uninterruptible section lands).
+
+### NEXUS pressure
+**None demonstrated.** Stage 24 and 25 concluded tentatively that total coverage needs the runtime as registrar. This stage shows VALANCE already has both the single entrance (`inApplication`, the binding table) and an earlier-than-NEXUS point (Scope finalizer order), for every table-entered command. Nothing found requires a NEXUS change. (The documented NEXUS rules about admitted work and platform release remain as they were; they are no longer the obstacle.)
+
+### New concept required
+**Narrowly, yes:** a VALANCE-owned closure of its own entrance at the moment its drain begins, because admission is otherwise open during the drain (demonstrated by E). It is the existing idea of "admission closes at termination", applied earlier at VALANCE's boundary, not a new architectural concept; no other addition was needed.
+
+### Next probe
+Whether that entrance closure is sound with the drain, test-only: add a guard to the Scope-owned registry so the central wrapper **refuses new entries from the moment the drain starts** (a fail-fast error at the wrapper, before the binding runs), then re-run E and E2. It shows whether the late command is now refused (it should be), and, decisively, whether closing the entrance brings back the circular wait that E2 avoided (a command waiting for a new invocation), which decides whether a sound VALANCE-level drain exists without a policy for uninterruptible work.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

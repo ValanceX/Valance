@@ -1177,3 +1177,342 @@ describe("a platform-owned registry of admitted command fibers", () => {
     expect(show(exit)).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
   });
 });
+
+// Stage 26 probe: where does VALANCE own command lifetime? Two real entry paths (`ApplicationHandle.invoke`, and a MESH click
+// through PORT and `connect`'s dispatch) are driven against the same application, first with nothing added (what exists today),
+// then with ONE central wrapper over the whole binding table (no command registers itself). Test-only, nothing in VALANCE moves.
+interface TableOptions {
+  /** How the central wrapper registers: with the platform-owned registry (Stage 25), a registry owned by the caller's Scope, or not at all. */
+  readonly wrap?: "platform" | "valance";
+  readonly valance?: { readonly service: AdmittedRegistry };
+  readonly before?: { readonly waiting: Deferred.Deferred<void>; readonly go: Deferred.Deferred<void> };
+  readonly region?: { readonly entered: Deferred.Deferred<void>; readonly gate: Deferred.Deferred<void> };
+  readonly child?: { readonly kind: "daemon" | "fork"; readonly forked: Deferred.Deferred<void>; readonly gate: Deferred.Deferred<void> };
+}
+
+/** A registry owned by the CALLER'S Scope, not by the platform: a plain closure, drained by a Scope finalizer registered right after `Valance.start`. */
+const valanceRegistry = (w: ReturnType<typeof controllable>) => {
+  const admitted = new Set<Fiber.RuntimeFiber<unknown, unknown>>();
+  let closed = false;
+  const reached = Effect.runSync(Deferred.make<void>());
+  const service: AdmittedRegistry = {
+    register: Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => { admitted.add(fiber as Fiber.RuntimeFiber<unknown, unknown>); w.events.push(`valance registry: command registered (${admitted.size})${closed ? " AFTER the drain began" : ""}`); })),
+    unregister: Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => { admitted.delete(fiber as Fiber.RuntimeFiber<unknown, unknown>); w.events.push(`valance registry: command left (${admitted.size})`); })),
+  };
+  const drain = Effect.gen(function* () {
+    w.events.push("valance registry finalizer started");
+    closed = true;
+    const fibers = [...admitted];
+
+    yield* Deferred.succeed(reached, undefined);
+
+    if (fibers.length > 0) {
+      w.events.push(`valance registry interrupting ${fibers.length} admitted command(s)`);
+      yield* Effect.forEach(fibers, (fiber) => Fiber.interrupt(fiber), { discard: true });
+    }
+
+    w.events.push("valance registry drained");
+  });
+
+  return { service, drain, reached: Deferred.await(reached) };
+};
+
+const tableApplication = (programs: Awaited<ReturnType<typeof compilePrograms>>, w: ReturnType<typeof controllable>, options: TableOptions = {}) => {
+  const base = applicationWithAsyncCatalog(programs);
+
+  return Valance.define({
+    ...base,
+    commands: (state: Nexus.State.StateHandle<AppState>) => {
+      const commit = (id: string) => state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items, { id, name: `committed-${id}` }] }));
+      // The command logs its own exit, so it is observable with or without a wrapper.
+      const logged = <A, F, R>(body: Effect.Effect<A, F, R>) => body.pipe(Effect.onExit((exit) => Effect.sync(() => { w.events.push(`command exit: ${show(exit)}`); })));
+
+      const slow = Nexus.Command.define("t.slowOpen", Schema.Struct({ id: Schema.String }), ({ id }) => logged(Effect.gen(function* () {
+        w.events.push("command admitted");
+
+        if (options.before !== undefined) {
+          w.events.push("command waiting before touching any capability");
+          yield* Deferred.succeed(options.before.waiting, undefined);
+          yield* Deferred.await(options.before.go);
+        }
+
+        const catalog = yield* Nexus.Capability.require(CatalogAsync);
+        const entry = yield* catalog.lookup(id);
+
+        w.events.push("command: lookup returned");
+        yield* commit(entry.id);
+        w.events.push("command: state committed");
+      })));
+      const region = Nexus.Command.define("t.slowRegion", Schema.Struct({}), () => logged(Effect.gen(function* () {
+        w.events.push("command admitted");
+        yield* Effect.uninterruptible(Effect.gen(function* () {
+          w.events.push("command: inside its uninterruptible region");
+          yield* Deferred.succeed(options.region!.entered, undefined);
+          yield* Deferred.await(options.region!.gate);
+          w.events.push("command: left its region");
+        }));
+        w.events.push("command: ran past its region");
+      })));
+      const spawns = Nexus.Command.define("t.slowChild", Schema.Struct({}), () => logged(Effect.gen(function* () {
+        w.events.push("command admitted");
+        const catalog = yield* Nexus.Capability.require(CatalogAsync);
+        const work = Effect.gen(function* () {
+          yield* Deferred.await(options.child!.gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { w.events.push(`child (${options.child!.kind}) interrupted`); })));
+          w.events.push(`child (${options.child!.kind}) resumed`);
+          w.events.push(`child: lookup B: ${show(yield* Effect.exit(catalog.lookup("B")))}`);
+        });
+
+        yield* options.child!.kind === "daemon" ? Effect.forkDaemon(work) : Effect.fork(work);
+        w.events.push(`command forked a ${options.child!.kind} child`);
+        yield* Deferred.succeed(options.child!.forked, undefined);
+        yield* catalog.lookup("A");
+      })));
+
+      // `home/open` is a real MESH intent (a row's button in the home view); `app/*` entries are for `invoke`. The SAME command serves both.
+      const table: Record<string, Nexus.Mesh.Binding<unknown, never>> = {
+        ...(base.commands(state) as Record<string, Nexus.Mesh.Binding<unknown, never>>),
+        "home/open": Nexus.Mesh.bind(slow, (args) => ({ id: firstValue(args) })) as never,
+        "app/slowOpen": Nexus.Mesh.bind(slow, (args) => ({ id: firstValue(args) })) as never,
+        ...(options.region === undefined ? {} : {
+          "app/slowRegion": Nexus.Mesh.bind(region, () => ({})) as never,
+          "app/openRegion": Nexus.Mesh.bind(Nexus.Command.define("t.openRegion", Schema.Struct({}), () => Effect.asVoid(Deferred.succeed(options.region!.gate, undefined))), () => ({})) as never,
+        }),
+        ...(options.child === undefined ? {} : { "app/slowChild": Nexus.Mesh.bind(spawns, () => ({})) as never }),
+      };
+
+      if (options.wrap === undefined) {
+        return table;
+      }
+
+      // THE central wrapper: one function over the whole table. No command registers itself.
+      return Object.fromEntries(Object.entries(table).map(([key, binding]) => [key, ((args) => Effect.gen(function* () {
+        const registry = options.wrap === "valance" ? options.valance!.service : yield* Nexus.Capability.require(Registry);
+
+        return yield* Effect.acquireUseRelease(
+          Effect.zipRight(registry.register, Effect.sync(() => { w.events.push(`table wrapper: ${key} registered`); })),
+          () => binding(args),
+          () => registry.unregister
+        );
+      })) as Nexus.Mesh.Binding<unknown, never>])) as typeof table;
+    },
+  });
+};
+
+const bootTable = async (options: TableOptions = {}) => {
+  const w = controllable({ useAfterRelease: "fail", registry: options.wrap === "platform" });
+  const m = mounted();
+  const valance = options.wrap === "valance" ? valanceRegistry(w) : undefined;
+  const app = tableApplication(await compilePrograms(), w, valance === undefined ? options : { ...options, valance });
+  const scope = await Effect.runPromise(Scope.make());
+  const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, state: start }).pipe(Scope.extend(scope)));
+
+  if (valance !== undefined) {
+    await Effect.runPromise(Scope.addFinalizer(scope, valance.drain));       // right after start, as VALANCE's own `start` could
+  }
+
+  const mount = await Effect.runPromise(Valance.mount(handle, m.target).pipe(Scope.extend(scope)));
+  const emitted = Effect.runPromise(Stream.runCollect(runningOf(handle).states).pipe(Effect.map(Chunk.toReadonlyArray)));
+  const closeScope = () => Effect.runFork(Scope.close(scope, Exit.void).pipe(Effect.tap(() => Effect.sync(() => { w.events.push("scope closed"); }))));
+  const poll = async (fiber: Fiber.RuntimeFiber<unknown, unknown>) => Option.isSome(await Effect.runPromise(Fiber.poll(fiber)));
+  const yields = (n: number) => Effect.runPromise(Effect.forEach(Array.from({ length: n }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+  // A real MESH intent: the "Open" button of the first row of the home view, through PORT, `connect` and `dispatch`.
+  const clickOpen = () => m.page.click(m.page.container.querySelector("div button")!);
+
+  return { w, m, scope, handle, mount, emitted, closeScope, poll, yields, clickOpen, valanceReached: valance?.reached };
+};
+
+describe("where VALANCE owns command lifetime: the two entry paths", () => {
+  const at = (w: ReturnType<typeof controllable>, event: string) => w.events.indexOf(event);
+  const strictlyIn = (w: ReturnType<typeof controllable>, ...order: ReadonlyArray<string>) => {
+    for (const [index, event] of order.entries()) {
+      expect(at(w, event), event).toBeGreaterThanOrEqual(0);
+
+      if (index > 0) {
+        expect(at(w, order[index - 1]!), `${order[index - 1]} < ${event}`).toBeLessThan(at(w, event));
+      }
+    }
+  };
+  const ids = async (handle: Valance.ApplicationHandle<AppState, unknown>) => (await Effect.runPromise(handle.state)).items.map((item) => item.id);
+  const gates = async () => ({ waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) });
+
+  /** Suspends a command (before any capability) through the named path and returns once it is in flight. */
+  const start_ = async (path: "invoke" | "dispatch", options: TableOptions) => {
+    const before = await gates();
+    const booted = await bootTable({ ...options, before });
+    const invoked = path === "invoke" ? Effect.runFork(booted.handle.invoke("app/slowOpen", [{ value: "A0" }])) : undefined;
+
+    if (path === "dispatch") {
+      booted.clickOpen();
+    }
+
+    await Effect.runPromise(Deferred.await(before.waiting));
+
+    return { ...booted, before, invoked };
+  };
+
+  it("baseline, invoke (nothing added): the command is NOT interrupted when the Scope closes; it goes on to the released resource", async () => {
+    const { w, closeScope, before, invoked } = await start_("invoke", {});
+
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+    await Effect.runPromise(Deferred.succeed(before.go, undefined));
+    await Effect.runPromise(w.complete("A0"));
+
+    expect(show(await Effect.runPromise(Fiber.await(invoked!)))).toBe('failed (typed) {"_tag":"LookupError","id":"A0"}');
+    strictlyIn(w, "scope closing", "resource released", "scope closed", "resource used after release A0");
+    expect(w.events).not.toContain("command exit: interrupted");
+  });
+
+  it("baseline, MESH dispatch (nothing added): the command IS interrupted, before the resource is released, by VALANCE's own connect finalizer", async () => {
+    const { w, m, handle, mount, closeScope, before, yields } = await start_("dispatch", {});
+
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+    await Effect.runPromise(Deferred.succeed(before.go, undefined));
+    await Effect.runPromise(w.complete("A0"));
+    await yields(500);
+
+    strictlyIn(w, "scope closing", "command exit: interrupted", "resource released", "scope closed");
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);          // it never reaches the resource
+    expect(mount.dispatched).toEqual([]);                                          // the interrupted dispatch leaves no result for the target
+    expect(await ids(handle)).toEqual(["A0"]);
+    expect(m.operations).toEqual(["draw"]);
+  });
+
+  it("probe A, invoke path: a central wrapper over the binding table registers the command's own fiber; the registry interrupts and awaits it before the resource releases", async () => {
+    const { w, handle, closeScope, invoked } = await start_("invoke", { wrap: "platform" });
+
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    expect(w.events).toContain("table wrapper: app/slowOpen registered");           // no command registered itself
+    strictlyIn(w, "table wrapper: app/slowOpen registered", "scope closing", "registry finalizer started", "registry interrupting 1 admitted command(s)", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    expect(show(await Effect.runPromise(Fiber.await(invoked!)))).toBe("interrupted");
+    expect(await ids(handle)).toEqual(["A0"]);
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);
+  });
+
+  it("probe B, MESH dispatch path: the SAME wrapper registers it, but VALANCE's connect finalizer interrupts it first, so the registry finds nothing left", async () => {
+    const { w, handle, closeScope } = await start_("dispatch", { wrap: "platform" });
+
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    expect(w.events).toContain("table wrapper: home/open registered");              // the MESH intent's key, through the same central wrapper
+    strictlyIn(w, "table wrapper: home/open registered", "scope closing", "command exit: interrupted", "registry: command left (0)", "registry finalizer started", "registry released", "resource released", "scope closed");
+    expect(w.events).not.toContain("registry interrupting 1 admitted command(s)");  // nothing for the registry to do
+    expect(await ids(handle)).toEqual(["A0"]);
+  });
+
+  it("probe C: both paths converge: the same wrapped binding table is where each command runs", async () => {
+    const { w, handle, clickOpen } = await bootTable({ wrap: "platform" });
+
+    await Effect.runPromise(handle.invoke("app/changeItems", [{ value: [{ id: "A0", name: "Alpha" }] as never }]));
+    clickOpen();                                                                   // MESH intent "home/open" (the probe's command, completes below)
+    await Effect.runPromise(w.started("A0"));
+    await Effect.runPromise(w.complete("A0"));
+    await until(() => w.events.includes("command: state committed"));
+
+    // The invoke path (app/changeItems) and the dispatch path (home/open) each went through the table wrapper, with their own key.
+    expect(w.events.filter((event) => event.startsWith("table wrapper:"))).toEqual(["table wrapper: app/changeItems registered", "table wrapper: home/open registered"]);
+  });
+
+  it("probe D1: no ordinary entry escapes the wrapper: every key in the table, application-defined or probe-defined, is registered", async () => {
+    const { w, m, handle, closeScope } = await bootTable({ wrap: "platform" });
+
+    await Effect.runPromise(handle.invoke("app/home", []));                         // an application-defined entry, by invoke
+    m.page.click([...m.page.container.querySelectorAll("button")].find((button) => button.textContent === "Reverse")!);   // an application-defined MESH intent, by dispatch
+    await until(() => w.events.includes("table wrapper: home/reverse registered"));
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    expect(w.events.filter((event) => event.startsWith("table wrapper:"))).toEqual(["table wrapper: app/home registered", "table wrapper: home/reverse registered"]);
+    expect(w.events.filter((event) => event.startsWith("registry: command left")).length).toBe(2);   // each left cleanly: nothing was ever left registered
+  });
+
+  for (const kind of ["fork", "daemon"] as const) {
+    it(`probe D2 (${kind} child): ${kind === "fork" ? "a structured child is interrupted with its command" : "a daemon child escapes the command, outlives the resource's release, and fails against it"}`, async () => {
+      const child = { kind, forked: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
+      const { w, handle, closeScope, yields } = await bootTable({ wrap: "platform", child });
+
+      await Effect.runPromise(w.complete("B"));
+      const invoked = Effect.runFork(handle.invoke("app/slowChild", []));
+
+      await Effect.runPromise(Deferred.await(child.forked));
+      await Effect.runPromise(w.started("A"));
+      w.events.push("scope closing");
+      await Effect.runPromise(Fiber.join(closeScope()));
+
+      expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");
+      await Effect.runPromise(Deferred.succeed(child.gate, undefined));
+      await yields(500);
+
+      if (kind === "fork") {
+        strictlyIn(w, "command exit: interrupted", "child (fork) interrupted", "registry released", "resource released");
+        expect(w.events).not.toContain("child (fork) resumed");
+      } else {
+        strictlyIn(w, "command exit: interrupted", "registry released", "resource released", "scope closed", "child (daemon) resumed", "resource used after release B");
+        expect(w.events).toContain('child: lookup B: failed (typed) {"_tag":"LookupError","id":"B"}');
+        expect(w.events).not.toContain("child (daemon) interrupted");
+      }
+    });
+  }
+
+  it("probe E: a registry owned by the caller's Scope drains BEFORE NEXUS terminates, but admission is still open during the drain, so a snapshot drain misses a late command", async () => {
+    const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, m, handle, closeScope, poll, yields, valanceReached } = await bootTable({ wrap: "valance", region });
+    const held = Effect.runFork(handle.invoke("app/slowRegion", []));
+
+    await Effect.runPromise(Deferred.await(region.entered));
+    w.events.push("scope closing");
+    const closing = closeScope();
+
+    await Effect.runPromise(valanceReached!);
+    await yields(1000);
+
+    // VALANCE's drain is in progress and blocked; NEXUS has not begun to terminate: nothing is released ...
+    expect(await poll(closing)).toBe(false);
+    expect(w.events).not.toContain("resource released");
+    // ... and admission is OPEN: a new invocation is accepted (NEXUS refuses only once ITS termination begins) ...
+    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))))).toBe("succeeded");
+    // ... so a command admitted now registers AFTER the drain began, and the drain does not know it.
+    const late = Effect.runFork(handle.invoke("app/slowOpen", [{ value: "L" }]));
+
+    await Effect.runPromise(w.started("L"));
+    expect(w.events).toContain("valance registry: command registered (2) AFTER the drain began");
+
+    await Effect.runPromise(Deferred.succeed(region.gate, undefined));
+    await Effect.runPromise(Fiber.join(closing));
+    await Effect.runPromise(Fiber.await(held));
+
+    // The order that actually results: VALANCE drain, then NEXUS termination and platform release, then the Scope closes.
+    strictlyIn(w, "scope closing", "valance registry finalizer started", "valance registry drained", "resource released", "scope closed");
+    // After the Scope closes admission IS refused ...
+    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))))).toBe("died: NEXUS: the runtime has begun terminating");
+    // ... but the late command was never interrupted: it escaped, and reaches the released resource.
+    await Effect.runPromise(w.complete("L"));
+    expect(show(await Effect.runPromise(Fiber.await(late)))).toBe('failed (typed) {"_tag":"LookupError","id":"L"}');
+    strictlyIn(w, "scope closed", "resource used after release L");
+    expect(m.operations).toEqual(["draw"]);
+  });
+
+  it("probe E2: during the VALANCE-level drain a command that needs a NEW invocation to finish CAN get it: the Stage 23/25 circular wait does not arise here", async () => {
+    const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, handle, closeScope, poll, yields, valanceReached } = await bootTable({ wrap: "valance", region });
+    const held = Effect.runFork(handle.invoke("app/slowRegion", []));
+
+    await Effect.runPromise(Deferred.await(region.entered));
+    w.events.push("scope closing");
+    const closing = closeScope();
+
+    await Effect.runPromise(valanceReached!);
+    await yields(500);
+    expect(await poll(closing)).toBe(false);                                        // blocked on the uninterruptible command
+
+    // The only way to open its gate is a new invocation: here it is ACCEPTED, because NEXUS has not begun to terminate.
+    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/openRegion", []))))).toBe("succeeded");
+    await Effect.runPromise(Fiber.join(closing));                                   // no external cleanup: the drain completes by itself
+    await Effect.runPromise(Fiber.await(held));
+
+    strictlyIn(w, "valance registry finalizer started", "command: left its region", "command exit: interrupted", "valance registry drained", "resource released", "scope closed");
+  });
+});
