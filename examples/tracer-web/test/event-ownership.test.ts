@@ -201,8 +201,9 @@ describe("B: who ends a click-initiated command", () => {
     await b.started("gate1"); await b.started("gate2");
     await a.unmount();
     await b.release("gate1", "1"); await b.release("gate2", "2");
-    await b.seenEvent("B render update: g2:2");
-    await b.seenEvent("B render update: g1:1");
+    await until(() => b.commits().length === 2);
+    const final = (await b.state()).value;                                                        // B presents the LATEST state; the other commit's render may be superseded
+    await b.seenEvent(`B render update: ${final}`);
     await b.stable();
 
     expect(b.events.includes("gate1 interrupted")).toBe(false);                      // A's command: interrupted with its mount, or not

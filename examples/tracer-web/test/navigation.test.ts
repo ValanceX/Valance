@@ -86,6 +86,7 @@ describe("navigation: one intent, one resolution, the right continuity", () => {
 
     expect(result.state).toMatchObject({ path: "/about", count: 1 });
     expect(result.dispatched).toEqual(["Success", "Success"]);
-    expect(operations).toEqual(["draw", "draw", "update"]);
+    expect(operations.filter((operation) => operation === "draw")).toHaveLength(2);       // the counter, then about: the latest state may be presented as the one draw, or as a draw and an update
+    expect(operations.length).toBeLessThanOrEqual(3);
   });
 });

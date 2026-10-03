@@ -145,7 +145,10 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
     const running: Running<S, E> = {
       nexus,
       render: Effect.flatMap(state.get, renderOf),
-      values: Stream.mapEffect(state.values, renderOf),
+      // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
+      // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
+      // `state.get` is read after the wake, so what is rendered is never older than the element that woke it; the first element is still the first draw.
+      values: Stream.mapEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), renderOf),
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
 
@@ -232,8 +235,8 @@ const connect = <S, E, T extends Target, A>(
       )));
     });
 
-    // `running.values` is the render of the current state, then one per later commit, atomically (NEXUS 0.10): the
-    // first element is the first draw (or hydration), no commit can fall between. A later render of the SAME view is
+    // `running.values` is the render of the current state, then of the latest state after each wake-up (superseded intermediate states may be
+    // skipped, never reordered): the first element is the first draw (or hydration), no commit can fall between. A later render of the SAME view is
     // the same program: update. One of ANOTHER view is another program, and only the composer knows that: draw afresh.
     // The follower is Valance's fiber, not NEXUS's (O15): the caller's scope owns it.
     const firstDone = yield* Deferred.make<A, Nexus.Mesh.MeshDiagnostics>();

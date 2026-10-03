@@ -24,20 +24,21 @@ const start = async (mounts: number) => {
   const mounted = await Promise.all(roots.map((root, index) => run(Valance.mount(handle, recording(root, logs[index]!, timeline, index)).pipe(Scope.extend(scope)))));
 
   return {
-    roots, handle, logs, mounted, intents, timeline,
+    roots, handle, logs, mounted, intents, timeline, scope,
     invoke: (key: string) => handle.invoke(key, []),
     close: async () => { await run(Scope.close(scope, Exit.void)); roots.forEach((root) => { root.remove(); }); },
   };
 };
 
-const commitsBeforePresentation = (timeline: ReadonlyArray<string>, commits: number): boolean => {
-  const first = timeline.findIndex((entry, index) => index > 0 && /^m\d+ (draw|update) /.test(entry));      // the first presentation after the initial draw
+/** The presentations a mount made are a subsequence of what presenting EVERY commit would have been: skipped, never reordered or invented. */
+const isSubsequence = (seen: ReadonlyArray<string>, all: ReadonlyArray<string>): boolean => {
+  let position = 0;
 
-  return timeline.slice(0, first).filter((entry) => entry.startsWith("commit")).length === commits;
+  return seen.every((entry) => { const found = all.indexOf(entry, position); position = found + 1; return found >= 0; });
 };
 
-describe("bursty commits: what the presentation guarantees", () => {
-  it("same view: every commit is presented, in order, from ITS OWN state (not the latest); the commits really precede the presentations; the final DOM is the final state", async () => {
+describe("bursty commits: a mount presents the latest state (superseded intermediates may be skipped)", () => {
+  it("same view: whatever is presented is in commit order, starts with the draw, ends at the final state; intermediates may be skipped", async () => {
     // Three ways to produce the burst: sequential invokes in one Effect, three invokes started in one turn, three commands from one host event.
     const ways: Array<[string, (t: Awaited<ReturnType<typeof start>>) => Promise<void>]> = [
       ["sequential invokes", (t) => run(Effect.gen(function* () { yield* t.invoke("app/bump"); yield* t.invoke("app/bump"); yield* t.invoke("app/bump"); }))],
@@ -57,28 +58,34 @@ describe("bursty commits: what the presentation guarantees", () => {
 
       await burst(t);
       await settle();
-      expect([name, t.logs[0]]).toEqual([name, ["draw A0", "update A1", "update A2", "update A3"]]);   // one step per commit, never skipped, never coalesced
+      expect([name, isSubsequence(t.logs[0]!, ["draw A0", "update A1", "update A2", "update A3"])]).toEqual([name, true]);
+      expect(t.logs[0]![0]).toBe("draw A0");
+      expect(t.logs[0]!.at(-1)).toBe("update A3");                                        // the last presentation is the last committed state
       expect(label(t.roots[0]!)).toBe("A3");
-      expect(await run(t.handle.state)).toEqual({ view: "a", n: 3 });
-      if (name === "sequential invokes") {
-        expect(commitsBeforePresentation(t.timeline, 3)).toBe(true);                    // all three commits happened before the first of their presentations
-      }
+      expect(await run(t.handle.state)).toEqual({ view: "a", n: 3 });                     // the application committed every one of them
+      expect(t.timeline.filter((entry) => entry.startsWith("commit"))).toEqual(["commit bump", "commit bump", "commit bump"]);
       await t.close();
     }
   });
 
-  it("across a view boundary (A1, B1, A1, A2) and with two mounts: every intermediate view is drawn in commit order, each mount keeps its own continuity, both end on the final state", async () => {
+  it("across a view boundary (A1, B1, A1, A2): the final presentation is A2 and a skipped B1 is never an event target; two mounts converge independently", async () => {
     const t = await start(2);
 
     await run(Effect.gen(function* () { yield* t.invoke("app/bump"); yield* t.invoke("app/toggle"); yield* t.invoke("app/toggle"); yield* t.invoke("app/bump"); }));
     await settle();
 
-    const expected = ["draw A0", "update A1", "draw B1", "draw A1", "update A2"];          // same view → update, other view → draw, B is not skipped
-
-    expect(t.logs).toEqual([expected, expected]);                                          // identical per mount: the shared stream, independent presentations
+    t.logs.forEach((log) => {
+      expect(isSubsequence(log, ["draw A0", "update A1", "draw B1", "draw A1", "update A2"])).toBe(true);
+      expect(log.at(-1)).toMatch(/A2$/);                                                   // whichever intermediates were skipped, each mount ends on the final state
+    });
     expect(t.roots.map(label)).toEqual(["A2", "A2"]);
     expect(await run(t.handle.state)).toEqual({ view: "a", n: 2 });
     expect(t.timeline.filter((entry) => entry.startsWith("commit"))).toEqual(["commit bump", "commit toggle", "commit toggle", "commit bump"]);
+
+    // The drawn render is A's: a click dispatches A's table (the view is whatever was actually drawn), never B's.
+    t.roots[0]!.querySelector("button")!.click();
+    await settle();
+    expect(t.intents.filter((intent) => intent.startsWith("back"))).toEqual(["back-on-a"]);
     await t.close();
   });
 
@@ -98,5 +105,18 @@ describe("bursty commits: what the presentation guarantees", () => {
     expect(await run(t.handle.state)).toEqual({ view: "b", n: 10 });                       // its effect is on the one authoritative state
     expect(label(t.roots[0]!)).toBe("B10");                                                // and the final DOM is the final state
     await t.close();
+  });
+
+  it("two mounts, a burst of many updates: both converge to exactly the latest state and stay independently live (closing one does not touch the other)", async () => {
+    const t = await start(2);
+
+    await run(Effect.forEach(Array.from({ length: 300 }), () => t.invoke("app/bump"), { discard: true }));
+    await settle();
+    expect(t.roots.map(label)).toEqual(["A300", "A300"]);
+    expect(await run(t.handle.state)).toEqual({ view: "a", n: 300 });
+    expect(t.logs.every((log) => isSubsequence(log, ["draw A0", ...Array.from({ length: 300 }, (_, index) => `update A${index + 1}`)]))).toBe(true);
+
+    await run(Scope.close(t.scope, Exit.void));                                            // (the application's Scope also holds both mounts)
+    t.roots.forEach((root) => { root.remove(); });
   });
 });

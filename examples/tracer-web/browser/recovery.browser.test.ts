@@ -68,11 +68,12 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
   try {
     const [appScope, scopeA, scopeB] = await Promise.all([Scope.make(), Scope.make(), Scope.make()].map(run));
     const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
-    await run(Valance.mount(handle, healthy(rootA)).pipe(Scope.extend(scopeA!)));
-    await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.extend(scopeB!)));
+    const mountedA = await run(Valance.mount(handle, healthy(rootA)).pipe(Scope.extend(scopeA!)));
+    const mountedB = await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.extend(scopeB!)));
 
     // Shared state: both go inert; after the repair, A is replaced and B is still inert until it is replaced too.
     await run(handle.invoke("app/break", []));
+    await expect.poll(async () => (await Promise.all([following(mountedA), following(mountedB)])).join()).toBe("failed: diagnostics,failed: diagnostics");   // both ended: the invalid state WAS presented (it was not superseded)
     await run(handle.invoke("app/fix", []));
     await run(handle.invoke("app/bump", []));
     await new Promise((resolve) => setTimeout(resolve, 100));

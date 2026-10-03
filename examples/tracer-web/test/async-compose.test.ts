@@ -186,7 +186,12 @@ describe("B: parallel owned composition", () => {
       expect(b.events.filter((event) => event.startsWith("commit"))).toEqual([`commit ${first.toLowerCase()}`, `commit ${second.toLowerCase()}`]);
       expect(at(b.events, `commit ${second.toLowerCase()}`)).toBeLessThan(at(b.events, "par exit: succeeded"));
       expect(b.values()).toEqual(["values: init", `values: ${first.toLowerCase()}`, `values: ${second.toLowerCase()}`]);
-      expect(b.renders()).toEqual(["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`]);
+      // The state stream carries both commits. A mount presents the LATEST state, so the first commit's render may be superseded by the second's (not guaranteed either way).
+      const renders = b.renders();
+
+      expect(renders[0]).toBe("render draw: init");
+      expect(renders.at(-1)).toBe(`render update: ${second.toLowerCase()}`);
+      expect(renders.every((render) => ["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`].includes(render))).toBe(true);
       expect((await b.state()).value).toBe(second.toLowerCase());
     });
 
@@ -406,7 +411,12 @@ describe("G: one command owning A+B vs two independent commands", () => {
       await b.seen(`render update: ${second.toLowerCase()}`);
 
       expect(b.values()).toEqual(["values: init", `values: ${first.toLowerCase()}`, `values: ${second.toLowerCase()}`]);
-      expect(b.renders()).toEqual(["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`]);
+      // The state stream carries both commits. A mount presents the LATEST state, so the first commit's render may be superseded by the second's (not guaranteed either way).
+      const renders = b.renders();
+
+      expect(renders[0]).toBe("render draw: init");
+      expect(renders.at(-1)).toBe(`render update: ${second.toLowerCase()}`);
+      expect(renders.every((render) => ["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`].includes(render))).toBe(true);
       expect(b.events.filter((event) => event.endsWith("exit: succeeded") && !event.startsWith("caller")).sort()).toEqual(["startA exit: succeeded", "startB exit: succeeded"]);
     });
   }

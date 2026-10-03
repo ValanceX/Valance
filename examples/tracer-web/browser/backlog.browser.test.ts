@@ -1,12 +1,9 @@
-// Stage 12: can commits outrun presentation, and what does C32 (every committed state is presented, in order) retain while presentation is behind?
-// Real Chromium, real PORT target made slow: the target's operations are synchronous (`Target.update(tree): void`), so "slow" is real time spent in each one
-// (`spin`), not a delay inside the application. Only semantic and retention facts are asserted; timings are not.
+// Stage 12/16: commits outrun a slow presentation, and a mount presents the LATEST state instead of working through a backlog. Real Chromium, real PORT target made
+// slow: the target's operations are synchronous (`Target.update(tree): void`), so "slow" is real time spent in each one (`spin`), not a delay inside the application.
 //
-// Observed (not asserted): commits do outrun presentation: when the last commit finished, about a third of the presentations had happened (1,000 commits: 330;
-// 5,000: 1,663; 20,000: 6,661; with and without a slow target), so the pending presentations are about two thirds of the burst, i.e. proportional to it. Time
-// grows linearly (about 0.8 ms per commit and presentation, to 20,000 commits). The main thread gets no timer turn during the commits or the drain.
-// Why: `State.values` is Effect's `SubscriptionRef.changes`, backed by `PubSub.unbounded`; each subscriber (each mount) has its own unbounded queue of
-// state snapshots, one per commit, which the mount's follower takes one at a time. VALANCE holds no queue of its own.
+// Observed before the mount-side change (Stage 12): about two thirds of a burst was pending when the commits ended, one retained snapshot per commit in the
+// subscription's unbounded queue, and every one was presented in order (20,000 commits: 16 s, the main thread held throughout). Now a mount reads the latest state when
+// it wakes and drops a state it has already presented, so the work done is bounded by what the mount can present, not by the number of commits.
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Valance from "@valancex/valance";
@@ -19,7 +16,7 @@ beforeAll(async () => { await init(wasmUrl); });
 
 const spin = (ms: number): void => { const end = performance.now() + ms; while (performance.now() < end) { /* the target takes real time */ } };
 
-/** A burst of `commits` invokes of `key` in one Effect, against a mount whose every PORT operation takes 1 ms; resolves with what was observed. */
+/** A burst of `commits` invokes of `key` in one Effect, against a mount whose every PORT operation takes 1 ms. */
 const burst = async (key: "app/bump" | "app/toggle", commits: number) => {
   const root = document.createElement("main");
 
@@ -32,44 +29,52 @@ const burst = async (key: "app/bump" | "app/toggle", commits: number) => {
 
   await run(Valance.mount(handle, recording(root, log, timeline, 0, () => { spin(1); })).pipe(Scope.extend(scope)));
   await run(Effect.forEach(Array.from({ length: commits }), () => handle.invoke(key, []), { discard: true }));
-  const presentedWhenCommitsDone = log.length;
+  const deadline = performance.now() + 20_000;
+  const expectedLabel = key === "app/bump" ? `A${commits}` : commits % 2 === 0 ? "A0" : "B0";
 
-  while (log.length < commits + 1) {
+  while (label(root) !== expectedLabel && performance.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  const settled = { committed: intents.length, log: [...log], presentedWhenCommitsDone, final: label(root), state: await run(handle.state) };
-
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const extra = log.length - settled.log.length;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const result = { committed: intents.length, log: [...log], final: label(root), state: await run(handle.state) };
 
   await run(Scope.close(scope, Exit.void));
   root.remove();
 
-  return { ...settled, extra };
+  return result;
 };
 
-it("commits outrun a slow presentation, and the backlog keeps every snapshot: N commits give N+1 ordered presentations, none dropped, the last at the final state", async () => {
-  for (const commits of [10, 100, 1000]) {
+it("commits outrun a slow presentation, and the mount presents the latest state: far fewer presentations than commits, in order, the last at the final state", async () => {
+  for (const commits of [100, 1000]) {
     const seen = await burst("app/bump", commits);
 
-    expect(seen.committed).toBe(commits);
-    expect(seen.log).toEqual(["draw A0", ...Array.from({ length: commits }, (_, index) => `update A${index + 1}`)]);   // each commit from its own state, in order
-    expect(seen.final).toBe(`A${commits}`);
+    expect(seen.committed).toBe(commits);                                                          // the application committed every one
     expect(seen.state).toEqual({ view: "a", n: commits });
-    expect(seen.extra).toBe(0);                                                                                     // nothing is presented after the last commit's presentation
-    if (commits >= 100) {
-      expect(seen.presentedWhenCommitsDone).toBeLessThan(commits + 1);                                              // presentation really was behind when the commits ended
-    }
+    expect(seen.final).toBe(`A${commits}`);
+    expect(seen.log[0]).toBe("draw A0");
+    expect(seen.log.at(-1)).toBe(`update A${commits}`);                                            // the last presentation is the last committed state
+    expect(seen.log.length).toBeLessThan(commits + 1);                                             // the backlog is not worked through
+    const numbers = seen.log.slice(1).map((entry) => Number(entry.replace("update A", "")));
+
+    expect(numbers.every((value, index) => index === 0 || value > numbers[index - 1]!)).toBe(true);   // never reordered, never repeated
   }
 }, 60_000);
 
-it("a view-changing burst retains every intermediate view while behind: A,B,A,B... is drawn in full, each draw from its own commit", async () => {
+it("a view-changing burst converges too: the final view is presented, and continuity follows the PRESENTED sequence (same view as the one drawn: update; another: draw)", async () => {
   const commits = 200;
   const seen = await burst("app/toggle", commits);
 
   expect(seen.committed).toBe(commits);
-  expect(seen.log).toEqual(["draw A0", ...Array.from({ length: commits }, (_, index) => index % 2 === 0 ? "draw B0" : "draw A0")]);   // no view skipped, each a fresh draw
-  expect(seen.presentedWhenCommitsDone).toBeLessThan(commits + 1);
-  expect(seen.final).toBe("A0");
+  expect(seen.final).toBe("A0");                                                                   // 200 toggles end on A
   expect(seen.state).toEqual({ view: "a", n: 0 });
+  expect(seen.log.at(-1)).toMatch(/A0$/);
+  expect(seen.log.length).toBeLessThan(commits + 1);
+  expect(seen.log[0]).toBe("draw A0");
+
+  for (let index = 1; index < seen.log.length; index += 1) {
+    const [operation, shown] = seen.log[index]!.split(" ");
+    const [, before] = seen.log[index - 1]!.split(" ");
+
+    expect(operation).toBe(shown![0] === before![0] ? "update" : "draw");                          // a skipped intermediate view makes the neighbours the same view: an update
+  }
 }, 60_000);

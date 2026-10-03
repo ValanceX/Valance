@@ -37,6 +37,8 @@ const definition = () => Valance.define({
       "app/fix": command("fix", () => up((current) => ({ ...current, bad: false }))),
       "app/bump": command("bump", () => up((current) => ({ ...current, n: current.n + 1 }))),
       // ONE command, THREE commits, published back to back: valid → invalid → valid (and advanced). Nothing can run between them.
+      // ONE command, TWO commits: valid (n advanced), then invalid. The invalid one is the LATEST.
+      "app/burst-invalid": command("burst-invalid", () => Effect.zipRight(up((current) => ({ ...current, n: current.n + 1 })), up((current) => ({ ...current, bad: true })))),
       "app/burst": command("burst", () => Effect.zipRight(Effect.zipRight(up((current) => ({ ...current, bad: true })), up((current) => ({ ...current, bad: false }))), up((current) => ({ ...current, n: current.n + 1 })))),
     } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
   },
@@ -99,7 +101,7 @@ it("B valid → invalid, presented: the state commits, the mount ends with MESH'
   }
 });
 
-it("C valid → invalid → valid in one burst: today the invalid intermediate IS presented, so the outcome is B's even though the latest state is valid (the C32 baseline)", async () => {
+it("C valid → invalid → valid in one burst: the mount presents the latest (valid) state and the invalid intermediate is SKIPPED, so its diagnostic is never produced; the mount stays live", async () => {
   const [root, fresh] = [document.createElement("main"), document.createElement("main")];
 
   document.body.append(root, fresh);
@@ -109,12 +111,42 @@ it("C valid → invalid → valid in one burst: today the invalid intermediate I
     const mounted = await run(Valance.mount(handle, Web.target({ container: root, primitives })).pipe(Scope.extend(scope)));
 
     await run(handle.invoke("app/burst", []));
+    await expect.poll(() => label(root)).toBe("n1");                                       // converged on the final state
+    expect(await following(mounted)).toBe("following");                                    // no failure was reported: the invalid state was never rendered
+    expect(await run(handle.state)).toEqual({ n: 1, bad: false });
+
+    // The skipped state WOULD have failed: the diagnostic exists, out of band, and was skipped, not absent.
+    const skipped = await run(Effect.exit(renderToHtml(definition(), { primitives, state: { n: 0, bad: true } })));
+
+    expect(diagnosticsOf(skipped)).toContain("runtime-value-mismatch");
+
+    await run(handle.invoke("app/bump", []));                                              // and the mount carries on
+    await expect.poll(() => label(root)).toBe("n2");
+    await run(Scope.close(scope, Exit.void));
+  } finally {
+    root.remove(); fresh.remove();
+  }
+});
+
+it("D the latest state is invalid: the mount still fails and reports MESH's diagnostic, whether or not the valid state before it was ever presented; recovery is unchanged", async () => {
+  const [root, fresh] = [document.createElement("main"), document.createElement("main")];
+
+  document.body.append(root, fresh);
+  try {
+    const scope = await run(Scope.make());
+    const handle = await run(Valance.start(definition()).pipe(Scope.extend(scope)));
+    const mounted = await run(Valance.mount(handle, Web.target({ container: root, primitives })).pipe(Scope.extend(scope)));
+
+    await run(handle.invoke("app/burst-invalid", []));
     await expect.poll(() => following(mounted)).toBe("failed: diagnostics");
-    expect(await run(handle.state)).toEqual({ n: 1, bad: false });                         // the latest committed state is valid
-    expect(label(root)).toBe("n0");                                                        // and the mount is nonetheless inert at its last good DOM
+    expect(["n0", "n1"]).toContain(label(root));                                           // the last good DOM: n1 may have been skipped, n0 is the draw
+    expect(await run(handle.state)).toEqual({ n: 1, bad: true });
+
+    await run(handle.invoke("app/fix", []));
     const recovered = await run(Valance.mount(handle, Web.target({ container: fresh, primitives })).pipe(Scope.extend(scope)));
 
     expect(label(fresh)).toBe("n1");
+    expect(await following(recovered)).toBe("following");
     await run(Scope.close(scope, Exit.void));
   } finally {
     root.remove(); fresh.remove();
