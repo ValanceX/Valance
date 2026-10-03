@@ -1385,6 +1385,76 @@ Whether this mechanism survives being production-shaped, before any design: spik
 
 ---
 
+## Stage 28: the command-lifetime boundary inside the real VALANCE `start()` (spike)
+
+*Question: can the Stage 27 mechanism be inserted into VALANCE's real lifecycle without disturbing established behavior? A scratch spike, preserved at commit `77605eb` and **reverted at the branch tip (`5811de1`)** so the tip's code is identical to Stage 27's and green; `git revert 5811de1` re-applies it. No NEXUS, MESH or PORT change, no public API change (`ApplicationHandle` and every export untouched), one source file, +29/−1 lines.*
+
+### Integration point
+`packages/valance/src/index.ts`, inside `start()`:
+- **Registry:** a `Set` of fibers and an admission flag, created right after `Nexus.Application.start` (private; no new type).
+- **Admission and registration:** `inApplication` wraps the effect it hands to `Nexus.Runtime.runFork` so the command **registers its own fiber** as its first step (`Effect.withFiberRuntime` in the `acquire` of an `acquireUseRelease`, which also unregisters on every exit). The admission check and the add are **one synchronous `Effect.sync`**; a refusal is a thrown `Error` (a defect, by Effect's own means). `inApplication` is where both `invoke` (line 130) and `dispatch` (line 122) already converge, and the fiber it forks is the real command fiber, so the registry covers the command that runs, not the caller.
+- **Drain:** a Scope finalizer added immediately after `Application.start`: close admission, interrupt every registered fiber, await each one's actual exit (`Fiber.interrupt`).
+
+### Finalizer ordering (observed, not forced)
+Registration order in the caller's Scope: NEXUS's shutdown (`Application.start`) → the VALANCE drain → `connect`'s finalizers (follower, pending MESH dispatches, unmount) and any history finalizer, added later. Scope close runs them in reverse:
+
+```text
+history / connect finalizers  (follower ends, pending dispatches interrupted, target unmounted)
+VALANCE drain                 (admission closed, registered commands interrupted, actual exit awaited)
+NEXUS termination             (its own admission closes, application resources, then platform resources)
+```
+Observed in the traces: `scope closing`, `command exit: interrupted`, `resource released`, `scope closed`.
+
+### Command coverage (real paths)
+| Path | Covered? |
+|---|---|
+| `ApplicationHandle.invoke` | **yes**: registered, interrupted and awaited by the drain; the caller observes `interrupted`; state unchanged; the resource never reached |
+| MESH dispatch | **yes**, at the same boundary; VALANCE's existing `connect` pending-fiber interruption acts first (one exit, once; no double interruption observed) |
+| Structured child (`Effect.fork`) | **yes**: interrupted with its command (Stage 26's test still passes with the spike present) |
+| Daemon / detached fiber | **no**, as designed: it escapes (Stage 26's daemon test still passes with the spike present) |
+
+### Late entry and where it is refused
+A late `ApplicationHandle.invoke` during the drain is refused as a **defect with VALANCE's message** (`VALANCE: admission is closed (draining)`), distinct from NEXUS's (`the runtime has begun terminating`), which applies only after the drain, once NEXUS's termination has begun. Because the check is the first step of the fiber NEXUS already admitted, the refusal happens **inside** an admitted NEXUS fiber, not before NEXUS admission. The binding does not run and no resource is touched. A pre-fork check would only move the message earlier; the in-fiber check is the atomic one. Not changed, per instruction.
+
+### Test results
+| Suite | Baseline (clean tip) | With the spike |
+|---|---|---|
+| Valance unit | 29 pass | **29 pass** |
+| jsdom (examples) | 66 pass | 71 tests: **51 pass, 20 fail** (the 5 new probes pass; see below) |
+| of which: every suite that existed before Stage 20 (8 files, 24 tests) | pass | **pass** (3 of 3 repeats) |
+| Chromium | 20 pass | **20 pass** (agrees with unit and jsdom) |
+
+Stability: the five Stage 28 probes passed 8 of 8 runs; the 20 failures are the **identical set** (same hash) on all 3 repeats, so they are deterministic. Against the unmodified source four of the five probes fail (they depend on the spike) and probe D passes (it asserts that existing dispatch behavior is unchanged).
+
+### Behavioral changes
+**Intended (a direct consequence of the command-lifetime invariant):** an admitted command is interrupted and has exited before NEXUS terminates and before any resource is released; no command can enter after the drain begins; between the drain and NEXUS's termination a new invocation is refused with VALANCE's message instead of being accepted.
+**Regressions in established behavior: none.** Every suite written before Stage 20 (lifecycle, entry, history, hydration, multiview, render, application, external-face, Stage 19's synchronous capability) passes, in unit, jsdom and Chromium.
+
+### The 20 failures, classified
+All 20 are in `capability-async.test.ts` and all are **A, an intended semantic change**: each asserts a behavior of an admitted command *after the Scope closes* that the spike deliberately removes. None is B, C or D.
+- Stage 20 C, Stage 21 (two), Stage 22 A+B, Stage 26 baseline `invoke`: asserted that the admitted command **survives** the Scope close and reaches the released resource; it is now interrupted first.
+- Stage 23 (B+D+E, C, F), Stage 24 (B, F, G): resource-local drain and interrupt policies expect to find **in-flight calls** in the resource's finalizer; VALANCE now drains before the platform's finalizers run, so they find none. Several wait for signals that no longer occur (hence the 5 s timeouts, not assertion failures).
+- Stage 25 (B, C, D1, D2+E, D2b, D3, H), Stage 26 A: expected the **platform registry** to find and interrupt the command; VALANCE's own drain has already done it, or (D2b, D2+E) is itself the one blocked, so the platform registry's finalizer never begins.
+- Stage 26 E: asserted that an **open entrance accepts** a late command; it is now refused.
+- **D (a dependency on admitting after shutdown began): none among established behaviors.** The only dependencies on post-shutdown admission are the probe-constructed circular-wait cases (Stages 23 C, 25 D2b, 27 C2), and they still behave as before.
+These tests are characterizations of the *old* post-termination semantics; they were not rewritten, by instruction. If the mechanism were adopted they would need a disposition (rewrite to the new invariant, or retire).
+
+### Circular wait, reproduced in the real lifecycle
+An uninterruptible command that needs a new invocation: the invocation is refused by the closed entrance, the drain waits for the command's actual exit, `Scope.close` stays blocked through 2000 cooperative yields, and **`resource released` never happens, so NEXUS never begins and the resource stays alive**. The failure mode is liveness, never safety. Recorded as a known policy question; no timeout, no forced cancellation. A consequence worth noting: while VALANCE's drain is blocked, no platform-level finalizer (including the Stage 23 to 26 test registries) runs at all.
+
+### Does the Stage 27 safety invariant survive real integration?
+**Yes.** In the real `start()`: an interruptible command admitted before the drain is interrupted and has exited before the registry completes, before NEXUS terminates, and before any resource is released (probes A and C: `lookup interrupted`, `command exit: interrupted`, `resource released`, no `resource used after release`); no command can enter after admission closes (B), and after the Scope closes NEXUS's own refusal takes over; MESH dispatch and `invoke` share the same boundary (D); an uninterruptible command keeps resources alive instead of letting them be used after release (E). No NEXUS change was needed.
+
+### Remaining unknowns
+- The uninterruptible, admission-dependent command (policy; not solved, not attempted).
+- VALANCE exposes no signal that the drain has begun; these tests infer it from an ordering VALANCE guarantees (the target is unmounted by `connect`'s finalizer, which runs just before the drain) plus a bounded run of yields. Whether production needs an observable is open.
+- "No command remains registered after normal completion" holds by construction (`acquireUseRelease` releases on every exit) but is not observable from outside without exposing the registry; not asserted.
+- The direct `Application.shutdown(running.nexus)` route (outside the VALANCE model, Stage 14) bypasses the VALANCE drain; not tested.
+- `renderToHtml` and headless hosts (no mounted target) were not given dedicated probes; they pass the existing suites.
+- The disposition of the 20 characterization tests.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
