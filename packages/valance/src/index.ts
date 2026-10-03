@@ -272,7 +272,11 @@ const connect = <S, E, T extends Target, A>(
     };
   });
 
-/** Draws the application's current render on a target, and keeps it current. Ends with the caller's Scope. */
+/**
+ * Draws the application's current render on a target, and keeps it current. Ends with the caller's Scope: the mount's lifetime is that Scope's,
+ * whatever Scope it is. If the application ends first (its own Scope closed), the follower ends (`Mounted.followed` Success) but the target stays
+ * drawn, inert, until this Scope closes.
+ */
 export const mount = <S, E>(application: ApplicationHandle<S, E>, create: TargetFactory<Target>): Effect.Effect<Mounted<E>, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.map(connect(application, create, (target, tree) => { target.draw(tree); }), ({ first: _, ...mounted }) => mounted);
 

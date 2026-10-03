@@ -62,6 +62,10 @@ as "reviewed only".
 - **C20 trigger and scope (Stage 30).** "Draining begins" means the caller's Scope closing, the only route in the VALANCE model. The drain constrains admission and the lifetime of admitted commands; it does not forbid state changes by commands that are still running (Stage 30, Interpretation A). `Application.shutdown(running.nexus)`, reachable only through `./internal`, is the substrate's early end: it does not pass the drain and the contract is not claimed for it.
 - **C23, liveness limitation (documented, not solved).** An uninterruptible admitted command that depends on a NEW admission can keep shutdown from completing; the application stays alive and its resources are not released under the command. No timeout, forced interruption, watchdog or fallback admission. *(tripwire: contract 5)*
 
+## Added for stage 38 (mount lifetime)
+
+- **C24, a mount's lifetime is the caller's Scope's.** `mount`/`hydrate` end with the Scope the caller supplies (target and follower finalized by it, target first), and relate to the application's Scope in no other way. The application ending ends the mount's follower, not its target. An independent mount may therefore outlive its application as a drawn, inert target until its own Scope closes. This is permitted, not an error. *(tripwire: `browser/mount-lifetime.browser.test.ts`, `test/scope-topology.test.ts`)*
+
 ## Status (Web.history exploration closed)
 
 C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated once, in `docs/FINDINGS.md` Stage 7. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).

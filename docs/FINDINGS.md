@@ -521,7 +521,7 @@ Each is marked with its evidence and how it was changed.
 
 1. **One authoritative application state.** *Kept.* One `State`, built once, read-only outside. Nothing writes it except NEXUS commands.
 2. **The view is derived from state: pure, total, and recomputed per committed state.** *Modified:* "derived" is not enough: `view` is called for every emitted state, so it must be total. Never stored.
-3. **Application lifetime is one coherent scope, and bindings end before the application.** *Modified:* platform bindings (follower, target, history listener) end first, then the application, in the caller's scope. Verified by listener counts and finalizer order.
+3. **Application lifetime is one coherent scope, and bindings end before the application.** *Modified:* platform bindings (follower, target, history listener) end first, then the application, in the caller's scope. Verified by listener counts and finalizer order. *(Stage 38 precision: "in the caller's scope" means one Scope holding both; with separate Scopes only each mount's own Scope ends its bindings.)*
 4. **Every state transition is a command in the application's binding table; external events enter there.** *Narrowed:* demonstrated for MESH intents and popstate; there is no other write path. *Not* demonstrated: that external callers are many.
 5. **MESH does not own application state.** *Kept.* A program is data; each render is a function of a snapshot.
 6. **PORT does not own application state.** *Kept, with an addition (12).*
@@ -1862,6 +1862,33 @@ Finalizer ledger: *mount finalizer* (owner: the mount's Scope; trigger: that Sco
 **Results:** unit 29/29, jsdom 176/176 (162 + 14 new, identical on 3 full runs; the Stage 37 file alone 5 runs), Chromium 21/21, typecheck and build clean. No production source changed. Constraints: none added (the topology is permitted, not mandated).
 
 **Next uncertainty:** whether independent mount Scopes (a mount that can outlive its application as a drawn, dead page) are intended or accidental: i.e. should `mount` tie the follower's/target's end to the application's end, or is that the caller's job?
+
+---
+
+## Stage 38: whose lifetime is a mount's? (decision: caller-owned; no behavior change)
+
+**Question.** Is an independent mount outliving its application (a drawn-but-dead target until its own Scope closes) an intended semantic or an accidental capability?
+
+**Evidence, by source.**
+- *Public API text.* `mount`'s own documentation said: "Draws the application's current render on a target, and keeps it current. **Ends with the caller's Scope.**" `Mounted.followed`: "Completes when Valance stops following renders: **Success when the application ended**, a Failure when a render failed, **Interrupted when the scope closed**." The API therefore already names two distinct endings, "the application ended" and "the mount's scope closed", and gives the first one a Success outcome that leaves the mount Scope open. That outcome only makes sense if a mount can still be open when its application has ended.
+- *Constraints.* C6: the caller's Scope owns the lifetime; the follower and the target are "both finalized by the Scope, target first". C2/PORT contract: the composer decides when a target unmounts; nothing in NEXUS or PORT does it on VALANCE's behalf.
+- *Earlier findings.* Stage 11, invariant 3 ("bindings end before the application", modified) is stated "in the caller's scope": one Scope holding both. It is an ordering consequence of a single Scope, not a claim about separate ones; the wording was ambiguous about that and now says so. Stage 14: ending an application early is not part of the model; the application's end is observed by the follower, which is the Success outcome above. Stage 37: the topology is caller-controlled, shared in every documented example, and VALANCE neither requires nor prevents the others.
+- *README.* Shows one `Effect.scoped` holding start and mount; "closing the scope ends everything" is true of that Scope. It says nothing about separate Scopes, and the claim was not normative for them. Ambiguous, not contradictory: the README now states the separate-Scope case explicitly.
+- *Ownership.* Each piece of an independent mount is owned by exactly one Scope that will close it: the target and follower by the mount's Scope; the application's resources, state and commands by the application's. The mount holds no application resource after the application ends: its events are refused at admission, the follower ended with Success, and its own Scope closes the target once.
+
+**The probe** (`examples/tracer-web/browser/mount-lifetime.browser.test.ts`, real Chromium, real PORT web target, real clicks, the real catalog application, mounts in their own Scopes, 3 runs). Observed lifecycle: (1) application alive, mount A alive: a click reaches the application and the page follows (`Beta, Alpha`), exit recorded. (2) A's Scope closes: A's target is emptied; the application stays fully usable (a command commits `C, D`); a new mount B draws the current state. (3) The application's Scope closes: B stays drawn with `Gamma, Delta`; `followed` is `Success`; state is still readable. (4) B's Scope is still open. (5) A click in B reaches admission and is refused (`died: NEXUS: the runtime has begun terminating`, recorded in B's ledger); `invoke` is refused the same way; the page does not change. (6) B's Scope closes: B's target is emptied, cleanly, once. No resource or ownership contradiction at any step. The jsdom probes of Stage 37 (shared, parented and independent Scopes, both command kinds) are the matrix behind it and were not repeated.
+
+**Is independent mount lifetime coherent?** Yes. It is the case where the two ends are driven by two owners, and each end happens exactly once, in an order the owners control. The outcome (drawn, inert, refusing events) is observable and consistent, and is exactly what `Mounted.followed`'s Success outcome describes.
+
+**Decision: caller-owned (Model A).** Model B (the application owns its mounts) would contradict the explicit public text ("ends with the caller's Scope"), C6's finalization rule and the documented `followed` outcome, and would require VALANCE to unmount a target (PORT's) on an event its Scope does not signal, i.e. a second ending for the mount besides the caller's Scope. The evidence is not ambiguous.
+
+**Not decided here (explicitly).** Event-command ownership (mount-owned vs application-owned, Stage 36) stays a product/API semantic decision. This stage touched neither the follower's click-dispatch interruption nor any command path.
+
+**Changes.** No behavior change. Documentation only: `mount`'s doc comment now states the contract (comment text; build output unchanged apart from the comment); the README gains one paragraph under its example saying that `start` and `mount` each take a Scope and relate them in no other way, and what an independent mount does when the application ends first; C24 is added to `docs/CONSTRAINTS.md`; Stage 11's invariant 3 carries a precision note. The README wording that implied otherwise was "closing the scope ends everything" read without its context (one Scope).
+
+**Results:** unit 29/29, jsdom 176/176, Chromium 22/22 (21 + 1 new, 3 runs), typecheck and build clean.
+
+**Next uncertainty:** none structural about mounts. The remaining open questions are the product decisions already recorded: event-command ownership (Stage 36) and whether the event-exit ledger has an intended reader (Stage 34).
 
 ---
 
