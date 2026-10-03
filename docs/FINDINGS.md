@@ -2179,6 +2179,22 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 50: time after a bfcache restore (one time-sensitive behavior; no defect, no policy)
+
+**What is time-sensitive in the real page.** A search of `examples/tracer-web/src` and `packages/valance/src` finds exactly one reader of time: `counter/increment` stamps the click with `Clock.currentTimeMillis` (shown as "last at <stamp>"). The page passes no platform, so the clock is Effect's default (`Date.now`). There are no timers, no schedules, no expiry, no polling, and no capability with a time-to-live; VALANCE itself reads no clock. So the only behavior whose result depends on wall-clock time across a freeze is that stamp.
+
+**Exercised (the Stage 49 real-bfcache test, extended; 3 runs).** Genuine restore as in Stage 49 (full Chromium, top-level tab, the browser's own `pagehide`/`pageshow`). The page is moved to another document and left there for 1.5 s, then restored. Observed: the restored state still carries the stamp of the click made BEFORE the freeze (the same text as before); the next click after the restore is stamped with a value at least 1.5 s later: **the clock the application reads did not freeze with the page; it is the wall clock at the moment of the command.** The application kept working (`2 clicks`, history binding alive), as in Stage 49.
+
+**Is anything stale?** No defect. The restored stamp is a record of when a past click happened, which stays true; it makes no claim of freshness. Nothing in the application renders "now", derives a duration from a stored time, or caches data with a lifetime, so nothing becomes wrong with elapsed time. The stale-clock hypothesis from Stage 49 does not apply: the platform clock is read per command, never cached across the freeze.
+
+**Decision.** No policy change: no `pageshow` handler, no refresh, no resume API, no VALANCE change. Stage 49's invariant is unchanged (persisted `pagehide` suspends; non-persisted closes). The question "what should an application assume about data age after a restore" is **currently unobservable** in this repository because no application behavior depends on data age; it should be asked of the first application that has such data, not answered for this one.
+
+**Validation.** Focused: `pnpm run test:bfcache`, 3 runs; example typecheck clean. No page tests rerun (`page.ts` and shared page infrastructure were not changed); no package, jsdom or full-suite runs. `packages/*`, NEXUS, MESH and PORT untouched.
+
+**Next uncertainty.** None specific to bfcache and time. The example now has a real page, startup failure policy, navigation, and suspend/restore lifecycle; what it still lacks is an application with data that ages (fetched or cached data with a lifetime), which is where any resume policy would be decided.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

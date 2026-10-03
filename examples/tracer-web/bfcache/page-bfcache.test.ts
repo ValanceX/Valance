@@ -8,7 +8,10 @@ import { expect, it } from "vitest";
 
 import { renderDocument } from "../src/document.js";
 
-it("a page restored from the back/forward cache is the SAME live document and a live application: its state, target and events all survive", async () => {
+const AWAY_MS = 1500;
+const stampOf = (text: string): number => Number(/last at (\d+)/.exec(text)?.[1]);
+
+it("a page restored from the back/forward cache is the SAME live document and a live application: its state, target and events survive, and the platform clock it reads is the wall clock, not the frozen one", async () => {
   const server = await createViteServer({
     root: process.cwd(), logLevel: "silent", configFile: false, server: { host: "127.0.0.1", port: 0 },
     plugins: [{
@@ -62,6 +65,7 @@ it("a page restored from the back/forward cache is the SAME live document and a 
     const before = await state();
 
     await page.goto(`${base}/other`);                                                   // another document: the tracer page is stored, if the browser allows it
+    await page.waitForTimeout(AWAY_MS);                                                 // stay away: the only time-sensitive thing the application does is stamp a click with the platform clock
     await page.evaluate(() => { history.back(); });                                     // (`goBack` waits for a `load` that a restore never fires)
     const restored = await page.waitForFunction(() => (JSON.parse(sessionStorage.getItem("log") ?? "[]") as Array<string>).some((line) => line.includes("pageshow persisted=true")), undefined, { timeout: 15_000 }).then(() => true, () => false);
 
@@ -79,6 +83,15 @@ it("a page restored from the back/forward cache is the SAME live document and a 
     expect(after.text).toBe(before.text);                                               // the target is still drawn, with the in-memory count
     await page.getByText("Click", { exact: true }).click({ timeout: 3000 });
     await page.waitForFunction(() => /^2 clicks/.test(document.querySelector("#app")?.textContent ?? ""));   // events still reach the same application
+
+    // The one time-sensitive behavior: `counter/increment` stamps the click with the platform Clock (the page passes none: Effect's default, `Date.now`).
+    // The state restored from the cache still carries the stamp of the click BEFORE the freeze (a record of when it happened: correct, not stale), and the next click
+    // is stamped with the wall clock of the restore: the clock the application reads did not freeze with the page.
+    const stampBefore = stampOf(before.text);
+    const stampAfter = stampOf((await state()).text);
+
+    expect(stampBefore).toBeGreaterThan(0);
+    expect(stampAfter - stampBefore).toBeGreaterThanOrEqual(AWAY_MS);
     await page.getByText("About", { exact: true }).click();
     await page.waitForFunction(() => location.pathname + location.search === "/tracer/about?tab=overview");   // and its history binding is alive
   } finally {
