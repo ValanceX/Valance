@@ -3,7 +3,7 @@
 // resources and real windows:
 //   O1  a container is reusable after its mount closed (the supported "mount, close, mount again")
 //   O2  mount and hydrate are per-mount choices over one application: they mix, and stale server HTML is PORT's mismatch, not the application's
-//   O3  Web.history belongs to the Scope it was given: with the application's, it is gone first; in its own, it outlives the application inert
+//   O3  Web.history belongs to the Scope it was given: with the application's, it is gone first; in its own, it outlives the application, still listening (a popstate is attempted and refused: lifecycle-races P5)
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { renderToHtml } from "@valancex/valance/web/server";
@@ -89,7 +89,7 @@ describe("lifecycle ownership", () => {
     return { win, live, location: () => win.location.pathname + win.location.search };
   };
 
-  it("O3 history ends with the Scope it was given: in the application's Scope its listener is gone when it closes; in its own Scope it outlives the application, inert, until that Scope closes", async () => {
+  it("O3 history ends with the Scope it was given: in the application's Scope its listener is gone when it closes; in its own Scope it outlives the application, still listening (a popstate is attempted and refused: see lifecycle-races P5), until that Scope closes", async () => {
     const app = application(await compilePrograms());
     const options = { urlOf, stateOf, navigate: "app/navigate" } as const;
     const navigateAbout = (handle: { readonly invoke: Valance.ApplicationHandle<never, unknown>["invoke"] }) => handle.invoke("app/navigate", [{ value: { path: "/about", tab: "overview" } }]);
