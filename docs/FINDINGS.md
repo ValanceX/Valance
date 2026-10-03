@@ -1222,6 +1222,59 @@ Whether the information gap can be closed **above NEXUS, with the platform's own
 
 ---
 
+## Stage 25: can application-work lifetime be established above NEXUS? (a platform-owned registry of command fibers)
+
+*The final experiment on the lifetime branch. Question: with only existing NEXUS primitives, can a platform-owned registry of admitted command fibers turn "close admission, then interrupt the admitted commands, await their actual exit, then release the resources" into a boundary? Method: a test-only capability (`example/admitted-registry`) supplied by the same platform, acquired **after** the capability resource, whose finalizer interrupts the registered fibers and awaits their actual exit (`Fiber.interrupt` returns only when the fiber has ended). Every command registers **its own fiber** at entry through one wrapper at the definition (`Effect.withFiberRuntime` inside `acquireUseRelease`), not around a capability call. No source change in VALANCE, NEXUS, MESH or PORT; Stage 19 to 24 tests untouched (`test/capability-async.test.ts`, 26 tests, stable over 13 runs; if commands do not register, all seven registry probes fail).*
+
+### Registry ownership
+Acquired as a scoped platform resource (`Layer.scoped(Capability.Environment, …)`, after the capability resource); commands resolve it with `Capability.require` and register `Effect.withFiberRuntime`'s current fiber, then unregister in the `acquireUseRelease` release (so on every exit). That fiber is **the actual command fiber**: `Command.invoke` runs the handler inline in the fiber NEXUS forked, and interrupting it makes the caller's `invoke` report `interrupted` (B, C), which would not happen for a child fiber.
+
+### Ordering (observed, not assumed)
+```text
+resource acquired     registry acquired                       (acquisition order)
+...
+scope closing
+registry finalizer started   registry interrupting 1 admitted command(s)
+command exit: interrupted    registry: admitted commands exited
+registry released     resource released     scope closed      (the reverse: the registry FIRST)
+```
+The intended ordering is the actual one: platform release reverses acquisition, so a resource acquired last is released first.
+
+### Probe results
+| | |
+|---|---|
+| **A. control** | registered before the command's own first step; left on exit; the finalizer has nothing to interrupt; normal order |
+| **B. admitted, not yet at the resource** | **covered** (the gap of Stages 23 and 24 closes): the command is interrupted at its wait, `Scope.close` completes by itself, the caller gets `interrupted`, state unchanged (`["A0"]`), nothing published or rendered, and **the resource is never reached** (no lookup starts even after its way is opened) |
+| **C. inside a capability call** | the command fiber is interrupted as a whole; the call exits **as a consequence** (no separate interrupt was issued); the command exits, then the registry, then the resource |
+| **D1. command handles interruption** | it cannot: `catchAllCause` around its own call never ran (Effect does not let a fiber recover from its own interruption); nothing after it ran |
+| **D2. uninterruptible region** | the registry waits for the ACTUAL exit: `Scope.close` stays blocked while the region is held; the command commits inside the region (state `["A0", "in-region"]`, **after termination began, while the resource was still valid**), leaves it, and the pending interruption takes effect at once (nothing after the region ran). Only then does the registry release, then the resource |
+| **E. new invocation during the registry's drain** | refused as a defect, `the runtime has begun terminating`, exactly as before: draining did not reopen admission |
+| **D2b. uninterruptible and needs a new invocation** | **blocked indefinitely**: the only way to open the region's gate is a refused invocation (the Stage 23 cycle, at command level; the harness releases it only from outside) |
+| **D3. work a command hands to a daemon fiber** | **escapes**: the command fiber is interrupted and exits, the registry releases, the resource releases, the Scope closes; then the daemon runs, uses the released resource and fails with its own error |
+| **H. a command that does not use the wrapper** | **invisible** (the application's own `app/lookupAsync`): the registry finds nothing, closes immediately, and the command goes on and reaches the released resource, exactly as in Stage 22 |
+
+### Architecture: what this established
+**Outcome 1, with stated limits.** Using only existing primitives (`Capability`, platform `Layer.scoped` ordering, `Effect.withFiberRuntime`, `acquireUseRelease`, `Fiber.interrupt`) and NEXUS's already-closed admission, a platform and a definition can establish: *close admission, interrupt the registered command fibers, await their actual exit, then release the resources*, for commands that are registered, interruptible and not escaping. The boundaries that made it possible: platform release order (observed), handlers running inline in the admitted fiber (so the real fiber can be captured), `Fiber.interrupt` awaiting actual exit, and NEXUS's refusal of new work.
+
+What it does **not** give, each demonstrated:
+- **Coverage is by convention.** Only wrapped commands are visible (H). Nothing enforces the wrapper.
+- **Untracked work escapes** (D3): a daemon fiber a command spawns is not the registry's.
+- **An uninterruptible command that needs admission blocks termination** (D2b). Awaiting actual exit, not the request, is correct (D2) and is exactly what makes this possible. Interruptible commands never block it.
+- By structure (not tested): the registry's finalizer runs at **platform release**, which NEXUS documents as after the application's own resources are released. Admitted commands keep running (and can commit state and publish events) from the start of termination until that point.
+
+### NEXUS pressure (demonstrated gaps only)
+- **Total coverage needs the runtime as registrar.** Admission is the single choke point at which every command can be captured; above NEXUS that is only possible by convention (H) and only for the fiber, not what it spawns (D3). This is the one gap the experiment demonstrates.
+- Not demonstrated as missing: the ordering (it works), the ability to interrupt the real fiber (it works), awaiting actual exit (it works), closed admission during the drain (it holds).
+- Whether the action should run *earlier* than platform release (before the application's own resources are released) is a structural observation, not a demonstrated failure here.
+
+### New concept required
+No. Every element was an existing primitive. The only addition was a discipline: every command must go through one wrapper.
+
+### Next probe
+Whether the convention gap (H) can be closed **in VALANCE composition, with no NEXUS change**, because every producer already enters through one place: `start`'s binding table, via `invoke` and `dispatch` (`inApplication`). Simulate it test-only: wrap the handle's entries so each admitted command's run is registered in a registry owned by the caller's Scope and released **before** the NEXUS application is shut down, then repeat B, H and the unwrapped case. It shows whether total coverage of table-entered commands, and an action that precedes NEXUS termination altogether, are available at VALANCE's own boundary. (From the source, but not tested here: the MESH-dispatch path already interrupts its pending fibers when the Scope closes; the `invoke` path does not.)
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):

@@ -24,12 +24,20 @@ type SecondClosed = { readonly _tag: "SecondClosed" };
 interface SecondService { readonly touch: () => Effect.Effect<string, SecondClosed> }
 const Second = Nexus.Capability.define<SecondService>("example/second");
 
+// Stage 25 (test-only): a platform-owned registry of admitted command fibers, supplied as an ordinary capability.
+interface AdmittedRegistry {
+  /** Registers the CURRENT fiber: the command's own, wherever it is called from. */
+  readonly register: Effect.Effect<void>;
+  readonly unregister: Effect.Effect<void>;
+}
+const Registry = Nexus.Capability.define<AdmittedRegistry>("example/admitted-registry");
+
 /**
  * The external platform: a controllable asynchronous implementation backed by a scoped resource. `lookup(id)` raises
  * "started", then waits on a gate the test opens with `complete(id)`; an interruption of that wait is recorded. Every
  * step is recorded in order in `events`, with the resource's acquisition and release.
  */
-const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; readonly second?: boolean; readonly drain?: boolean | "interrupt" } = {}) => {
+const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; readonly second?: boolean; readonly drain?: boolean | "interrupt"; readonly registry?: boolean } = {}) => {
   const events: Array<string> = [];
   let closed = false;                                                              // set only by the resource's own finalizer
   let secondClosed = false;
@@ -132,12 +140,41 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
     return secondClosed ? Effect.fail<SecondClosed>({ _tag: "SecondClosed" }) : Effect.succeed("second:ok");
   }) };
   const acquireSecond = Effect.acquireRelease(Effect.sync(() => { events.push("second resource acquired"); return second; }), () => Effect.sync(() => { events.push("second resource released"); secondClosed = true; }));
+  // Stage 25: the registry. Commands register their own fiber at entry; the finalizer interrupts the registered fibers and
+  // awaits their ACTUAL exit (Fiber.interrupt returns only when the fiber has ended), then releases.
+  const admitted = new Set<Fiber.RuntimeFiber<unknown, unknown>>();
+  let registryClosed = false;
+  const registryReached = Effect.runSync(Deferred.make<void>());                  // raised when the registry's finalizer begins
+  const registryService: AdmittedRegistry = {
+    register: Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => { admitted.add(fiber as Fiber.RuntimeFiber<unknown, unknown>); events.push(`registry: command registered (${admitted.size})${registryClosed ? " AFTER the registry finalizer began" : ""}`); })),
+    unregister: Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => { admitted.delete(fiber as Fiber.RuntimeFiber<unknown, unknown>); events.push(`registry: command left (${admitted.size})`); })),
+  };
+  const acquireRegistry = Effect.acquireRelease(Effect.sync(() => { events.push("registry acquired"); return registryService; }), () => Effect.gen(function* () {
+    events.push("registry finalizer started");
+    registryClosed = true;
+    const commands = [...admitted];
+
+    yield* Deferred.succeed(registryReached, undefined);
+
+    if (commands.length > 0) {
+      events.push(`registry interrupting ${commands.length} admitted command(s)`);
+      yield* Effect.forEach(commands, (command) => Fiber.interrupt(command), { discard: true });
+      events.push("registry: admitted commands exited");
+    }
+
+    events.push("registry released");
+  }));
   // One platform, one scoped Environment. Resources acquired in this order are released in the reverse order.
   const platform: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.map(
-    Effect.all([acquireCatalog, options.second === true ? Effect.map(acquireSecond, (value) => Option.some(value)) : Effect.succeed(Option.none<SecondService>())]),
-    ([implementation, secondImplementation]) => ({ resolutions: new Map<string, Nexus.Capability.CapabilityResolution<unknown>>([
+    Effect.all([
+      acquireCatalog,
+      options.second === true ? Effect.map(acquireSecond, (value) => Option.some(value)) : Effect.succeed(Option.none<SecondService>()),
+      options.registry === true ? Effect.map(acquireRegistry, (value) => Option.some(value)) : Effect.succeed(Option.none<AdmittedRegistry>()),
+    ]),
+    ([implementation, secondImplementation, registryImplementation]) => ({ resolutions: new Map<string, Nexus.Capability.CapabilityResolution<unknown>>([
       [CatalogAsync.id, { _tag: "Available" as const, implementation }],
       ...(Option.isSome(secondImplementation) ? [[Second.id, { _tag: "Available" as const, implementation: secondImplementation.value }] as const] : []),
+      ...(Option.isSome(registryImplementation) ? [[Registry.id, { _tag: "Available" as const, implementation: registryImplementation.value }] as const] : []),
     ]) })
   ));
 
@@ -147,6 +184,7 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
     started: (id: string) => Deferred.await(gateOf(id).started),
     inFlight: () => inFlight,
     draining: Deferred.await(draining),
+    registryReached: Deferred.await(registryReached),
     complete: (id: string) => Deferred.succeed(gateOf(id).gate, { id, name: `item-${id}` }),
   };
 };
@@ -827,5 +865,315 @@ describe("a resource that interrupts its in-flight users when it is finalized", 
     expect(at(w, "lookup call joined: interrupted")).toBeLessThan(at(w, "command: still running after its call ended"));
     expect(show(exit)).toBe("succeeded");                                         // so the caller's invoke succeeded
     expect(w.events).not.toContain("resource used after release A");
+  });
+});
+
+// Stage 25 probe: can application-work lifetime be established ABOVE NEXUS, by tracking admitted command fibers as an
+// ordinary platform-owned resource? Every command registers its OWN fiber at entry (one wrapper, applied at the definition);
+// the registry is acquired AFTER the capability resource, so its finalizer is expected (and checked, not assumed) to run
+// first: interrupt the registered fibers, await their actual exit, release. Test-only; nothing in NEXUS or VALANCE changes.
+interface TrackedOptions {
+  /** Probe B: suspend the command after it registered, before its first capability use. */
+  readonly before?: { readonly waiting: Deferred.Deferred<void>; readonly go: Deferred.Deferred<void> };
+  /** Probe D2: an uninterruptible region the command enters, held open by `gate`. */
+  readonly region?: { readonly entered: Deferred.Deferred<void>; readonly gate: Deferred.Deferred<void> };
+  /** Probe D3: work the command forks as a daemon, released by `gate`. */
+  readonly escape?: { readonly forked: Deferred.Deferred<void>; readonly gate: Deferred.Deferred<void> };
+}
+
+const trackedApplication = (programs: Awaited<ReturnType<typeof compilePrograms>>, w: ReturnType<typeof controllable>, options: TrackedOptions = {}) => {
+  const base = applicationWithAsyncCatalog(programs);
+
+  return Valance.define({
+    ...base,
+    commands: (state: Nexus.State.StateHandle<AppState>) => {
+      // THE wrapper: registers the command's own fiber at entry, unregisters on any exit, records the exit.
+      const tracked = <A, F, R>(body: Effect.Effect<A, F, R>) => Effect.gen(function* () {
+        const registry = yield* Nexus.Capability.require(Registry);
+
+        return yield* Effect.acquireUseRelease(registry.register, () => body, () => registry.unregister).pipe(
+          Effect.onExit((exit) => Effect.sync(() => { w.events.push(`command exit: ${show(exit)}`); }))
+        );
+      });
+      const commit = (id: string) => state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items, { id, name: `committed-${id}` }] }));
+
+      const lookup = Nexus.Command.define("t.trackedLookup", Schema.Struct({ id: Schema.String }), ({ id }) => tracked(Effect.gen(function* () {
+        w.events.push("command admitted");
+        const catalog = yield* Nexus.Capability.require(CatalogAsync);
+
+        if (options.before !== undefined) {
+          w.events.push("command waiting before its lookup");
+          yield* Deferred.succeed(options.before.waiting, undefined);
+          yield* Deferred.await(options.before.go);
+        }
+
+        const entry = yield* catalog.lookup(id);
+
+        w.events.push("command: lookup returned");
+        yield* commit(entry.id);
+        w.events.push("command: state committed");
+      })));
+      // D1: the command tries to handle the interruption of its own execution and carry on.
+      const catches = Nexus.Command.define("t.trackedCatches", Schema.Struct({ id: Schema.String }), ({ id }) => tracked(Effect.gen(function* () {
+        w.events.push("command admitted");
+        const catalog = yield* Nexus.Capability.require(CatalogAsync);
+
+        yield* Effect.catchAllCause(catalog.lookup(id), (cause) => Effect.sync(() => { w.events.push(`command: caught ${Cause.isInterruptedOnly(cause) ? "an interruption" : "something else"}, continuing`); }));
+        w.events.push("command: continued after catching");
+        yield* commit("after-catch");
+        w.events.push("command: state committed");
+      })));
+      // D2: the command is inside an uninterruptible region when termination reaches it.
+      const region = Nexus.Command.define("t.trackedRegion", Schema.Struct({}), () => tracked(Effect.gen(function* () {
+        w.events.push("command admitted");
+        yield* Effect.uninterruptible(Effect.gen(function* () {
+          w.events.push("command: inside its uninterruptible region");
+          yield* Deferred.succeed(options.region!.entered, undefined);
+          yield* Deferred.await(options.region!.gate);
+          yield* commit("in-region");
+          w.events.push("command: committed inside the region");
+        }));
+        w.events.push("command: ran past its uninterruptible region");
+      })));
+      // D3: the command hands further work to a fiber the registry does not know.
+      const escapes = Nexus.Command.define("t.trackedEscapes", Schema.Struct({}), () => tracked(Effect.gen(function* () {
+        w.events.push("command admitted");
+        const catalog = yield* Nexus.Capability.require(CatalogAsync);
+
+        yield* Effect.forkDaemon(Effect.gen(function* () {
+          yield* Deferred.await(options.escape!.gate);
+          w.events.push("escaped work resumed");
+          w.events.push(`escaped work: lookup B: ${show(yield* Effect.exit(catalog.lookup("B")))}`);
+        }));
+        w.events.push("command forked escaped work");
+        yield* Deferred.succeed(options.escape!.forked, undefined);
+        yield* catalog.lookup("A");
+        w.events.push("command: lookup returned");
+      })));
+      // Opens a lookup's gate: reachable only by a NEW invocation (untracked, like any command that needs no registry).
+      const signal = Nexus.Command.define("t.signal2", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.asVoid(w.complete(id)));
+
+      return {
+        ...base.commands(state),
+        "app/trackedLookup": Nexus.Mesh.bind(lookup, (args) => ({ id: firstValue(args) })),
+        "app/trackedCatches": Nexus.Mesh.bind(catches, (args) => ({ id: firstValue(args) })),
+        "app/trackedRegion": Nexus.Mesh.bind(region, () => ({})),
+        "app/trackedEscapes": Nexus.Mesh.bind(escapes, () => ({})),
+        "app/signal2": Nexus.Mesh.bind(signal, (args) => ({ id: firstValue(args) })),
+      };
+    },
+  });
+};
+
+const bootTracked = async (options: TrackedOptions = {}) => {
+  const w = controllable({ useAfterRelease: "fail", registry: true });
+  const m = mounted();
+  const app = trackedApplication(await compilePrograms(), w, options);
+  const scope = await Effect.runPromise(Scope.make());
+  const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, state: start }).pipe(Scope.extend(scope)));
+
+  await Effect.runPromise(Valance.mount(handle, m.target).pipe(Scope.extend(scope)));
+  const emitted = Effect.runPromise(Stream.runCollect(runningOf(handle).states).pipe(Effect.map(Chunk.toReadonlyArray)));
+  const closeScope = () => Effect.runFork(Scope.close(scope, Exit.void).pipe(Effect.tap(() => Effect.sync(() => { w.events.push("scope closed"); }))));
+  const poll = async (fiber: Fiber.RuntimeFiber<unknown, unknown>) => Option.isSome(await Effect.runPromise(Fiber.poll(fiber)));
+  const yields = (n: number) => Effect.runPromise(Effect.forEach(Array.from({ length: n }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+
+  return { w, m, scope, handle, emitted, closeScope, poll, yields };
+};
+
+describe("a platform-owned registry of admitted command fibers", () => {
+  const at = (w: ReturnType<typeof controllable>, event: string) => w.events.indexOf(event);
+  const strictlyIn = (w: ReturnType<typeof controllable>, ...order: ReadonlyArray<string>) => {
+    for (const [index, event] of order.entries()) {
+      expect(at(w, event), event).toBeGreaterThanOrEqual(0);
+
+      if (index > 0) {
+        expect(at(w, order[index - 1]!), `${order[index - 1]} < ${event}`).toBeLessThan(at(w, event));
+      }
+    }
+  };
+  const ids = async (handle: Valance.ApplicationHandle<AppState, unknown>) => (await Effect.runPromise(handle.state)).items.map((item) => item.id);
+
+  it("ordering and ownership: the registry is acquired after the resource and released before it; commands register their own fiber first", async () => {
+    const { w, handle, closeScope } = await bootTracked();
+    const invoked = Effect.runFork(handle.invoke("app/trackedLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    await Effect.runPromise(w.complete("A"));
+    await Effect.runPromise(Fiber.join(invoked));
+    await Effect.runPromise(Fiber.join(closeScope()));
+
+    // Probe A (control): registered at entry (before the command's own first step), left on exit, nothing to interrupt.
+    expect(w.events).toEqual([
+      "resource acquired", "registry acquired",                                    // acquisition order ...
+      "registry: command registered (1)", "command admitted",
+      "lookup started A", "lookup resumed A", "lookup completed A", "command: lookup returned", "command: state committed",
+      "registry: command left (0)", "command exit: succeeded",
+      "registry finalizer started", "registry released", "resource released",      // ... release is its reverse: the registry FIRST
+      "scope closed",
+    ]);
+  });
+
+  it("probe B: an admitted command that has not reached the resource is interrupted, and can never reach it afterwards", async () => {
+    const before = { waiting: await Effect.runPromise(Deferred.make<void>()), go: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, m, handle, emitted, closeScope, yields } = await bootTracked({ before });
+    const invoked = Effect.runFork(handle.invoke("app/trackedLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(Deferred.await(before.waiting));                      // registered, not yet inside any capability
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));                            // completes by itself: the command is interrupted promptly
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    expect(w.events).toContain("registry interrupting 1 admitted command(s)");
+    strictlyIn(w, "scope closing", "registry finalizer started", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    expect(show(exit)).toBe("interrupted");                                       // the caller receives interruption
+    expect(await ids(handle)).toEqual(["A0"]);                                    // nothing committed
+    expect((await emitted).map((state) => state.items.length)).toEqual([1]);
+    expect(m.operations).toEqual(["draw"]);
+
+    await Effect.runPromise(Deferred.succeed(before.go, undefined));              // the command's way to its resource is open ...
+    await yields(500);
+    expect(w.events.some((event) => event.startsWith("lookup started"))).toBe(false);   // ... and nothing ever uses it
+    expect(w.events).not.toContain("resource used after release A");
+  });
+
+  it("probe C: a command inside a capability call is interrupted as a whole; the call exits as a consequence; the resource releases after the command has exited", async () => {
+    const { w, handle, closeScope } = await bootTracked();
+    const invoked = Effect.runFork(handle.invoke("app/trackedLookup", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    // No separate interrupt of the call was issued: interrupting the command fiber reached the call it was inside.
+    strictlyIn(w, "registry interrupting 1 admitted command(s)", "lookup interrupted A", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    expect(w.events).not.toContain("lookup completed A");
+    expect(w.events).not.toContain("resource used after release A");
+    expect(show(exit)).toBe("interrupted");
+    expect(await ids(handle)).toEqual(["A0"]);
+  });
+
+  it("probe D1: a command cannot handle the interruption of its own fiber and carry on; its handler never runs", async () => {
+    const { w, handle, closeScope } = await bootTracked();
+    const invoked = Effect.runFork(handle.invoke("app/trackedCatches", [{ value: "A" }]));
+
+    await Effect.runPromise(w.started("A"));
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    expect(w.events.some((event) => event.startsWith("command: caught"))).toBe(false);        // catchAllCause did not run
+    expect(w.events).not.toContain("command: continued after catching");
+    expect(w.events).not.toContain("command: state committed");
+    expect(show(exit)).toBe("interrupted");
+    strictlyIn(w, "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released");
+  });
+
+  it("probes D2 + E: an uninterruptible command keeps the registry (and Scope.close) waiting for its ACTUAL exit; new invocations stay refused meanwhile", async () => {
+    const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, m, handle, emitted, closeScope, poll, yields } = await bootTracked({ region });
+    const invoked = Effect.runFork(handle.invoke("app/trackedRegion", []));
+
+    await Effect.runPromise(Deferred.await(region.entered));
+    w.events.push("scope closing");
+    const closing = closeScope();
+
+    await Effect.runPromise(w.registryReached);
+    await yields(1000);
+
+    // The interrupt was REQUESTED, but the command has not exited: the registry does not treat the request as termination.
+    expect(w.events).toContain("registry interrupting 1 admitted command(s)");
+    expect(await poll(closing)).toBe(false);
+    expect(await poll(invoked)).toBe(false);
+    expect(w.events).not.toContain("registry released");
+    expect(w.events).not.toContain("resource released");
+
+    // E. New work during the registry's drain is refused exactly as after termination: admission was not reopened.
+    for (const [key, args] of [["app/home", []], ["app/trackedLookup", [{ value: "Z" }]]] as const) {
+      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))).toBe("died: NEXUS: the runtime has begun terminating");
+    }
+
+    await Effect.runPromise(Deferred.succeed(region.gate, undefined));
+    await Effect.runPromise(Fiber.join(closing));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    // The command finished its uninterruptible region (and committed inside it, with termination already underway), then the
+    // pending interruption took effect at once: nothing after the region ran.
+    expect(w.events).toContain("command: committed inside the region");
+    expect(w.events).not.toContain("command: ran past its uninterruptible region");
+    strictlyIn(w, "command: committed inside the region", "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+    expect(show(exit)).toBe("interrupted");
+    expect(await ids(handle)).toEqual(["A0", "in-region"]);                       // a post-termination-request commit, while the resource was still valid
+    expect((await emitted).map((state) => state.items.length)).toEqual([1]);       // not published
+    expect(m.operations).toEqual(["draw"]);
+  });
+
+  it("probe D2b: an uninterruptible command that needs a NEW invocation to finish blocks the registry indefinitely (the Stage 23 cycle, at command level)", async () => {
+    const region = { entered: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, handle, closeScope, poll, yields } = await bootTracked({ region });
+    const invoked = Effect.runFork(handle.invoke("app/trackedRegion", []));
+
+    await Effect.runPromise(Deferred.await(region.entered));
+    w.events.push("scope closing");
+    const closing = closeScope();
+
+    try {
+      await Effect.runPromise(w.registryReached);
+      // The only application door to this region's gate is a new invocation: refused.
+      expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/signal2", [{ value: "x" }]))))).toBe("died: NEXUS: the runtime has begun terminating");
+      await yields(2000);
+
+      expect(await poll(closing)).toBe(false);                                    // Scope.close is blocked
+      expect(await poll(invoked)).toBe(false);
+      expect(w.events).not.toContain("registry: admitted commands exited");
+      expect(w.events).not.toContain("resource released");
+    } finally {
+      await Effect.runPromise(Deferred.succeed(region.gate, undefined));          // harness cleanup, from outside the application's admission
+    }
+
+    await Effect.runPromise(Fiber.join(closing));
+    await Effect.runPromise(Fiber.await(invoked));
+  });
+
+  it("probe D3: work a command hands to an untracked (daemon) fiber escapes the registry and can still reach the released resource", async () => {
+    const escape = { forked: await Effect.runPromise(Deferred.make<void>()), gate: await Effect.runPromise(Deferred.make<void>()) };
+    const { w, handle, closeScope, yields } = await bootTracked({ escape });
+
+    await Effect.runPromise(w.complete("B"));
+    const invoked = Effect.runFork(handle.invoke("app/trackedEscapes", []));
+
+    await Effect.runPromise(Deferred.await(escape.forked));
+    await Effect.runPromise(w.started("A"));
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    expect(show(exit)).toBe("interrupted");                                       // the registered command fiber was interrupted and exited ...
+    strictlyIn(w, "command exit: interrupted", "registry: admitted commands exited", "registry released", "resource released", "scope closed");
+
+    await Effect.runPromise(Deferred.succeed(escape.gate, undefined));            // ... but the fiber it forked as a daemon was not the registry's
+    await yields(500);
+
+    strictlyIn(w, "scope closed", "escaped work resumed", "resource used after release B");
+    expect(w.events).toContain('escaped work: lookup B: failed (typed) {"_tag":"LookupError","id":"B"}');
+  });
+
+  it("probe H: coverage is by convention: a command that does not use the wrapper is invisible to the registry and behaves as in Stage 22", async () => {
+    const { w, handle, closeScope } = await bootTracked();
+    const invoked = Effect.runFork(handle.invoke("app/lookupAsync", [{ value: "A" }]));      // the application's own command: not wrapped
+
+    await Effect.runPromise(w.started("A"));
+    w.events.push("scope closing");
+    await Effect.runPromise(Fiber.join(closeScope()));                            // the registry has nothing registered: nothing to interrupt
+
+    expect(w.events.slice(-5)).toEqual(["scope closing", "registry finalizer started", "registry released", "resource released", "scope closed"]);
+    expect(w.events).not.toContain("registry interrupting 1 admitted command(s)");
+
+    await Effect.runPromise(w.complete("A"));                                     // the command, never told anything, goes on
+    const exit = await Effect.runPromise(Fiber.await(invoked));
+
+    expect(w.events).toContain("resource used after release A");
+    expect(show(exit)).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
   });
 });
