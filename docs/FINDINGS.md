@@ -1644,6 +1644,49 @@ No stop condition occurred. No constraint added: nothing here is an invariant be
 
 ---
 
+## Stage 33: failure at the event boundary, observed (evidence; no source change)
+
+**The event path actually exercised.** `examples/tracer-web/test/async-event.test.ts` (14 tests, jsdom) and `browser/event-failure.browser.test.ts` (1 test, Chromium). Every command is triggered by a real click on the rendered page: PORT reports the event, `connect` (`packages/valance/src/index.ts`) calls `running.dispatch(render, handler, payload)`, which is `inApplication(host.dispatch(...))`, which resolves the MESH intent `home/open(id)` and runs the bound command inside the application. Nothing awaits it: `connect` forks the dispatch with `Effect.runFork(Effect.exit(...))` and pushes the resulting `Exit` onto `Mounted.dispatched`; the fiber is kept in `pending` (drained by `Mounted.settled` and by `connect`'s finalizer). One MESH intent is bound to every behavior, selected by which row was clicked, so the real intent (`{command: home/open, arguments: [{value: id}]}`) is the same in every probe. No `invoke` is used for the core probes. Real `start`, state, `State.values`, mount, render, pseudo platform resource as in Stages 31 and 32.
+
+**Where an event command's exit goes.** One place: the `Exit` is recorded, unchanged, in `Mounted.dispatched` (public type `DispatchExit<E>`). Typed failure arrives as the typed error; a defect as a defect; success as `Dispatched` (with the intent). The runtime logs nothing (no output on any failing probe); the application does not terminate; state, `values` and the render are not told.
+
+| case | `dispatched` exit | state / values / render | later events |
+|---|---|---|---|
+| A success | `succeeded` (intent recorded) | commit, then values, then render update | n/a |
+| B typed failure (sync) | `failed "typed-boom"` | untouched | work |
+| C defect (sync) | `died: defect-boom` (distinct from typed) | untouched | work |
+| D async typed failure | nothing until the gate fails, then `failed "async-boom"` | untouched | work |
+| E async defect | `died: async-defect-boom` | untouched | work |
+| G commit A, await, fail | `failed "late-boom"` | A stays committed, emitted and rendered; no rollback; B never commits | work |
+| H failure caught in the command, committed as ordinary state | `succeeded` | value `error: caught-boom` emitted and rendered, visible in the page | work |
+| F interrupted at drain | **no exit recorded** | no commit, value or render | n/a |
+Chromium agrees with jsdom for B, C, H and the follow-up event (typed failure, defect, caught failure, reverse click).
+
+**Application visibility and recovery.** An uncaught event-command failure changes nothing the application or the page can see; the application keeps processing events. Same binding, same intent, same admission: a failing binding can fail again after a success (I). It poisons none of the dispatch path, the binding, or admission. Failure and "application in a failed state" are different things here: there is no failed state.
+
+**Caught failure vs uncaught.** If the command catches and commits ordinary state, the page shows it with no framework knowledge of errors (H): application-level visibility needs nothing from VALANCE. Uncaught, the only observer is whoever reads `Mounted.dispatched`.
+
+**I and J, ordering and concurrency.** Async failure, then a success while it is still suspended, then the failure resolves: exits are recorded in settle order (`succeeded`, then the failure). The MESH path does not serialize: two suspended event commands are in flight at once, and in either order of failure the sibling is untouched (no interruption), commits and renders on its own. Failure scopes are per dispatch.
+
+**Drain through the event boundary (F, K).** A suspended event command is interrupted at drain and exits before the resource releases; it leaves **no entry** in `dispatched` because `connect`'s finalizer interrupts the dispatch fiber before it can record (Stage 26 baseline, unchanged). After the drain, a held reference to a once-rendered button reports nothing: the target is unmounted before the drain begins, so by this ordering no UI event can reach VALANCE's admission refusal at all (the refusal is reachable through `invoke`, not through the page). Race (gate opened in the same turn as the close begins, 25 repeats, 5 runs): always the command completes and commits, its exit **is** recorded (1 dispatch exit), exit before release, nothing rendered: the Stage 29 to 32 shape through MESH. No new race.
+
+**Code-reading observations (not exercised, not changed).** `Mounted.dispatched` and `pending` grow with every event for the life of the mount; `pending` holds the completed dispatch fibers until `settled` is called or the Scope closes, and `dispatched` is never pruned. Nothing in the library reads `dispatched`: an application that does not look at it never learns about a failed event command.
+
+**Architectural pressure (classification):**
+- Event error boundary / error-to-state conversion / automatic error UI / error state: **not required**: failure is an `Exit` with an existing place to go, the application stays usable, and visible failure is expressible as ordinary state (H).
+- Retry: **not required**.
+- Cancellation (event-level): **not required**: interruption is drain or caller interruption, already covered.
+- Lifecycle change: **not required**: MESH commands are covered by admission, ownership, drain and release ordering (F, K).
+- NEXUS / MESH / PORT change: **not required**.
+- Whether event-failure exits need a more deliberate observability story (who reads them, how long they are retained): **unresolved**, see below.
+No stop condition occurred. No constraint added: "failure is not rendered" is current behavior, not an established property.
+
+**Results:** unit 29/29, jsdom 122/122 (108 + 14 new, identical on 3 full runs; the Stage 33 file alone on 5 runs including the 25-repeat race), Chromium 21/21 (20 + 1 new, 3 runs), typecheck and build clean.
+
+**Next uncertainty:** the retention and ownership of the event-exit record (`Mounted.dispatched` and `pending`) in a long-lived application: whether an unbounded, never-read per-mount list is the intended end state of the event boundary.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
