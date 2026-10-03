@@ -1,6 +1,6 @@
 # VALANCE (`@valancex/valance`)
 
-The application-composition boundary over [NEXUS](https://github.com/ValanceX/Nexus) (behavior), [MESH](https://github.com/ValanceX/Mesh) (template semantics) and [PORT](https://github.com/ValanceX/Port) (target realization). **0.0.1, a guarded tracer bullet: the API is a hypothesis.**
+The application-composition boundary over [NEXUS](https://github.com/ValanceX/Nexus) (behavior), [MESH](https://github.com/ValanceX/Mesh) (template semantics) and [PORT](https://github.com/ValanceX/Port) (target realization). **0.1.0: the first validated baseline** (the architecture is summarised in the "Architectural checkpoint" and "Canonical lifecycle architecture" sections of [`docs/FINDINGS.md`](docs/FINDINGS.md)). Pre-1.0: the API can still change, and `./internal` is unstable by design.
 
 ```ts
 const app = Valance.define({ name, state: { schema, initial }, views: { counter: { program, scope }, about: { program, scope } }, view: (state) => /* program for this state */, commands });

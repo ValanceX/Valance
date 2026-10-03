@@ -1,4 +1,4 @@
-# Tracer findings: `@valancex/valance` 0.0.1
+# Tracer findings: `@valancex/valance` (the 0.0.1 tracer; 0.1.0 is the validated baseline of the checkpoint below)
 
 > **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are, at the top of this file, the [Canonical lifecycle architecture](#canonical-lifecycle-architecture-consolidated-at-stage-41-evidence-in-stages-29-to-40) (it governs everything about application, mount, command and ledger lifetimes) and the [Architectural checkpoint](#architectural-checkpoint-stage-56-what-the-real-vertical-slice-has-demonstrated) (the current summary of the whole slice, which defers to the lifecycle section for lifecycle detail), and [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract). The [Milestone](#milestone-validated-valance-composition) at the end is the Stage 7-era milestone, kept as history. Stages 3 to 6 are kept as the evidence trail.
 
@@ -51,7 +51,7 @@ This section is the one statement of the application / mount / command lifecycle
 
 ## Architectural checkpoint (Stage 56): what the real vertical slice has demonstrated
 
-*Documentation only. It adds no finding; it sorts Stages 1 to 55 into what is validated, what is deliberately someone else's, and what is still unproven. Evidence base at this checkpoint (all green, re-run for it): published NEXUS 0.10.1, MESH 0.7.0 and PORT Web 0.2.2 (MESH and PORT never modified; NEXUS changed only by `values` in 0.10.0 and the 0.10.1 compatibility release); `@valancex/valance` 0.0.1, unpublished; 30 package unit tests, 182 jsdom tests, 29 Chromium tests, 4 built-page smoke tests, 1 real-bfcache test; typecheck and build clean.*
+*Documentation only. It adds no finding; it sorts Stages 1 to 55 into what is validated, what is deliberately someone else's, and what is still unproven. Evidence base at this checkpoint (all green, re-run for it): published NEXUS 0.10.1, MESH 0.7.0 and PORT Web 0.2.2 (MESH and PORT never modified; NEXUS changed only by `values` in 0.10.0 and the 0.10.1 compatibility release); `@valancex/valance` 0.1.0, prepared from this checkpoint and unreleased until the maintainer tags and publishes it (see `docs/releases/v0.1.md`); 30 package unit tests, 182 jsdom tests, 29 Chromium tests, 4 built-page smoke tests, 1 real-bfcache test; typecheck and build clean.*
 
 **The path, end to end, every stage exercised in real Chromium on a real page.**
 ```text
