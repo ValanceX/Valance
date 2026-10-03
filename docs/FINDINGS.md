@@ -2236,6 +2236,55 @@ No member has a production host consumer in the repository, because the reposito
 
 ---
 
+## Stage 53: what the server hands the browser (the payload boundary; coherent, no change)
+
+**One request, traced (read, then pinned by a test).**
+```text
+GET /tracer/about?tab=details
+  serve.ts                         routes /tracer* to renderDocument(url, builtScript)
+  renderDocument (Node)
+    compilePrograms()              MPRX sources + MESH compiler  ->  Mesh.Program[] (template-v1 + manifest text)   [per request]
+    stateFor(url)                  the application's meaning of the URL  ->  AppState
+    renderToHtml(application(programs), { primitives, state })   ->  { html, state }   (Valance.start in Node, one render, scope closed)
+    document = <main id=app>{html}</main> + <script json>{ programs, state }</script> + <script module src=built page script>
+  browser: page.ts
+    parse the JSON block;  init(wasm)  (MESH runtime);  initialStateAt(window): canonicalize the URL (result unused)
+    run(application(boot.programs), { hydrate: true, state: boot.state, history })
+      Valance.start(app, { state: boot.state })     NEXUS state is created from the payload's state, from here on its own
+      Valance.hydrate(...)                          takes over the server HTML with the client's own render
+      Web.history(...)                              in-place URL handling (Stage 48)
+```
+**Ownership.**
+
+| thing | owner | where it lives |
+|---|---|---|
+| application definition (commands, view mapping, scope functions) | the application's source, `src/app.ts` | compiled into BOTH the browser bundle and the server process; never sent as data |
+| MPRX sources and compilation | the build / the server | server only; the browser never compiles |
+| compiled programs | produced by the server per request, from the build's sources | sent as data in the payload (immutable: parsed once, handed to `application(programs)`) |
+| initial state | the application (`stateFor`: URL to state); the server computes it, `renderToHtml` returns it | sent as data; the browser's `start` is given it through `StartOptions.state` ("the client's, from what the server embedded") |
+| runtime state | the browser's NEXUS, created at `start` | browser only (the in-memory click count, history entries, DOM, the WASM runtime, the page Scope) |
+| HTML | the server render | server renders it, the browser hydrates (adopts) it |
+
+So the browser receives an immutable definition-in-code plus immutable data (programs, a first state value), never mutable runtime state; the server keeps nothing after the response.
+
+**Is the payload sufficient to rebuild the application from the URL?** The payload is a pure function of (the build, the URL): programs come from the build's sources, state from `stateFor(url)`. For this page the state is even redundant with the URL (`stateFor` derives it from the URL alone; `count` is always 0 at load, so a reload rebuilds from the URL, Stage 48). The contract does not require that: `StartOptions.state` accepts any state the server embeds (the Stage 46 test setup embeds `count: 3`), and the page uses the embedded one, not a re-derived one.
+
+**Against the public API.** Coherent: `renderToHtml` returns `{ html, state }` with the doc "serializing it into a page is the application's job, not NEXUS's, PORT's or Valance's"; `StartOptions.state` is documented as the client's state from what the server embedded; `hydrate` uses "the client's own render (never the server's)". VALANCE defines no payload type, none is needed, and `run` takes a plain definition, state and options: the payload is the example's own serialization, as the docs intend.
+
+**Observations (none is a defect; recorded so they are not rediscovered).**
+1. `document.ts` embeds `stateFor(url)`, the input, not the `state` that `renderToHtml` returned (the documented value). They are equal for every URL tried (pinned below) because the schema does not transform state; if an application's state schema ever did (stripping or normalizing), embedding the returned state would be the documented and safer choice.
+2. The browser derives a state a second time in `initialStateAt(window)` and discards it, using it only to canonicalize the URL; the state `start` receives is the embedded one. Server and browser agree because both call the same `stateFor`.
+3. The bundle (definition code, including scope functions) and the server-compiled programs (manifest) must come from the same source revision. Nothing checks it at runtime: a skew would surface as a render diagnostic, i.e. as `Mounted.followed` Failure reported by the host (Stage 44), or a startup failure (Stage 47), never silently. `build:page` and `build:server` produced together keep them paired; the server reads the matching manifest.
+4. Programs are compiled on every request (Stage 52 left this as is).
+
+**Conclusion.** The boundary is coherent with VALANCE: definition in code on both sides, programs and the first state as immutable data from the server, runtime state browser-only. Nothing needs redesign, and none of "server owns state", "browser compiles" or "the payload becomes a public type" is indicated. No code change. One test protects the boundary (`test/payload.test.ts`, 5 URLs, 3 runs): programs equal the build's compiled MPRX; the embedded state equals both the state `renderToHtml` returned and `stateFor(url)`; the HTML in the document is that render; the same request yields the same document.
+
+**Validation.** Static inspection plus that test; example typecheck clean. No Chromium, package, jsdom-suite or deployment runs. `packages/*`, NEXUS, MESH and PORT untouched; Stage 51 and 52 deployment mechanics untouched.
+
+**Next uncertainty.** None in the payload boundary. If compiling per request or bundle/server skew ever matters, those are deployment concerns (build-time rendering, version pinning), not VALANCE questions.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
