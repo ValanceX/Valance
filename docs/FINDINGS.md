@@ -1174,6 +1174,54 @@ The third option at the same boundary, still with no NEXUS change: the resource-
 
 ---
 
+## Stage 24: a resource that interrupts its in-flight users when it is finalized (probe)
+
+*The other resource-local policy, compared with Stage 23's drain. Same tracked resource; on finalization the resource **interrupts** its tracked in-flight calls (each runs in a fiber the resource owns; the caller joins it), waits for those fibers and then for their callers to leave, and only then closes. Interruption is not caught or translated anywhere. Only the external test platform changed; no source change in VALANCE, NEXUS, MESH or PORT; Stage 19 to 23 tests untouched (`test/capability-async.test.ts`, 18 tests, stable over 8 runs; a finalizer that does not interrupt fails exactly B, C and G).*
+
+### Observed
+
+| Probe | Result |
+|---|---|
+| **A. control** | the lookup succeeds, in flight returns to 0, `finalizer started`, `resource released`; no interruption anywhere |
+| **B. in-flight lookup, Scope closes** | the finalizer interrupts the tracked call (`lookup interrupted A`); the call fiber exits; its caller leaves (`lookup call joined: interrupted`, `in flight: 0`); only then `resource released`, `scope closed`. **`Scope.close` returns on its own**, with no gate opened. The **command ends interrupted**; the caller's `invoke` is `interrupted`; **state unchanged** (`["A0"]`); `State.values` emitted only the start; nothing rendered; the lookup never completed and the resource was never used after release |
+| **C. circular wait** | **the deadlock disappears.** With the lookup's only way forward being a new invocation, `Scope.close` still completes, the tracked call exits, the resource releases, the command exits and its caller receives interruption. The finalizer needed no admission and no external cleanup |
+| **F. command admitted, not yet at the resource** | **not protected**, exactly as in Stage 23: nothing is registered, so the finalizer closes and releases at once; the command then resumes, **registers after the release** (the resource refuses nobody), finds the resource closed (`resource used after release`), and the caller gets the resource's own typed `LookupError` |
+| **G. call vs containing command** | interrupting the call did **not** interrupt the command: a command that records its call's exit saw `interrupted`, was still running afterwards, and its caller's `invoke` **succeeded** |
+
+### Interruption propagation (resource call vs containing command)
+Interrupting the tracked call fiber is a signal to that fiber only. The command sees it as the **exit of the join** (a failure whose cause is interruption). If the command does not handle it, that cause *is* the command's own exit, so the command ends and the caller observes `interrupted` (B, C); if the command handles it, it carries on (G). So the command's end in B is **propagation by the join, not interruption of the command fiber**: the resource has no hold on the command. Which of the two happens is decided by the application's code after the call, not by the resource.
+
+Ordering in B: `lookup interrupted` before `tracked calls exited`; `lookup call joined: interrupted` before `in flight: 0`; both before `resource released`; `resource released` before `scope closed`. The finalizer may also briefly wait for the caller to leave after the call has exited (it did, in these runs); that wait needs only the command fiber to run, never admission, so it cannot recreate Stage 23's cycle.
+
+### Comparison
+
+| | **Drain** (Stage 23) | **Interrupt** (Stage 24) | **Runtime visibility** |
+|---|---|---|---|
+| Resource never used after release by a call already inside it | **yes** (the call finishes first) | **yes** (the call is cancelled first) | n/a |
+| Registered work gets to finish | yes | **no**: it is cancelled; nothing commits | whether admitted work finishes or is cancelled is the policy question |
+| Circular wait with closed admission | **can deadlock** (C) | **avoided**: interruption needs no admission | an await-style policy at runtime level has the same hazard as drain; an interrupt-style one does not |
+| Admitted work before it reaches the resource | **missed** (F) | **missed** (F), including late registration after release | needs the runtime's set of admitted, unfinished commands |
+| What the application's command experiences | its call completes | an interrupt cause from the call (propagates unless the command handles it) | the runtime could interrupt the **command fiber itself** (not just a call), uniformly |
+
+### Architectural boundary
+**What resource-local ownership can guarantee:** that a call registered with the resource when finalization begins is either completed (drain) or cancelled (interrupt) before the resource is released, so the resource is not used after release *by those calls*; and, for a resource that refuses once closed (as these do), that a late call fails fast with the resource's own error. That is **resource safety**.
+
+**What it fundamentally cannot guarantee:** anything about **admitted commands**. It cannot know a command that has not reached it (F), cannot reach the command's fiber (G), and cannot affect the command's other effects (its state commit, its events): a command that interrupted nothing of its own can still commit after termination. The resource sees calls; the application's commands are not its concern. The *outcome of an admitted command after termination* (finish, be cancelled, or run against a stopped application) is therefore outside any resource owner's control.
+
+### NEXUS pressure (precisely, only if stronger lifetime safety is wanted)
+- **Information:** the runtime already admits every command, so it holds a fact no resource can see: the set of admitted, unfinished commands. Neither policy, at either layer, can be applied to *commands* without it.
+- **Control:** the ability to act on the command fibers themselves: interrupt them (runtime-level, uniform, needing no admission) or await them (with Stage 23's hazard), at a defined point relative to platform release.
+- **Ordering:** platform resources are released last (documented); an action on admitted commands has to happen before that.
+None of this is required for resource safety of calls in progress, which both policies already provide without changing NEXUS.
+
+### New concept required
+No. Interruption of a resource-owned fiber, `join`, `acquireUseRelease` and a waiting finalizer sufficed. The missing item is visibility of an existing runtime fact, not a new concept.
+
+### Next probe
+Whether the information gap can be closed **above NEXUS, with the platform's own ordering**, before anything is proposed for NEXUS: a platform-supplied registry of admitted commands, acquired **after** the other resources (so it is released **first**, since release reverses acquisition), where each command (wrapped once, at the definition) registers its own fiber at entry. The registry's finalizer interrupts the registered command fibers and waits for them, before any other resource is released. Run F, G and C against it: whether the admitted-but-not-yet-at-the-resource command is now covered, whether the command fiber itself is interrupted (not a call), and whether anything still depends on admission. It decides whether the stronger guarantee can live in the platform and the application's definition, or genuinely needs the runtime.
+
+---
+
 ## Milestone: validated VALANCE composition
 
 Validated in Node, jsdom and real Chromium against NEXUS 0.10.0 (published as `@valancex/nexus@0.10.0`; the `values` change is `79ce508`), MESH 0.6.0 (`173a828`) and PORT Web 0.2.1 (`d707b1d`), with MESH and PORT unchanged throughout and NEXUS changed only by `values` (Stage 1):
