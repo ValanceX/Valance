@@ -3,66 +3,10 @@
 //   the resulting command runs against CURRENT application state (the application stays authoritative: a retained event only invokes an application command);
 //   the mount presents nothing, whatever the event commits: it never resumes by itself; other mounts' presentations never replace its retained render;
 //   a fresh mount starts from current state with a normal first draw; after the application closes, the retained event meets the existing terminal refusal.
-import type { WebPort } from "@valancex/port-web";
-import * as Nexus from "@valancex/nexus";
-import * as Valance from "@valancex/valance";
-import * as Web from "@valancex/valance/web";
-import { Cause, Effect, Exit, Schema, Scope } from "effect";
+import { Exit, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
-import { primitives } from "../src/catalog/web.js";
-import { load } from "./helpers.js";
-
-const programs = await compilePrograms();
-const State = Schema.Struct({ view: Schema.Literal("a", "b"), n: Schema.Number, bad: Schema.Boolean });
-type State = Schema.Schema.Type<typeof State>;
-const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded" : Cause.isDieType(exit.cause) ? `died ${(exit.cause.defect as Error).message}` : Cause.isFailType(exit.cause) ? "failed" : "interrupted";
-
-/** View A (notfound program): an event that REPAIRS (+10, bad cleared); view B (details program): an event that adds 100. A's render fails while `bad`. */
-const boot = async () => {
-  const log: Array<string> = [];
-  const app = Valance.define({
-    name: "inert-dispatch", state: { schema: State, initial: { view: "a", n: 0, bad: false } },
-    views: {
-      a: { program: programs.notfound, scope: (s: State) => ({ title: s.bad ? (42 as never) : `A${s.n}` }) },
-      b: { program: programs.details, scope: (s: State) => ({ title: `B${s.n}`, id: "x", name: "x", count: s.n, summary: "" }) },
-    },
-    view: (s: State) => s.view,
-    commands: (state: Nexus.State.StateHandle<State>) => {
-      const set = (name: string, change: (c: State) => State) => Nexus.Mesh.bind(Nexus.Command.define(`t.${name}`, Schema.Struct({}), () => Effect.asVoid(Effect.zipRight(state.update((c): Effect.Effect<State> => Effect.succeed(change(c))), Effect.sync(() => { log.push(`commit ${name}`); })))), () => ({}));
-
-      return {
-        "app/break": set("break", (c) => ({ ...c, bad: true })),
-        "app/bump": set("bump", (c) => ({ ...c, n: c.n + 1 })),
-        "app/toggle": set("toggle", (c) => ({ ...c, view: c.view === "a" ? "b" : "a" })),
-        "notfound/back": set("back-on-a", (c) => ({ ...c, n: c.n + 10, bad: false })),   // A's retained button: repairs
-        "details/back": set("back-on-b", (c) => ({ ...c, n: c.n + 100 })),                 // B's button
-      } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
-    },
-  });
-  const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
-  const mountOn = async (options: { readonly page?: ReturnType<typeof load>; readonly updateThrows?: () => boolean } = {}) => {
-    const page = options.page ?? load("");
-    const ops: Array<string> = [];
-    const target: Valance.TargetFactory<WebPort> = (report) => {
-      const port = Web.target({ container: page.container, primitives })(report);
-
-      return { draw: (t) => { port.draw(t); ops.push(`draw ${label()}`); }, update: (t) => { if (options.updateThrows?.() === true) { throw new Error("update failed"); } port.update(t); ops.push(`update ${label()}`); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
-    };
-    const label = (): string => page.container.querySelector("section")?.getAttribute("aria-label") ?? "";
-    const scope = await run(Scope.make());
-    const mounted = await run(Valance.mount(handle, target).pipe(Scope.extend(scope)));
-
-    return { page, ops, label, mounted, scope, click: () => { page.click(page.container.querySelector("button")!); }, ledger: () => mounted.dispatched.map(show), close: () => run(Scope.close(scope, Exit.void)),
-      standing: () => run(Effect.race(Effect.map(mounted.followed, (e): string => Exit.isSuccess(e) ? "ended" : "failed"), Effect.succeed("following"))) };
-  };
-
-  return { log, handle, appScope, mountOn, state: () => run(handle.state), invoke: (key: string) => run(handle.invoke(key, [])) };
-};
+import { boot, run, sleep, type State } from "./two-view-fixture.js";
 
 /** A mount on view A that goes inert: the commit that follows makes A's render invalid. */
 const inertA = async () => {
@@ -71,7 +15,7 @@ const inertA = async () => {
 
   await b.invoke("app/break");
   await sleep(60);
-  expect(await a.standing()).toBe("failed");
+  expect(await a.standing()).toBe("failed MeshDiagnostics");
   expect(a.label()).toBe("A0");                                                              // the last good render, retained
 
   return { b, a };
@@ -92,7 +36,7 @@ describe("an inert mount's retained render and the application's later state", (
     expect(await b.state()).toEqual({ view: "b", n: 12, bad: false });                       // on CURRENT state: the toggle and both bumps survive; the repair applied; exactly +10
     expect(a.ledger()).toEqual(["succeeded"]);
     expect(a.ops).toEqual(["draw A0"]);                                                      // no presentation, even though the state is renderable again
-    expect(await a.standing()).toBe("failed");                                               // it did not resume
+    expect(await a.standing()).toBe("failed MeshDiagnostics");                                               // it did not resume
 
     const fresh = await b.mountOn();
 
@@ -128,7 +72,7 @@ describe("an inert mount's retained render and the application's later state", (
     throws = true;
     await b.invoke("app/bump");
     await sleep(60);
-    expect(await inert.standing()).toBe("failed");
+    expect(await inert.standing()).toBe("defect update failed");
     expect(await live.standing()).toBe("following");
     await b.invoke("app/toggle");                                                            // the live mount draws view B; the inert one still holds A's render
     await sleep(60);
