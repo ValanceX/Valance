@@ -61,6 +61,13 @@ export const world = async () => {
           yield* state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 2000 }));
           log.push("commit hold-u");
         }))),
+        // Held navigate, for history's popstate: waits at the hold gate, then moves the path (a navigation IN FLIGHT when history closes).
+        "app/gated-navigate": Nexus.Mesh.bind(Nexus.Command.define("t.gated-navigate", Schema.Struct({ path: Schema.String }), ({ path }) => Effect.gen(function* () {
+          log.push(`gated-navigate started ${path}`);
+          yield* Deferred.await(hold).pipe(Effect.onInterrupt(() => Effect.sync(() => { log.push("gated-navigate interrupted"); })));
+          yield* state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, path }));
+          log.push(`commit gated-navigate ${path}`);
+        })), (args) => (args[0] as { value: unknown }).value),
         // The mount's one button: a command that waits at a gate the test owns, then commits (an event command: the application's once admitted, C25).
         "notfound/back": bind("gated", () => Effect.gen(function* () {
           log.push("gated started");
@@ -91,10 +98,10 @@ export const world = async () => {
 
     return { index, container, ops, scope, mounted, text, close: () => run(Scope.close(scope, Exit.void)), click: () => { container.querySelector("button")!.dispatchEvent(new (win as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent("click", { bubbles: true })); } };
   };
-  const attachHistory = async (handle: Valance.ApplicationHandle<State, unknown>) => {
+  const attachHistory = async (handle: Valance.ApplicationHandle<State, unknown>, navigate = "app/navigate") => {
     const scope = await run(Scope.make());
 
-    await run(Web.history(handle, { window: win, urlOf, stateOf, navigate: "app/navigate" }).pipe(Scope.extend(scope)));
+    await run(Web.history(handle, { window: win, urlOf, stateOf, navigate }).pipe(Scope.extend(scope)));
     await sleep(40);
 
     return { scope, close: () => run(Scope.close(scope, Exit.void)) };
