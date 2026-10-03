@@ -19,7 +19,7 @@ import { load } from "./helpers.js";
 const prop = (kind: string, required = true) => ({ type: { kind }, required });
 const view = (commands = true) => ({
   props: {}, events: {}, commands: commands ? { tap: { parameters: [{ name: "id", type: { kind: "string" } }] } } : {},
-  scope: { title: { kind: "string" }, show: { kind: "boolean" }, items: { kind: "list", element: { kind: "record", fields: { id: prop("string") } } } },
+  scope: { title: { kind: "string" }, show: { kind: "boolean" }, items: { kind: "list", element: { kind: "record", fields: { id: prop("string"), tag: prop("string") } } } },
 });
 const manifest = JSON.stringify({
   version: 1, types: {},
@@ -36,7 +36,7 @@ const manifest = JSON.stringify({
 // Both views have the SAME structure: a conditional, then a keyed repeat.
 const source = `<page title={title}>
   <mesh-if when={show}><text>shown</text></mesh-if>
-  <mesh-each items={items} as="item" key={item.id}><row><text>{item.id}</text><button on.click={tap(item.id)}>x</button></row></mesh-each>
+  <mesh-each items={items} as="item" key={item.id}><row><text>{item.id}</text><button on.click={tap(item.tag)}>x</button></row></mesh-each>
 </page>`;
 const program = async (root: "va" | "vb") => {
   const result = await compile({ source, path: `${root}.mprx`, model: { manifest, path: "components.json", component: root } });
@@ -47,10 +47,11 @@ const program = async (root: "va" | "vb") => {
 };
 const programs = { va: await program("va"), vb: await program("vb") };
 
-const State = Schema.Struct({ view: Schema.Literal("a", "b"), show: Schema.Boolean, ids: Schema.Array(Schema.String), n: Schema.Number });
+const State = Schema.Struct({ view: Schema.Literal("a", "b"), show: Schema.Boolean, ids: Schema.Array(Schema.String), n: Schema.Number, note: Schema.optional(Schema.String), tag: Schema.optional(Schema.String), plain: Schema.optional(Schema.Boolean) });
 type State = Schema.Schema.Type<typeof State>;
 export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
-const scopeOf = (title: string) => (s: State) => ({ title: `${title}${s.n}`, show: s.show, items: s.ids.map((id) => ({ id })) });
+// `note` is outside every render; `tag` changes only the event argument (not the visible text); `plain` makes both views render the same title.
+const scopeOf = (title: string) => (s: State) => ({ title: s.plain === true ? "T" : `${title}${s.n}`, show: s.show, items: s.ids.map((id) => ({ id, tag: `${s.tag ?? ""}${id}` })) });
 
 export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }) => {
   const taps: Array<string> = [];
@@ -68,6 +69,11 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
         "app/hide": set("hide", (c) => ({ ...c, show: false })),
         "app/toggleView": set("toggleView", (c) => ({ ...c, view: c.view === "a" ? "b" : "a" })),
         "app/bump": set("bump", (c) => ({ ...c, n: c.n + 1 })),
+        "app/note": Nexus.Mesh.bind(Nexus.Command.define("s.note", Schema.Struct({ note: Schema.String }), ({ note }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, note })))), (args) => ({ note: "value" in args[0]! ? args[0].value : "" })),
+        "app/tag": Nexus.Mesh.bind(Nexus.Command.define("s.tag", Schema.Struct({ tag: Schema.String }), ({ tag }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, tag })))), (args) => ({ tag: "value" in args[0]! ? args[0].value : "" })),
+        "app/plain": set("plain", (c) => ({ ...c, plain: true })),
+        "app/copy": set("copy", (c) => ({ ...c })),                          // a new, equal state object
+        "app/same": set("same", (c) => c),                                    // the very same state object
         "va/tap": tap, "vb/tap": tap,
       } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
     },
@@ -77,17 +83,18 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
   const mountOn = async (options: { readonly onUpdate?: () => void; readonly updateThrows?: () => "before" | "after" | undefined; readonly page?: ReturnType<typeof load> } = {}) => {
     const page = options.page ?? load("");
     const ops: Array<string> = [];
+    const trees: Array<string> = [];
     const reports: Array<{ readonly handler: string; readonly payload: unknown; readonly send: () => void }> = [];
     const factory: Valance.TargetFactory<WebPort> = (report) => {
       const port = Web.target({ container: page.container, primitives })((handler, payload) => { reports.push({ handler, payload, send: () => { report(handler, payload); } }); report(handler, payload); });
 
-      return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { const when = options.updateThrows?.(); if (when === "before") { throw new Error("update failed"); } port.update(t); if (when === "after") { throw new Error("update failed after mutation"); } ops.push("update"); options.onUpdate?.(); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
+      return { draw: (t) => { port.draw(t); ops.push("draw"); trees.push(JSON.stringify(t)); }, update: (t) => { const when = options.updateThrows?.(); if (when === "before") { throw new Error("update failed"); } port.update(t); if (when === "after") { throw new Error("update failed after mutation"); } ops.push("update"); trees.push(JSON.stringify(t)); options.onUpdate?.(); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
     };
     const scope = await run(Scope.make());
     const mounted = await run(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
 
     return {
-      page, ops, mounted, scope, reports,
+      page, ops, trees, mounted, scope, reports,
       title: () => page.container.querySelector("section")?.getAttribute("aria-label"),
       shown: () => page.container.textContent!.includes("shown"),
       rows: () => Array.from(page.container.querySelectorAll("div")).map((d) => d.querySelector("span")!.textContent),
