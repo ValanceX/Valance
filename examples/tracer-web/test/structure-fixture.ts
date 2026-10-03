@@ -55,13 +55,22 @@ const scopeOf = (title: string) => (s: State) => ({ title: s.plain === true ? "T
 
 export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }) => {
   const taps: Array<string> = [];
+  const seen: Array<{ readonly id: string; readonly n: number; readonly tag: string; readonly view: string }> = [];
+  const gate: { current?: Promise<void> } = {};
   const app = Valance.define({
     name: "same-view", state: { schema: State, initial },
     views: { a: { program: programs.va, scope: scopeOf("A") }, b: { program: programs.vb, scope: scopeOf("B") } },
     view: (s: State) => s.view,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const set = (name: string, change: (c: State) => State) => Nexus.Mesh.bind(Nexus.Command.define(`s.${name}`, Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed(change(c))))), () => ({}));
-      const tap = Nexus.Mesh.bind(Nexus.Command.define("s.tap", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.sync(() => { taps.push(id); })), (args) => ({ id: "value" in args[0]! ? args[0].value : "" }));
+      // `gate.current` (a promise) holds a tap BEFORE it reads state; `seen` is the state a tap observed when it actually ran.
+      const tap = Nexus.Mesh.bind(Nexus.Command.define("s.tap", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.gen(function* () {
+        if (gate.current !== undefined) { yield* Effect.promise(() => gate.current!); }
+        const now = yield* state.get;
+
+        seen.push({ id, n: now.n, tag: now.tag ?? "", view: now.view });
+        taps.push(id);
+      })), (args) => ({ id: "value" in args[0]! ? args[0].value : "" }));
 
       return {
         "app/ids": Nexus.Mesh.bind(Nexus.Command.define("s.ids", Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, ids })))), (args) => ({ ids: "value" in args[0]! ? args[0].value : [] })),
@@ -106,7 +115,7 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     };
   };
 
-  return { app, handle, appScope, mountOn, taps, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), state: () => run(handle.state) };
+  return { app, handle, appScope, mountOn, taps, seen, gate, invoke: (key: string, ...args: ReadonlyArray<unknown>) => run(handle.invoke(key, args.map((value) => ({ value })) as never)), state: () => run(handle.state) };
 };
 
 
