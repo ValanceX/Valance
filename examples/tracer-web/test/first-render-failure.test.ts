@@ -5,33 +5,15 @@
 //   the Scope closes at the start                                                  → the interruption, or whichever of the two happened first; never a hang
 //   a hydration MISMATCH                                                           → not a failure: the tree is drawn afresh and `hydration` says why
 // A failed attempt leaves no follower, target activity or finalizer behind: a fresh attempt on the repaired state succeeds.
-import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { renderToHtml } from "@valancex/valance/web/server";
-import { Cause, Effect, Exit, Schema, Scope } from "effect";
+import { Cause, Effect, Exit, Scope } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
 import { primitives } from "../src/catalog/web.js";
-
-const programs = await compilePrograms();
-const State = Schema.Struct({ n: Schema.Number, bad: Schema.Boolean });
-type State = Schema.Schema.Type<typeof State>;
-const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const definition = (initial: State) => Valance.define({
-  name: "first-render", state: { schema: State, initial },
-  views: { only: { program: programs.notfound, scope: (s: State) => ({ title: s.bad ? (42 as never) : `n${s.n}` }) } }, view: () => "only" as const,
-  commands: (state: Nexus.State.StateHandle<State>) => ({
-    "app/fix": Nexus.Mesh.bind(Nexus.Command.define("t.fix", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: false })))), () => ({})),
-    "app/bump": Nexus.Mesh.bind(Nexus.Command.define("t.bump", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 1 })))), () => ({})),
-  }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
-});
-
-const causeOf = (exit: Exit.Exit<unknown, unknown> | "hung"): "hung" | "success" | "interrupted" | "MeshDiagnostics" | "defect" | "other" => exit === "hung" ? "hung" : Exit.isSuccess(exit) ? "success" : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : Cause.isFailType(exit.cause) && (exit.cause.error as { _tag?: string })._tag === "MeshDiagnostics" ? "MeshDiagnostics" : Cause.isDieType(exit.cause) ? "defect" : "other";
+import { causeOf, definition, run, sleep, type State } from "./render-fixture.js";
 
 type Variant = { readonly kind: "mount" | "hydrate"; readonly initial: State; readonly drawThrows?: boolean; readonly closeAt?: "sync" | "microtask"; readonly html?: string };
 
