@@ -46,4 +46,4 @@ Anchors into `CONSTRAINTS.md` follow its section titles; if one does not resolve
 
 ## Release history
 
-[`v0.1`](../releases/v0.1.md), [`v0.2`](../releases/v0.2.md), [`v0.2.1`](../releases/v0.2.1.md).
+[`v0.1`](../releases/v0.1.md), [`v0.2`](../releases/v0.2.md), [`v0.2.1`](../releases/v0.2.1.md), [`v0.3`](../releases/v0.3.md).
