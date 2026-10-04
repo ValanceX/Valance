@@ -23,11 +23,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@valancex/nexus": "^0.10.1"
+    "@valancex/nexus": "^0.10.2"
   },
   "peerDependencies": {
-    "@valancex/mesh-runtime": "^0.7.0",
-    "@valancex/port-web": "^0.2.2",
+    "@valancex/mesh-runtime": "^0.8.0",
+    "@valancex/port-web": "^0.2.3",
     "effect": "^3.10.0"
   },
   "peerDependenciesMeta": {
@@ -35,8 +35,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@valancex/mesh-runtime": "^0.7.0",
-    "@valancex/port-web": "^0.2.2",
+    "@valancex/mesh-runtime": "^0.8.0",
+    "@valancex/port-web": "^0.2.3",
     "effect": "^3.10.0",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0"
