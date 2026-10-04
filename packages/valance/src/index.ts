@@ -46,6 +46,12 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
   readonly view: (state: S) => V;
   /** Behavior: NEXUS commands over the state, bound to MESH command intents ("component/name"), for every view. */
   readonly commands: (state: Nexus.State.StateHandle<S>) => Readonly<Record<string, Nexus.Mesh.Binding<E, R>>>;
+  /**
+   * The key of a command-table entry that `start` runs, once, with no arguments, as the application's own command: admitted before `start` returns, owned
+   * by the application's registry like any admitted command (closing the Scope interrupts and awaits it before NEXUS terminates), with no caller. Its exit is
+   * not reported anywhere: work that can fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
+   */
+  readonly start?: string;
 }
 
 /** The definition, typed. An application is data: defining one starts nothing. */
@@ -119,7 +125,7 @@ export type ConformanceViolation = { readonly _tag: "ConformanceViolation"; read
  * Why `start` yields no handle: NEXUS's state and platform failures; the diagnostics MESH reports for a view's program (the first view, in the definition's order,
  * that has any: they depend on the program alone, never on state); or the conformance failure.
  */
-export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError | Nexus.Mesh.MeshDiagnostics | ConformanceViolation;
+export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError | Nexus.Mesh.MeshDiagnostics | ConformanceViolation | Nexus.Mesh.UnmappedCommand;
 
 export interface StartOptions<S> {
   /** Supplied to NEXUS `Application.start`, where platform services (capabilities, Clock, …) enter. */
@@ -259,6 +265,20 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
       },
     };
+
+    // Start-time work: the SAME admission as `invoke` and dispatch, with no caller. Last step before the handle exists, after every failure `start` can have, so a
+    // failed start runs nothing. The fiber registers itself first (`admit`); a Scope close that wins the race finds admission closed and the work dies unrun.
+    // `Effect.exit` keeps its exit from being an unhandled fiber failure: nobody joins it.
+    if (app.start !== undefined) {
+      const binding = Object.hasOwn(commands, app.start) ? commands[app.start] : undefined;
+      const [component = "", name = ""] = app.start.split("/");
+
+      if (binding === undefined) {
+        return yield* Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name });
+      }
+
+      Nexus.Runtime.runFork(nexus.runtime, Effect.exit(admit(binding([]))));
+    }
 
     return handleOf(running);
   });
