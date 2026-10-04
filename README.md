@@ -1,6 +1,6 @@
 # VALANCE (`@valancex/valance`)
 
-The application-composition boundary over [NEXUS](https://github.com/ValanceX/Nexus) (behavior), [MESH](https://github.com/ValanceX/Mesh) (template semantics) and [PORT](https://github.com/ValanceX/Port) (target realization). **0.2.0** is the current release line (0.1.0 was the first validated baseline); the behavior it is held to is stated in [`docs/V1_CONTRACT.md`](docs/V1_CONTRACT.md). Pre-1.0: the API can still change, and `./internal` is unstable by design.
+The application-composition boundary over [NEXUS](https://github.com/ValanceX/Nexus) (behavior), [MESH](https://github.com/ValanceX/Mesh) (template semantics) and [PORT](https://github.com/ValanceX/Port) (target realization). **0.2.1** is the current release (0.2.0 and 0.1.0 before it; 0.1.0 was the first validated baseline); the behavior it is held to is stated in [`docs/V1_CONTRACT.md`](docs/V1_CONTRACT.md). Pre-1.0: the API can still change, and `./internal` is unstable by design.
 
 ```ts
 const app = Valance.define({ name, state: { schema, initial }, views: { counter: { program, scope }, about: { program, scope } }, view: (state) => /* program for this state */, commands });
