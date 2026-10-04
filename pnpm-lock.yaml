@@ -25,17 +25,17 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.8.0
+        version: 0.8.0
       '@valancex/mesh-runtime':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.8.0
+        version: 0.8.0
       '@valancex/nexus':
-        specifier: ^0.10.1
-        version: 0.10.1
+        specifier: ^0.10.2
+        version: 0.10.2
       '@valancex/port-web':
-        specifier: ^0.2.2
-        version: 0.2.2(@valancex/mesh-runtime@0.7.0)
+        specifier: ^0.2.3
+        version: 0.2.3(@valancex/mesh-runtime@0.8.0)
       '@vitest/browser':
         specifier: 3.2.7
         version: 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
@@ -61,18 +61,18 @@ importers:
   packages/valance:
     dependencies:
       '@valancex/nexus':
-        specifier: ^0.10.1
-        version: 0.10.1
+        specifier: ^0.10.2
+        version: 0.10.2
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-runtime':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.8.0
+        version: 0.8.0
       '@valancex/port-web':
-        specifier: ^0.2.2
-        version: 0.2.2(@valancex/mesh-runtime@0.7.0)
+        specifier: ^0.2.3
+        version: 0.2.3(@valancex/mesh-runtime@0.8.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -455,23 +455,23 @@ packages:
   '@types/tough-cookie@4.0.5':
     resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
 
-  '@valancex/mesh-compiler@0.7.0':
-    resolution: {integrity: sha512-VSiP8T/Y9XbETQwslyvu5z1PHUxLvMKjCa0mYf8XvzqWrV58pW23udG5CA20wUQhrAb0yy/QP4QzdAvPGXq76w==}
+  '@valancex/mesh-compiler@0.8.0':
+    resolution: {integrity: sha512-CH6eJYGNmC32I6W9oZQMxXUa2QXkVAiEhP284l2J1DVRn0o22bo9THykvFUqqgczo+/HNM2JS2air66u99cCBA==}
     engines: {node: '>=22'}
 
-  '@valancex/mesh-runtime@0.7.0':
-    resolution: {integrity: sha512-95xrWF2hQusTVp8M/JHCDXrzqPU7RcIOutnJHRkQ6j3t690Dy6EVOlmv9kW6PnFpieDcf4VS4PZjcGhhw27WtQ==}
+  '@valancex/mesh-runtime@0.8.0':
+    resolution: {integrity: sha512-HTEBPnRPDalJQWjJaJoqrosqbwdt7lxwXKbUm5PcMiZ8W41vKpwMzyCOm8BYmeB9T+6KL03GhIc0DuocoUZ9vA==}
     engines: {node: '>=22'}
 
-  '@valancex/nexus@0.10.1':
-    resolution: {integrity: sha512-+/WqYiKJIGii7Ln+4r84cg4sk7OfowzgW5yZHCvPhc6HT4tE5jyRR0IyaziGuk9r4XbiQnkcDofTnBPbUEHTEg==}
+  '@valancex/nexus@0.10.2':
+    resolution: {integrity: sha512-uMlt9nzXsHuTBiT1gtq5c3ptZcOEkSS1xXxFCsMYKNexfZpf+Zs/H58NvNy4pVdgIOrMduWx8xD/mvnTsWVooQ==}
     engines: {node: '>=22'}
 
-  '@valancex/port-web@0.2.2':
-    resolution: {integrity: sha512-0IfyxYkHCRQZwRAQPW1pgb8OUG4V97VKVYASOFTVQcTfMG2H+dytXKDa+SYsqGsZPbKwqyH3q2dSAAYtMYfoFA==}
+  '@valancex/port-web@0.2.3':
+    resolution: {integrity: sha512-igsTSiivLGiszkRExRKdD3o1/LLbXb/NJLUbQbk0OLytQ5qnBJo+a2Z9o9E2nGexOQlzvUr95jK7J8HEhRNt7g==}
     engines: {node: '>=22'}
     peerDependencies:
-      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0
+      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0
 
   '@vitest/browser@3.2.7':
     resolution: {integrity: sha512-gIzazUkbQfv6T1rJHOLhMMKQnplKAvvQ7QNGaFwI6oCsp4z2aSDZCojGpX3QX3+MYsvJdyy/8BRIYVEbAkMkEA==}
@@ -1176,18 +1176,18 @@ snapshots:
 
   '@types/tough-cookie@4.0.5': {}
 
-  '@valancex/mesh-compiler@0.7.0': {}
+  '@valancex/mesh-compiler@0.8.0': {}
 
-  '@valancex/mesh-runtime@0.7.0': {}
+  '@valancex/mesh-runtime@0.8.0': {}
 
-  '@valancex/nexus@0.10.1':
+  '@valancex/nexus@0.10.2':
     dependencies:
-      '@valancex/mesh-runtime': 0.7.0
+      '@valancex/mesh-runtime': 0.8.0
       effect: 3.22.2
 
-  '@valancex/port-web@0.2.2(@valancex/mesh-runtime@0.7.0)':
+  '@valancex/port-web@0.2.3(@valancex/mesh-runtime@0.8.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.7.0
+      '@valancex/mesh-runtime': 0.8.0
 
   '@vitest/browser@3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)':
     dependencies:

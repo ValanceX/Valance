@@ -3,13 +3,14 @@
  * It adds nothing to PORT: it fixes `container` and `primitives` (the application's Web realization
  * table, which is target configuration, not part of the application) and hands PORT the report callback.
  */
-import type { WebPort, WebPortOptions } from "@valancex/port-web";
+import type { HydrationResult, WebPort, WebPortOptions, WebPrimitives } from "@valancex/port-web";
 import type { BoundaryValue } from "@valancex/mesh-runtime";
-import type { ApplicationHandle, TargetFactory } from "./index.js";
+import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
 
 import { createWebPort } from "@valancex/port-web";
+import { hydrate, mount, start } from "./index.js";
 import { runningOf } from "./internal.js";
-import { Effect, Fiber, Queue, Scope, Stream } from "effect";
+import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, property, textProperty } from "@valancex/port-web";
@@ -98,3 +99,70 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       yield* Fiber.interrupt(follower);
     }));
   });
+
+export interface RunOptions<S> extends StartOptions<S> {
+  /** The element the application is presented in. */
+  readonly container: Element;
+  /** The application's Web realization table (the same one the server rendered with, when it did). */
+  readonly primitives: WebPrimitives;
+  /**
+   * Explicit, and never inferred from what the container holds. `"mount"` creates the presentation: whatever the container held is replaced.
+   * `"hydrate"` adopts server-rendered markup in the container with the client's own render, and reports whether it did in `Host.mounted.hydration`.
+   */
+  readonly present: "mount" | "hydrate";
+  /** The application's own URL policy, handed to `history` unread. Absent: the URL is not kept in step. */
+  readonly history?: HistoryOptions<S>;
+}
+
+/** One application running on one page: the core's handle, the presentation, and the one operation the host adds. */
+export interface Host<S, E> {
+  /** The application's handle, unchanged: the same one `start` returns, for whatever else wants to enter or read the application. */
+  readonly handle: ApplicationHandle<S, E>;
+  /** The presentation, unchanged: what `mount` or `hydrate` returned (`hydration` is present when the host hydrated). */
+  readonly mounted: Mounted<E> & { readonly hydration?: HydrationResult };
+  /**
+   * Ends the page's composition: the URL synchronization, then the presentation, then the application (its admitted commands are interrupted and
+   * awaited, then its resources are released), exactly the order of one Scope holding all three. Calling it again returns the same completion.
+   */
+  readonly stop: () => Promise<void>;
+}
+
+/**
+ * Runs one ordinary application on one page: `start`, then `mount` or `hydrate` as `present` says, then `history` if the application has a URL
+ * policy, all in ONE lifetime that `stop` closes. It is the caller of the core and nothing more: it decides no state, command, URL, navigation or
+ * failure, never looks at the container to choose how to present, and writes nothing to the page, the log or the application's state.
+ *
+ * A start or first-presentation failure rejects with the existing failure itself (the typed `StartError` or `MeshDiagnostics`; a defect as the
+ * defect), after the lifetime it began has been closed. Everything after startup is observed through what the core already gives: `handle`,
+ * `mounted.followed` (how the presentation ended), `mounted.settled` and `mounted.dispatched`.
+ *
+ * It is a convenience for the ordinary page. Several mounts, independent lifetimes, a custom target and headless use are the core's own: `start`,
+ * `mount`, `hydrate` and `history`, composed by the caller.
+ */
+export const run = async <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: RunOptions<S>): Promise<Host<S, E>> => {
+  const scope = await Effect.runPromise(Scope.make());
+  const startup = Effect.gen(function* () {
+    const handle = yield* start(app, options);
+    const web = target({ container: options.container, primitives: options.primitives });
+    const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web) : yield* mount(handle, web);
+
+    if (options.history !== undefined) {
+      yield* history(handle, options.history);
+    }
+
+    return { handle, mounted };
+  });
+  const exit = await Effect.runPromiseExit(Scope.extend(startup, scope));
+
+  if (Exit.isFailure(exit)) {
+    // What `start` and the presentation had already acquired belongs to this lifetime: release it, then report the startup failure itself (a failure
+    // to release is a second, later fact, and does not replace it).
+    await Effect.runPromiseExit(Scope.close(scope, exit));
+
+    throw Option.getOrElse(Cause.failureOption(exit.cause), () => Cause.squash(exit.cause));
+  }
+
+  let stopping: Promise<void> | undefined;
+
+  return { ...exit.value, stop: () => stopping ??= Effect.runPromise(Scope.close(scope, Exit.void)) };
+};

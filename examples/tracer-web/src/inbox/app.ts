@@ -4,8 +4,7 @@
 import type { Mesh } from "@valancex/nexus";
 
 import * as Valance from "@valancex/valance";
-import * as Nexus from "@valancex/nexus";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 
 const Message = Schema.Struct({ id: Schema.String, subject: Schema.String, body: Schema.String, read: Schema.Boolean, starred: Schema.Boolean });
 
@@ -30,12 +29,6 @@ export interface Programs {
   readonly message: Mesh.Program;
 }
 
-const firstValue = (args: ReadonlyArray<Mesh.IntentArgument>): unknown => {
-  const first = args[0];
-
-  return first !== undefined && "value" in first ? first.value : undefined;
-};
-
 const opened = (state: AppState): AppState["messages"][number] | undefined => state.messages.find((message) => message.id === state.open);
 
 export const application = (programs: Programs) => Valance.define({
@@ -49,16 +42,17 @@ export const application = (programs: Programs) => Valance.define({
   view: (state) => opened(state) === undefined ? "list" : "message",
   commands: (state) => {
     // `enter` is the one transition; opening marks read. Whoever asks (a click, or the browser's Back) goes through it.
-    const enter = Nexus.Command.define("inbox.enter", Schema.Struct({ open: Schema.String }), ({ open }) =>
-      state.update((current) => Effect.succeed({ open, messages: current.messages.map((message) => message.id === open ? { ...message, read: true } : message) })).pipe(Effect.asVoid));
-    const star = Nexus.Command.define("inbox.star", Schema.Struct({}), () =>
-      state.update((current) => Effect.succeed({ ...current, messages: current.messages.map((message) => message.id === current.open ? { ...message, starred: !message.starred } : message) })).pipe(Effect.asVoid));
+    const command = Valance.command(state);
+    const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) =>
+      ({ open, messages: current.messages.map((message) => message.id === open ? { ...message, read: true } : message) }));
+    const star = command(Schema.Struct({}), (_input, current) =>
+      ({ ...current, messages: current.messages.map((message) => message.id === current.open ? { ...message, starred: !message.starred } : message) }));
 
     return {
-      "list/open": Nexus.Mesh.bind(enter, (args) => ({ open: firstValue(args) })),
-      "message/star": Nexus.Mesh.bind(star, () => ({})),
-      "message/close": Nexus.Mesh.bind(enter, () => ({ open: "" })),
-      "app/navigate": Nexus.Mesh.bind(enter, (args) => firstValue(args)),
+      "list/open": Valance.entry(enter, (open) => ({ open })),
+      "message/star": Valance.entry(star),
+      "message/close": Valance.entry(enter, () => ({ open: "" })),
+      "app/navigate": Valance.entry(enter, (navigation) => navigation),
     };
   },
 });
