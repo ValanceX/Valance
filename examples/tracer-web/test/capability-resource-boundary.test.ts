@@ -13,11 +13,10 @@ import { Cause, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { primitives } from "../src/catalog/web.js";
 import { load, until } from "./helpers.js";
 
-const programs = await compilePrograms();
 const State = Schema.Struct({ n: Schema.Number, owner: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
 interface Meter { readonly owner: string; readonly use: () => Effect.Effect<number, "capability failed">; readonly failing: { value: boolean } }
@@ -28,7 +27,7 @@ const kind = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit)
 
 const app = Valance.define({
   name: "resources", state: { schema: State, initial: { n: 0, owner: "" } },
-  views: { only: { program: programs.notfound, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
+  views: { only: { program: titleProgram, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
   commands: (state: Nexus.State.StateHandle<State>) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bind = (name: string, body: () => Effect.Effect<unknown, unknown, any>) => Nexus.Mesh.bind(Nexus.Command.define(name, Schema.Struct({}) as never, body as never), (() => ({})) as never);

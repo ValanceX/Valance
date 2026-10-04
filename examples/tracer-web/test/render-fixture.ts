@@ -7,10 +7,9 @@ import { renderToHtml } from "@valancex/valance/web/server";
 import { Cause, Effect, Exit, Schema, Scope } from "effect";
 import { JSDOM } from "jsdom";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { primitives } from "../src/catalog/web.js";
 
-export const programs = await compilePrograms();
 export const State = Schema.Struct({ n: Schema.Number, bad: Schema.Boolean });
 export type State = Schema.Schema.Type<typeof State>;
 export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
@@ -18,7 +17,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 export const definition = (initial: State, hooks: { onScope?: () => void } = {}) => Valance.define({
   name: "first-render", state: { schema: State, initial },
-  views: { only: { program: programs.notfound, scope: (s: State) => { hooks.onScope?.(); return { title: s.bad ? (42 as never) : `n${s.n}` }; } } }, view: () => "only" as const,
+  views: { only: { program: titleProgram, scope: (s: State) => { hooks.onScope?.(); return { title: s.bad ? (42 as never) : `n${s.n}` }; } } }, view: () => "only" as const,
   commands: (state: Nexus.State.StateHandle<State>) => ({
     "app/fix": Nexus.Mesh.bind(Nexus.Command.define("t.fix", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: false })))), () => ({})),
     "app/break": Nexus.Mesh.bind(Nexus.Command.define("t.break", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: true })))), () => ({})),

@@ -10,13 +10,12 @@ import * as Web from "@valancex/valance/web";
 import { Cause, Deferred, Effect, Exit, Fiber, Option, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { primitives } from "../src/catalog/web.js";
 import { load, until } from "./helpers.js";
 
 const State = Schema.Struct({ value: Schema.String, ticket: Schema.Number });
 type State = Schema.Schema.Type<typeof State>;
-const programs = await compilePrograms();
 
 const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded"
   : Cause.isFailType(exit.cause) ? `failed ${JSON.stringify(exit.cause.error)}`
@@ -42,7 +41,7 @@ const boot = async () => {
   const app = Valance.define({
     name: "async-compose",
     state: { schema: State, initial: { value: "init", ticket: 0 } },
-    views: { only: { program: programs.notfound, scope: (state: State) => ({ title: state.value }) } },
+    views: { only: { program: titleProgram, scope: (state: State) => ({ title: state.value }) } },
     view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       /** One async operation: starts, suspends on its gate, yields what the test released (or fails with what it failed with). */

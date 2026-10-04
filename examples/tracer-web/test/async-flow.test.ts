@@ -11,14 +11,13 @@ import * as Web from "@valancex/valance/web";
 import { Cause, Deferred, Effect, Exit, Fiber, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { primitives } from "../src/catalog/web.js";
 import { load, until } from "./helpers.js";
 
 const State = Schema.Struct({ value: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
 
-const programs = await compilePrograms();                       // the existing `notfound` program renders `title`: here, the value
 
 const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded"
   : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : `other: ${exit.cause._tag}`;
@@ -45,7 +44,7 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
   const app = Valance.define({
     name: "async-flow",
     state: { schema: State, initial: { value: "init" } },
-    views: { only: { program: programs.notfound, scope: (state: State) => ({ title: state.value }) } },
+    views: { only: { program: titleProgram, scope: (state: State) => ({ title: state.value }) } },
     view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const commit = (label: string, value: string) => Effect.gen(function* () {

@@ -35,7 +35,7 @@ const boot = async () => {
       const commit = (value: string) => Effect.zipRight(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, value })), Effect.sync(() => { log.push(`commit ${value}`); }));
       const gated = (name: "gate1" | "gate2") => Effect.zipRight(Effect.sync(() => { log.push(`${name} started`); }), Effect.flatMap(Deferred.await(gates[name]).pipe(Effect.onInterrupt(() => Effect.sync(() => { log.push(`${name} interrupted`); }))), (v) => commit(`${name}:${v}`)));
       const behavior = (id: string): Effect.Effect<void, string> => id === "ok" ? commit("ok") : id === "typed" ? Effect.fail("typed-boom") : id === "die" ? Effect.die(new Error("defect-boom")) : id === "interrupt" ? Effect.interrupt : id === "break" ? commit("bad") : id === "gate1" || id === "gate2" ? gated(id) : Effect.die(new Error("unknown"));
-      return { "home/open": Nexus.Mesh.bind(Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), ({ id }) => behavior(id)), (args) => ({ id: (args[0] as { value: unknown }).value })) } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
+      return { "home/reverse": Nexus.Mesh.bind(Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.void), () => ({})), "home/open": Nexus.Mesh.bind(Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), ({ id }) => behavior(id)), (args) => ({ id: (args[0] as { value: unknown }).value })) } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
     },
   });
   const appScope = await Effect.runPromise(Scope.make());

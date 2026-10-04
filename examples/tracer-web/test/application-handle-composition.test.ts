@@ -8,7 +8,7 @@ import { Cause, Effect, Exit, Logger, Schema, Scope } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { boot, run, sleep } from "./structure-fixture.js";
 
 type Booted = Awaited<ReturnType<typeof boot>>;
@@ -105,12 +105,11 @@ describe("one handle, one application", () => {
   });
 
   it("D. each application has its own command registry: a key one defines is unmapped (typed, local) in the other", async () => {
-    const programs = await compilePrograms();
     const State = Schema.Struct({ n: Schema.Number });
     type State = Schema.Schema.Type<typeof State>;
     const other = Valance.define({
       name: "other", state: { schema: State, initial: { n: 0 } },
-      views: { only: { program: programs.notfound, scope: (s: State) => ({ title: `o${s.n}` }) } }, view: () => "only" as const,
+      views: { only: { program: titleProgram, scope: (s: State) => ({ title: `o${s.n}` }) } }, view: () => "only" as const,
       commands: (state: Nexus.State.StateHandle<State>) => ({
         "app/only-here": Nexus.Mesh.bind(Nexus.Command.define("o.here", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ n: c.n + 100 })))), () => ({})),
       }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,

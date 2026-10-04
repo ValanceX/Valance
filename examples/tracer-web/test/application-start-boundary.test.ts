@@ -10,16 +10,15 @@ import * as Valance from "@valancex/valance";
 import { Cause, Effect, Exit, Layer, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { boot, sleep } from "./structure-fixture.js";
 
-const programs = await compilePrograms();
 const State = Schema.Struct({ n: Schema.Number });
 type State = Schema.Schema.Type<typeof State>;
 const renders: Array<number> = [];
 const app = Valance.define({
   name: "start", state: { schema: State, initial: { n: 0 } },
-  views: { only: { program: programs.notfound, scope: (s: State) => { renders.push(s.n); return { title: `n${s.n}` }; } } }, view: () => "only" as const,
+  views: { only: { program: titleProgram, scope: (s: State) => { renders.push(s.n); return { title: `n${s.n}` }; } } }, view: () => "only" as const,
   commands: (state: Nexus.State.StateHandle<State>) => ({
     "app/bump": Nexus.Mesh.bind(Nexus.Command.define("s.bump", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ n: c.n + 1 })))), () => ({})),
   }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
