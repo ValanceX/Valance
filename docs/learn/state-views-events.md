@@ -87,5 +87,6 @@ State becomes a URL with `urlOf`; the browser's Back and Forward become a comman
 - `view(state)` picks the view; `scope(state)` feeds it; the description draws it.
 - Events run commands by name; the same names are open to anything outside the screen.
 - The application is data, so the same definition runs in a page, on a server, or in a test.
+- A command can wait. Its progress is state like any other: see [Async work](async-work.md) and [Startup work](startup-work.md).
 
 Exact rules for each of these are in the [API reference](../use/README.md) and the [contract](../V1_CONTRACT.md). How VALANCE is built, and the evidence for these rules, is in [Understand](../understand/README.md).

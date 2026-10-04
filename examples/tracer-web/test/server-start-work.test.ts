@@ -39,4 +39,19 @@ describe("start-time work during a server render", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(log).toEqual(["started", "interrupted"]);
   });
+
+  it("work that finishes before the render ends: the returned `state` is read AFTER the render, so it can be newer than the html (hydrating it is a mismatch, not a failure)", async () => {
+    const app = Valance.define({
+      name: "server-start-instant", state: { schema: State, initial: { phase: "loading" } satisfies State },
+      views: { only: { program: titleProgram, scope: (s: State) => ({ title: s.phase }) } }, view: () => "only" as const,
+      commands: (state: Nexus.State.StateHandle<State>) => ({
+        "app/load": Valance.entry(Nexus.Command.define("load", Schema.Struct({}), () => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ phase: "ready" }))))),
+      }),
+      start: "app/load",
+    });
+    const served = await Effect.runPromise(renderToHtml(app, { primitives: { page: { element: "main", props: { title: Web.attribute("aria-label") } }, text: { element: "p" } } }));
+
+    expect(served.html).toContain("loading");                                           // rendered from the state the render read
+    expect(served.state).toEqual({ phase: "ready" });                                    // read after: the start-time commit has landed
+  });
 });

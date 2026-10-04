@@ -149,9 +149,12 @@ Follow these in order. Each one builds on the last.
 |---|---|---|
 | **1** | [Your first application](docs/learn/first-application.md) | The counter above, line by line, plus running it on a server and in tests |
 | **2** | [State, views and events](docs/learn/state-views-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
-| **3** | [Common tasks](docs/learn/README.md#common-tasks) | Recipes: adding screens and commands, syncing the URL, server rendering |
-| **4** | [API reference](docs/use/README.md) | Every export, by name |
-| **5** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
+| **3** | [Async work](docs/learn/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
+| **4** | [Startup work](docs/learn/startup-work.md) | Work the application starts by itself, and how its failures show |
+| **5** | [Mounting and hydration](docs/learn/mounting-and-hydration.md) | Drawing the application, taking over server HTML, what a server render does |
+| **6** | [Common tasks](docs/learn/README.md#common-tasks) | Recipes: adding screens and commands, syncing the URL, server rendering |
+| **7** | [API reference](docs/use/README.md) | Every export, by name |
+| **8** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
 
 **Going deeper:** [how Valance is built](docs/understand/README.md) covers the architecture and design decisions. You don't need it to build apps.
 

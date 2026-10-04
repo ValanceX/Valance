@@ -100,7 +100,7 @@ import { Effect } from "effect";
 const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }));
 // html === '<main><p>Count: 0</p><button>Add one</button></main>'
 
-// Headless: no screen at all.
+// Headless: no screen at all. (This form uses Effect directly, as a test or a custom host does; `Web.run` hides it for an ordinary page.)
 import { Exit, Scope } from "effect";
 const scope = await Effect.runPromise(Scope.make());
 const application = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
@@ -121,4 +121,4 @@ A server-rendered page is taken over in the browser with `present: "hydrate"` an
 | `Valance.define` | the application, as data | [Contract §2](../V1_CONTRACT.md#2-application) |
 | `Web.run` | one page, one lifetime | [Contract §16](../V1_CONTRACT.md#16-the-browser-host-webrun) |
 
-Next: [State, views and events](state-views-events.md).
+Next: [State, views and events](state-views-events.md). Later: [Async work](async-work.md), [Startup work](startup-work.md), [Mounting and hydration](mounting-and-hydration.md).

@@ -31,10 +31,13 @@ So the application is *data*: a definition you can start in a browser, render to
 | What each view looks like | a view description (MPRX), compiled before you run |
 | How each view's values come from state | `scope: (state) => ({ … })` |
 | Which view is current | `view: (state) => "name"` |
-| What each event does | `commands`: named, validated transitions |
+| What each event does | `commands`: named, validated transitions, which may wait for data ([Async work](async-work.md)) |
+| What happens when it starts | `start`: the name of a command to run once ([Startup work](startup-work.md)) |
 | Where it is drawn | `Web.run` with a table of page elements |
 
 ## What VALANCE decides, and what it leaves to you
+
+Work that takes time is not a separate feature. A command may wait; while it waits, state says `loading`, and when it ends, state says what happened. Once a command starts, it belongs to the application, so closing the application cancels it. The screen that started it is not responsible for it.
 
 VALANCE decides **which view is current and whether showing it continues the previous screen** (same view: an update; different view: a fresh draw). It also keeps one lifetime per application, so resources are released exactly once.
 
@@ -42,4 +45,4 @@ You decide everything else: what state means, what a URL means, what to do when 
 
 ## Where next
 
-[Your first application](first-application.md) builds the smallest one. When you need exact behavior, the [API reference](../use/README.md) and the [contract](../V1_CONTRACT.md) state it; [Understand](../understand/README.md) explains how it is built and why.
+[Your first application](first-application.md) builds the smallest one; [Async work](async-work.md), [Startup work](startup-work.md) and [Mounting and hydration](mounting-and-hydration.md) cover waiting, starting and drawing. When you need exact behavior, the [API reference](../use/README.md) and the [contract](../V1_CONTRACT.md) state it; [Understand](../understand/README.md) explains how it is built and why.
