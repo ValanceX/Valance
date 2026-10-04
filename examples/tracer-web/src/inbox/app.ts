@@ -42,9 +42,10 @@ export const application = (programs: Programs) => Valance.define({
   view: (state) => opened(state) === undefined ? "list" : "message",
   commands: (state) => {
     // `enter` is the one transition; opening marks read. Whoever asks (a click, or the browser's Back) goes through it.
-    const enter = Valance.command(state, Schema.Struct({ open: Schema.String }), ({ open }, current) =>
+    const command = Valance.command(state);
+    const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) =>
       ({ open, messages: current.messages.map((message) => message.id === open ? { ...message, read: true } : message) }));
-    const star = Valance.command(state, Schema.Struct({}), (_input, current) =>
+    const star = command(Schema.Struct({}), (_input, current) =>
       ({ ...current, messages: current.messages.map((message) => message.id === current.open ? { ...message, starred: !message.starred } : message) }));
 
     return {

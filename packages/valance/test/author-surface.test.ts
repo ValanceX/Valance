@@ -25,11 +25,12 @@ const application = Valance.define({
   views,
   view: () => "main" as const,
   commands: (state) => {
-    // Pure commands: no Effect, no id.
-    const add = Valance.command(state, Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
-    const reset = Valance.command(state, Schema.Struct({}), (_input, current) => ({ ...current, count: 0 }));
-    const describe = Valance.command(state, Schema.Struct({ note: Schema.optional(Schema.String) }), ({ note }, current) => ({ ...current, label: note ?? "none" }));
-    const join = Valance.command(state, Schema.Struct({ label: Schema.String }), ({ label }, current) => ({ ...current, label }));
+    // Pure commands: no Effect, no id. The state is bound once.
+    const command = Valance.command(state);
+    const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
+    const reset = command(Schema.Struct({}), (_input, current) => ({ ...current, count: 0 }));
+    const describe = command(Schema.Struct({ note: Schema.optional(Schema.String) }), ({ note }, current) => ({ ...current, label: note ?? "none" }));
+    const join = command(Schema.Struct({ label: Schema.String }), ({ label }, current) => ({ ...current, label }));
     // Effectful commands: the unchanged NEXUS path.
     const stamp = Nexus.Command.define("t.stamp", Schema.Struct({}), () =>
       Effect.flatMap(Clock.currentTimeMillis, (clock) => state.update((current) => Effect.succeed({ ...current, clock }))).pipe(Effect.asVoid));
@@ -87,7 +88,7 @@ describe("command: validated input and a pure transition", () => {
           update: ((f: never) => { calls.update += 1; return state.update(f); }) as typeof state.update,
           set: ((next: never) => { calls.set += 1; return state.set(next); }) as typeof state.set,
         };
-        const corrupt = Valance.command(spied, Schema.Struct({}), () => ({ n: "not a number" }) as unknown as { readonly n: number });
+        const corrupt = Valance.command(spied)(Schema.Struct({}), () => ({ n: "not a number" }) as unknown as { readonly n: number });
 
         return { "app/corrupt": Valance.entry(corrupt) };
       },
@@ -121,13 +122,14 @@ describe("command: validated input and a pure transition", () => {
       views,
       view: () => "main" as const,
       commands: (state) => {
-        const toggle = Valance.command(state, Schema.Struct({}), (_input, current) => current.view === "a" ? { view: "b" } : { view: "a", n: 0 });
-        const toB = Valance.command(state, Schema.Struct({}), () => ({ view: "b" }));               // a transition that reads nothing
+        const command = Valance.command(state);
+        const toggle = command(Schema.Struct({}), (_input, current) => current.view === "a" ? { view: "b" } : { view: "a", n: 0 });
+        const toB = command(Schema.Struct({}), () => ({ view: "b" }));                               // a transition that reads nothing
 
         // @ts-expect-error the next state is checked against the state's own type: "c" is not a view of this state
-        Valance.command(state, Schema.Struct({}), () => ({ view: "c" }));
+        command(Schema.Struct({}), () => ({ view: "c" }));
         // @ts-expect-error nor may a variant be missing its fields
-        Valance.command(state, Schema.Struct({}), (_input, current) => current.view === "a" ? { view: "a" } : { view: "b" });
+        command(Schema.Struct({}), (_input, current) => current.view === "a" ? { view: "a" } : { view: "b" });
 
         return { "app/toggle": Valance.entry(toggle), "app/toB": Valance.entry(toB) };
       },
@@ -162,10 +164,124 @@ describe("command: validated input and a pure transition", () => {
 
   it("its types: a NEXUS command and a table entry, with no Effect or MESH type in the author's code", () => {
     const state = undefined as unknown as Nexus.State.StateHandle<State>;
-    const add = Valance.command(state, Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
+    const add = Valance.command(state)(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
 
     expectTypeOf(add).toEqualTypeOf<Nexus.Command.Command<{ readonly amount: number }, void, never, never>>();
     expectTypeOf(Valance.entry(add)).toEqualTypeOf<Nexus.Mesh.Binding<Nexus.Command.CommandValidationError, never>>();
+  });
+});
+
+describe("command: the type contract is the state's own type", () => {
+  // Each case is a compile-time claim (checked by `tsc`, not by vitest): what a transition may return is exactly a value of the state's type.
+  const Item = Schema.Struct({ id: Schema.String });
+  const Readonly = Schema.Union(Schema.Struct({ kind: Schema.Literal("a"), items: Schema.Array(Item) }), Schema.Struct({ kind: Schema.Literal("b"), items: Schema.Array(Item) }));
+  const Mutable = Schema.Union(Schema.Struct({ kind: Schema.Literal("a"), items: Schema.mutable(Schema.Array(Item)) }), Schema.Struct({ kind: Schema.Literal("b"), items: Schema.mutable(Schema.Array(Item)) }));
+  const Plain = Schema.Struct({ count: Schema.Number, tags: Schema.mutable(Schema.Array(Schema.String)) });
+
+  it("a union state: narrowing, a literal member, a transition that reads nothing, and spread/append, for readonly and for mutable arrays", () => {
+    const readonlyCommands = (state: Nexus.State.StateHandle<Schema.Schema.Type<typeof Readonly>>) => {
+      const command = Valance.command(state);
+
+      return [
+        command(Schema.Struct({}), (_input, current) => current),
+        command(Schema.Struct({}), (_input, current) => ({ ...current })),
+        command(Schema.Struct({}), (_input, current) => ({ kind: "b", items: current.items })),         // a narrowed member, as a literal
+        command(Schema.Struct({}), () => ({ kind: "b", items: [] })),                                    // reads nothing
+        command(Schema.Struct({}), (_input, current) => ({ ...current, items: [...current.items, { id: "x" }] })),
+        command(Schema.Struct({}), (_input, current) => ({ ...current, items: current.items.map(({ id }) => ({ id: `${id}!` })) })),
+        // @ts-expect-error a view this state does not have
+        command(Schema.Struct({}), (_input, current) => ({ kind: "c", items: current.items })),
+        // @ts-expect-error a member without its fields
+        command(Schema.Struct({}), () => ({ kind: "b" })),
+      ];
+    };
+    const mutableCommands = (state: Nexus.State.StateHandle<Schema.Schema.Type<typeof Mutable>>) => {
+      const command = Valance.command(state);
+      const existing: Array<{ id: string }> = [];
+
+      return [
+        command(Schema.Struct({}), () => ({ kind: "b", items: [] })),                                    // an array literal stays a mutable array
+        command(Schema.Struct({}), (_input, current) => ({ ...current, items: ["x"].map((id) => ({ id })) })),
+        command(Schema.Struct({}), (_input, current) => ({ ...current, items: [...current.items, { id: "x" }] })),   // spread-append: a mutable array
+        command(Schema.Struct({}), (_input, current) => ({ ...current, items: existing })),
+        // @ts-expect-error still the state's type: "c" is not a view of it
+        command(Schema.Struct({}), () => ({ kind: "c", items: [] })),
+      ];
+    };
+
+    expect(typeof readonlyCommands).toBe("function");
+    expect(typeof mutableCommands).toBe("function");
+  });
+
+  it("a plain state with a mutable array: replace, literal and append all type-check, and a wrong field type is rejected", () => {
+    const plainCommands = (state: Nexus.State.StateHandle<Schema.Schema.Type<typeof Plain>>) => {
+      const command = Valance.command(state);
+
+      return [
+        command(Schema.Struct({}), (_input, current) => ({ ...current, tags: ["x"] })),
+        command(Schema.Struct({}), (_input, current) => ({ ...current, tags: [...current.tags, "y"] })),
+        command(Schema.Struct({}), () => ({ count: 1, tags: [] })),
+        // @ts-expect-error count is a number
+        command(Schema.Struct({}), (_input, current) => ({ ...current, count: "1" })),
+      ];
+    };
+
+    expect(typeof plainCommands).toBe("function");
+  });
+
+  it("a mutable-array state commits an array literal and a spread-append, as plain arrays", async () => {
+    const app = Valance.define({
+      name: "arrays", state: { schema: Plain, initial: { count: 0, tags: [] } }, views, view: () => "main" as const,
+      commands: (state) => {
+        const command = Valance.command(state);
+
+        return {
+          "app/set": Valance.entry(command(Schema.Struct({}), (_input, current) => ({ ...current, tags: ["x"] }))),
+          "app/append": Valance.entry(command(Schema.Struct({ tag: Schema.String }), ({ tag }, current) => ({ ...current, tags: [...current.tags, tag] })), (tag) => ({ tag })),
+        };
+      },
+    });
+    const tags = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const handle = yield* Valance.start(app);
+
+      yield* handle.invoke("app/set", []);
+      yield* handle.invoke("app/append", [{ value: "y" }]);
+
+      return (yield* handle.state).tags;
+    })));
+
+    expect(tags).toEqual(["x", "y"]);
+    expect(Array.isArray(tags)).toBe(true);
+  });
+
+  it("an extra property is not flagged, the same as returning it from state.update (the contract does not narrow what update accepts)", () => {
+    const extra = (state: Nexus.State.StateHandle<Schema.Schema.Type<typeof Plain>>) =>
+      Valance.command(state)(Schema.Struct({}), (_input, current) => ({ ...current, extra: 1 }));
+
+    expect(typeof extra).toBe("function");
+  });
+});
+
+describe("diagnostic identity (decision: a pure command's validation failure carries the shared id, and no entry key)", () => {
+  it("two pure commands behind two entries fail with the same command id, and neither failure names its entry; the caller of invoke knows the key it passed", async () => {
+    const app = Valance.define({
+      name: "identity", state: { schema: State, initial }, views, view: () => "main" as const,
+      commands: (state) => {
+        const command = Valance.command(state);
+        const openMessage = command(Schema.Struct({ id: Schema.Number }), (_input, current) => current);
+        const archiveMessage = command(Schema.Struct({ id: Schema.String }), (_input, current) => current);
+
+        return { "mail/open": Valance.entry(openMessage, (id) => ({ id })), "mail/archive": Valance.entry(archiveMessage) };
+      },
+    });
+    const failures = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const handle = yield* Valance.start(app);
+
+      return [yield* Effect.exit(handle.invoke("mail/open", [{ value: "A" }])), yield* Effect.exit(handle.invoke("mail/archive", []))].map(typed);
+    })));
+
+    expect(failures).toMatchObject([{ _tag: "CommandValidationError", command: "valance.command" }, { _tag: "CommandValidationError", command: "valance.command" }]);
+    expect(JSON.stringify(failures)).not.toMatch(/mail\/open|mail\/archive/);     // nothing in a failure names the entry (the same holds for a NEXUS command's own id)
   });
 });
 

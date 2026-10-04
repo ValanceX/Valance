@@ -53,9 +53,12 @@ export const define = <S, E, R extends Ambient, V extends string>(definition: Ap
 const TRANSITION_COMMAND = "valance.command";
 
 /**
- * A command whose whole behavior is a pure transition of the application's state: `transition` receives the validated input and the
- * current state, and returns the next state. The input is validated by `input` before `transition` runs, exactly as for any command
- * (a failure is the typed `CommandValidationError`, and nothing commits).
+ * Binds the application's state, and returns the function that makes commands whose whole behavior is a pure transition of it:
+ * `transition` receives the validated input and the current state, and returns the next state. The input is validated by `input`
+ * before `transition` runs, exactly as for any command (a failure is the typed `CommandValidationError`, and nothing commits).
+ *
+ *     const command = Valance.command(state);
+ *     const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
  *
  * It is the trusted, atomic writer of Contract §3, not the validating one: the result is committed AS RETURNED, without being checked
  * against the state's schema, and concurrent transitions all land. (It is `state.update`, never `state.set`.)
@@ -63,17 +66,14 @@ const TRANSITION_COMMAND = "valance.command";
  * It is an ordinary NEXUS command, so `entry` binds it like any other. A command that must consult the platform, wait, or fail with
  * its own error is written as a NEXUS command over an Effect (`Nexus.Command.define`) and bound the same way.
  *
- * The returned state keeps its literal types (`const T extends S`) and is checked against the state's own type, so a union-shaped state
- * needs no annotation at the call site. Two consequences of that: a returned object is not checked for excess properties (the same as
- * returning it from `state.update`), and a state type with MUTABLE arrays will not accept an array literal or spread in the result
- * (literals are inferred readonly; Effect Schema arrays are readonly by default). For such a state, use a NEXUS command.
+ * The state is bound in a first call, and the transition is checked against exactly that state type: what `transition` returns must be a
+ * state, and is not inferred from what it returns. So a union-shaped state needs no annotation, a literal keeps the type the state gives it
+ * (a mutable array stays mutable, a readonly one stays readonly), and no returned type is read "as const". (One call with the state and the
+ * transition together cannot do this: TypeScript then types the returned literals from a type parameter of that same call, and widens them.)
+ * A returned object is not checked for excess properties, the same as returning it from `state.update`.
  */
-export const command = <S, I, const T extends S>(
-  state: Nexus.State.StateHandle<S>,
-  input: Schema.Schema<I>,
-  transition: (input: I, current: S) => T
-): Nexus.Command.Command<I, void, never, never> =>
-  Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
+export const command = <S>(state: Nexus.State.StateHandle<S>): (<I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S) => Nexus.Command.Command<I, void, never, never>) =>
+  (input, transition) => Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
 
 /** What an entry's argument is to the application: the value itself, or `undefined` when the argument is absent. */
 const plain = (argument: Nexus.Mesh.IntentArgument): unknown => "value" in argument ? argument.value : undefined;
