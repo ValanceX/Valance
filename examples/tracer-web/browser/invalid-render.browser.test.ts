@@ -17,7 +17,7 @@ import { beforeAll, expect, inject, it } from "vitest";
 import { following, label, run, State } from "./inert-fixture.js";
 import { primitives } from "../src/catalog/web.js";
 
-const { catalog } = inject("page");
+const { titleProgram } = inject("page");
 
 beforeAll(async () => { await init(wasmUrl); });
 
@@ -26,7 +26,7 @@ type S = Schema.Schema.Type<typeof State>;
 const definition = () => Valance.define({
   name: "invalid-render",
   state: { schema: State, initial: { n: 0, bad: false } },
-  views: { only: { program: catalog.notfound, scope: (state: S) => ({ title: state.bad ? (42 as never) : `n${state.n}` }) } },
+  views: { only: { program: titleProgram, scope: (state: S) => ({ title: state.bad ? (42 as never) : `n${state.n}` }) } },
   view: () => "only" as const,
   commands: (state: Nexus.State.StateHandle<S>) => {
     const up = (change: (current: S) => S) => state.update((current): Effect.Effect<S> => Effect.succeed(change(current)));

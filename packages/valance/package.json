@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@valancex/mesh-compiler": "^0.9.0",
     "@valancex/mesh-runtime": "^0.8.0",
     "@valancex/port-web": "^0.2.3",
     "effect": "^3.10.0",

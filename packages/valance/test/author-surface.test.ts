@@ -8,6 +8,7 @@ import { Cause, Clock, Effect, Exit, Layer, Schema } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import * as Valance from "../src/index.js";
+import { eventFreeProgram } from "./event-free-program.js";
 
 const State = Schema.Struct({ count: Schema.Number, label: Schema.String, clock: Schema.Number });
 type State = Schema.Schema.Type<typeof State>;
@@ -15,7 +16,7 @@ type State = Schema.Schema.Type<typeof State>;
 const initial: State = { count: 0, label: "", clock: 0 };
 
 /** Never rendered here: a view exists because an application has one. */
-const views = { main: { program: { root: "main", templates: [], model: "{}" }, scope: () => ({}) } };
+const views = { main: { program: eventFreeProgram, scope: () => ({}) } };
 
 const seen: Array<ReadonlyArray<unknown>> = [];
 

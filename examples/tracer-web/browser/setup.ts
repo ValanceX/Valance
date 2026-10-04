@@ -2,6 +2,7 @@
 // rendered to HTML for two request paths through @valancex/valance/web/server. The page receives the programs,
 // each path's server HTML and the state the server embedded: what a real page load carries. The browser never
 // compiles MPRX. What a request URL means (`stateFor`) is the application's.
+import type { Mesh } from "@valancex/nexus";
 import type { TestProject } from "vitest/node";
 
 import { renderToHtml } from "@valancex/valance/web/server";
@@ -13,6 +14,7 @@ import { compilePrograms } from "../src/compile.js";
 import { compilePrograms as compileCatalog } from "../src/catalog/compile.js";
 import { application as catalogApplication, type AppState as CatalogState, type Programs as CatalogPrograms } from "../src/catalog/app.js";
 import { primitives as catalogPrimitives } from "../src/catalog/web.js";
+import { titleProgram } from "../test/title-program.js";
 
 export interface Served {
   readonly html: string;
@@ -33,6 +35,8 @@ export default async function setup(project: TestProject): Promise<void> {
     programs,
     // The Application Model tracer's programs (src/catalog), compiled here: the browser never compiles MPRX.
     catalog: await compileCatalog(),
+    // A valid program with a required string `title` and NO declared events, for tests that need a view only (`start` requires a command-table key for every declared event).
+    titleProgram,
     // The catalog application's home view with the keyed list [A B C], rendered by the "server": HTML, and the state it embeds.
     catalogServed: await (async (): Promise<CatalogServed> => {
       const catalog = await compileCatalog();
@@ -49,6 +53,6 @@ export default async function setup(project: TestProject): Promise<void> {
 
 declare module "vitest" {
   export interface ProvidedContext {
-    page: { readonly programs: Programs; readonly catalog: CatalogPrograms; readonly catalogServed: CatalogServed; readonly home: Served; readonly about: Served; readonly plainAbout: Served; readonly notFound: Served };
+    page: { readonly programs: Programs; readonly catalog: CatalogPrograms; readonly titleProgram: Mesh.Program; readonly catalogServed: CatalogServed; readonly home: Served; readonly about: Served; readonly plainAbout: Served; readonly notFound: Served };
   }
 }

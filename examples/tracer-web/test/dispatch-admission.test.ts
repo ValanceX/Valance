@@ -4,10 +4,13 @@
 //               (inside the admitted fiber) and the bound command start. A refusal (the application closed or draining) is therefore decided before MESH looks at the handler
 //   execution   the command starts and reads state;      completion   its exit lands in the mount's `dispatched` (settle order)
 // Lifecycle after admission is the application's (C20, C26, C33); a mount closing is not an admission boundary.
-import { Cause, Effect, Exit, Scope } from "effect";
+import * as Valance from "@valancex/valance";
+import { runningOf } from "@valancex/valance/internal";
+import { Cause, Effect, Exit, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { boot, sleep } from "./structure-fixture.js";
+import { titleProgram } from "./title-program.js";
 import { until } from "./helpers.js";
 
 const settle = () => sleep(40);
@@ -154,20 +157,25 @@ describe("closing the application", () => {
     await m.close();
   });
 
-  it("F. an unmapped command: typed UnmappedCommand while the application is open, but once admission is closed the refusal wins (admission precedes MESH's resolution), unlike `invoke` with an unknown key, which stays typed", async () => {
-    const b = await boot(one, { omit: ["va/tap"] });
-    const m = await b.mountOn();
+  it("F. an unmapped command, BELOW the start boundary (`start` guarantees D ⊆ B, so an application cannot start with a declared event unmapped): a render made from another application's program reaches a conforming application's table. Typed UnmappedCommand while that application is open, but once admission is closed the refusal wins (admission precedes MESH's resolution), unlike `invoke` with an unknown key, which stays typed", async () => {
+    const declaring = await boot(one);                                    // its program declares `va/tap`, and binds it
+    const m = await declaring.mountOn();
 
-    press(m);
+    press(m);                                                             // gives the handler and payload a real click reports
     await until(() => m.mounted.dispatched.length === 1);
-    expect(shape(m.mounted.dispatched[0]!)).toBe("failed UnmappedCommand");
-    await closeOf(b)();
-    press(m);
-    await until(() => m.mounted.dispatched.length === 2);
-    expect(shape(m.mounted.dispatched[1]!)).toMatch(/^died .*terminating/);
-    const invoked = await Effect.runPromise(Effect.exit(b.rawInvoke("app/nothing")));
+    const { handler, payload } = m.reports[0]!;
+    const viewed = await Effect.runPromise(runningOf(declaring.handle).render);
+    const Other = Schema.Struct({ n: Schema.Number });
+    const otherScope = await Effect.runPromise(Scope.make());
+    const other = await Effect.runPromise(Valance.start(Valance.define({                        // event-free: it conforms without `va/tap`
+      name: "other", state: { schema: Other, initial: { n: 0 } }, views: { a: { program: titleProgram, scope: () => ({ title: "t" }) } }, view: () => "a" as const, commands: () => ({}),   // the render's own view name selects the host
+    })).pipe(Scope.extend(otherScope)));
+    const dispatch = () => Effect.runPromise(Effect.exit(runningOf(other).dispatch(viewed, handler, payload as never)));
 
-    expect(shape(invoked)).toBe("failed UnmappedCommand");               // the key is looked up before admission
+    expect(shape(await dispatch())).toBe("failed UnmappedCommand");
+    await Effect.runPromise(Scope.close(otherScope, Exit.void));
+    expect(shape(await dispatch())).toMatch(/^died .*terminating/);
+    expect(shape(await Effect.runPromise(Effect.exit(other.invoke("app/nothing", []))))).toBe("failed UnmappedCommand");   // the key is looked up before admission
     await m.close();
   });
 
