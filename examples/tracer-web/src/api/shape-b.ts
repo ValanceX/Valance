@@ -19,6 +19,43 @@ import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { Cause, Effect, Exit, Scope } from "effect";
 
+/**
+ * The host's one duty toward a mount (Stage 44/45), as policy: when the mount stops following (the application ended, a render failed), say so once, then
+ * what the mount's events had done. A normal end (the Scope closing) is `Interrupted` and silent. It reads only what the core already gives
+ * (`followed`, `settled`, `dispatched`), at the one moment the host has; it decides nothing about a failed event command beyond reporting it.
+ */
+export const reportMountEnd = (mounted: Valance.Mounted<unknown>): Effect.Effect<void> => {
+  const report = (exit: Exit.Exit<void, unknown>) => Effect.gen(function* () {
+    if (Exit.isSuccess(exit)) {
+      yield* Effect.logWarning("the application ended; the page is inert");
+    } else if (Cause.isInterruptedOnly(exit.cause)) {
+      return;
+    } else {
+      yield* Effect.logError("the page stopped following the application", Cause.pretty(exit.cause));
+    }
+
+    yield* mounted.settled;
+    const outcomes = mounted.dispatched;
+    const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.isInterruptedOnly(outcome.cause));
+
+    yield* Effect.logInfo(`event commands in this mount: ${outcomes.filter(Exit.isSuccess).length} succeeded, ${failed.length} failed, ${outcomes.length - outcomes.filter(Exit.isSuccess).length - failed.length} interrupted`);
+
+    for (const outcome of failed) {
+      yield* Effect.logError("event command failed", Exit.isFailure(outcome) ? Cause.pretty(outcome.cause) : "");
+    }
+  });
+
+  return Effect.flatMap(mounted.followed, report);
+};
+
+/** The same report, for a page that runs through `Web.run`: it starts watching the mount and returns. */
+export const watchMount = (mounted: Valance.Mounted<unknown>): void => { Effect.runFork(reportMountEnd(mounted)); };
+
+/** What the page says when the application could not start (Stage 47): the existing failure itself (typed, or a defect), once. */
+export const reportStartFailure = (error: unknown): void => {
+  Effect.runSync(Effect.logError("the page could not start", error instanceof Error ? (error.stack ?? error.message) : JSON.stringify(error)));
+};
+
 export interface RunOptions<S> {
   readonly container: Element;
   readonly primitives: WebPrimitives;
@@ -44,27 +81,7 @@ export const run = <S, E, R extends Ambient, V extends string>(app: Valance.Appl
     // Stage 45: when the page went inert abnormally, the operator also needs what the page's events had done: the host waits for the dispatches the still-open
     // mount holds (`settled`), then reads what they produced (`dispatched`) and reports the failed ones. No polling and no notification: it runs once, at the one
     // moment the host has (the mount's abnormal end).
-    const report = (exit: Exit.Exit<void, unknown>) => Effect.gen(function* () {
-      if (Exit.isSuccess(exit)) {
-        yield* Effect.logWarning("the application ended; the page is inert");
-      } else if (Cause.isInterruptedOnly(exit.cause)) {
-        return;
-      } else {
-        yield* Effect.logError("the page stopped following the application", Cause.pretty(exit.cause));
-      }
-
-      yield* mounted.settled;
-      const outcomes = mounted.dispatched;
-      const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.isInterruptedOnly(outcome.cause));
-
-      yield* Effect.logInfo(`event commands in this mount: ${outcomes.filter(Exit.isSuccess).length} succeeded, ${failed.length} failed, ${outcomes.length - outcomes.filter(Exit.isSuccess).length - failed.length} interrupted`);
-
-      for (const outcome of failed) {
-        yield* Effect.logError("event command failed", Exit.isFailure(outcome) ? Cause.pretty(outcome.cause) : "");
-      }
-    });
-
-    yield* Effect.forkIn(Effect.flatMap(mounted.followed, report), yield* Effect.scope);
+    yield* Effect.forkIn(reportMountEnd(mounted), yield* Effect.scope);
 
     if (options.history !== undefined) {
       yield* Web.history(running, options.history);
