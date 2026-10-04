@@ -88,6 +88,9 @@ export const define = <S, E, R extends Ambient, V extends string>(definition: Ap
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
 const TRANSITION_COMMAND = "valance.command";
 
+/** The input of a command that takes none. */
+const NO_INPUT = Schema.Struct({});
+
 /**
  * Binds the application's state, and returns the function that makes commands whose whole behavior is a pure transition of it:
  * `transition` receives the validated input and the current state, and returns the next state. The input is validated by `input`
@@ -95,6 +98,7 @@ const TRANSITION_COMMAND = "valance.command";
  *
  *     const command = Valance.command(state);
  *     const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
+ *     const increment = command((current) => ({ ...current, count: current.count + 1 }));   // no input: the same as `command(Schema.Struct({}), (_input, current) => …)`
  *
  * It is the trusted, atomic writer of Contract §3, not the validating one: the result is committed AS RETURNED, without being checked
  * against the state's schema, and concurrent transitions all land. (It is `state.update`, never `state.set`.)
@@ -108,8 +112,18 @@ const TRANSITION_COMMAND = "valance.command";
  * transition together cannot do this: TypeScript then types the returned literals from a type parameter of that same call, and widens them.)
  * A returned object is not checked for excess properties, the same as returning it from `state.update`.
  */
-export const command = <S>(state: Nexus.State.StateHandle<S>): (<I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S) => Nexus.Command.Command<I, void, never, never>) =>
-  (input, transition) => Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
+export const command = <S>(state: Nexus.State.StateHandle<S>): {
+  (transition: (current: S) => S): Nexus.Command.Command<{}, void, never, never>;
+  <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
+} => {
+  const make = <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never> =>
+    Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
+
+  // The one-argument form is the two-argument form with the empty input: the same `Command`, validated, admitted and run in the same way.
+  return ((a: unknown, b?: unknown) => b === undefined
+    ? make(NO_INPUT, (_input, current) => (a as (current: S) => S)(current))
+    : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as never;
+};
 
 /** The field names of a command's struct input, in order; `undefined` when the input is not a struct. */
 const fieldsOf = (schema: Schema.Schema<any>): ReadonlyArray<string> | undefined => {

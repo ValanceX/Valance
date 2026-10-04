@@ -237,6 +237,7 @@ return { "counter/add": Valance.entry(add, (amount) => ({ amount })) };      // 
 ```
 
 - `Valance.command(state)(input, transition)` returns an ordinary command whose whole behavior is `transition(validatedInput, currentState) → nextState`. `input` is a Schema: invalid input fails with the typed `CommandValidationError` before `transition` runs, and nothing commits.
+- A command with no input may be written `command((current) => next)`: exactly `command(Schema.Struct({}), (_input, current) => next)`, the same command, validated and run in the same way.
 - It is `State.update`, the **trusted, atomic** writer of §3, never `State.set`: the returned state is committed **as returned, without being validated against the state's schema**, and concurrent transitions all land.
 - The state is given in a first call, and `transition` must return that state's type. A returned object is not checked for excess properties, as when returned from `State.update`.
 - The command has no author-chosen name: every command made this way carries one shared diagnostic id, which only decorates `CommandValidationError.command` (so such a failure does not tell two of them apart, and its value is not something to match on). A command that must consult the platform, wait, or fail with its own error is written as a NEXUS command (`Command.define`) and bound the same way.
