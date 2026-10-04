@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "types": {},
+  "components": {
+    "page": {
+      "props": {
+        "title": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "text": {
+      "props": {},
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "button": {
+      "props": {},
+      "events": {
+        "click": {}
+      },
+      "commands": {},
+      "scope": {}
+    },
+    "home": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "increment": {
+          "parameters": []
+        },
+        "goDetails": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "label": {
+          "kind": "string"
+        },
+        "count": {
+          "kind": "number"
+        },
+        "tick": {
+          "kind": "number"
+        }
+      }
+    },
+    "details": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "increment": {
+          "parameters": []
+        },
+        "relabel": {
+          "parameters": []
+        },
+        "goSettings": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "label": {
+          "kind": "string"
+        },
+        "count": {
+          "kind": "number"
+        },
+        "tick": {
+          "kind": "number"
+        }
+      }
+    },
+    "settings": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "increment": {
+          "parameters": []
+        },
+        "goHome": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "label": {
+          "kind": "string"
+        },
+        "count": {
+          "kind": "number"
+        }
+      }
+    }
+  }
+}

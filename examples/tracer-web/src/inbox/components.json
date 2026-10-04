@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "types": {},
+  "components": {
+    "page": {
+      "props": {
+        "title": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "text": {
+      "props": {},
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "row": {
+      "props": {},
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
+    "button": {
+      "props": {},
+      "events": {
+        "click": {}
+      },
+      "commands": {},
+      "scope": {}
+    },
+    "list": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "open": {
+          "parameters": [
+            {
+              "name": "id",
+              "type": {
+                "kind": "string"
+              }
+            }
+          ]
+        }
+      },
+      "scope": {
+        "title": {
+          "kind": "string"
+        },
+        "unread": {
+          "kind": "number"
+        },
+        "items": {
+          "kind": "list",
+          "element": {
+            "kind": "record",
+            "fields": {
+              "id": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "subject": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "mark": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "message": {
+      "props": {},
+      "events": {},
+      "commands": {
+        "star": {
+          "parameters": []
+        },
+        "close": {
+          "parameters": []
+        }
+      },
+      "scope": {
+        "title": {
+          "kind": "string"
+        },
+        "subject": {
+          "kind": "string"
+        },
+        "body": {
+          "kind": "string"
+        },
+        "starred": {
+          "kind": "string"
+        }
+      }
+    },
+    "mesh-each": {
+      "props": {
+        "items": {
+          "type": {
+            "kind": "list",
+            "element": {
+              "kind": "any"
+            }
+          },
+          "required": true
+        },
+        "as": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "key": {
+          "type": {
+            "kind": "any"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {}
+    }
+  }
+}

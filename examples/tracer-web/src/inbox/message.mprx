@@ -1,0 +1,6 @@
+<page title={title}>
+  <text>{subject}</text>
+  <text>{body}</text>
+  <button on.click={star()}>Star {starred}</button>
+  <button on.click={close()}>Close</button>
+</page>

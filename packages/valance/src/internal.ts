@@ -29,7 +29,7 @@ export interface Running<S, E> {
   readonly nexus: Nexus.Application.RunningApplication<never>;
   /** The render of the current state, in the view the current state selects. */
   readonly render: Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics>;
-  /** The render of the state current at subscription, then one per later commit, in order, with no gap (NEXUS `State.values`). */
+  /** The render of the state current at subscription, then of the latest state each time the state changes: superseded intermediates may be skipped, order is kept, the last render is the last committed state, and a state already rendered is not rendered twice. */
   readonly values: Stream.Stream<Viewed, Nexus.Mesh.MeshDiagnostics>;
   /**
    * Dispatches an event against exactly the render it was reported on, through its own view's command table. It runs

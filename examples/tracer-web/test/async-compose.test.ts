@@ -145,7 +145,7 @@ const slice = (b: Booted, from: string) => b.events.slice(at(b.events, from));
 const joinAll = (...fibers: Array<Fiber.RuntimeFiber<unknown, unknown>>) => Promise.all(fibers.map((fiber) => Effect.runPromise(Fiber.await(fiber))));
 
 describe("A: sequential composition is ordinary sequencing", () => {
-  it("start A, await, commit, start B, await, commit: B does not start until A's commit; each commit is its own value and render", async () => {
+  it("start A, await, commit, start B, await, commit: B does not start until A's commit; each commit is its own value (and, the test waiting for each render, its own render)", async () => {
     const b = await boot();
     const caller = b.invoke("seq");
 
@@ -153,6 +153,7 @@ describe("A: sequential composition is ordinary sequencing", () => {
     await yields(300);
     expect(b.events.includes("B started")).toBe(false);                        // B has not begun: sequencing is the command's own order
     await b.release("A", "a");
+    await b.seen("render update: a");                                          // the test paces itself on the presentation: a mount may skip a superseded state (C32)
     await b.started("B");
     expect(b.events.indexOf("commit a")).toBeLessThan(b.events.indexOf("B started"));
     await b.release("B", "b");
@@ -186,7 +187,12 @@ describe("B: parallel owned composition", () => {
       expect(b.events.filter((event) => event.startsWith("commit"))).toEqual([`commit ${first.toLowerCase()}`, `commit ${second.toLowerCase()}`]);
       expect(at(b.events, `commit ${second.toLowerCase()}`)).toBeLessThan(at(b.events, "par exit: succeeded"));
       expect(b.values()).toEqual(["values: init", `values: ${first.toLowerCase()}`, `values: ${second.toLowerCase()}`]);
-      expect(b.renders()).toEqual(["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`]);
+      // The state stream carries both commits. A mount presents the LATEST state, so the first commit's render may be superseded by the second's (not guaranteed either way).
+      const renders = b.renders();
+
+      expect(renders[0]).toBe("render draw: init");
+      expect(renders.at(-1)).toBe(`render update: ${second.toLowerCase()}`);
+      expect(renders.every((render) => ["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`].includes(render))).toBe(true);
       expect((await b.state()).value).toBe(second.toLowerCase());
     });
 
@@ -406,7 +412,12 @@ describe("G: one command owning A+B vs two independent commands", () => {
       await b.seen(`render update: ${second.toLowerCase()}`);
 
       expect(b.values()).toEqual(["values: init", `values: ${first.toLowerCase()}`, `values: ${second.toLowerCase()}`]);
-      expect(b.renders()).toEqual(["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`]);
+      // The state stream carries both commits. A mount presents the LATEST state, so the first commit's render may be superseded by the second's (not guaranteed either way).
+      const renders = b.renders();
+
+      expect(renders[0]).toBe("render draw: init");
+      expect(renders.at(-1)).toBe(`render update: ${second.toLowerCase()}`);
+      expect(renders.every((render) => ["render draw: init", `render update: ${first.toLowerCase()}`, `render update: ${second.toLowerCase()}`].includes(render))).toBe(true);
       expect(b.events.filter((event) => event.endsWith("exit: succeeded") && !event.startsWith("caller")).sort()).toEqual(["startA exit: succeeded", "startB exit: succeeded"]);
     });
   }

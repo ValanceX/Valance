@@ -1,5 +1,7 @@
 # Tracer findings: `@valancex/valance` (the 0.0.1 tracer; 0.1.0 is the validated baseline of the checkpoint below)
 
+> **Current contract.** This file is the historical investigation record. The reader-facing statement of what VALANCE guarantees is [`V1_CONTRACT.md`](V1_CONTRACT.md); the engineering constraints and tripwires are in [`CONSTRAINTS.md`](CONSTRAINTS.md). Where a statement below describes behavior a later decision changed (for example that every commit is presented, rather than the latest state), `V1_CONTRACT.md` governs. The reading guide below describes how to read the log itself; its "authoritative" sections are authoritative within this log, not over the current contract.
+
 > **How to read this file.** It is a chronological log of guarded tracers. Where an early stage describes a mechanism that a later stage replaced (the `path` option of `Web.history`, URL-equality as the push guard, `Stream.drop` as the baseline), the later stage wins. The **authoritative** statements are, at the top of this file, the [Canonical lifecycle architecture](#canonical-lifecycle-architecture-consolidated-at-stage-41-evidence-in-stages-29-to-40) (it governs everything about application, mount, command and ledger lifetimes) and the [Architectural checkpoint](#architectural-checkpoint-stage-56-what-the-real-vertical-slice-has-demonstrated) (the current summary of the whole slice, which defers to the lifecycle section for lifecycle detail), and [Stage 7](#stage-7-the-webhistory-contract-stabilized) (the `Web.history` contract). The [Milestone](#milestone-validated-valance-composition) at the end is the Stage 7-era milestone, kept as history. Stages 3 to 6 are kept as the evidence trail.
 
 ## Canonical lifecycle architecture (consolidated at Stage 41; evidence in Stages 29 to 40)
@@ -43,6 +45,7 @@ This section is the one statement of the application / mount / command lifecycle
 **7. Constraint map.** C6 (the caller's Scope owns lifetime) with C24 (mounts), C20 to C23 (command lifetime, admission, ownership boundary, liveness), C25 (event commands), C26 (the ledger). Stage 30's clarification of C20: "draining begins" means the application's Scope closing; `Application.shutdown(running.nexus)` is the substrate's early end, reachable only through `./internal`, and does not pass the drain.
 
 **8. Superseded statements (kept as history, do not cite).** (a) Stages 26 to 28, 34 to 37: that a mount's close interrupts the commands its events started (removed in Stage 39). (b) Stages 28 to 33: "the target is unmounted before the drain" without the shared/parented qualifier (Stage 37). (c) Stage 11, invariant 3 without "one Scope" (Stage 38). (d) Stage 36's two-model tables describe the alternatives; the application-owned column is the adopted one.
+(e) Stages 3, 4, 11 and 20 (and the invariant and table row quoted from Stage 11): that every commit is rendered, in order, with no coalescing, that `view(state)` is evaluated on each committed state (it is evaluated on each state a mount renders), and that "intermediate and stale states are all rendered". Stage 16 made a mount present the latest state available when it reaches it; the new rule is C32, and the older "every intermediate commit rendered" statements are history.
 
 **9. Outside this contract.** Packaging of `Mounted` and `DispatchExit` is not lifecycle; it was decided in Stage 42 (`Mounted` stays on the main entry as the declared result of `mount`/`hydrate`; the diagnostic `DispatchExit` lives behind `./internal`). The shape of `Mounted` itself was decided in Stage 43 (kept: every member is mount-owned information no other public surface provides). Stale-result handling, error presentation and event-exit retention policy are application or product policy (Stages 31 to 34).
 
@@ -58,11 +61,11 @@ This section is the one statement of the application / mount / command lifecycle
 MPRX source --MESH compiler (Node)--> template-v1 + manifest  (a `Mesh.Program`: data)
   --> Valance.define: views -> programs, view(state), commands            the application definition: code, shared by server and browser bundle
   --> Valance.start: NEXUS application + ONE state + platform + command registry (application Scope)
-  --> state.values (current + later renders, atomic) --> MESH render-v1 (WASM runtime)
+  --> state.values (current + later commits, atomic) --> the latest state at each wake-up (C32) --> MESH render-v1 (WASM runtime)
   --> connect: same view = update, other view = draw                     the composer's fact (Valance)
   --> PORT Web target: realize into the DOM (client) / renderToHtml (server)  --> real DOM, hydration adopts server HTML
   --> user click --> PORT report --> MESH dispatch (intent -> command binding) --> inApplication (admission, registry)
-  --> NEXUS command --> state.update --> values --> render --> update | draw
+  --> NEXUS command --> state.update --> values --> render of the latest state --> update | draw
   --> page lifecycle: the page Scope, Web.history (pushState/popstate in place), pagehide, bfcache, built and served as an ordinary process
 ```
 
@@ -80,6 +83,7 @@ MPRX source --MESH compiler (Node)--> template-v1 + manifest  (a `Mesh.Program`:
 - Payload serialization, where compilation happens (per request here), bundle/server pairing, and everything deployment (caching, compression, supervision).
 - Example conveniences that are not VALANCE API and not deficiencies: `run`, `serve.ts`, `document.ts`, `page.ts`, the dev-server route. In particular `run` hides its target; a page that needs a different one composes `start` + `hydrate` + `Web.history` itself (Stage 55).
 - Scope arrangement for several mounts; retention of the event-exit ledger; data age after a restore.
+- Pacing a burst of commits (an application or host that cares about input latency spreads commits across macrotasks with public means; Valance neither paces nor yields, C32) and the cost of one presentation (an indivisible synchronous MESH render, then a synchronous PORT `draw`/`update`).
 
 **3. Still unproven** (genuine assumptions with no exercise, listed rather than manufactured):
 - *A second target.* Everything ran through PORT Web. `Target`/`TargetFactory` is the stated seam for any PORT, but no other PORT (native, canvas, terminal) has used it.
@@ -90,6 +94,7 @@ MPRX source --MESH compiler (Node)--> template-v1 + manifest  (a `Mesh.Program`:
 - *Other browsers.* Only Chromium (and its bfcache) was driven; history and bfcache behavior in Firefox and WebKit is unverified.
 - *Published-package consumption.* `@valancex/valance` is unpublished; an external project consuming it, and the stability of `./internal`, are untested.
 - *Server-side commands.* The server only starts, renders once and ends; no command runs server-side.
+- *Upstream design questions, untriggered (Stages 18 to 20):* asynchronous or chunked target realization (PORT), incremental MESH rendering. Each would change an upstream contract and what "drawn" means to `connect`; no evidence requires either.
 - *Not VALANCE's but visible:* links as links (PORT's event realization cannot condition a dispatch on a modified click) are not expressible; nothing in the page needs them.
 
 **Contradictions and gaps found while consolidating.** One factual contradiction, now fixed: the file's reading guide called the end-of-file Milestone authoritative, but it describes the Stage 7-era state (NEXUS 0.10.0, MESH 0.6.0, PORT Web 0.2.1, 16 + 12 + 12 tests, "not introduced: a link primitive") and no longer matches the dependencies or the evidence; it is now marked historical and the reading guide points to this checkpoint and the canonical lifecycle section. Nothing else contradicts: the constraints (C6, C20 to C26), the canonical lifecycle section and the stage conclusions agree, and the supersession notes cover the pre-Stage-39 mount-interruption statements. No architectural gap was found that the evidence forces.
@@ -626,7 +631,7 @@ Each is marked with its evidence and how it was changed.
 11. **Application code is platform-independent.** *Kept for the catalog application only.* The first tracer's `app.ts` imports `Web` for its primitives table; the rule is stricter than the earlier example holds to.
 12. **(added) Realization continuity belongs to the connection to a target, not to the application.** The record of what was drawn lives in `connect`; a second target would keep its own.
 13. **(added) A URL names a navigation, not a state.** `stateOf(url)` yields the part of the state a URL carries, and a command completes it with data the application holds, deciding unknown items itself (`not-found`).
-14. **(added) Every commit is rendered, in order, with no gap and no coalescing.** Atomic current-and-following (`values`) plus an in-order follower. Whether coalescing is ever wanted is not tested.
+14. **(added) Every commit is rendered, in order, with no gap and no coalescing.** Atomic current-and-following (`values`) plus an in-order follower. Whether coalescing is ever wanted is not tested. *(Superseded by Stage 16/C32: a mount presents the latest state and may skip superseded intermediates; order, convergence and the atomic first draw stay.)*
 
 ### 7. Deferred work
 
@@ -647,7 +652,7 @@ Each is marked with its evidence and how it was changed.
 | Program-acquisition tooling (the copied `compile.ts`) | **a later product layer**: it is a build step |
 | Failure policy (render / dispatch diagnostics, failed popstate) | **architecture not proven**: only a logged, ignored policy exists |
 | Multiple targets per application, per-view state, layouts, async loading | **architecture not proven**: never exercised |
-| Rendering coalescing | **architecture not proven**: every intermediate commit is rendered |
+| Rendering coalescing | **architecture not proven**: every intermediate commit is rendered *(superseded: Stage 16/C32, a mount may skip superseded intermediates)* |
 
 ### 8. Recommendation for the next coding task
 

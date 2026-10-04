@@ -1,0 +1,6 @@
+<page title={label}>
+  <text>Details: {count} (tick {tick})</text>
+  <button on.click={increment()}>+1</button>
+  <button on.click={relabel()}>Rename</button>
+  <button on.click={goSettings()}>Settings</button>
+</page>

@@ -167,7 +167,7 @@ describe("async data flow, observed", () => {
     expect(await b.state()).toBe("a1");
   });
 
-  it("B: sequential results are independent transitions, each emitted and rendered; nothing is replaced or coalesced", async () => {
+  it("B: sequential results are independent transitions, each emitted and (the test waits for each render) rendered; nothing is replaced", async () => {
     const b = await boot();
 
     await b.seen("render draw: init");
