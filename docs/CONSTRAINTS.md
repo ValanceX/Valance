@@ -1,5 +1,7 @@
 # Engineering constraints and tripwires
 
+*Level 3 of the documentation (**Understand**), a maintainers' record. Index and concept → evidence map: [`understand/README.md`](understand/README.md). The user contract is [`V1_CONTRACT.md`](V1_CONTRACT.md).*
+
 The accumulated record of the constraints the code is held to, kept by maintainers. It began as the constraints written for the first tracer (the first section below, "MUST" / "MUST NOT", predates `src/`) and has grown one block per later decision. It is an engineering artifact, **not the user contract**: the reader-facing statement of what VALANCE guarantees is [`V1_CONTRACT.md`](V1_CONTRACT.md), and the chronological investigation record is [`FINDINGS.md`](FINDINGS.md).
 
 Each line is either enforced by a tripwire (`packages/valance/test/boundaries.test.ts`, `examples/tracer-web/test/*`, `examples/tracer-web/browser/*`) or listed as "reviewed only". Numbering is historical and is not tidied, because tests, comments and findings cite it: blocks are not in numeric order and C20 is used twice (the second, "C20, trigger and scope", clarifies the first). Later blocks refine earlier ones; where two disagree, the later and `V1_CONTRACT.md` win.
