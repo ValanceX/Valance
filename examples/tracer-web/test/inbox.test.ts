@@ -18,7 +18,7 @@ const source = (file: string): string => readFileSync(new URL(`../src/inbox/${fi
 
 describe("second application: inbox", () => {
   it("the definition imports only the public entry, NEXUS and effect", () => {
-    expect([...source("app.ts").matchAll(/from "([^"]+)"/g)].map((match) => match[1]).sort()).toEqual(["@valancex/nexus", "@valancex/nexus", "@valancex/valance", "effect"]);
+    expect([...source("app.ts").matchAll(/from "([^"]+)"/g)].map((match) => match[1]).sort()).toEqual(["@valancex/nexus", "@valancex/valance", "effect"]);
   });
 
   it("one mount: open a message (a view change), star it (a same-view update), Back closes it, Forward reopens it; the URL follows", async () => {

@@ -49,6 +49,50 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
 /** The definition, typed. An application is data: defining one starts nothing. */
 export const define = <S, E, R extends Ambient, V extends string>(definition: ApplicationDefinition<S, E, R, V>): ApplicationDefinition<S, E, R, V> => definition;
 
+/** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
+const TRANSITION_COMMAND = "valance.command";
+
+/**
+ * A command whose whole behavior is a pure transition of the application's state: `transition` receives the validated input and the
+ * current state, and returns the next state. The input is validated by `input` before `transition` runs, exactly as for any command
+ * (a failure is the typed `CommandValidationError`, and nothing commits).
+ *
+ * It is the trusted, atomic writer of Contract §3, not the validating one: the result is committed AS RETURNED, without being checked
+ * against the state's schema, and concurrent transitions all land. (It is `state.update`, never `state.set`.)
+ *
+ * It is an ordinary NEXUS command, so `entry` binds it like any other. A command that must consult the platform, wait, or fail with
+ * its own error is written as a NEXUS command over an Effect (`Nexus.Command.define`) and bound the same way.
+ *
+ * The returned state keeps its literal types (`const T extends S`) and is checked against the state's own type, so a union-shaped state
+ * needs no annotation at the call site. Two consequences of that: a returned object is not checked for excess properties (the same as
+ * returning it from `state.update`), and a state type with MUTABLE arrays will not accept an array literal or spread in the result
+ * (literals are inferred readonly; Effect Schema arrays are readonly by default). For such a state, use a NEXUS command.
+ */
+export const command = <S, I, const T extends S>(
+  state: Nexus.State.StateHandle<S>,
+  input: Schema.Schema<I>,
+  transition: (input: I, current: S) => T
+): Nexus.Command.Command<I, void, never, never> =>
+  Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
+
+/** What an entry's argument is to the application: the value itself, or `undefined` when the argument is absent. */
+const plain = (argument: Nexus.Mesh.IntentArgument): unknown => "value" in argument ? argument.value : undefined;
+
+/**
+ * An entry's behavior: it runs the command `run`, with the input `input` makes from the entry's arguments, as plain values in order (an absent
+ * argument is `undefined`). Without `input` the command is given `{}`, the input of a command that takes none. `input`'s result is
+ * validated by the command's schema before its body runs, as for any command.
+ *
+ * The result is a table entry for `ApplicationDefinition.commands`. Any number of entries may run the same command, and it takes a
+ * command from `command` or from NEXUS. A rendered view's entry is keyed `"component/name"`; an entry for a caller outside any view
+ * (`invoke`, history) is keyed `"app/..."`. Both are resolved in the one table, and an unknown key is the typed `UnmappedCommand`.
+ */
+export const entry = <I, O, E, R>(
+  run: Nexus.Command.Command<I, O, E, R>,
+  input?: (...values: ReadonlyArray<unknown>) => unknown
+): Nexus.Mesh.Binding<E | Nexus.Command.CommandValidationError, R> =>
+  Nexus.Mesh.bind(run, (args) => input === undefined ? {} : input(...args.map(plain)));
+
 export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError;
 
 export interface StartOptions<S> {
