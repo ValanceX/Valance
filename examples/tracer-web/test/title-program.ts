@@ -4,7 +4,7 @@
 // scope that produces another value is rejected by MESH exactly as it was by the catalog's `notfound` (render-fixture's `title: 42`).
 import type { Mesh } from "@valancex/nexus";
 
-import { compile } from "@valancex/mesh-compiler";
+import { compileProgram } from "@valancex/mesh-compiler";
 
 const model = JSON.stringify({
   version: 1,
@@ -16,10 +16,14 @@ const model = JSON.stringify({
   },
 });
 
-const result = await compile({ source: "<page title={title}><text>Titled</text></page>", path: "titled.mprx", model: { manifest: model, path: "components.json", component: "titled" } });
+const result = await compileProgram({
+  model: { manifest: model, path: "components.json" },
+  root: "titled",
+  components: [{ component: "titled", source: "<page title={title}><text>Titled</text></page>", path: "titled.mprx" }],
+});
 
-if (result.template === undefined) {
-  throw new Error(`the title-only test program doesn't compile: ${JSON.stringify(result.diagnostics)}`);
+if (result.program === undefined) {
+  throw new Error(`the title-only test program doesn't compile: ${JSON.stringify(result.assembly ?? result.components)}`);
 }
 
-export const titleProgram: Mesh.Program = { root: "titled", templates: [JSON.stringify(result.template)], model };
+export const titleProgram: Mesh.Program = result.program;

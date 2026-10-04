@@ -4,7 +4,7 @@
 import type { Mesh } from "@valancex/nexus";
 import type { WebPort } from "@valancex/port-web";
 
-import { compile } from "@valancex/mesh-compiler";
+import { compileProgram } from "@valancex/mesh-compiler";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -34,13 +34,13 @@ export const sources = {
 };
 
 export const program = async (root: "a" | "b"): Promise<Mesh.Program> => {
-  const result = await compile({ source: sources[root], path: `${root}.mprx`, model: { manifest, path: "components.json", component: root } });
+  const result = await compileProgram({ model: { manifest, path: "components.json" }, root, components: [{ component: root, source: sources[root], path: `${root}.mprx` }] });
 
-  if (result.template === undefined) {
-    throw new Error(`${root} doesn't compile: ${JSON.stringify(result.diagnostics)}`);
+  if (result.program === undefined) {
+    throw new Error(`${root} doesn't compile: ${JSON.stringify(result.assembly ?? result.components)}`);
   }
 
-  return { root, templates: [JSON.stringify(result.template)], model: manifest };
+  return result.program;
 };
 
 export const primitives: Web.WebPrimitives = {
