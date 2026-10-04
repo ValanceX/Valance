@@ -1,34 +1,177 @@
-# VALANCE (`@valancex/valance`)
+<h1 align="center">
+  <img src="docs/assets/valance-logo.svg" alt="Valance logo" width="120"><br>
+  Valance
+</h1>
 
-Build an interactive application whose **state lives in one place**, whose **screen is a function of that state**, and whose **only way to change anything is a command**. The application is data, so the same definition runs in a browser page, renders to HTML on a server, and runs headless in a test. **0.2.1** is the current release; the API is pre-1.0 and can still change.
+<p align="center">
+  Build web apps in TypeScript where one state drives the whole screen.<br>
+  Write it once. Run it in the browser, render it on the server, test it without either.
+</p>
 
-```ts
-const app = Valance.define({
-  name: "counter",
-  state: { schema: State, initial: { count: 0 } },                        // the one truth
-  views: { counter: { program, scope: ({ count }) => ({ count }) } },      // what is shown, and from which values
-  view: () => "counter",                                                   // which view is current: a function of state
-  commands: (state) => ({ "counter/increment": Valance.entry(Valance.command(state)(Schema.Struct({}), (_input, current) => ({ count: current.count + 1 }))) }),
-});
+<p align="center">
+  <a href="#quick-start"><strong>Quick start</strong></a> ·
+  <a href="#learning-path"><strong>Learn</strong></a> ·
+  <a href="docs/use/README.md"><strong>API reference</strong></a> ·
+  <a href="https://github.com/ValanceX/Valance/issues">Report an issue</a>
+</p>
 
-await Web.run(app, { container, primitives, present: "mount" });          // one page, one lifetime; host.stop() ends it
+<p align="center">
+  <a href="https://www.npmjs.com/package/@valancex/valance"><img src="https://img.shields.io/npm/v/@valancex/valance?color=7C5CFF" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@valancex/valance"><img src="https://img.shields.io/npm/l/@valancex/valance" alt="license"></a>
+  <img src="https://img.shields.io/node/v/@valancex/valance" alt="node version">
+</p>
+
+<hr>
+
+> Valance is pre-1.0. The API may change between minor releases; every change is listed in the [release notes](docs/releases/).
+
+## Quick start
+
+Build a counter and run it in your browser in about five minutes.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org) 22 or newer
+- [pnpm](https://pnpm.io/installation)
+
+### 1. Install
+
+```console
+$ mkdir my-app && cd my-app
+$ pnpm init && pnpm pkg set type=module
+$ pnpm add @valancex/valance @valancex/nexus@^0.10.2 @valancex/mesh-runtime@^0.8.0 @valancex/port-web@^0.2.3 effect@^3.10.0
+$ pnpm add -D @valancex/mesh-compiler@^0.9.0 vite typescript
 ```
 
-## Documentation
+### 2. Describe the screen
 
-| | |
-|---|---|
-| **[Learn](docs/learn/README.md)** | What VALANCE is, your first application, how state, views and events fit together, common tasks. Start here. |
-| **[Use](docs/use/README.md)** | The API reference by name, and [the contract](docs/V1_CONTRACT.md): exact behavior, lifecycle, failure, and what is not guaranteed. |
-| **[Understand](docs/understand/README.md)** | How it is built and why: the architecture, the engineering constraints, the investigation record, and the packages underneath. |
+**`counter.mprx`** is what the user sees:
 
-Everything is indexed in [`docs/README.md`](docs/README.md). Release notes: [`docs/releases/`](docs/releases/).
+```
+<page>
+  <text>Count: {count}</text>
+  <button on.click={increment()}>Add one</button>
+</page>
+```
 
-## Repository
+**`components.json`** lists the tags the screen may use. `counter` is the screen itself: it reads `count` and runs `increment`.
 
-`packages/valance` is the package; `examples/tracer-web` is the tracer (jsdom tests and Chromium).
+```json
+{
+  "version": 1,
+  "types": {},
+  "components": {
+    "page":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
+    "text":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
+    "button":  { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
+    "counter": { "props": {}, "events": {}, "commands": { "increment": { "parameters": [] } }, "scope": { "count": { "kind": "number" } } }
+  }
+}
+```
+
+### 3. Compile the screen
+
+**`build-views.js`** checks the screen and turns it into JSON. If something is wrong, you find out here, not in the browser.
+
+```js
+import { compileProgram } from "@valancex/mesh-compiler";
+import { readFileSync, writeFileSync } from "node:fs";
+
+const built = await compileProgram({
+  model: { manifest: readFileSync("components.json", "utf8"), path: "components.json" },
+  root: "counter",
+  components: [{ component: "counter", source: readFileSync("counter.mprx", "utf8"), path: "counter.mprx" }],
+});
+
+if (built.program === undefined) throw new Error(JSON.stringify(built.assembly ?? built.components, null, 2));
+writeFileSync("counter.program.json", JSON.stringify(built.program));
+```
+
+### 4. Write the app
+
+**`main.ts`**:
+
+```ts
+import * as Valance from "@valancex/valance";
+import * as Web from "@valancex/valance/web";
+import { init } from "@valancex/mesh-runtime";
+import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
+import { Schema } from "effect";
+import program from "./counter.program.json";
+
+const State = Schema.Struct({ count: Schema.Number });
+
+const app = Valance.define({
+  name: "counter",
+  state: { schema: State, initial: { count: 0 } },
+  views: { counter: { program, scope: ({ count }) => ({ count }) } },
+  view: () => "counter",
+  commands: (state) => {
+    const command = Valance.command(state);
+    return {
+      "counter/increment": Valance.entry(command(Schema.Struct({}), (_input, current) => ({ count: current.count + 1 }))),
+    };
+  },
+});
+
+await init(wasmUrl);
+await Web.run(app, {
+  container: document.getElementById("root")!,
+  primitives: {
+    page: { element: "main" },
+    text: { element: "p" },
+    button: { element: "button", events: { click: { type: "click" } } },
+  },
+  present: "mount",
+});
+```
+
+**`index.html`**:
+
+```html
+<div id="root"></div>
+<script type="module" src="/main.ts"></script>
+```
+
+### 5. Run
+
+```console
+$ node build-views.js && pnpm vite
+```
+
+Open the URL Vite prints and click **Add one**. 🎉 You've built your first Valance app.
+
+## Learning path
+
+Follow these in order. Each one builds on the last.
+
+| | Step | You'll learn |
+|---|---|---|
+| **1** | [Your first application](docs/learn/first-application.md) | The counter above, line by line, plus running it on a server and in tests |
+| **2** | [State, views and events](docs/learn/state-views-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
+| **3** | [Common tasks](docs/learn/README.md#common-tasks) | Recipes: adding screens and commands, syncing the URL, server rendering |
+| **4** | [API reference](docs/use/README.md) | Every export, by name |
+| **5** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
+
+**Going deeper:** [how Valance is built](docs/understand/README.md) covers the architecture and design decisions. You don't need it to build apps.
+
+## Examples
+
+- [`examples/tracer-web`](examples/tracer-web): a complete app with multiple screens, URL routing, server rendering and browser tests.
+
+## Releases
+
+Release notes for every version are in [`docs/releases/`](docs/releases/).
+
+## Contributing
+
+Bug reports and pull requests are welcome on [GitHub](https://github.com/ValanceX/Valance/issues). To work on Valance itself:
 
 ```console
 $ pnpm install && pnpm build && pnpm typecheck && pnpm test
 $ pnpm test:browser          # Chromium via Playwright
 ```
+
+## License
+
+[MIT](packages/valance/package.json)
