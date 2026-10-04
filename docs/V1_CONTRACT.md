@@ -182,3 +182,27 @@ This contract covers VALANCE's composition of state, commands, views, mounts, hi
 - anything under `./internal`, which is unstable by design.
 
 The package is pre-1.0: the API can still change before the first stable release.
+
+## 13. Installation and package surface
+
+Each package has one role. A strict package manager (pnpm) resolves only what the application declares, so declare all of the application-level and build-time rows yourself:
+
+| Package | Range | Role | Declare it as |
+|---|---|---|---|
+| `@valancex/valance` | the release you target | this package | dependency |
+| `@valancex/nexus` | `^0.10.1` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
+| `@valancex/mesh-runtime` | `^0.7.0` | peer: renders MESH programs at run time | dependency |
+| `@valancex/port-web` | `^0.2.2` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
+| `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
+| `@valancex/mesh-compiler` | `^0.7.0` | **build time only**: compiles MPRX sources to the `program` each view takes; nothing imports it at run time | devDependency |
+
+```console
+$ pnpm add @valancex/valance @valancex/nexus@^0.10.1 @valancex/mesh-runtime@^0.7.0 @valancex/port-web@^0.2.2 effect@^3.10.0
+$ pnpm add -D @valancex/mesh-compiler@^0.7.0
+```
+
+Give the ranges explicitly, as above: an unversioned `pnpm add effect` resolves to a newer major than the peer range allows.
+
+- **Entries:** `@valancex/valance` (`define`, `start`, `mount`, `hydrate`), `@valancex/valance/web` (`Web.target`, `Web.history`, and the PORT Web primitive helpers it re-exports), `@valancex/valance/web/server` (`renderToHtml`). `@valancex/valance/internal` is not part of the contract.
+- The MESH, NEXUS and PORT packages keep their own versions; the ranges above are the set this release is built and tested against.
+
