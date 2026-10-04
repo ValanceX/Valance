@@ -217,6 +217,8 @@ $ pnpm add -D @valancex/mesh-compiler@^0.9.0
 
 Give the ranges explicitly, as above: an unversioned `pnpm add effect` resolves to a newer major than the peer range allows.
 
+The package's type declarations use TypeScript's `NoInfer` (so that an application's state type is inferred from its schema, not from `initial`), which needs **TypeScript 5.4 or newer** in the application that compiles against it.
+
 - **Entries:** `@valancex/valance` (`define`, `start`, `mount`, `hydrate`, `command`, `entry`), `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, and the PORT Web primitive helpers it re-exports), `@valancex/valance/web/server` (`renderToHtml`). `@valancex/valance/internal` is not part of the contract.
 - The MESH, NEXUS and PORT packages keep their own versions; the ranges above are the set this release is built and tested against.
 

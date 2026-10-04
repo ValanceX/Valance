@@ -65,8 +65,6 @@ const app = (fetchName: (id: string, signal: AbortSignal) => Promise<string>) =>
 });
 ```
 
-Annotate the state type on `scope` (`(state: State)`, as above). Without it TypeScript may infer the state from the literals in `initial` (`phase: "loading"` becomes `string`) and report an error that points at the schema, not at the cause.
-
 Read it as three ideas:
 
 1. **Waiting is part of a command.** `fetchProfile` sets `loading`, waits for `fetchName`, then commits the result. Nothing is committed while it waits, and the screen keeps showing `loading`.

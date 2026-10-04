@@ -39,7 +39,7 @@ export interface View<S> {
 export interface ApplicationDefinition<S, E, R extends Ambient, V extends string> {
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
-  readonly state: { readonly schema: Schema.Schema<S>; readonly initial: S };
+  readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
   /** The MESH programs the application can show. The application's state outlives a change of program. */
   readonly views: { readonly [K in V]: View<S> };
   /** Which program the current state shows. A function of application state: what the active view is, is the application's. */
