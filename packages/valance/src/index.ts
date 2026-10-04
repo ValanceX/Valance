@@ -79,11 +79,20 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
   readonly start?: string;
 }
 
+/** The failures a table can raise: the union over every command (and binding) in it, exactly. */
+type ErrorOf<V> = V extends Nexus.Command.Command<any, any, infer Err, any> ? Err : V extends Nexus.Mesh.Binding<infer Err, any> ? Err : never;
+/** The services a table needs: the union over every command (and binding) in it. */
+type RequirementOf<V> = V extends Nexus.Command.Command<any, any, any, infer Req> ? Req : V extends Nexus.Mesh.Binding<any, infer Req> ? Req : never;
+
 /**
- * The definition, typed. An application is data: defining one starts nothing. `E` gains `CommandValidationError`: every command's input is validated, and a table of
- * bare command names (which have no `entry` to carry it) would otherwise claim that failure cannot happen. For tables that use `entry` it is already there.
+ * The definition, typed. An application is data: defining one starts nothing. `E` is the union of every failure in the command table (each command may fail
+ * differently), plus `CommandValidationError`: every command's input is validated, and a table of bare command names (which have no `entry` to carry it)
+ * would otherwise claim that failure cannot happen. `R` is the union of the services the table needs. Both are read from the table's own type, so no command's
+ * failure is narrowed to another's.
  */
-export const define = <S, E, R extends Ambient, V extends string>(definition: ApplicationDefinition<S, E, R, V>): ApplicationDefinition<S, E | Nexus.Command.CommandValidationError, R, V> => definition;
+export const define = <S, T extends CommandTable<any, Ambient>, V extends string>(
+  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T }
+): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V> => definition as unknown as ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
 
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
 const TRANSITION_COMMAND = "valance.command";
