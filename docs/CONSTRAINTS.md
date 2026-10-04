@@ -1,8 +1,8 @@
-# Architectural constraints (Guarded Tracer Bullet, step 2)
+# Engineering constraints and tripwires
 
-Written *before* the first line of `src/`. Each line is either enforced by a tripwire
-(`packages/valance/test/boundaries.test.ts`, `examples/tracer-web/test/*`) or listed
-as "reviewed only".
+The accumulated record of the constraints the code is held to, kept by maintainers. It began as the constraints written for the first tracer (the first section below, "MUST" / "MUST NOT", predates `src/`) and has grown one block per later decision. It is an engineering artifact, **not the user contract**: the reader-facing statement of what VALANCE guarantees is [`V1_CONTRACT.md`](V1_CONTRACT.md), and the chronological investigation record is [`FINDINGS.md`](FINDINGS.md).
+
+Each line is either enforced by a tripwire (`packages/valance/test/boundaries.test.ts`, `examples/tracer-web/test/*`, `examples/tracer-web/browser/*`) or listed as "reviewed only". Numbering is historical and is not tidied, because tests, comments and findings cite it: blocks are not in numeric order and C20 is used twice (the second, "C20, trigger and scope", clarifies the first). Later blocks refine earlier ones; where two disagree, the later and `V1_CONTRACT.md` win.
 
 ## MUST
 
@@ -56,7 +56,7 @@ as "reviewed only".
 
 ## Added for stage 29 (command lifetime; adopted from the Stage 27/28 evidence)
 
-*The whole lifecycle (application, mount, event command, ledger) is stated once in `docs/FINDINGS.md`, "Canonical lifecycle architecture". C20 to C26 are its invariants.*
+*The lifecycle (application, mount, event command, ledger) is stated for readers in `docs/V1_CONTRACT.md` (sections 6, 7 and 9); `docs/FINDINGS.md`, "Canonical lifecycle architecture", is its evidence trail. C20 to C26 are its invariants.*
 
 - **C20, command lifetime (safety).** A command admitted through the application's command boundary (`inApplication`, reached by both `ApplicationHandle.invoke` and MESH dispatch) remains owned by the application until it exits. When draining begins (the caller's Scope closes), VALANCE closes admission and interrupts and awaits every already-admitted command BEFORE NEXUS terminates and platform resources release. *(tripwire: `examples/tracer-web/test/capability-async.test.ts`, "the VALANCE command-lifetime contract")*
 - **C21, admission during drain.** No new command is admitted after draining begins; the refusal is a defect (`VALANCE: admission is closed (draining)`). The check and the registration are one synchronous step. *(tripwire: same)*
@@ -75,7 +75,7 @@ as "reviewed only".
 
 ## Status (Web.history exploration closed)
 
-C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated once, in `docs/FINDINGS.md` Stage 7. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).
+C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is stated for readers in `docs/V1_CONTRACT.md` (section 8); `docs/FINDINGS.md` Stage 7 is its evidence trail. Browser URL ≠ application URL; `Web.history` synchronizes application URL transitions and never detects navigation by comparing the browser URL with the state; it does not restore or rewrite the browser URL after a popstate navigation that produced no state transition (application policy).
 
 ## Added for the navigation boundary (probes in `examples/tracer-web/test/history-boundary.test.ts`)
 
