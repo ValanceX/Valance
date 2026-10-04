@@ -36,7 +36,7 @@ So the application is *data*: a definition you can start in a browser, render to
 
 ## What VALANCE decides, and what it leaves to you
 
-VALANCE decides **which view is current and whether showing it continues the previous screen** (same view: update in place; different view: redraw). It also keeps one lifetime per application, so resources are released exactly once.
+VALANCE decides **which view is current and whether showing it continues the previous screen** (same view: an update; different view: a fresh draw). It also keeps one lifetime per application, so resources are released exactly once.
 
 You decide everything else: what state means, what a URL means, what to do when work fails. VALANCE has no router, no store you subscribe to, and no global application.
 

@@ -35,7 +35,7 @@ Three separate questions, three places:
 
 You never "navigate to" a view. You change state, and the current view follows. The list and the message are one application, and its state survives moving between them.
 
-VALANCE decides one thing for you: whether the new screen **continues** the old one. Same view, new data: the screen is *updated in place* (a list that gains an item keeps its other rows). Different view: it is *redrawn*. The decision is made from the view's name alone.
+VALANCE decides one thing for you: whether the new screen **continues** the old one. Same view, new data: the screen is *updated*. Different view: it is *drawn afresh*. The decision is made from the view's name alone. (Which parts of the screen an update keeps is decided below VALANCE; see [Contract §5](../V1_CONTRACT.md#5-views-and-presentation).)
 
 ## An event runs a command
 

@@ -216,19 +216,20 @@ Two helpers make the commands table of §3 short to write. They add no behavior:
 const command = Valance.command(state);                                   // the state is bound first
 const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
 
-commands: { "counter/add": Valance.entry(add, (amount) => ({ amount })), "app/reset": Valance.entry(reset) }
+// inside `commands: (state) => …`, with `command` and `add` made as above:
+return { "counter/add": Valance.entry(add, (amount) => ({ amount })) };      // an event argument becomes the command's input
 ```
 
 - `Valance.command(state)(input, transition)` returns an ordinary command whose whole behavior is `transition(validatedInput, currentState) → nextState`. `input` is a Schema: invalid input fails with the typed `CommandValidationError` before `transition` runs, and nothing commits.
 - It is `State.update`, the **trusted, atomic** writer of §3, never `State.set`: the returned state is committed **as returned, without being validated against the state's schema**, and concurrent transitions all land.
-- The state is given in a first call so that what `transition` returns is checked against exactly the state's type, not inferred from what it returns. A returned object is not checked for excess properties, as when returned from `State.update`.
-- The command has no author-chosen name; the fixed diagnostic id `valance.command` only decorates `CommandValidationError.command`. A command that must consult the platform, wait, or fail with its own error is written as a NEXUS command (`Command.define`) and bound the same way.
+- The state is given in a first call, and `transition` must return that state's type. A returned object is not checked for excess properties, as when returned from `State.update`.
+- The command has no author-chosen name: every command made this way carries one shared diagnostic id, which only decorates `CommandValidationError.command` (so such a failure does not tell two of them apart, and its value is not something to match on). A command that must consult the platform, wait, or fail with its own error is written as a NEXUS command (`Command.define`) and bound the same way.
 - `Valance.entry(run, input?)` makes the table entry for `run`. `input` receives the entry's arguments as **plain values, in order** (an absent argument is `undefined`) and returns the command's input, which is validated by the command's schema as always. Without `input`, the command is given `{}`.
 - Any number of entries may run the same command. A key `"component/name"` is an intent a view's description raises; a key `"app/..."` is for `invoke` and history. Both are resolved in the one table (§3), and an unknown key is the typed `UnmappedCommand`.
 
 ## 15. Building a view description
 
-Each view's `program` is the opaque value a build step produces; **VALANCE never compiles MPRX, and neither does the browser.** The build step is MESH's `compileProgram`, from `@valancex/mesh-compiler` (devDependency, §13):
+Each view's `program` is the opaque value a build step produces; **VALANCE never compiles MPRX.** The build step is MESH's `compileProgram`, from `@valancex/mesh-compiler` (devDependency, §13):
 
 ```ts
 const built = await compileProgram({
@@ -237,12 +238,12 @@ const built = await compileProgram({
   components: [{ component: "counter", source, path: "counter.mprx" }],   // every component that has a description, in order
 });
 // built.program: the value for `views.<name>.program`; undefined when something is wrong
-// built.components: each source's diagnostics; built.assembly: the program-level check's diagnostics
+// built.components: each source's diagnostics document; built.assembly: the program-level check's diagnostics document
 ```
 
 - `built.program` is present when no component had an error and the program check found none. Otherwise it is `undefined` and `built.components` (per-source errors) and `built.assembly` (program-level, such as a missing root) say why. Warnings do not stop a program.
-- Pass **every** component that has a description. A component not listed has none and is a primitive: it is realized by the target (§5), not drawn from a description.
-- A view's `program` is used as returned. VALANCE does not read, check or change it; its structure is MESH's.
+- Pass **every** component that has a description. A component not listed has none and is a primitive (MESH's rule): the target realizes it from the `primitives` table (§16), not from a description.
+- A view's `program` is used as returned. VALANCE does not read, check or change it; its structure is MESH's, and a program MESH cannot render is reported as `MeshDiagnostics` when a mount (or `renderToHtml`) first renders it (§10).
 - Its exact behavior (inputs, the checks, the diagnostics) is MESH's: see the compiler package's README. Everything VALANCE needs is the value it returns.
 
 ## 16. The browser host: `Web.run`
@@ -256,15 +257,17 @@ const host = await Web.run(app, { container, primitives, present: "mount" /* or 
 
 - `present` is explicit and never inferred from the container. `"mount"` creates the presentation (anything the container held is replaced). `"hydrate"` adopts server-rendered markup (`mounted.hydration` reports whether it did, §6). `state` and `platform` are `start`'s options; `history`, when present, is `Web.history`'s options, handed on unread; absent, the URL is not kept in step.
 - `handle` and `mounted` are exactly what `start` and `mount` / `hydrate` return.
-- `stop()` closes the page's one lifetime in the order the Scope of §9 gives: URL synchronization, then the presentation, then the application (admitted commands interrupted and awaited, resources released). Calling it again returns the same completion.
+- `run` resolves once the first presentation has been made; `history`'s baseline is taken asynchronously after that (§8). `stop()` closes the page's one lifetime in the order of one Scope that holds all three (§9): URL synchronization, then the presentation, then the application (admitted commands interrupted and awaited, resources released). Calling it again returns the same completion.
 - **Startup failure** rejects with the failure itself (the typed `StartError`, `MeshDiagnostics`, or the defect), after the lifetime it had begun has been closed. Nothing is logged, written to the page or committed by the host.
-- After startup, how things end is observed through `handle`, `mounted.followed`, `mounted.settled` and `mounted.dispatched`, as in §6.
+- After startup, the host reports nothing itself: how things end is observed through `handle`, `mounted.followed`, `mounted.settled` and `mounted.dispatched`, as in §6. (`history` still logs a failed popstate, §8.)
+- `run` is for an ordinary page: it needs a DOM `container`. A server uses `renderToHtml` (§17); headless use is `start` (§2).
 - Several mounts, independent lifetimes, a custom target and headless use are the core's own: compose `start`, `mount`, `hydrate` and `history` yourself.
 
 ## 17. Server rendering: `renderToHtml`
 
 `renderToHtml(app, { primitives, state?, platform? })` (from `@valancex/valance/web/server`) starts the application, renders its current view once, ends it, and returns `Effect<{ html, state }, StartError | MeshDiagnostics>`. There is no target object and no DOM.
 
-- `html` is the render written as HTML with the same `primitives` the client uses; `state` is the state it was rendered from. Embedding `state` in the page is the application's job.
+- It uses `start`, so a `platform` is acquired and released for that one render (§4); no command runs.
+- `html` is the render written as HTML (use the same `primitives` as the client, so hydration can adopt it); `state` is the state it was rendered from. Embedding `state` in the page is the application's job.
 - The client takes the markup over with `present: "hydrate"` and that `state` (§6, §16). A mismatch is not a failure.
 - Failure is the same typed failures as `start` and a render's `MeshDiagnostics`.
