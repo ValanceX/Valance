@@ -41,6 +41,8 @@ If you start the application with a state that is already `ready` (for example t
 
 Startup work has **no caller waiting for it**. If it fails and nothing catches the failure, nobody hears about it: state is unchanged, the application keeps running, and the screen does not change.
 
+The usual way to meet this is forgetting the `platform` a command's capability comes from: the command fails with `CapabilityUnavailableError`, and the screen simply stays in its starting state. To see why, run the same command with `invoke` (in a test, for example): `invoke` tells its caller.
+
 So if a failure should be visible, make it state, exactly as for any async work: catch it in the command and commit it (`phase: "failed"` in the example). VALANCE has no startup error channel; the state is the channel.
 
 What *can* fail at start itself is reported to whoever started the application, before anything runs:

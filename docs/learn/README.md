@@ -43,7 +43,7 @@ Then use the [common tasks](#common-tasks) below, and the [API reference](../use
 | Run something once when the application starts | `start: "app/startup"`, an ordinary command key | [Startup work](startup-work.md), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
 | Ignore an out-of-date answer | Keep a request counter; drop a result that is not the newest | [Async work](async-work.md#when-an-answer-arrives-late) |
 | Show a failure from background work | Commit it as state; nobody is waiting to be told | [Async work](async-work.md#failure-and-who-sees-it) |
-| Give commands a resource | Pass a `platform` to `start`; commands reach it by capability | [§4](../V1_CONTRACT.md#4-capabilities-and-resources) |
+| Give commands a service (an API client, a clock) | Declare a capability, supply it in a `platform` passed to `start` | [Async work](async-work.md#using-a-service-the-platform-provides), [§4](../V1_CONTRACT.md#4-capabilities-and-resources) |
 | Keep a resource past one command | Acquire it into the application's lifetime through the platform | [Async work](async-work.md#long-lived-resources) |
 | Make URLs follow state | `history` option of `Web.run`, with `urlOf` / `stateOf` | [§8](../V1_CONTRACT.md#8-history) |
 | Render on a server, then take over in the browser | `renderToHtml` on the server, then `present: "hydrate"` with the state it returned. Startup work begins during a server render | [Mounting and hydration](mounting-and-hydration.md#server-rendering-and-startup-work), [§17](../V1_CONTRACT.md#17-server-rendering-rendertohtml) |

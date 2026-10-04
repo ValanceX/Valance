@@ -65,6 +65,8 @@ const app = (fetchName: (id: string, signal: AbortSignal) => Promise<string>) =>
 });
 ```
 
+Annotate the state type on `scope` (`(state: State)`, as above). Without it TypeScript may infer the state from the literals in `initial` (`phase: "loading"` becomes `string`) and report an error that points at the schema, not at the cause.
+
 Read it as three ideas:
 
 1. **Waiting is part of a command.** `fetchProfile` sets `loading`, waits for `fetchName`, then commits the result. Nothing is committed while it waits, and the screen keeps showing `loading`.
@@ -104,6 +106,29 @@ Because each commit is a state, the screen follows: `Loading…`, then `Hello, A
 | the application itself (`start`) | **only** what the command committed: there is no caller waiting |
 
 So: if a failure should be visible, commit it. The example turns a failed fetch into `phase: "failed"`, which every route above shows. Do not rely on a failure being reported to someone; a command that is not waited for is not heard from. (More in [Startup work](startup-work.md#failure).)
+
+## Using a service the platform provides
+
+Real work usually goes through something the environment supplies: an API client, a clock, storage. Declare what the command needs, then supply it where the application is started. That keeps the application free of any one environment, so a test can supply a fake.
+
+```ts
+interface QuoteService {
+  readonly fetch: (topic: string) => Effect.Effect<string, { readonly _tag: "Offline" }>;
+}
+const QuoteService = Nexus.Capability.define<QuoteService>("example/quotes");   // the name the platform registers it under
+
+// in a command:
+const quotes = yield* Nexus.Capability.require(QuoteService);
+const text = yield* quotes.fetch("general");
+
+// where the application is started:
+const platform: Nexus.Application.Platform = Nexus.Capability.EnvironmentLive(new Map([
+  [QuoteService.id, { _tag: "Available" as const, implementation: realService }],
+]));
+Valance.start(app, { platform });   // or Web.run(app, { …, platform })
+```
+
+If the platform does not supply it, the command fails with `CapabilityUnavailableError`. For work the application starts itself, that failure is silent ([Startup work](startup-work.md#failure)).
 
 ## Long-lived resources
 
@@ -155,7 +180,7 @@ import * as Nexus from "@valancex/nexus";   // Nexus.Command.define: a command t
 import { Effect, Schema } from "effect";     // Effect describes the waiting; Schema describes the input
 ```
 
-You do not need to know more about either to read the example: `Effect.gen` with `yield*` is "do this, wait, then do that", and `Nexus.Command.define(name, input, body)` makes a command of it. They are the engines VALANCE is built on; the pages under [Understand](../understand/README.md) explain them if you want to. `Valance.entry` binds any such command to a name exactly as it binds a pure one.
+You do not need to know more about either to read the example: `Effect.gen` with `yield*` is "do this, wait, then do that", and `Nexus.Command.define(name, input, body)` makes a command of it. (`name` identifies the command in its own error messages; it is separate from the key you give `Valance.entry` in the table, which is what events and `invoke` use. `state.update` takes a function that returns an `Effect`, which is why the example wraps results in `Effect.succeed`.) They are the engines VALANCE is built on; the pages under [Understand](../understand/README.md) explain them if you want to. `Valance.entry` binds any such command to a name exactly as it binds a pure one.
 
 ## Exact rules
 
