@@ -9,7 +9,7 @@ import type { WebPort } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import { compile } from "@valancex/mesh-compiler";
+import { compileProgram } from "@valancex/mesh-compiler";
 import { renderToHtml } from "@valancex/valance/web/server";
 import { Cause, Effect, Exit, Schema, Scope } from "effect";
 
@@ -39,11 +39,11 @@ const source = `<page title={title}>
   <mesh-each items={items} as="item" key={item.id}><row><text>{item.id}</text><button on.click={tap(item.tag)}>x</button></row></mesh-each>
 </page>`;
 const program = async (root: "va" | "vb") => {
-  const result = await compile({ source, path: `${root}.mprx`, model: { manifest, path: "components.json", component: root } });
+  const result = await compileProgram({ model: { manifest, path: "components.json" }, root, components: [{ component: root, source, path: `${root}.mprx` }] });
 
-  if (result.template === undefined) { throw new Error(JSON.stringify(result.diagnostics)); }
+  if (result.program === undefined) { throw new Error(JSON.stringify(result.assembly ?? result.components)); }
 
-  return { root, templates: [JSON.stringify(result.template)], model: manifest };
+  return result.program;
 };
 const programs = { va: await program("va"), vb: await program("vb") };
 

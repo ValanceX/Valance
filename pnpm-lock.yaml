@@ -25,8 +25,8 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.8.0
-        version: 0.8.0
+        specifier: ^0.9.0
+        version: 0.9.0
       '@valancex/mesh-runtime':
         specifier: ^0.8.0
         version: 0.8.0
@@ -455,8 +455,8 @@ packages:
   '@types/tough-cookie@4.0.5':
     resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
 
-  '@valancex/mesh-compiler@0.8.0':
-    resolution: {integrity: sha512-CH6eJYGNmC32I6W9oZQMxXUa2QXkVAiEhP284l2J1DVRn0o22bo9THykvFUqqgczo+/HNM2JS2air66u99cCBA==}
+  '@valancex/mesh-compiler@0.9.0':
+    resolution: {integrity: sha512-4SaFJgSwfCWSeeSlV0BTHfxdB+TFgEdIn1yegOtUDut0mVk65VdLp9gFurvAJlM2+LSvrL50OP3hLSrj+bFAbg==}
     engines: {node: '>=22'}
 
   '@valancex/mesh-runtime@0.8.0':
@@ -1176,7 +1176,7 @@ snapshots:
 
   '@types/tough-cookie@4.0.5': {}
 
-  '@valancex/mesh-compiler@0.8.0': {}
+  '@valancex/mesh-compiler@0.9.0': {}
 
   '@valancex/mesh-runtime@0.8.0': {}
 
