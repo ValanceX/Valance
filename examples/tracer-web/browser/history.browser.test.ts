@@ -303,4 +303,9 @@ it("probe: Back the moment the push lands, while the about program may still be 
   // (Stage 3: every commit was rendered here. Since Stage 16 a mount presents the latest state, so this asserts what the probe's timing produced, not a guarantee: C32.)
   expect(operations[0]).toBe("hydrate");                                              // then whatever the mount presented on the way to the final state (home), at most about and home
   expect(operations.length).toBeLessThanOrEqual(3);
+
+  // Leave no forward entry behind: Chromium runs the browser test files in one joint session history, and a forward entry makes the NEXT test's first pushState truncate it
+  // instead of growing `history.length` (page-navigation counts its own entries). The application is closed here, so this popstate handles nothing.
+  window.history.forward();
+  await expect.poll(() => url()).not.toBe(HOME);
 });
