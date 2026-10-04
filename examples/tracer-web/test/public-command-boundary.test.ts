@@ -29,7 +29,7 @@ const world = async (only?: string) => {
     views: { only: { program: programs.notfound, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const bind = <I, A>(name: string, schema: Schema.Schema<I, A>, body: (input: I) => Effect.Effect<unknown, unknown>) =>
-        Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, ((input: I) => { log.push(`enter ${name}`); return body(input); }) as never), (args) => ({ value: "value" in args[0]! ? args[0].value : undefined }) as never);
+        Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, ((input: I) => { log.push(`enter ${name}`); return body(input); }) as never), (args) => ({ value: args[0] !== undefined && "value" in args[0] ? args[0].value : undefined }) as never);
       const setN = (n: number) => state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n }));
       const all = {
         "app/set": bind("set", Schema.Struct({ value: Schema.Number }), ({ value }: { value: number }) => Effect.asVoid(setN(value))),
