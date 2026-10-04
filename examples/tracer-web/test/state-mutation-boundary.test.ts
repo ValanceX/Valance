@@ -12,11 +12,10 @@ import { Cause, Effect, Exit, Fiber, Schema, Scope, Stream } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { primitives } from "../src/catalog/web.js";
 import { load, until } from "./helpers.js";
 
-const programs = await compilePrograms();
 const State = Schema.Struct({ n: Schema.Number });
 type State = Schema.Schema.Type<typeof State>;
 const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
@@ -28,7 +27,7 @@ const kind = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit)
 const world = async () => {
   const app = Valance.define({
     name: "mutation", state: { schema: State, initial: { n: 0 } },
-    views: { only: { program: programs.notfound, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
+    views: { only: { program: titleProgram, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const bind = (name: string, schema: Schema.Schema<never, never>, body: (input: never) => Effect.Effect<unknown, unknown>, input: (args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => unknown) =>
         Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, body as never), input as never);

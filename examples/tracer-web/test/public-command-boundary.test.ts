@@ -11,11 +11,10 @@ import * as Web from "@valancex/valance/web";
 import { Cause, Effect, Exit, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { primitives } from "../src/catalog/web.js";
 import { load, until } from "./helpers.js";
 
-const programs = await compilePrograms();
 const State = Schema.Struct({ n: Schema.Number });
 type State = Schema.Schema.Type<typeof State>;
 const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
@@ -26,7 +25,7 @@ const world = async (only?: string) => {
   const log: Array<string> = [];
   const app = Valance.define({
     name: "commands", state: { schema: State, initial: { n: 0 } },
-    views: { only: { program: programs.notfound, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
+    views: { only: { program: titleProgram, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const bind = <I, A>(name: string, schema: Schema.Schema<I, A>, body: (input: I) => Effect.Effect<unknown, unknown>) =>
         Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, ((input: I) => { log.push(`enter ${name}`); return body(input); }) as never), (args) => ({ value: args[0] !== undefined && "value" in args[0] ? args[0].value : undefined }) as never);

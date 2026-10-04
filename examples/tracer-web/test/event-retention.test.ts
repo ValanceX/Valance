@@ -79,6 +79,8 @@ const build = async (canaries: Canaries) => {
       };
 
       return {
+        // the borrowed home program also declares Reverse: bound (a no-op) because the harness uses that program, though nothing here presses it
+        "home/reverse": Nexus.Mesh.bind(Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.void), () => ({})),
         "home/open": Nexus.Mesh.bind(Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), ({ id }) => behavior(id)), (args) => ({ id: firstValue(args) })),
       } as unknown as Record<string, Nexus.Mesh.Binding<string, never>>;
     },

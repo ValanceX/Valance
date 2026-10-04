@@ -7,13 +7,12 @@ import * as Valance from "@valancex/valance";
 import { Cause, Effect, Exit, Fiber, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { compilePrograms } from "../src/catalog/compile.js";
+import { titleProgram } from "./title-program.js";
 import { runningOf } from "@valancex/valance/internal";
 import { Stream } from "effect";
 import { boot, sleep } from "./structure-fixture.js";
 import { until as untilTrue } from "./helpers.js";
 
-const programs = await compilePrograms();
 const State = Schema.Struct({ count: Schema.Number, log: Schema.Array(Schema.String) });
 type State = Schema.Schema.Type<typeof State>;
 
@@ -29,7 +28,7 @@ const world = async () => {
   const wait = (name: string) => Effect.promise(() => gate(name).promise);
   const app = Valance.define({
     name: "concurrency", state: { schema: State, initial: { count: 0, log: [] } },
-    views: { only: { program: programs.notfound, scope: (s: State) => ({ title: `c${s.count}` }) } }, view: () => "only" as const,
+    views: { only: { program: titleProgram, scope: (s: State) => ({ title: `c${s.count}` }) } }, view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const work = Nexus.Mesh.bind(Nexus.Command.define("s.work", Schema.Struct({ id: Schema.String, kind: Schema.String }), ({ id, kind }) => {
         const body = Effect.gen(function* () {
