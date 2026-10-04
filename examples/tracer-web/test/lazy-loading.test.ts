@@ -2,7 +2,8 @@
 //   loading    obtaining a program/impl asynchronously      -> an ordinary application-owned command (here the `start` command); nothing new
 //   admission  proving it may participate                   -> D ⊆ B for the loaded program, asked of MESH (`declaredEvents`) against the command table's keys
 //   use        executing it                                 -> MESH `render` of the admitted program, called by a command
-// Part 2 is an OBSERVATION of what stops a loaded program from being a VIEW: it forces one into `views` after `start`, which is outside the contract.
+// Part 2 is a CHARACTERIZATION of unsupported, out-of-contract behavior (dynamic views): it forces a loaded program into `views` after `start` to record what stops it.
+// It documents today's failure mode; it is NOT a requirement. A future late-admission design may change every assertion in it, and that is allowed.
 import type { Mesh } from "@valancex/nexus";
 
 import { compileProgram } from "@valancex/mesh-compiler";
@@ -238,7 +239,7 @@ describe("part 1: loading, admission and use, inside the existing contract", () 
   });
 });
 
-describe("part 2: observation (outside the contract): what stops an admitted program from being a VIEW", () => {
+describe("part 2: characterization of UNSUPPORTED behavior (not a contract): a loaded program forced in as a VIEW", () => {
   it("6: forcing it into `views` after start: an event-free program renders (render reads `views` live); an event-bearing one draws but its event is a defect, no host was built for it at start", async () => {
     const b = await boot({ mount: true });
 
