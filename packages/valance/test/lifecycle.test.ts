@@ -8,6 +8,7 @@ import { Cause, Chunk, Effect, Exit, Layer, Schema, Scope, Stream } from "effect
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
+import { eventFreeProgram } from "./event-free-program.js";
 import { runningOf } from "../src/internal.js";
 
 const State = Schema.Struct({ n: Schema.Number });
@@ -15,7 +16,7 @@ const State = Schema.Struct({ n: Schema.Number });
 const application = Valance.define({
   name: "lifecycle",
   state: { schema: State, initial: { n: 0 } },
-  views: { main: { program: { root: "main", templates: [], model: "{}" }, scope: () => ({}) } },
+  views: { main: { program: eventFreeProgram, scope: () => ({}) } },
   view: () => "main" as const,
   commands: (state) => ({
     "app/bump": Nexus.Mesh.bind(Nexus.Command.define("t.bump", Schema.Struct({}), () => state.update((current) => Effect.succeed({ n: current.n + 1 })).pipe(Effect.asVoid)), () => ({})),

@@ -13,6 +13,7 @@ import { application as catalogApplication, stateOf, urlOf, type Item } from "..
 import { compilePrograms } from "../src/catalog/compile.js";
 import { initialStateAt, primitives } from "../src/catalog/web.js";
 import { until } from "./helpers.js";
+import { titleProgram } from "./title-program.js";
 
 const programs = await compilePrograms();
 
@@ -278,7 +279,7 @@ describe("Web.run: failure facts are the core's own", () => {
     const Bad = Schema.Struct({ bad: Schema.Boolean });
     const app = Valance.define({
       name: "bad-first-render", state: { schema: Bad, initial: { bad: true } },
-      views: { only: { program: programs.notfound, scope: (state: { readonly bad: boolean }) => ({ title: state.bad ? (42 as never) : "ok" }) } },   // the first render violates the manifest
+      views: { only: { program: titleProgram, scope: (state: { readonly bad: boolean }) => ({ title: state.bad ? (42 as never) : "ok" }) } },   // the first render violates the manifest
       view: () => "only" as const,
       commands: () => ({}),
     });

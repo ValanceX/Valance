@@ -6,6 +6,7 @@ import * as Nexus from "@valancex/nexus";
 import { Cause, Deferred, Effect, Exit, Fiber, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 import * as Valance from "../src/index.js";
+import { eventFreeProgram } from "./event-free-program.js";
 
 const State = Schema.Struct({ commits: Schema.Array(Schema.String) });
 type State = Schema.Schema.Type<typeof State>;
@@ -18,7 +19,7 @@ const rig = async (modes: Record<string, Mode>) => {
   const gates = Object.fromEntries(Object.keys(modes).map((name) => [name, Effect.runSync(Deferred.make<void>())]));
   const app = Valance.define({
     name: "shutdown", state: { schema: State, initial: { commits: [] } },
-    views: { main: { program: { root: "main", templates: [], model: "{}" }, scope: () => ({}) } }, view: () => "main" as const,
+    views: { main: { program: eventFreeProgram, scope: () => ({}) } }, view: () => "main" as const,
     commands: (state: Nexus.State.StateHandle<State>) => Object.fromEntries(Object.entries(modes).map(([name, mode]) => {
       const wait = Deferred.await(gates[name]!).pipe(Effect.onInterrupt(() => Effect.sync(() => { timeline.push(`${name} interrupted`); })));
       const body = Effect.gen(function* () {

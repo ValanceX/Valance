@@ -7,6 +7,7 @@ import { Cause, Clock, Effect, Exit, Fiber, FiberRef, Layer, Schema } from "effe
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import * as Valance from "../src/index.js";
+import { eventFreeProgram } from "./event-free-program.js";
 
 const State = Schema.Struct({ n: Schema.Number, clock: Schema.Number, seen: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
@@ -34,7 +35,7 @@ const application = Valance.define({
   name: "entry",
   state: { schema: State, initial: { n: 0, clock: 0, seen: "" } },
   // Never rendered here: a view exists because an application has one.
-  views: { main: { program: { root: "main", templates: [], model: "{}" }, scope: () => ({}) } },
+  views: { main: { program: eventFreeProgram, scope: () => ({}) } },
   view: () => "main" as const,
   commands: (state) => {
     const set = Nexus.Command.define("t.set", Schema.Struct({ n: Schema.Number }), ({ n }) => state.update((current) => Effect.succeed({ ...current, n })).pipe(Effect.asVoid));

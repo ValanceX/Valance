@@ -29,10 +29,15 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 ```
 
 - `define` returns the definition unchanged. An application is data; defining one starts nothing.
-- `start` creates **exactly one application lifetime** for the Scope it runs in, and returns the handle only once the state exists and commands are admitted. It does no presentation, no URL work and creates no mount or history.
+- `start` creates **exactly one application lifetime** for the Scope it runs in, and returns the handle only once the state exists, the programs of every view have passed MESH's checks, every event they declare has a command-table key (below), and commands are admitted. It does no presentation, no URL work and creates no mount or history.
 - **One handle is one application.** Every operation made from a handle (`state`, `invoke`, mounts, histories) refers to that application's state, command registry and lifetime. Two `start`s are two applications and share nothing. There is no global current application.
 - The **caller owns the application's Scope.** Closing it ends the application (section 9). VALANCE keeps nothing that outlives it, never restarts an application, and offers no shutdown call of its own.
-- `start` failure is typed and yields no handle: an initial state that fails the schema is `InitialValueInvalid`; a platform that fails to initialize is `ServiceGraphFailed`. Whatever the platform had already acquired belongs to the caller's Scope and is released when that Scope closes. A Scope that is already closed, or that closes while `start` is still running, cannot produce an application: `start` dies with `NEXUS: the runtime has begun terminating`.
+- `start` failure is typed and yields no handle. It is one of: an initial state that fails the schema (`InitialValueInvalid`); a platform that fails to initialize (`ServiceGraphFailed`); a view's MESH program that MESH rejects (`MeshDiagnostics`, MESH's own diagnostics for that program: they depend on the program alone, never on state); or a conformance failure (`ConformanceViolation`, below). No command has been admitted, because commands are admitted only through a handle. Whatever the platform had already acquired belongs to the caller's Scope and is released when that Scope closes. A Scope that is already closed, or that closes while `start` is still running, cannot produce an application: `start` dies with `NEXUS: the runtime has begun terminating`.
+- **Conformance (`D ⊆ B`).** `start` returns a handle only if every event the application's programs declare has an entry in its command table.
+  - **D** is the set of `component/command` keys MESH reports as declared by the program of **every** view, whether or not that view is current, whether or not the declaring branch is currently rendered (an inactive conditional branch, a repeated body, a composite's own template all count). VALANCE asks MESH (`declaredEvents`); it reads no program. A key declared more than once is one requirement. No reachability is analysed.
+  - **B** is the own keys of the table `commands(state)` returned. It is the application's: keys MESH never declares (`app/...` entries, history's navigate key) are permitted. Only `D ⊆ B` is checked, never `B ⊆ D`.
+  - The checks run after `commands(state)` has returned, in this order: the programs' MESH diagnostics (the first view, in the definition's order, that has any fails `start` with them, and `D ⊆ B` is then not evaluated, because D is not complete), then conformance. A conformance failure lists **every** declaration whose key is absent: the view, the declaring component, the event, the command, the key `component/command`, and MESH's span in that component's template source (it names no file), in the order of the definition's views and then MESH's order.
+  - It states **only that the key is present**. It does not state that a NEXUS command exists, that the entry runs any particular command, that the event's arguments fit it, or that running it succeeds: none of that is checked or promised.
 
 ## 3. State and commands
 
@@ -40,7 +45,7 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 
 - `handle.state` reads the current committed state. A read creates no subscription and no obligation for anyone to present it. A commit is readable as soon as it completes.
 - A **command** is the only way state changes. `commands(state)` maps keys to NEXUS command bindings. Keys of the form `"component/name"` are the intents a MESH program can raise; other keys (`"app/..."`) are for `invoke`. Both enter the same table.
-- A key resolves **in its own application's registry**. An unknown key fails with the typed `UnmappedCommand`, before admission, and nothing runs. A key defined in another application is unknown here.
+- A key resolves **in its own application's registry**. An unknown key fails with the typed `UnmappedCommand`, before admission, and nothing runs. A key defined in another application is unknown here. For the events its programs declare, `start` has already established that the key is present (§2); this lookup nevertheless runs for every `invoke` and every dispatched event and stays total: a key MESH never declared (`app/...`, a mistake), another application's key, or a render that did not come from this application's programs is still the typed `UnmappedCommand`. That is defense in depth below `start`'s guarantee, not something a started application's own events can reach.
 - **Input** is validated by the command's schema before its body runs. Invalid or missing input fails with the typed `CommandValidationError`; the body is not entered and nothing commits. The body receives the decoded value.
 - **Admission** happens when the invocation runs, not when `invoke(...)` is called. After the application's Scope has begun closing, every run is refused with a defect (section 9).
 - Inside a command, state is changed through the handle the application is given:
@@ -144,12 +149,14 @@ Closing the application and a mount at the same time breaks neither boundary; no
 |---|---|---|
 | Initial state invalid | typed `InitialValueInvalid`, no handle | the caller of `start` |
 | Platform fails to initialize | typed `ServiceGraphFailed`, no handle | the caller of `start` |
-| Unknown command key | typed `UnmappedCommand`, nothing admitted | the caller of `invoke` / history's log |
+| A view's program has MESH diagnostics (they depend on the program alone) | typed `MeshDiagnostics`, no handle; every view is checked, the first in the definition's order is reported | the caller of `start` |
+| A declared event has no command-table key | typed `ConformanceViolation` listing every such declaration, no handle | the caller of `start` |
+| Unknown command key | typed `UnmappedCommand`, nothing admitted (runtime defense, §3) | the caller of `invoke` / history's log / a dispatch's ledger entry |
 | Command input invalid | typed `CommandValidationError`, body not entered | the caller of `invoke` |
 | `State.set` invalid | typed `StateValidationFailed`, no commit | the command |
 | Capability fails before a commit | command fails, nothing committed | the command's caller; the application continues |
 | Capability fails after a commit | command fails, commit stays | the command's caller; consumers see the commit |
-| MESH cannot render a state | typed `MeshDiagnostics` for each mount that renders it | those mounts become inert; others may skip it |
+| MESH cannot render a state (diagnostics that depend on the values the view's scope produced) | typed `MeshDiagnostics` for each mount that renders it | those mounts become inert; others may skip it |
 | Target `draw`/`update` throws | defect in that mount | that mount becomes inert, last good render retained |
 | First `draw`/`hydrate` fails | no `Mounted` | the caller of `mount`/`hydrate` |
 | Application Scope closes | admission refused, state readable | commands refused; mounts end inert; history inert |
@@ -243,7 +250,7 @@ const built = await compileProgram({
 
 - `built.program` is present when no component had an error and the program check found none. Otherwise it is `undefined` and `built.components` (per-source errors) and `built.assembly` (program-level, such as a missing root) say why. Warnings do not stop a program.
 - Pass **every** component that has a description. A component not listed has none and is a primitive (MESH's rule): the target realizes it from the `primitives` table (§16), not from a description.
-- A view's `program` is used as returned. VALANCE does not read, check or change it; its structure is MESH's, and a program MESH cannot render is reported as `MeshDiagnostics` when a mount (or `renderToHtml`) first renders it (§10).
+- A view's `program` is used as returned. VALANCE does not parse it, inspect its templates, interpret it or change it: its structure and meaning are MESH's. VALANCE hands it to MESH, which validates it and says which events it declares (`declaredEvents`), and VALANCE compares those keys with the command table (§2). A program MESH rejects at program level fails `start`, for every view (§2, §10). Diagnostics that depend on the values a view's scope produces are reported as `MeshDiagnostics` when a mount (or `renderToHtml`) renders that state (§10).
 - Its exact behavior (inputs, the checks, the diagnostics) is MESH's: see the compiler package's README. Everything VALANCE needs is the value it returns.
 
 ## 16. The browser host: `Web.run`
@@ -258,7 +265,7 @@ const host = await Web.run(app, { container, primitives, present: "mount" /* or 
 - `present` is explicit and never inferred from the container. `"mount"` creates the presentation (anything the container held is replaced). `"hydrate"` adopts server-rendered markup (`mounted.hydration` reports whether it did, §6). `state` and `platform` are `start`'s options; `history`, when present, is `Web.history`'s options, handed on unread; absent, the URL is not kept in step.
 - `handle` and `mounted` are exactly what `start` and `mount` / `hydrate` return.
 - `run` resolves once the first presentation has been made; `history`'s baseline is taken asynchronously after that (§8). `stop()` closes the page's one lifetime in the order of one Scope that holds all three (§9): URL synchronization, then the presentation, then the application (admitted commands interrupted and awaited, resources released). Calling it again returns the same completion.
-- **Startup failure** rejects with the failure itself (the typed `StartError`, `MeshDiagnostics`, or the defect), after the lifetime it had begun has been closed. Nothing is logged, written to the page or committed by the host.
+- **Startup failure** rejects with the failure itself (a typed failure of `start`, §2, or of the first presentation, `MeshDiagnostics`; or the defect), after the lifetime it had begun has been closed. Nothing is logged, written to the page or committed by the host.
 - After startup, the host reports nothing itself: how things end is observed through `handle`, `mounted.followed`, `mounted.settled` and `mounted.dispatched`, as in §6. (`history` still logs a failed popstate, §8.)
 - `run` is for an ordinary page: it needs a DOM `container`. A server uses `renderToHtml` (§17); headless use is `start` (§2).
 - Several mounts, independent lifetimes, a custom target and headless use are the core's own: compose `start`, `mount`, `hydrate` and `history` yourself.
@@ -267,7 +274,7 @@ const host = await Web.run(app, { container, primitives, present: "mount" /* or 
 
 `renderToHtml(app, { primitives, state?, platform? })` (from `@valancex/valance/web/server`) starts the application, renders its current view once, ends it, and returns `Effect<{ html, state }, StartError | MeshDiagnostics>`. There is no target object and no DOM.
 
-- It uses `start`, so a `platform` is acquired and released for that one render (§4); no command runs.
+- It uses `start`, so a `platform` is acquired and released for that one render (§4); no command runs. Every failure of `start` (§2), conformance included, is its failure: a page is never served from an application that cannot start.
 - `html` is the render written as HTML (use the same `primitives` as the client, so hydration can adopt it); `state` is the state it was rendered from. Embedding `state` in the page is the application's job.
 - The client takes the markup over with `present: "hydrate"` and that `state` (§6, §16). A mismatch is not a failure.
 - Failure is the same typed failures as `start` and a render's `MeshDiagnostics`.

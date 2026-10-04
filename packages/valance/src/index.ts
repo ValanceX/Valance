@@ -5,7 +5,8 @@
  *
  *   define(app)            data: program, state, scope, command bindings. No target, no platform.
  *   start(app, options)    starts the NEXUS application in the CALLER's Scope; supplies the platform;
- *                          creates the application's state and its MESH host; returns the application's handle:
+ *                          creates the application's state and its MESH host; checks that every event the views' programs declare has
+ *                          a command-table key (MESH says what is declared; Contract §2); returns the application's handle:
  *                          its `state` and `invoke`, and nothing of the composition (see ./internal).
  *   mount / hydrate        connects a PORT target to a started application: draws (or adopts server
  *                          server output for) the current render, follows later renders as updates, and
@@ -17,8 +18,9 @@
  * Nothing here is target-specific. A target is whatever satisfies `Target`, which is PORT's
  * contract (draw / update / unmount, plus hydrate where a PORT has one) and nothing more.
  */
-import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
+import type { BoundaryValue, DeclaredEvent, RenderTree, SourceSpan } from "@valancex/mesh-runtime";
 
+import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { handleOf, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
@@ -93,7 +95,31 @@ export const entry = <I, O, E, R>(
 ): Nexus.Mesh.Binding<E | Nexus.Command.CommandValidationError, R> =>
   Nexus.Mesh.bind(run, (args) => input === undefined ? {} : input(...args.map(plain)));
 
-export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError;
+/**
+ * One event a view's program declares whose `component/command` key the application's command table lacks. `key`, `component` and `command`
+ * are MESH's declaration; `view` is the application's name for the program; `span` is MESH's, in the source of `component`'s template (it names no file).
+ */
+export interface UnmappedDeclaration {
+  readonly view: string;
+  readonly component: string;
+  readonly event: string;
+  readonly command: string;
+  readonly key: string;
+  readonly span: SourceSpan;
+}
+
+/**
+ * `start`'s conformance failure (D ⊆ B, Contract §2): every event the programs of ALL the application's views declare needs an entry in the command table.
+ * `missing` lists each declaration whose key is absent: in the order of the definition's views, then MESH's order. It says only that a key is absent: nothing
+ * about a command, a binding, arguments or success.
+ */
+export type ConformanceViolation = { readonly _tag: "ConformanceViolation"; readonly missing: ReadonlyArray<UnmappedDeclaration> };
+
+/**
+ * Why `start` yields no handle: NEXUS's state and platform failures; the diagnostics MESH reports for a view's program (the first view, in the definition's order,
+ * that has any: they depend on the program alone, never on state); or the conformance failure.
+ */
+export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError | Nexus.Mesh.MeshDiagnostics | ConformanceViolation;
 
 export interface StartOptions<S> {
   /** Supplied to NEXUS `Application.start`, where platform services (capabilities, Clock, …) enter. */
@@ -151,6 +177,32 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
     }));
     const state = yield* Nexus.Application.createState(nexus, app.state.schema, options.state ?? app.state.initial);
     const commands = app.commands(state);
+
+    // Conformance, D ⊆ B (Contract §2). B is the table's own keys. D is what MESH says the programs of EVERY view declare (unselected views, inactive
+    // conditional branches and repeated bodies included): VALANCE asks MESH and reads no program. A program MESH rejects has no declared events, so it fails
+    // `start` first (its diagnostics do not depend on state), and D ⊆ B is evaluated only for a complete D. A MESH package failure is a defect, as in a render.
+    const declared: Array<{ readonly view: string; readonly event: DeclaredEvent }> = [];
+
+    for (const [view, { program }] of Object.entries<View<S>>(app.views)) {
+      const result = yield* Effect.promise(() => declaredEvents({ program: { root: program.root, templates: program.templates }, model: program.model }));
+
+      if (result.diagnostics !== undefined) {
+        return yield* Effect.fail<Nexus.Mesh.MeshDiagnostics>({ _tag: "MeshDiagnostics", diagnostics: result.diagnostics });
+      }
+
+      declared.push(...result.events.map((event) => ({ view, event })));
+    }
+
+    const missing = declared.flatMap(({ view, event }): ReadonlyArray<UnmappedDeclaration> => {
+      const key = `${event.component}/${event.command}`;
+
+      return Object.hasOwn(commands, key) ? [] : [{ view, component: event.component, event: event.event, command: event.command, key, span: event.span }];
+    });
+
+    if (missing.length > 0) {
+      return yield* Effect.fail<ConformanceViolation>({ _tag: "ConformanceViolation", missing });
+    }
+
     // One host per view, used to dispatch (render, handler) → intent → command. The one NEXUS state is shared by all of them.
     const hosts = new Map<string, Nexus.Mesh.Host<E, R>>(Object.entries<View<S>>(app.views).map(([name, view]) => [name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands })]));
     // The render of one given state. The adapter renders a host's scope value, not a value it is handed, and a

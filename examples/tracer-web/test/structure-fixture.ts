@@ -55,7 +55,7 @@ export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(e
 export const scopeHook: { current?: ((state: State) => void) | undefined } = {};
 const scopeOf = (title: string) => (s: State) => { scopeHook.current?.(s); return { title: s.plain === true ? "T" : `${title}${s.n}`, show: s.show, items: s.ids.map((id) => ({ id, tag: `${s.tag ?? ""}${id}` })) }; };
 
-export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }, boot_options: { readonly omit?: ReadonlyArray<string> } = {}) => {
+export const boot = async (initial: State = { view: "a", show: false, ids: ["A", "B"], n: 0 }) => {
   const taps: Array<string> = [];
   const seen: Array<{ readonly id: string; readonly n: number; readonly tag: string; readonly view: string }> = [];
   const started: Array<string> = [];
@@ -80,7 +80,7 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
         taps.push(id);
       }); return gate.uninterruptible === true ? Effect.uninterruptible(body) : body; })), (args) => ({ id: "value" in args[0]! ? args[0].value : "" }));
 
-      const table = {
+      return {
         "app/ids": Nexus.Mesh.bind(Nexus.Command.define("s.ids", Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, ids })))), (args) => ({ ids: "value" in args[0]! ? args[0].value : [] })),
         "app/show": set("show", (c) => ({ ...c, show: true })),
         "app/hide": set("hide", (c) => ({ ...c, show: false })),
@@ -93,8 +93,6 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
         "app/same": set("same", (c) => c),                                    // the very same state object
         "va/tap": tap, "vb/tap": tap,
       } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
-
-      return Object.fromEntries(Object.entries(table).filter(([key]) => !(boot_options.omit ?? []).includes(key)));
     },
   });
   const appScope = await run(Scope.make());

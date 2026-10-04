@@ -67,6 +67,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      '@valancex/mesh-compiler':
+        specifier: ^0.9.0
+        version: 0.9.0
       '@valancex/mesh-runtime':
         specifier: ^0.8.0
         version: 0.8.0

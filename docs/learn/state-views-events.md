@@ -68,7 +68,7 @@ So a click goes:
 
 `"app/navigate"` is the same `enter`, reached from outside any screen: the browser's Back button, a test, a host page. There is one way into behavior. `Valance.entry` is what lets a command be reached by a view's event (`"list/open"`) or by name (`"app/navigate"`).
 
-The name `"component/name"` is the contract between a description and the application: `list/open` is the command `open` of the component `list`. A name with no entry fails with a clear error (`UnmappedCommand`) before anything runs.
+The name `"component/name"` is the contract between a description and the application: `list/open` is the command `open` of the component `list`. A declared name with no entry stops the application from starting (`ConformanceViolation`, Contract §2), and a name looked up at run time that has no entry still fails with a clear error (`UnmappedCommand`) before anything runs.
 
 ## URLs are the application's decision
 
