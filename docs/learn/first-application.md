@@ -64,14 +64,24 @@ const app = Valance.define({
   view: () => "counter",
   commands: (state) => {
     const command = Valance.command(state);
-    const increment = command(Schema.Struct({}), (_input, current) => ({ count: current.count + 1 }));
 
-    return { "counter/increment": Valance.entry(increment) };
+    return { increment: command((current) => ({ count: current.count + 1 })) };
   },
 });
 ```
 
-Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`. The command `increment` takes no input and returns the next state. `"counter/increment"` connects the button's `increment()` in the description to that command.
+Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`. A **command** is how the application changes: `increment` takes the current state and returns the next one. Its name is how the screen finds it: the button's `increment()` in the description runs the command called `increment`.
+
+A command that needs input says what it takes, and the event's arguments fill that in order:
+
+```ts
+add: command(
+  Schema.Struct({ amount: Schema.Number }),
+  ({ amount }, current) => ({ count: current.count + amount })
+),
+```
+
+The input is checked before the command runs, so a wrong argument changes nothing. (`Schema` comes from the `effect` package, which VALANCE uses to describe state and input.)
 
 ## 4. Run it in a page
 
@@ -104,7 +114,7 @@ const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }
 import { Exit, Scope } from "effect";
 const scope = await Effect.runPromise(Scope.make());
 const application = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-await Effect.runPromise(application.invoke("counter/increment", []));
+await Effect.runPromise(application.invoke("app/increment", []));      // from outside the screen: "app/" and the command's name
 await Effect.runPromise(application.state);                       // { count: 1 }
 await Effect.runPromise(Scope.close(scope, Exit.void));           // ends the application
 ```
@@ -117,7 +127,7 @@ A server-rendered page is taken over in the browser with `present: "hydrate"` an
 |---|---|---|
 | `State` + `initial` | the single state | [State, views and events](state-views-events.md) |
 | `counter.mprx` + `components.json` | a view description | [Contract §15](../V1_CONTRACT.md#15-building-a-view-description) |
-| `Valance.command` / `Valance.entry` | a command, and its binding to an event | [Contract §14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
+| `Valance.command` and the name `increment` | a command, found by its name | [Contract §14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
 | `Valance.define` | the application, as data | [Contract §2](../V1_CONTRACT.md#2-application) |
 | `Web.run` | one page, one lifetime | [Contract §16](../V1_CONTRACT.md#16-the-browser-host-webrun) |
 

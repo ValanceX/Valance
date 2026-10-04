@@ -24,7 +24,7 @@ Then use the [common tasks](#common-tasks) below, and the [API reference](../use
 | **event** | Something that happened on the screen (a click). A view description says which command an event runs. | [§7](../V1_CONTRACT.md#7-retained-render-and-interaction) |
 | **mount** | A view of the application drawn somewhere (a page element) and kept up to date. Closing it does not stop the application. | [§6](../V1_CONTRACT.md#6-mounts) |
 | **async work** | A command that waits (for data, a timer). Once it starts it belongs to the application; closing the application cancels it. Loading and failure are ordinary state. | [Async work](async-work.md), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
-| **startup work** | A command the application runs once, by itself, when it starts (`start: "app/startup"`). | [Startup work](startup-work.md), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
+| **startup work** | A command the application runs once, by itself, when it starts (`start: "startup"`). | [Startup work](startup-work.md), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
 | **resource** | Something an application owns and commands use (a connection, a clock): acquired when it starts, released when it ends. | [§4](../V1_CONTRACT.md#4-capabilities-and-resources) |
 | **history** | Keeping the browser URL and the application's state in step. The application decides what a URL means. | [§8](../V1_CONTRACT.md#8-history) |
 | **Scope** | Who is responsible for ending something. Only needed when you start an application yourself (`Web.run` does it for you): closing it ends the application or mount placed in it. | [§9](../V1_CONTRACT.md#9-scopes-and-shutdown) |
@@ -35,12 +35,13 @@ Then use the [common tasks](#common-tasks) below, and the [API reference](../use
 |---|---|---|
 | Run in a page | `Web.run(app, { container, primitives, present: "mount" })` | [§16](../V1_CONTRACT.md#16-the-browser-host-webrun) |
 | Add a view | Add an entry to `views` and have `view(state)` return its name | [§5](../V1_CONTRACT.md#5-views-and-presentation) |
-| Add a command | `Valance.command(state)(input, transition)`, then bind it with `Valance.entry` | [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
+| Add a command | Name it in `commands`: `increment: command((state) => nextState)`, or with input `command(Schema.Struct({…}), (input, state) => nextState)` | [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
+| Reuse one command for several events, with a constant or a different input | An exact `"component/name"` key with `Valance.entry` (the advanced form) | [State, views and events](state-views-events.md#when-an-events-input-needs-adapting), [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
 | Run a command from outside the screen (a test, a host page) | `application.invoke("app/name", args)` | [§2](../V1_CONTRACT.md#2-application), [§3](../V1_CONTRACT.md#3-state-and-commands) |
 | Read the state | `yield* application.state` | [§3](../V1_CONTRACT.md#3-state-and-commands) |
 | Compile view descriptions | `compileProgram(...)` at build time | [§15](../V1_CONTRACT.md#15-building-a-view-description) |
 | Wait for data in a command | Write the command as a general command that waits, commit `loading` / `ready` / `failed` as state | [Async work](async-work.md) |
-| Run something once when the application starts | `start: "app/startup"`, an ordinary command key | [Startup work](startup-work.md), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
+| Run something once when the application starts | `start: "startup"`, the name of an ordinary command | [Startup work](startup-work.md), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
 | Ignore an out-of-date answer | Keep a request counter; drop a result that is not the newest | [Async work](async-work.md#when-an-answer-arrives-late) |
 | Show a failure from background work | Commit it as state; nobody is waiting to be told | [Async work](async-work.md#failure-and-who-sees-it) |
 | Give commands a service (an API client, a clock) | Declare a capability, supply it in a `platform` passed to `start` | [Async work](async-work.md#using-a-service-the-platform-provides), [§4](../V1_CONTRACT.md#4-capabilities-and-resources) |

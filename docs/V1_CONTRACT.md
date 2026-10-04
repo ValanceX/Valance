@@ -226,14 +226,19 @@ The package's type declarations use TypeScript's `NoInfer` (so that an applicati
 
 ## 14. Authoring helpers: `command` and `entry`
 
-Two helpers make the commands table of §3 short to write. They add no behavior: each returns what `commands(state)` already accepts.
+Two helpers make the commands table of §3 short to write. They add no behavior: each returns what `commands(state)` already accepts. `command` is the ordinary one; `entry` is for the case where an event's input needs adapting.
 
 ```ts
+// ordinary: commands found by their NAME (§3, "Two key forms")
 const command = Valance.command(state);                                   // the state is bound first
-const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
+return {
+  increment: command((current) => ({ ...current, count: current.count + 1 })),                                                  // no input
+  add: command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount })),   // the event's arguments fill the fields, in order
+};
 
-// inside `commands: (state) => …`, with `command` and `add` made as above:
-return { "counter/add": Valance.entry(add, (amount) => ({ amount })) };      // an event argument becomes the command's input
+// advanced: one command, an exact key, and an input that is adapted (a constant here)
+const reset = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: amount }));
+return { "counter/clear": Valance.entry(reset, () => ({ amount: 0 })) };
 ```
 
 - `Valance.command(state)(input, transition)` returns an ordinary command whose whole behavior is `transition(validatedInput, currentState) → nextState`. `input` is a Schema: invalid input fails with the typed `CommandValidationError` before `transition` runs, and nothing commits.

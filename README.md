@@ -109,7 +109,7 @@ const app = Valance.define({
   commands: (state) => {
     const command = Valance.command(state);
     return {
-      "counter/increment": Valance.entry(command(Schema.Struct({}), (_input, current) => ({ count: current.count + 1 }))),
+      increment: command((current) => ({ count: current.count + 1 })),   // the screen's increment() runs this
     };
   },
 });

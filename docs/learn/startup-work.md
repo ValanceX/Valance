@@ -9,19 +9,19 @@ const app = Valance.define({
   name: "profile",
   // … state, views, view …
   commands: (state) => ({
-    "app/startup": Valance.entry(startup),        // an ordinary entry in the command table
-    "profile/reload": Valance.entry(reload),
+    startup,                                      // an ordinary command in the command table, found by its name
+    reload,
   }),
-  start: "app/startup",                           // run it once, at start
+  start: "startup",                               // run it once, at start
 });
 ```
 
-The complete application is on [Async work](async-work.md#a-profile-that-loads). Nothing about `app/startup` is special: it is a command, in the same table, and it can also be run by `invoke("app/startup", [])` (a retry button, a test).
+The complete application is on [Async work](async-work.md#a-profile-that-loads). Nothing about `startup` is special: it is a command, in the same table, and it can also be run by `invoke("app/startup", [])` (a retry button, a test).
 
 ## What it means
 
 - **It is a command.** It uses the same table, the same validation and the same way of changing state as any command. There is no second way for the application to do things.
-- **It takes no arguments.** There is no caller to supply any. (If your command needs input, give its entry a constant: `Valance.entry(load, () => ({ id: "me" }))`.)
+- **It takes no arguments.** There is no caller to supply any. (If the command needs input, supply a constant with an explicit entry, the advanced form from [State, views and events](state-views-events.md#when-an-events-input-needs-adapting): `"app/startup": Valance.entry(load, () => ({ id: "me" }))`.)
 - **The application owns it.** The host that started the application does not wait for it and is not responsible for it. Closing the application interrupts it and waits for it to stop, like any other command ([Async work](async-work.md#cancelling)).
 - **It starts with the application.** `start` has returned the application only after every check has passed, and the startup command is the last thing it does. If starting fails, nothing runs.
 - **It may finish before anything is on screen.** A mount made afterwards simply draws the state it finds.

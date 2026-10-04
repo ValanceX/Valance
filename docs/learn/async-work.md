@@ -57,11 +57,11 @@ const app = (fetchName: (id: string, signal: AbortSignal) => Promise<string>) =>
       Effect.flatMap(state.get, (current) => current.phase === "loading" ? fetchProfile("me") : Effect.void));
 
     return {
-      "profile/reload": Valance.entry(reload),         // the Reload button
-      "app/startup": Valance.entry(startup),           // run once, when the application starts
+      reload,                                          // the Reload button: the view's reload()
+      startup,                                         // run once, when the application starts
     };
   },
-  start: "app/startup",
+  start: "startup",
 });
 ```
 
@@ -69,7 +69,7 @@ Read it as three ideas:
 
 1. **Waiting is part of a command.** `fetchProfile` sets `loading`, waits for `fetchName`, then commits the result. Nothing is committed while it waits, and the screen keeps showing `loading`.
 2. **Loading, success and failure are ordinary state.** `phase` is a field like any other; `status` turns it into text for the view. There is no special "loading" mechanism, and no error object to catch somewhere else. A failure that the screen should show is a state the command commits.
-3. **Two things start the same work.** The **Reload** button runs `profile/reload`. `start: "app/startup"` runs `app/startup` once when the application starts ([Startup work](startup-work.md)). Both are commands in the one table.
+3. **Two things start the same work.** The **Reload** button runs the command named `reload`, the name the view uses. `start: "startup"` runs the command named `startup` once when the application starts ([Startup work](startup-work.md)). Both are commands in the one table, found by name.
 
 ## Cancelling
 
@@ -171,14 +171,14 @@ Notes:
 
 ## Where the imports come from
 
-Every example here is the ordinary form of a command that does more than compute the next state. Compared with `Valance.command` (a pure transition, [Your first application](first-application.md)), a command that waits is written as a general command, and that needs two imports you have not met:
+An ordinary command, one that only changes the state, is written with `Valance.command` ([Your first application](first-application.md)) and needs none of this. A command that **waits** is written as a general command instead, and that is the one place you meet two more imports:
 
 ```ts
 import * as Nexus from "@valancex/nexus";   // Nexus.Command.define: a command that can wait, fail or use a resource
 import { Effect, Schema } from "effect";     // Effect describes the waiting; Schema describes the input
 ```
 
-You do not need to know more about either to read the example: `Effect.gen` with `yield*` is "do this, wait, then do that", and `Nexus.Command.define(name, input, body)` makes a command of it. (`name` identifies the command in its own error messages; it is separate from the key you give `Valance.entry` in the table, which is what events and `invoke` use. `state.update` takes a function that returns an `Effect`, which is why the example wraps results in `Effect.succeed`.) They are the engines VALANCE is built on; the pages under [Understand](../understand/README.md) explain them if you want to. `Valance.entry` binds any such command to a name exactly as it binds a pure one.
+You do not need to know more about either to read the example: `Effect.gen` with `yield*` is "do this, wait, then do that", and `Nexus.Command.define(name, input, body)` makes a command of it. (`name` only appears in the command's own error messages; what events and `invoke` use is the property name in the table, `reload` or `startup` above. `state.update` takes a function that returns an `Effect`, which is why the example wraps results in `Effect.succeed`.) They are the engines VALANCE is built on; the pages under [Understand](../understand/README.md) explain them if you want to. Such a command goes in the same table, under its name, exactly like a pure one.
 
 ## Exact rules
 
