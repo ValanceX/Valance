@@ -35,7 +35,7 @@ it("deep link hydrates, loads, fails and recovers; overlapping picks keep the la
   const texts = () => [...main.querySelectorAll("span")].map((span) => span.textContent);
   const labels = () => [...main.querySelectorAll("button")].map((button) => button.textContent).join();
   const button = (label: string) => [...main.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
-  const host = await Web.run(application(served.programs, fetchDetail), { container: main, primitives, present: "hydrate", state: served.detail.state, history: { window, urlOf, stateOf, navigate: "app/navigate" } });
+  const host = await Web.run(application(served.programs, fetchDetail), { container: main, primitives, present: "hydrate", state: served.detail.state, history: { window, urlOf, stateOf, navigate: "select" } });
 
   // 1. hydration adopted the server's elements; the application's own start work fetches what the server could not
   expect(host.mounted.hydration).toMatchObject({ adopted: true });

@@ -132,7 +132,7 @@ describe("the browser: hydrate a server-rendered detail, then use it", () => {
     const served = await serve("/items?item=b");
     const p = page("http://localhost/items?item=b", served.html);
     const s = service();
-    const host = await Web.run(application(programs, s.fetchDetail), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, navigate: "app/navigate" } });
+    const host = await Web.run(application(programs, s.fetchDetail), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, navigate: "select" } });
 
     // hydration adopted the server's markup; the application's own startup work (not the host's) starts the fetch the server could not complete
     expect(host.mounted.hydration).toMatchObject({ adopted: true });
@@ -177,7 +177,7 @@ describe("the browser: hydrate a server-rendered detail, then use it", () => {
   it("the browser's Back while a request is in flight supersedes it: the late answer cannot reappear", async () => {
     const p = page("http://localhost/items", (await serve("/items")).html);
     const s = service();
-    const host = await Web.run(application(programs, s.fetchDetail), { container: p.container, primitives, present: "hydrate", state: stateFor("/items"), history: { window: p.win, urlOf, stateOf, navigate: "app/navigate" } });
+    const host = await Web.run(application(programs, s.fetchDetail), { container: p.container, primitives, present: "hydrate", state: stateFor("/items"), history: { window: p.win, urlOf, stateOf, navigate: "select" } });
 
     p.click("Alpha");
     await until(() => s.calls.length === 1 && p.texts()[1] === "Loading…");

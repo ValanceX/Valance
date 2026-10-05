@@ -50,11 +50,14 @@ const fakeWindow = (initial: string) => {
 
 type Navigate = (path: string, state: Nexus.State.StateHandle<App>) => Effect.Effect<unknown, Mesh.UnmappedCommand>;
 
+/** The exact binding key of the application's navigate command, passed through to `invoke` verbatim. (A bare name is a different form: see the last test.) */
+const NAVIGATE = "app/navigate";
+
 /** The normal navigate command: the state takes the path. */
 const navigates: Navigate = (path, state) => state.update((current) => Effect.succeed({ ...current, path }));
 
 /** Runs `body` with Web.history started over a real application whose navigate command is `navigate`. */
-const scenario = <A>(initial: { readonly browser: string; readonly state: App }, navigate: Navigate, body: (context: {
+const scenario = <A>(initial: { readonly browser: string; readonly state: App; readonly navigateOption?: string }, navigate: Navigate, body: (context: {
   readonly browser: ReturnType<typeof fakeWindow>;
   readonly state: Nexus.State.StateHandle<App>;
   readonly invoked: Array<unknown>;
@@ -77,11 +80,11 @@ const scenario = <A>(initial: { readonly browser: string; readonly state: App },
       invoked.push({ key, value });
       const path: unknown = typeof value === "object" && value !== null ? Reflect.get(value, "path") : undefined;
 
-      return key === "navigate" && typeof path === "string" ? navigate(path, state) : Effect.fail<Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component: "", name: key });
+      return key === NAVIGATE && typeof path === "string" ? navigate(path, state) : Effect.fail<Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component: "", name: key });
     },
   };
 
-  yield* history(handleOf(running), { window: browser.window, urlOf, stateOf, navigate: "navigate" });
+  yield* history(handleOf(running), { window: browser.window, urlOf, stateOf, navigate: initial.navigateOption ?? NAVIGATE });
   // The follower consumes in its own fiber; give it room to catch up before observing.
   const settle = Effect.sleep("30 millis");
   yield* settle;
@@ -157,6 +160,17 @@ describe("Web.history: application navigation", () => {
 });
 
 describe("Web.history: popstate", () => {
+  it("a bare navigate name is invoked under the registry's whole-input key, with the same fact; an exact key is passed through verbatim", async () => {
+    const result = await scenario({ browser: "/app/home", state: HOME, navigateOption: "go" }, navigates, ({ browser, invoked, settle }) => Effect.gen(function* () {
+      browser.pop("/app/about");
+      yield* settle;
+
+      return { invoked };
+    }));
+
+    expect(result.invoked).toEqual([{ key: "navigation/go", value: { path: "/about" } }]);
+  });
+
   it("invokes the navigate command with stateOf(location), and writes nothing itself", async () => {
     const result = await scenario({ browser: "/app/home", state: HOME }, navigates, ({ browser, state, invoked, settle }) => Effect.gen(function* () {
       browser.pop("/app/about");
@@ -165,7 +179,7 @@ describe("Web.history: popstate", () => {
       return { invoked, writes: [...browser.writes], path: (yield* state.get).path };
     }));
 
-    expect(result.invoked).toEqual([{ key: "navigate", value: { path: "/about" } }]);
+    expect(result.invoked).toEqual([{ key: NAVIGATE, value: { path: "/about" } }]);
     expect(result.writes).toEqual([]);
     expect(result.path).toBe("/about");
   });

@@ -55,7 +55,7 @@ const page = (url: string, html = "") => {
 };
 
 const run = async (p: ReturnType<typeof page>, gate?: Deferred.Deferred<void>, present: "mount" | "hydrate" = "mount", state?: State) =>
-  Web.run(application(gate), { container: p.container, primitives, present, ...(state === undefined ? {} : { state }), history: { window: p.win, urlOf, stateOf, navigate: "app/navigate" } });
+  Web.run(application(gate), { container: p.container, primitives, present, ...(state === undefined ? {} : { state }), history: { window: p.win, urlOf, stateOf, navigate: "go" } });
 
 describe("a plain left click on a link is the application's navigation", () => {
   it("runs navigate with stateOf(destination), draws the new state, pushes the URL, and the browser keeps nothing", async () => {
@@ -167,7 +167,7 @@ describe("the browser keeps every other click", () => {
     const handle = await Effect.runPromise(Valance.start(application()).pipe(Scope.extend(scope)));
 
     await Effect.runPromise(Valance.mount(handle, Web.target({ container: p.container, primitives })).pipe(Scope.extend(scope)));
-    await Effect.runPromise(Web.history(handle, { window: p.win, urlOf, stateOf, navigate: "app/navigate" }).pipe(Scope.extend(scope)));   // no `container`
+    await Effect.runPromise(Web.history(handle, { window: p.win, urlOf, stateOf, navigate: "go" }).pipe(Scope.extend(scope)));   // no `container`
     expect(await p.click(p.anchor("About"))).toBe(false);
     expect(p.title()).toBe("page home");
     await Effect.runPromise(Scope.close(scope, Exit.void));

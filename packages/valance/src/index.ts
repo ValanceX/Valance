@@ -22,7 +22,7 @@ import type { BoundaryValue, DeclaredEvent, RenderTree, SourceSpan } from "@vala
 
 import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
-import { handleOf, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
+import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
@@ -100,8 +100,40 @@ export const define = <S, T extends CommandTable<any, Ambient>, V extends string
   definition: Omit<ApplicationDefinition<S, never, never, V>, "commands"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T }
 ): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V> => definition as unknown as ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
 
+/** How a waiting command's work ended: the value it produced, or what its Promise rejected with, as received. */
+export type Outcome<A> = { readonly ok: true; readonly value: A } | { readonly ok: false; readonly error: unknown };
+
+/** What a command that waits says. Every function is a plain function of the state; none may throw (a throw is a defect, as in any command). */
+export interface Waiting<S, I, A> {
+  /** The state when the run starts, before the work: typically "loading". Optional: the state may already say so (start-time work). */
+  readonly begin?: (input: I, current: S) => S;
+  /** The work: the only asynchronous thing. `signal` aborts when the run is interrupted (the application closes). Its result, or rejection, reaches `settle`. */
+  readonly work: (input: I, signal: AbortSignal) => Promise<A>;
+  /**
+   * Is the result still relevant to the state as it is NOW? Asked when the work ends, in the same step as the commit; false and nothing is committed. **Required**, because a
+   * result that no longer fits the application must not land silently. This is relevance to the application's state; it is separate from, and in addition to, a newer run of this
+   * same command superseding an older one, which needs no code.
+   */
+  readonly wanted: (input: I, current: S) => boolean;
+  /** The state once the work has ended and the result is wanted: success and failure alike are ordinary state. */
+  readonly settle: (outcome: Outcome<A>, input: I, current: S) => S;
+}
+
+/** What `command(state)` returns: the pure-transition forms, and `waiting`. */
+export interface CommandMaker<S> {
+  (transition: (current: S) => S): Nexus.Command.Command<{}, void, never, never>;
+  <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
+  /**
+   * A command that waits. Once admitted it belongs to the application until it settles or is interrupted; closing the application aborts `work`'s signal and nothing commits afterwards.
+   * **A newer run of the same command supersedes an older one**: the older run is NOT cancelled (its work continues, and its caller sees it complete) but its result is discarded,
+   * success or failure. Whether a result is still wanted by the state is `wanted`'s question, answered per run.
+   */
+  waiting<I, A>(input: Schema.Schema<I>, spec: Waiting<S, I, A>): Nexus.Command.Command<I, void, never, never>;
+}
+
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
 const TRANSITION_COMMAND = "valance.command";
+const WAITING_COMMAND = "valance.waiting";
 
 /** The input of a command that takes none. */
 const NO_INPUT = Schema.Struct({});
@@ -127,17 +159,38 @@ const NO_INPUT = Schema.Struct({});
  * transition together cannot do this: TypeScript then types the returned literals from a type parameter of that same call, and widens them.)
  * A returned object is not checked for excess properties, the same as returning it from `state.update`.
  */
-export const command = <S>(state: Nexus.State.StateHandle<S>): {
-  (transition: (current: S) => S): Nexus.Command.Command<{}, void, never, never>;
-  <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
-} => {
+export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> => {
   const make = <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never> =>
     Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
 
   // The one-argument form is the two-argument form with the empty input: the same `Command`, validated, admitted and run in the same way.
-  return ((a: unknown, b?: unknown) => b === undefined
+  const transition = ((a: unknown, b?: unknown) => b === undefined
     ? make(NO_INPUT, (_input, current) => (a as (current: S) => S)(current))
-    : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as never;
+    : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as unknown as (...args: ReadonlyArray<unknown>) => unknown;
+
+  return Object.assign(transition, {
+    waiting: <I, A>(input: Schema.Schema<I>, spec: Waiting<S, I, A>): Nexus.Command.Command<I, void, never, never> => {
+      let latest = 0;                      // this command's newest run: created with the command, so there is one per started application
+
+      return Nexus.Command.define(WAITING_COMMAND, input, (decoded) => Effect.gen(function* () {
+        const mine = ++latest;
+
+        if (spec.begin !== undefined) {
+          yield* state.update((current) => Effect.sync(() => spec.begin!(decoded, current)));
+        }
+
+        // A Promise's rejection is `unknown` and is passed to `settle` exactly as received. Interruption (the application closing, or the caller's) is not a failure: it ends the
+        // run here, aborts `signal`, and `settle` never runs.
+        const outcome = yield* Effect.tryPromise({ try: (signal) => spec.work(decoded, signal), catch: (error) => error }).pipe(
+          Effect.map((value): Outcome<A> => ({ ok: true, value })),
+          Effect.catchAll((error) => Effect.succeed<Outcome<A>>({ ok: false, error }))
+        );
+
+        // Both questions are asked in the same atomic step as the commit: is this still the newest run of this command, and is the result still wanted by the state as it is now.
+        yield* state.update((current) => Effect.sync(() => mine === latest && spec.wanted(decoded, current) ? spec.settle(outcome, decoded, current) : current));
+      }).pipe(Effect.asVoid));
+    },
+  }) as unknown as CommandMaker<S>;
 };
 
 /** The field names of a command's struct input, in order; `undefined` when the input is not a struct. */
@@ -157,6 +210,14 @@ const bareBinding = <E, R>(command: Nexus.Command.Command<any, any, E, R>): Nexu
 
   return entry(command, (...values) => fields === undefined ? values[0] : Object.fromEntries(fields.map((field, index) => [field, values[index]])));
 };
+
+/**
+ * A bare command bound to receive its input WHOLE, as one argument: what history supplies when its `navigate` names a bare command. The navigation fact `stateOf` reads from a
+ * URL is not an event's arguments but the command's input, so the positional rule of `bareBinding` (a struct takes its arguments as fields, in order) does not apply to it. The
+ * input is validated by the command's schema as always.
+ */
+const wholeBinding = <E, R>(command: Nexus.Command.Command<any, any, E, R>): Nexus.Mesh.Binding<E | Nexus.Command.CommandValidationError, R> =>
+  entry(command, (...values) => values[0]);
 
 /** What an entry's argument is to the application: the value itself, or `undefined` when the argument is absent. */
 const plain = (argument: Nexus.Mesh.IntentArgument): unknown => "value" in argument ? argument.value : undefined;
@@ -291,6 +352,12 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
 
     for (const [name, binding] of named) {
       commands[`app/${name}`] ??= binding;
+    }
+
+    for (const [key, value] of Object.entries(given)) {
+      if (!key.includes("/")) {
+        commands[INPUT_KEY(key)] ??= wholeBinding(value as Nexus.Command.Command<any, any, E, R>) as Nexus.Mesh.Binding<E, R>;
+      }
     }
 
     for (const { event } of declared) {

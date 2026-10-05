@@ -9,7 +9,7 @@ import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartO
 
 import { attribute, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
-import { runningOf } from "./internal.js";
+import { INPUT_KEY, runningOf } from "./internal.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
@@ -32,7 +32,11 @@ export interface HistoryOptions<S> {
   readonly urlOf: (state: S) => string;
   /** What a URL says about the application: the one argument of the navigate binding. The application's, too. */
   readonly stateOf: (url: URL) => BoundaryValue;
-  /** The binding key of the application's navigate command, the same entry a MESH intent uses. */
+  /**
+   * The application's navigate command. Either a **bare command name**, whose input is the navigation fact itself (the object `stateOf` returns), validated by the command's
+   * schema as always: `navigate: "go"` with `go: command(Schema.Struct({ id: Schema.String }), …)` and `stateOf: (url) => ({ id: … })`. Or an **exact binding key**
+   * (`"app/navigate"`), the same entry a MESH intent uses, for a command whose arguments need adapting.
+   */
   readonly navigate: string;
   /**
    * The element whose links are navigations. When given, a plain left click on an `<a href>` inside it that leads somewhere in this application's origin is a navigation
@@ -99,6 +103,8 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const { window: win } = options;
     const popped = yield* Queue.unbounded<string>();
     const { container } = options;
+    // A bare `navigate` names a command that takes the navigation fact as its input; an exact key ("app/navigate") is the binding it always was.
+    const navigateKey = options.navigate.includes("/") ? options.navigate : INPUT_KEY(options.navigate);
     // The application URL of the last state this mechanism has accounted for. Unset until the first state: the baseline.
     let last: string | undefined;
 
@@ -120,7 +126,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         })
         : Effect.gen(function* () {
           // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
-          yield* running.invoke(options.navigate, [{ value: options.stateOf(new URL(event.href)) }]).pipe(
+          yield* running.invoke(navigateKey, [{ value: options.stateOf(new URL(event.href)) }]).pipe(
             Effect.catchAllCause((cause) => Effect.logError("popstate navigation failed", cause))
           );
           // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
@@ -147,7 +153,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       }
 
       event.preventDefault();
-      Effect.runFork(running.invoke(options.navigate, [{ value: options.stateOf(destination) }]).pipe(
+      Effect.runFork(running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(
         Effect.catchAllCause((cause) => Effect.logError("link navigation failed", cause)),
         Effect.forkIn(scope)
       ));

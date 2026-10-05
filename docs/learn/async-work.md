@@ -6,6 +6,26 @@ Real applications wait: for a server, a file, a timer. In VALANCE there is nothi
 
 That one sentence is the whole model. The rest of this page is what it looks like, and what follows from it.
 
+## The short form: a command that waits
+
+For work that is a Promise, write the command with `command(state).waiting`:
+
+```ts
+fetchProfile: command.waiting(Schema.Struct({ id: Schema.String }), {
+  begin:  (_input, current) => ({ ...current, phase: "loading" }),
+  work:   ({ id }, signal) => fetchName(id, signal),                          // the only asynchronous thing
+  wanted: ({ id }, current) => current.phase === "loading",                   // required: is this answer still what the state is waiting for?
+  settle: (outcome, _input, current) => outcome.ok ? { phase: "ready", name: outcome.value } : { phase: "failed", name: String(outcome.error) },
+}),
+```
+
+- **Loading, success and failure are state**: `begin` says loading, `settle` says what happened. `outcome.error` is exactly what the Promise rejected with.
+- **Pressing twice is handled**: a newer run of the same command supersedes an older one on its own. The older work is not cancelled and its answer is thrown away.
+- **`wanted` is the other question, and you must answer it**: another command may have moved the state on (the reader went to another page), and then the answer must not land. Return `false` and nothing is committed.
+- **Closing the application** aborts `signal` and `settle` never runs.
+
+The full rules are [Contract §18.3](../V1_CONTRACT.md#183-a-command-that-waits-commandstatewaiting). Everything below is the general form, written with NEXUS and Effect: use it for a failure that must be typed, several steps, or a service. It is also how the older pages show the same profile.
+
 ## A profile that loads
 
 The screen has a line of text and a **Reload** button:

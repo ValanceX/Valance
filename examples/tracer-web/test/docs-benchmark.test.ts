@@ -70,7 +70,7 @@ describe("the browser: hydrate a guide, then use the site", () => {
     const served = await serve(path);
     const p = page(`http://localhost${path}`, served.html);
     const s = service();
-    const host = await Web.run(application(programs, s.searchDocs), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, navigate: "app/navigate" } });
+    const host = await Web.run(application(programs, s.searchDocs), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, navigate: "go" } });
 
     return { p, s, host, served };
   };

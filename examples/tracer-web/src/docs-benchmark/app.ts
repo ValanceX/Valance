@@ -2,8 +2,7 @@
 // protection, URLs, links, server rendering, hydration), composed from the interface VALANCE has earned: state, views with a scope, commands, destination links, history, and a
 // manifest that is derived. See ./COGNITIVE_LOAD.md for what composing it took, and ./VIEW_BOUNDARY.md for why the interface has this shape.
 import * as Valance from "@valancex/valance";
-import * as Nexus from "@valancex/nexus";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 
 import { pages, type Page } from "./content.js";
 
@@ -14,15 +13,14 @@ const Search = Schema.Struct({
   status: Schema.Literal("idle", "loading", "done", "failed"),
   results: Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String })),
   message: Schema.String,
-  ticket: Schema.Number,                             // the newest search; anything that supersedes one bumps it
 });
 
 export const AppState = Schema.Struct({ page: Schema.String, open: Schema.Boolean, search: Search });
 export type AppState = typeof AppState.Type;
 
-const idle = (ticket: number): AppState["search"] => ({ query: "", status: "idle", results: [], message: "", ticket });
+const idle = (): AppState["search"] => ({ query: "", status: "idle", results: [], message: "" });
 
-export const initial: AppState = { page: "home", open: false, search: idle(0) };
+export const initial: AppState = { page: "home", open: false, search: idle() };
 
 const pageOf = (id: string): Page | undefined => pages.find((page) => page.id === id);
 
@@ -62,34 +60,24 @@ export type SearchDocs = (query: string, signal: AbortSignal) => Promise<Readonl
 export const commands = (searchDocs: SearchDocs) => (state: Valance.StateHandle<AppState>) => {
   const command = Valance.command(state);
 
-  // Going to a page closes the search: it bumps the ticket, so a search still in flight is superseded. A pure command can do that because the ticket is state.
-  const go = command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id, open: false, search: idle(current.search.ticket + 1) }));
+  // Going to a page closes the search; a search still in flight finds the state moved on (`wanted` below) and its answer is discarded.
+  const go = command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id, open: false, search: idle() }));
   const toggle = command((current) => ({ ...current, open: !current.open }));
 
-  // The one command that waits. It is written with NEXUS and Effect: VALANCE has no waiting-command form yet (see VIEW_BOUNDARY.md, "The async decision gate").
-  const search = Nexus.Command.define("docs.search", Schema.Struct({ query: Schema.String }), ({ query }) => Effect.gen(function* () {
-    const started = yield* state.update((current) => Effect.succeed({
-      ...current,
-      search: query.trim() === "" ? idle(current.search.ticket + 1) : { query, status: "loading" as const, results: [], message: "", ticket: current.search.ticket + 1 },
-    }));
-
-    if (query.trim() === "") return;
-
-    const mine = started.search.ticket;
-    const result = yield* Effect.tryPromise({ try: (signal) => searchDocs(query, signal), catch: String }).pipe(Effect.either);
-
-    yield* state.update((current) => Effect.succeed(
-      current.search.ticket !== mine ? current                      // superseded meanwhile: drop this result
-        : result._tag === "Right" ? { ...current, search: { ...current.search, status: "done" as const, results: result.right.map(({ id, title }) => ({ id, label: title })) } }
-        : { ...current, search: { ...current.search, status: "failed" as const, message: result.left } }
-    ));
-  }));
+  // The one command that waits. A newer search supersedes an older one on its own; `wanted` is the other question: is this answer still what the state is waiting for.
+  const search = command.waiting(Schema.Struct({ query: Schema.String }), {
+    begin: ({ query }, current) => ({ ...current, search: query.trim() === "" ? idle() : { query, status: "loading", results: [], message: "" } }),
+    work: ({ query }, signal) => query.trim() === "" ? Promise.resolve([]) : searchDocs(query, signal),
+    wanted: ({ query }, current) => current.search.query === query && current.search.status === "loading",
+    settle: (outcome, _input, current) => outcome.ok
+      ? { ...current, search: { ...current.search, status: "done", results: outcome.value.map(({ id, title }) => ({ id, label: title })) } }
+      : { ...current, search: { ...current.search, status: "failed", message: String(outcome.error) } },
+  });
 
   return {
     go,
     toggle,
     search,
-    "app/navigate": Valance.entry(go, (navigation) => navigation),   // history hands over ONE object, which a bare name does not unpack into fields
   };
 };
 

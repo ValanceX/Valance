@@ -77,7 +77,6 @@ export const commands = (fetchDetail: FetchDetail) => (state: Nexus.State.StateH
     reload,
     startup,
     back,
-    "app/navigate": Valance.entry(select, (navigation) => navigation),   // popstate hands over ONE object, which is not unpacked into fields
   };
   };
 

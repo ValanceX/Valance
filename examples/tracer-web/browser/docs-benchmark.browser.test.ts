@@ -37,7 +37,7 @@ it("a hydrated guide: sidebar and prev/next navigation keep keyed identity, the 
   const title = () => root.querySelector("main > h1")!.textContent;
   const status = () => root.querySelector("header > span")?.textContent;
   const results = () => [...root.querySelectorAll("header ul a")].map((a) => a.textContent).join();
-  const host = await Web.run(application(served.programs, searchDocs), { container: root, primitives, present: "hydrate", state: served.guide.state, history: { window, urlOf, stateOf, navigate: "app/navigate" } });
+  const host = await Web.run(application(served.programs, searchDocs), { container: root, primitives, present: "hydrate", state: served.guide.state, history: { window, urlOf, stateOf, navigate: "go" } });
 
   // hydration adopted the server's elements, and the document is still this page after real clicks on real anchors
   expect(host.mounted.hydration).toMatchObject({ adopted: true });

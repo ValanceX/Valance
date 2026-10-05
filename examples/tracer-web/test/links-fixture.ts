@@ -30,7 +30,8 @@ export const application = (program: Parameters<typeof Valance.define>[0]["views
   views: { shell: { program, scope: (state: State) => ({ title: `page ${state.page}` }) } },
   view: () => "shell" as const,
   commands: (state) => ({
-    "app/navigate": Valance.entry(Nexus.Command.define("links.navigate", Schema.Struct({ page: Schema.String }), ({ page }) =>
-      Effect.zipRight(state.update((current) => Effect.succeed({ ...current, page })), gate === undefined ? Effect.void : Deferred.await(gate))), (navigation) => navigation),   // history hands over ONE object
+    // history's `navigate: "go"`: the navigation fact is this command's input
+    go: Nexus.Command.define("links.go", Schema.Struct({ page: Schema.String }), ({ page }) =>
+      Effect.zipRight(state.update((current) => Effect.succeed({ ...current, page })), gate === undefined ? Effect.void : Deferred.await(gate))),
   }),
 });

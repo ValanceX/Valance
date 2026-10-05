@@ -24,7 +24,7 @@ it("hydrate the server's page; a real click navigates the application, not the d
 
   const about = [...root.querySelectorAll("a")].find((a) => a.textContent === "About")!;
   const title = () => root.querySelector("span")!.textContent;
-  const host = await Web.run(application(served.program), { container: root, primitives, present: "hydrate", state: served.state, history: { window, urlOf, stateOf, navigate: "app/navigate" } });
+  const host = await Web.run(application(served.program), { container: root, primitives, present: "hydrate", state: served.state, history: { window, urlOf, stateOf, navigate: "go" } });
 
   expect(host.mounted.hydration).toEqual({ adopted: true });
   expect(root.querySelectorAll("a")[1]).toBe(about);                      // the server's own anchor was adopted
