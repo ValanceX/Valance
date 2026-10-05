@@ -1,6 +1,6 @@
 # The V1 interface freeze gate
 
-Decisions and evidence for freezing VALANCE's public conceptual model. Companion to `COGNITIVE_LOAD.md` (what composing the site cost) and `VIEW_BOUNDARY.md` (why the interface has this shape). **Verdict: READY TO FREEZE** (sections 7 and 8). The only thing outstanding is external: PORT 0.3.0, which the controlled field needs, is prepared and validated but unpublished, and publishing is the maintainer's. (The first pass of this gate read ONE BLOCKER REMAINS because one criterion, title, scroll and focus, was untested; section 8 tests it.)
+Decisions and evidence for freezing VALANCE's public conceptual model. Companion to `COGNITIVE_LOAD.md` (what composing the site cost) and `VIEW_BOUNDARY.md` (why the interface has this shape). **Verdict: READY TO FREEZE** (sections 7 and 8). PORT 0.3.0, which the controlled field needs, has since been published and integrated (section 2); every criterion is met. (The first pass of this gate read ONE BLOCKER REMAINS because one criterion, title, scroll and focus, was untested; section 8 tests it.)
 
 ## 1. Navigation: a rule, not an API
 
@@ -26,7 +26,7 @@ go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...cur
 
 Tests: `test/history-navigate.test.ts` (6), `history.test.ts` (+1), `links.test.ts` (14), and the site, `items` and links in Chromium.
 
-## 2. Controlled fields: consumable once PORT 0.3.0 is published
+## 2. Controlled fields: PORT 0.3.0 published and integrated
 
 PORT has the realization (`41f2db7`, 13 tests) and the release is **prepared** (`a4a735f`): version 0.3.0 (an additive minor: PORT's convention reserves patches for releases with no API change), changelog entry, release notes marked *not yet released*. No tag, no publish.
 
@@ -44,7 +44,7 @@ VALANCE cannot consume it until that exists on the registry. **The exact Valance
 
 **What is not claimed.** The field's *payload* (what the user typed) is still a hook, now hidden inside `Web.textField`; an application with a custom input still writes `Web.event`. The declined-edit-with-no-presentation case is PORT's documented contract (the next presentation reasserts the value), not something VALANCE adds.
 
-**To finish, after the maintainer publishes `@valancex/port-web` 0.3.0:**
+**Historical (done): these were the steps once PORT 0.3.0 was published; the patch is applied and its file removed.**
 
 ```console
 $ git apply examples/tracer-web/src/docs-benchmark/port-0.3.0.prepared.patch
@@ -119,7 +119,7 @@ The model lost its fifth box: **work is a command that waits**, so the site's wh
 | 1. The site is composed through the normal surface | met (`app.ts`: no NEXUS, no manifest, no payload hook but the field's) |
 | 2. Links are destination-based | met |
 | 3. The manifest is derived | met |
-| 4. Controlled fields have a **released**, consumable PORT contract | **not met: PORT 0.3.0 is prepared and validated, not published.** Publishing is the maintainer's |
+| 4. Controlled fields have a **released**, consumable PORT contract | **met**: PORT 0.3.0 is published and integrated (`Web.textField`) |
 | 5. Navigation needs no adapter | met |
 | 6. Async is safely represented by a small API | met (`waiting`, scoped) |
 | 7. Lists and conditionals need no new VALANCE abstraction | met |
@@ -128,7 +128,7 @@ The model lost its fifth box: **work is a command that waits**, so the site's wh
 | 10. Remaining exposure is advanced, provisional or build-time | met (section 5) |
 | 11. The composition reveals no other major missing ordinary-website concept | **untested in the first pass** (title, scroll, focus); **met after the probe in section 8**: no new concept; two small gaps in existing navigation behavior were found and fixed |
 
-Once PORT 0.3.0 is published and the prepared patch applied (section 2), criterion 4 is met.
+PORT 0.3.0 was published and the prepared patch applied (post-freeze gate rerun, 2026-10-05): criterion 4 is met. Package 114 tests, tracer Node 547, Chromium 57, all against the published package.
 
 ## 8. The document-navigation probe: title, scroll, focus
 
@@ -189,7 +189,7 @@ Once PORT 0.3.0 is published and the prepared patch applied (section 2), criteri
 | Criterion | State |
 |---|---|
 | 1-3, 5-10 | met (section 7) |
-| 4. Controlled fields have a released, consumable PORT contract | **external**: PORT 0.3.0 is prepared and validated (section 2), unpublished; publication and its tag are the maintainer's |
+| 4. Controlled fields have a released, consumable PORT contract | **met**: PORT 0.3.0 published and integrated; the prepared patch is applied and removed |
 | 11. No other major missing ordinary-website concept | **met**: title, scroll and focus probed; two small gaps in existing navigation behavior fixed, one advanced escape hatch documented, no new concept |
 
 Tests added: `history.test.ts` +4 (title), `links.test.ts` +4 (scroll), the site's jsdom and Chromium tests (title), `links.browser.test.ts` +1 (scroll and Back). Full runs after the change: package 12 files / 114 tests, tracer Node 74 / 547, Chromium 24 / 56.

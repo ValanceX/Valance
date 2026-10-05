@@ -13,7 +13,7 @@ import { renderToHtml } from "@valancex/valance/web/server";
 - **Install** (a strict package manager resolves only what you declare, so declare the application-level and build-time packages yourself):
 
   ```console
-  $ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
+  $ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
   $ pnpm add -D @valancex/mesh-compiler@^0.9.0
   ```
 
@@ -22,15 +22,15 @@ import { renderToHtml } from "@valancex/valance/web/server";
   | `@valancex/valance` | the release you target | this package |
   | `@valancex/nexus` | `^0.10.3` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
   | `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders programs at run time (the one runtime: NEXUS 0.10.3 shares it) |
-  | `@valancex/port-web` | `^0.2.4` | optional peer: needed for `./web` and `./web/server` |
+  | `@valancex/port-web` | `^0.3.0` | optional peer: needed for `./web` and `./web/server` |
   | `effect` | `^3.10.0` | peer |
   | `@valancex/mesh-compiler` | `^0.9.0` | **build time only** (devDependency): compiles MPRX to the `program` each view takes (`compileProgram`) |
 
-- **Async work and startup:** a command can wait; once admitted it belongs to the application, and closing the application cancels it. Loading and failure are ordinary state. The optional `start` field of `define` names a command the application runs once when it starts (added in 0.4.0). See [Async work](https://github.com/ValanceX/Valance/blob/main/docs/learn/async-work.md) and [Startup work](https://github.com/ValanceX/Valance/blob/main/docs/learn/startup-work.md).
+- **Async work and startup:** a command can wait; once admitted it belongs to the application, and closing the application cancels it. Loading and failure are ordinary state; `command(state).waiting` writes a Promise-shaped one without NEXUS or Effect (added in 0.5.0). The optional `start` field of `define` names a command the application runs once when it starts (added in 0.4.0). See [Async work](https://github.com/ValanceX/Valance/blob/main/docs/learn/async-work.md) and [Startup work](https://github.com/ValanceX/Valance/blob/main/docs/learn/startup-work.md).
 - **Lifetimes:** the application, each mount and each history live in separate, caller-owned `Scope`s; closing one never closes another. Closing the application's `Scope` ends commits (state stays readable); mounts then end inert.
 - **Presentation:** a mount presents committed state as a latest-state consumer: it may skip superseded intermediate states and converges on the latest. Same view is an `update`, another view a `draw`; `hydrate` takes over server markup and then behaves like `mount`. A mount's failure is local to it; recovery is a fresh mount.
 - **History:** `Web.history` follows committed state and runs the application's own navigate command on popstate; it owns its listener's `Scope` only.
 - **Status:** pre-1.0. `./internal` is the composition protocol for binding authors and tests, unstable by design.
-- **The contract:** [`docs/V1_CONTRACT.md`](https://github.com/ValanceX/Valance/blob/main/docs/V1_CONTRACT.md) states what VALANCE guarantees, what the caller owns and what is not guaranteed. Engineering constraints: [`docs/CONSTRAINTS.md`](https://github.com/ValanceX/Valance/blob/main/docs/CONSTRAINTS.md). Historical investigation record: [`docs/FINDINGS.md`](https://github.com/ValanceX/Valance/blob/main/docs/FINDINGS.md). Release notes: [`docs/releases/v0.4.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.4.md) (current), [`v0.3.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.3.md), [`v0.2.1.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.2.1.md), [`v0.2.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.2.md), [`v0.1.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.1.md).
+- **The contract:** [`docs/V1_CONTRACT.md`](https://github.com/ValanceX/Valance/blob/main/docs/V1_CONTRACT.md) states what VALANCE guarantees, what the caller owns and what is not guaranteed. Engineering constraints: [`docs/CONSTRAINTS.md`](https://github.com/ValanceX/Valance/blob/main/docs/CONSTRAINTS.md). Historical investigation record: [`docs/FINDINGS.md`](https://github.com/ValanceX/Valance/blob/main/docs/FINDINGS.md). Release notes: [`docs/releases/v0.5.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.5.md) (current), [`v0.4.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.4.md), [`v0.3.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.3.md), [`v0.2.1.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.2.1.md), [`v0.2.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.2.md), [`v0.1.md`](https://github.com/ValanceX/Valance/blob/main/docs/releases/v0.1.md).
 
 MIT licensed.

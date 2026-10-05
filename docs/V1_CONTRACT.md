@@ -93,6 +93,7 @@ const mounted = yield* Valance.mount(handle, Web.target({ container, primitives 
 - **Failure is local to the mount.** If MESH cannot render a state the mount reaches (typed `MeshDiagnostics`) or its target throws (a defect), that mount's follower ends: it becomes **inert**, stays drawn on its last successfully presented render, and **never resumes**, even when later states are valid. The application, the state stream, history and other mounts are unaffected. `followed` reports how a mount ended.
 - **Recovery is a fresh mount** against the current state.
 - A first `draw` or `hydrate` that fails gives no `Mounted` (the render's `MeshDiagnostics`, or the target's defect). Nothing is retained and the failed attempt is never unmounted; VALANCE does not undo what the target may have done.
+- **A text field.** `Web.textField` is the primitive for an `<input>` the user types in: its `value` is the application's text, and its `input` event carries what was typed, a string. After every presentation (`draw`, `update` and `hydrate`) the field shows **exactly the rendered value**, whatever was typed since and whether or not the rendered value changed; it is written only when it differs, and a focused field keeps its caret. The server writes the value into the markup and hydration adopts it unchanged. **Nothing is written between presentations:** an edit the application declines by committing nothing stays in the field until the next presentation reasserts the application's value, and text typed before `hydrate` is replaced by the rendered value. (It needs `@valancex/port-web` 0.3.0, which provides the realization, `controlled`, also re-exported from `./web`.) *(Tripwire: `examples/tracer-web/browser/docs-field.browser.test.ts`.)*
 - `Mounted.dispatched` is a mount-owned diagnostic record of the exits of the commands that mount's events started, and `settled` waits for an open mount's held dispatches. They are observation aids, not part of the programming model.
 
 ## 7. Retained render and interaction
@@ -211,12 +212,12 @@ Each package has one role. A strict package manager (pnpm) resolves only what th
 | `@valancex/valance` | the release you target | this package | dependency |
 | `@valancex/nexus` | `^0.10.3` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
 | `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders MESH programs at run time | dependency |
-| `@valancex/port-web` | `^0.2.4` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
+| `@valancex/port-web` | `^0.3.0` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
 | `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
 | `@valancex/mesh-compiler` | `^0.9.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
 
 ```console
-$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
+$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
 $ pnpm add -D @valancex/mesh-compiler@^0.9.0
 ```
 

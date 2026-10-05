@@ -130,13 +130,9 @@ const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.Typ
 // ---- the three sources ---------------------------------------------------------------------------------------------------------------------------------------------
 
 const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["props"]>[string], path: string): Field => {
-  // `controlled` (a text slot that is an attribute and its property, added to PORT after 0.2.4) is matched by its kind string: it is a text slot like `attribute`.
-  if ((realization.kind as string) === "controlled") {
-    return { type: { kind: "string" }, required: true };
-  }
-
   switch (realization.kind) {
     case "attribute":
+    case "controlled":
     case "text-property": return { type: { kind: "string" }, required: true };
     case "boolean-attribute": return { type: { kind: "boolean" }, required: false };
     case "property": return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };

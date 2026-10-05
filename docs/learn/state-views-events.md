@@ -113,6 +113,10 @@ No adapter is needed. The input is checked by the command's schema like any othe
 
 **The title** is not part of a view: it lives in the document's head. Give history a function and it keeps `document.title` in step with the state, Back and Forward included: `history: { …, titleOf: (state) => state.page === "home" ? "Docs" : `${titleOfPage(state)} · Docs` }`. The server's document writes the same function's result for the state it rendered, so the first paint already has the right title and hydration does not touch it.
 
+## A text field
+
+A text field is a primitive too. Put `Web.textField` in your `primitives` and write `<field value={query} on.input={search($event)} />`: the box shows the application's `query`, and what the person types arrives as a string. The box always shows what the state says: if a command resets the query (the reader went to another page), the box empties; if a command declines an edit, the next time the screen is redrawn it shows the application's value again. The server writes the value into the page, so a reload keeps it.
+
 ## Repeated and conditional parts (provisional)
 
 A list of items and a part that shows only sometimes are written in the view description with two reserved tags. They are MESH's, and MESH calls their spelling provisional: they have not changed since they were introduced (MESH 0.7, through 0.9), but they are not promised.

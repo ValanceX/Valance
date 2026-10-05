@@ -16,11 +16,5 @@ export const primitives: Web.WebPrimitives = {
   text: { element: "span" },
   button: { element: "button", events: { click: { type: "click" } } },
   link: Web.link,                                                         // a destination: the application navigates, the browser keeps modified clicks
-  // A text field. `value` is an attribute because the server must be able to write it (PORT 0.2.4 has no form that is both server-renderable and live; the release after it adds
-  // `controlled`, and then this is the only line that changes). Reading the field's text on input is the payload hook, and states its kind for the manifest.
-  field: {
-    element: "input",
-    props: { value: Web.attribute("value") },
-    events: { input: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
-  },
+  field: Web.textField,                                                   // a text field: the box always shows the rendered value, and input carries what was typed
 };

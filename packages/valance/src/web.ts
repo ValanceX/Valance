@@ -7,13 +7,14 @@ import type { HydrationResult, WebPort, WebPortOptions, WebPrimitive, WebPrimiti
 import type { BoundaryValue } from "@valancex/mesh-runtime";
 import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
 
-import { attribute, createWebPort } from "@valancex/port-web";
+import { attribute, controlled, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
+import { event } from "./web-payload.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
-export { attribute, booleanAttribute, property, textProperty } from "@valancex/port-web";
+export { attribute, booleanAttribute, controlled, property, textProperty } from "@valancex/port-web";
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
 
@@ -22,6 +23,17 @@ export type { PayloadKind } from "./web-payload.js";
  * application's own navigation (see `HistoryOptions.container`), and without them it is an ordinary anchor. Put it in the primitives table under the name the view uses.
  */
 export const link: WebPrimitive = { element: "a", props: { href: attribute("href") } };
+
+/**
+ * A text field: an `<input>` whose `value` is the application's text and whose `input` event carries what the user typed (a string). After every presentation the field shows
+ * exactly the rendered value (PORT's `controlled`), so state and screen cannot disagree; an edit the application declines is reasserted by the next presentation. Put it in the
+ * primitives table under the name the view uses.
+ */
+export const textField: WebPrimitive = {
+  element: "input",
+  props: { value: controlled("value") },
+  events: { input: event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
+};
 
 export const target = (options: Omit<WebPortOptions, "report">): TargetFactory<WebPort> => (report) => createWebPort({ ...options, report });
 

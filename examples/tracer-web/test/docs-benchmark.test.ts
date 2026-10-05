@@ -152,10 +152,9 @@ describe("the browser: hydrate a guide, then use the site", () => {
     await new Promise((r) => setTimeout(r, 30));
     expect(p.results()).toEqual([]);                                      // going to a page superseded the search
     expect(p.status()).toBeUndefined();
-    // FINDING (COGNITIVE_LOAD.md, search box): the application's state says the query is "", yet the box still shows what the reader typed. The server can only render `value` as an
-    // attribute, and a DOM attribute no longer changes a field the reader has typed in. This pins the observed disagreement; delete it when the interface can clear a field.
+    // The application cleared the query and the box shows it (PORT `controlled`): state and screen agree. The benchmark's pinned mismatch ("st" here) is gone.
     expect((await Effect.runPromise(host.handle.state)).search.query).toBe("");
-    expect(p.container.querySelector("input")!.value).toBe("st");
+    expect(p.container.querySelector("input")!.value).toBe("");
     expect(s.calls[3]!.aborted).toBe(false);                              // delivery was dropped; the work itself was left alone
 
     p.type("last");                                                       // work in flight when the page stops is aborted
