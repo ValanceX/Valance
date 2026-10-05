@@ -5,6 +5,8 @@ The application here (`app.ts`) was written as an application author would write
 Scenarios (all run): list and detail views; select, back, reload; one waiting command with loading, success and failure as state; overlapping requests with a stale answer; URL and browser history; server rendering of a list URL and a deep-linked detail URL; hydration; stop with work in flight.
 Evidence: `test/items.test.ts` (7 tests, headless / SSR / jsdom hydrate with history), `browser/items.browser.test.ts` (1 test, real Chromium).
 
+> **Since written:** the manifest this log's #3 and #4 complain about is no longer hand-written here. `compile.ts` derives it (`@valancex/valance/web/build`), from the primitives table, the views' scope Schemas and the command table; `components.json` is gone and the tests below pass unchanged. #3's teaching gap for `mesh-each` is unchanged.
+
 ## Classification
 
 A legitimate advanced API · B setup or tooling leakage · C public semantic leakage (an engine concept needed for ordinary behavior) · D accidental implementation leakage.

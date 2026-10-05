@@ -3,17 +3,25 @@
  * It adds nothing to PORT: it fixes `container` and `primitives` (the application's Web realization
  * table, which is target configuration, not part of the application) and hands PORT the report callback.
  */
-import type { HydrationResult, WebPort, WebPortOptions, WebPrimitives } from "@valancex/port-web";
+import type { HydrationResult, WebPort, WebPortOptions, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 import type { BoundaryValue } from "@valancex/mesh-runtime";
 import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
 
-import { createWebPort } from "@valancex/port-web";
+import { attribute, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
 import { runningOf } from "./internal.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
-export type { HydrationResult, WebPrimitives } from "@valancex/port-web";
+export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, property, textProperty } from "@valancex/port-web";
+export { event } from "./web-payload.js";
+export type { PayloadKind } from "./web-payload.js";
+
+/**
+ * A link: an `<a>` whose one prop, `href`, is the destination. It declares no event: with `history` and a `container` (which `run` supplies), a click on it is the
+ * application's own navigation (see `HistoryOptions.container`), and without them it is an ordinary anchor. Put it in the primitives table under the name the view uses.
+ */
+export const link: WebPrimitive = { element: "a", props: { href: attribute("href") } };
 
 export const target = (options: Omit<WebPortOptions, "report">): TargetFactory<WebPort> => (report) => createWebPort({ ...options, report });
 
@@ -26,7 +34,42 @@ export interface HistoryOptions<S> {
   readonly stateOf: (url: URL) => BoundaryValue;
   /** The binding key of the application's navigate command, the same entry a MESH intent uses. */
   readonly navigate: string;
+  /**
+   * The element whose links are navigations. When given, a plain left click on an `<a href>` inside it that leads somewhere in this application's origin is a navigation
+   * request, exactly as a popstate is: `navigate` runs with `stateOf(destination)`, and the URL follows the state like any other navigation. The browser keeps every
+   * other click: Ctrl, Meta, Shift or Alt held, a non-primary button, `target` other than `_self`, `download`, another origin, a link to a place in the page you are
+   * already on (a `#fragment`), and a click something else already handled (`defaultPrevented`). Absent: links are ordinary anchors. `run` passes its own container.
+   */
+  readonly container?: Element;
 }
+
+/**
+ * Where a click on a link inside `container` goes, when it is the application's to handle; otherwise undefined and the browser keeps it. See `HistoryOptions.container`.
+ * Pure over the event, the window and the container: it prevents nothing and starts nothing.
+ */
+const linkDestination = (event: MouseEvent, win: Window, container: Element): URL | undefined => {
+  if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+    return undefined;
+  }
+
+  const origin = event.target as { readonly closest?: (selector: string) => Element | null; readonly parentElement?: Element | null } | null;
+  const from = origin !== null && typeof origin.closest === "function" ? origin as Element : origin?.parentElement ?? null;
+  const anchor = from?.closest("a[href]") as HTMLAnchorElement | null | undefined;
+
+  if (anchor === null || anchor === undefined || !container.contains(anchor) || (anchor.target !== "" && anchor.target !== "_self") || anchor.hasAttribute("download")) {
+    return undefined;
+  }
+
+  const destination = new URL(anchor.href, win.location.href);
+  const here = new URL(win.location.href);
+
+  // Another origin (including mailto: and tel:, whose origin is "null"), or a place in the page already shown: the browser's.
+  if (destination.origin !== here.origin || (destination.hash !== "" && destination.pathname === here.pathname && destination.search === here.search)) {
+    return undefined;
+  }
+
+  return destination;
+};
 
 /**
  * Keeps `location` and the application in step, in both directions, until the caller's Scope closes.
@@ -55,6 +98,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const scope = yield* Effect.scope;
     const { window: win } = options;
     const popped = yield* Queue.unbounded<string>();
+    const { container } = options;
     // The application URL of the last state this mechanism has accounted for. Unset until the first state: the baseline.
     let last: string | undefined;
 
@@ -93,9 +137,27 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
 
     win.addEventListener("popstate", onPopState);
 
+    // A link click is a navigation request. It is NOT handled by the follower: the navigate command may wait (it may load what the destination shows), and a wait in the follower
+    // would hold every URL write behind it. The command is the application's, started like any invoke; the state it commits is what the follower sees, and pushes.
+    const onClick = (event: MouseEvent): void => {
+      const destination = container === undefined ? undefined : linkDestination(event, win, container);
+
+      if (destination === undefined) {
+        return;
+      }
+
+      event.preventDefault();
+      Effect.runFork(running.invoke(options.navigate, [{ value: options.stateOf(destination) }]).pipe(
+        Effect.catchAllCause((cause) => Effect.logError("link navigation failed", cause)),
+        Effect.forkIn(scope)
+      ));
+    };
+
+    container?.addEventListener("click", onClick as EventListener);
+
     // Reverse order of the scope: before the application ends.
     yield* Effect.addFinalizer(() => Effect.gen(function* () {
-      yield* Effect.sync(() => { win.removeEventListener("popstate", onPopState); });
+      yield* Effect.sync(() => { win.removeEventListener("popstate", onPopState); container?.removeEventListener("click", onClick as EventListener); });
       yield* Fiber.interrupt(follower);
     }));
   });
@@ -147,7 +209,7 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
     const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web) : yield* mount(handle, web);
 
     if (options.history !== undefined) {
-      yield* history(handle, options.history);
+      yield* history(handle, { container: options.container, ...options.history });
     }
 
     return { handle, mounted };

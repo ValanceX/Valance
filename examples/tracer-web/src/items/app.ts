@@ -41,48 +41,55 @@ const titleOf = (state: AppState): string | undefined => state.items.find((item)
 const statusText = ({ detail }: AppState): string =>
   detail.status === "loading" ? "Loading…" : detail.status === "ready" ? detail.text : detail.status === "failed" ? `Failed: ${detail.text}` : "";
 
+/** What each view reads: the manifest MESH is given is derived from these (./compile.ts), and TypeScript checks each `scope` function against its Schema. */
+export const ListScope = Schema.Struct({ title: Schema.String, items: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String })) });
+export const DetailScope = Schema.Struct({ title: Schema.String, heading: Schema.String, status: Schema.String });
+
+/** The application's commands. A function of the fetch service so the manifest can be derived from the table without a service (./compile.ts). */
+export const commands = (fetchDetail: FetchDetail) => (state: Nexus.State.StateHandle<AppState>) => {
+  let latest = 0;                                    // the newest request; an older result is ignored
+  const set = (next: (current: AppState) => AppState) => state.update((current) => Effect.succeed(next(current)));
+
+  const load = (id: string) => Effect.gen(function* () {
+    const mine = ++latest;
+    yield* set((current) => ({ ...current, selected: id, detail: { status: "loading", text: "" } }));
+    const result = yield* Effect.tryPromise({ try: (signal) => fetchDetail(id, signal), catch: String }).pipe(Effect.either);
+
+    if (mine !== latest) return;                     // a newer request started meanwhile: drop this result
+    yield* set((current) => ({ ...current, detail: result._tag === "Right" ? { status: "ready", text: result.right } : { status: "failed", text: result.left } }));
+  });
+
+  // Going back must also supersede a request still in flight, and the counter that does so is the commands' closure: so this is not a pure `command`.
+  const leave = Effect.suspend(() => {
+    latest += 1;
+    return set((current) => ({ ...current, selected: "", detail: { status: "idle", text: "" } }));
+  });
+  const back = Nexus.Command.define("items.back", Schema.Struct({}), () => leave);
+  // The one way to show an item, for a click and for the browser's Back/Forward alike: no id means the list.
+  const select = Nexus.Command.define("items.select", Schema.Struct({ id: Schema.String }), ({ id }) => id === "" ? leave : load(id));
+  const reload = Nexus.Command.define("items.reload", Schema.Struct({}), () =>
+    Effect.flatMap(state.get, (current) => current.selected === "" ? Effect.void : load(current.selected)));
+  const startup = Nexus.Command.define("items.startup", Schema.Struct({}), () =>
+    Effect.flatMap(state.get, (current) => current.selected !== "" && current.detail.status === "loading" ? load(current.selected) : Effect.void));
+
+  return {
+    select,
+    reload,
+    startup,
+    back,
+    "app/navigate": Valance.entry(select, (navigation) => navigation),   // popstate hands over ONE object, which is not unpacked into fields
+  };
+  };
+
 export const application = (programs: Programs, fetchDetail: FetchDetail) => Valance.define({
   name: "items",
   state: { schema: AppState, initial },
   views: {
-    list: { program: programs.list, scope: (state: AppState) => ({ title: "Items", items: state.items.map(({ id, title }) => ({ id, title })) }) },
-    detail: { program: programs.detail, scope: (state: AppState) => ({ title: "Item", heading: titleOf(state) ?? "", status: statusText(state) }) },
+    list: { program: programs.list, scope: (state: AppState): typeof ListScope.Type => ({ title: "Items", items: state.items.map(({ id, title }) => ({ id, title })) }) },
+    detail: { program: programs.detail, scope: (state: AppState): typeof DetailScope.Type => ({ title: "Item", heading: titleOf(state) ?? "", status: statusText(state) }) },
   },
   // A selected id that names no item is the list: the application decides.
   view: (state) => titleOf(state) === undefined ? "list" : "detail",
-  commands: (state) => {
-    let latest = 0;                                    // the newest request; an older result is ignored
-    const set = (next: (current: AppState) => AppState) => state.update((current) => Effect.succeed(next(current)));
-
-    const load = (id: string) => Effect.gen(function* () {
-      const mine = ++latest;
-      yield* set((current) => ({ ...current, selected: id, detail: { status: "loading", text: "" } }));
-      const result = yield* Effect.tryPromise({ try: (signal) => fetchDetail(id, signal), catch: String }).pipe(Effect.either);
-
-      if (mine !== latest) return;                     // a newer request started meanwhile: drop this result
-      yield* set((current) => ({ ...current, detail: result._tag === "Right" ? { status: "ready", text: result.right } : { status: "failed", text: result.left } }));
-    });
-
-    // Going back must also supersede a request still in flight, and the counter that does so is the commands' closure: so this is not a pure `command`.
-    const leave = Effect.suspend(() => {
-      latest += 1;
-      return set((current) => ({ ...current, selected: "", detail: { status: "idle", text: "" } }));
-    });
-    const back = Nexus.Command.define("items.back", Schema.Struct({}), () => leave);
-    // The one way to show an item, for a click and for the browser's Back/Forward alike: no id means the list.
-    const select = Nexus.Command.define("items.select", Schema.Struct({ id: Schema.String }), ({ id }) => id === "" ? leave : load(id));
-    const reload = Nexus.Command.define("items.reload", Schema.Struct({}), () =>
-      Effect.flatMap(state.get, (current) => current.selected === "" ? Effect.void : load(current.selected)));
-    const startup = Nexus.Command.define("items.startup", Schema.Struct({}), () =>
-      Effect.flatMap(state.get, (current) => current.selected !== "" && current.detail.status === "loading" ? load(current.selected) : Effect.void));
-
-    return {
-      select,
-      reload,
-      startup,
-      back,
-      "app/navigate": Valance.entry(select, (navigation) => navigation),   // popstate hands over ONE object, which is not unpacked into fields
-    };
-  },
+  commands: commands(fetchDetail),
   start: "startup",
 });

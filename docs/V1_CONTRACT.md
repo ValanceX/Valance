@@ -2,7 +2,7 @@
 
 *Level 2 of the documentation (**Use**): the exact reference. New to VALANCE? Start with [Learn](learn/README.md). For why it is built this way and the evidence behind each rule, see [Understand](understand/README.md). The index of the API by name is [`use/README.md`](use/README.md).*
 
-This document states what `@valancex/valance` guarantees, what the caller owns, what happens when things fail or close, and what is deliberately not guaranteed. It describes the public entries `.` (`define`, `start`, `mount`, `hydrate`, `command`, `entry`), `./web` (`Web.target`, `Web.history`, `Web.run`) and `./web/server` (`renderToHtml`). Everything under `./internal` is outside this contract.
+This document states what `@valancex/valance` guarantees, what the caller owns, what happens when things fail or close, and what is deliberately not guaranteed. It describes the public entries `.` (`define`, `start`, `mount`, `hydrate`, `command`, `entry`), `./web` (`Web.target`, `Web.history`, `Web.run`, `Web.link`, `Web.event`), `./web/build` (`manifest`) and `./web/server` (`renderToHtml`). Everything under `./internal` is outside this contract.
 
 Normative words: **guarantees** and **must** are promises; **may** marks behavior callers must not rely on either way. `docs/CONSTRAINTS.md` lists the same rules as tripwires for maintainers.
 
@@ -115,7 +115,8 @@ The retained render is the **logical source of event identity, handler identity 
 - **The application owns navigation.** `urlOf(state)` and `stateOf(url)` are the application's functions, and `navigate` is the key of the application's own navigate command. History reads and writes URLs and knows nothing of what they mean. There is no router.
 - **Attaching** takes the current state's `urlOf` as the baseline and writes nothing; a foreign URL is left alone, never reconciled. The baseline is taken asynchronously after attaching, so a commit made immediately afterwards can become the baseline.
 - A later committed state whose `urlOf` differs from the last synchronized one is pushed (`pushState`). History follows every committed state through its own subscription, independently of any mount's presentation.
-- A **popstate** invokes the navigate command with `stateOf(location)`; it never writes a URL itself. A popstate that fails (unbound key, invalid argument, refusal) is logged, not repaired.
+- A **popstate** invokes the navigate command with `stateOf(location)`; it never writes a URL itself.
+- **Links.** With a `container` (`Web.run` passes its own), a click on an `<a href>` inside it is a navigation request, exactly as a popstate is: `navigate` runs with `stateOf(destination)`, and the URL then follows the state like any other navigation (a push, when the state's URL changed). Only a **plain primary-button, same-origin** click is the application's. The browser keeps every other: Ctrl, Meta, Shift or Alt held, another button, a `target` other than `_self`, `download`, another origin (`mailto:` and `tel:` included), a link to a `#fragment` of the page already shown, and a click something else already handled (`defaultPrevented`). Without a `container`, links are ordinary anchors. The view declares the destination and nothing else (`Web.link`: an `<a>` with `href`): no event, no command, no `preventDefault`. A link navigation runs **as a caller, not in the follower**: a navigate command that waits does not hold the URL write back. It is not an event of a mount, so it is not recorded in `Mounted.dispatched`. Failure is logged, never repaired, as for a popstate. A popstate that fails (unbound key, invalid argument, refusal) is logged, not repaired.
 - A defect in `urlOf` or `stateOf` is logged and ends only that synchronization step.
 - Closing history's Scope removes its listener and nothing is synchronized afterwards. It does not touch the application. Several histories are independent.
 
@@ -223,7 +224,7 @@ Give the ranges explicitly, as above: an unversioned `pnpm add effect` resolves 
 
 The package's type declarations use TypeScript's `NoInfer` (so that an application's state type is inferred from its schema, not from `initial`), which needs **TypeScript 5.4 or newer** in the application that compiles against it.
 
-- **Entries:** `@valancex/valance` (`define`, `start`, `mount`, `hydrate`, `command`, `entry`), `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, and the PORT Web primitive helpers it re-exports), `@valancex/valance/web/server` (`renderToHtml`). `@valancex/valance/internal` is not part of the contract.
+- **Entries:** `@valancex/valance` (`define`, `start`, `mount`, `hydrate`, `command`, `entry`), `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, `Web.link`, `Web.event`, and the PORT Web primitive helpers it re-exports), `@valancex/valance/web/build` (`manifest`, build time), `@valancex/valance/web/server` (`renderToHtml`). `@valancex/valance/internal` is not part of the contract.
 - The MESH, NEXUS and PORT packages keep their own versions; the ranges above are the set this release is built and tested against.
 
 ## 14. Authoring helpers: `command` and `entry`
@@ -270,9 +271,22 @@ const built = await compileProgram({
 - A view's `program` is used as returned. VALANCE does not parse it, inspect its templates, interpret it or change it: its structure and meaning are MESH's. VALANCE hands it to MESH, which validates it and says which events it declares (`declaredEvents`), and VALANCE compares those keys with the command table (§2). A program MESH rejects at program level fails `start`, for every view (§2, §10). Diagnostics that depend on the values a view's scope produces are reported as `MeshDiagnostics` when a mount (or `renderToHtml`) renders that state (§10).
 - Its exact behavior (inputs, the checks, the diagnostics) is MESH's: see the compiler package's README. Everything VALANCE needs is the value it returns.
 
+### 15.1 The manifest can be derived
+
+The `manifest` above need not be written. `manifest({ primitives, scopes, commands })` from `@valancex/valance/web/build` derives it from what the application already states, and `JSON.stringify` of the result is the `model.manifest`:
+
+| The manifest says | Derived from |
+|---|---|
+| the tags, each one's props and events | the Web `primitives` table (§6): a prop's type from its realization, an event's payload from `Web.event(type, { kind, of })` |
+| what a view may read (`scope`) | the view's scope Schema (`scopes: { counter: CounterScope }`, a `Schema.Struct`), which also types the view's `scope` function |
+| what a view may run (`commands`) | the command table: each **bare** command's input Schema, one parameter per field, in field order (the order `start` already binds arguments in) |
+| `version`, `types`, a primitive's empty `commands` and `scope`, `mesh-if` and `mesh-each` | nothing: they are fixed |
+
+MESH still validates every template against the derived manifest, with the same diagnostics (an unknown name, a mistyped command argument or payload, a missing required prop, a `mesh-each` without its `key`). `manifest` is pure and build-time. It **refuses**, with a `ManifestError` that names the path, what it cannot derive safely: an exact `"component/name"` key (an `entry`'s adapter turns arguments into the input with an opaque function), an event that builds a payload without a declared kind, an optional command input field, and a Schema with no MESH type (a union of kinds, `null`, a tuple, a class). Every prop is **required** except a boolean one (a boolean attribute is absent when false): the realization does not say whether a text prop is optional, so write the manifest by hand to make one so. A bare command is every view's, as `start` binds it to every declared `component/name`. Because `commands` is needed to derive the manifest and the programs are needed by `define`, factor `commands` out as a function and give it to both. Deriving is optional: a hand-written manifest is exactly as valid.
+
 ## 16. The browser host: `Web.run`
 
-`Web.run` runs one ordinary application on one page: `start`, then `mount` or `hydrate`, then `history` if the application has a URL policy, all in **one lifetime**. It is a convenience over §2, §6 and §8, and decides nothing the core does not.
+`Web.run` runs one ordinary application on one page: `start`, then `mount` or `hydrate`, then `history` if the application has a URL policy (given its own `container`, so links inside it are navigations, §8), all in **one lifetime**. It is a convenience over §2, §6 and §8, and decides nothing the core does not.
 
 ```ts
 const host = await Web.run(app, { container, primitives, present: "mount" /* or "hydrate" */, state, platform, history });

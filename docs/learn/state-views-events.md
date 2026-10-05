@@ -100,6 +100,8 @@ Web.run(app, { container, primitives, present: "mount", history: { window, urlOf
 
 State becomes a URL with `urlOf`; the browser's Back and Forward become a command (`"app/navigate"`) with what `stateOf` read. VALANCE has no router: it moves the URL when your state's URL changes and runs your command when the browser goes back.
 
+**A link is a destination.** Put `Web.link` in your `primitives` and write `<link href={…}>` in the view description. A click on it is the same request as the browser going to that URL: your navigate command runs with what `stateOf` reads from the `href`. You write no event, no command and no `preventDefault`, and a Ctrl-click, a middle click, `target="_blank"` or a link to another site still does what the browser does. Without `history`, the link is a plain anchor and loads the page.
+
 ## What to take away
 
 - One state; commands write it; views read it.

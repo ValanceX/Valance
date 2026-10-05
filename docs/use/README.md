@@ -24,8 +24,16 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 |---|---|---|
 | `run(app, options)` | One application on one page, one lifetime; `stop()` ends it. | [§16](../V1_CONTRACT.md#16-the-browser-host-webrun) |
 | `target({ container, primitives })` | A browser target for `mount` / `hydrate`. | [§6](../V1_CONTRACT.md#6-mounts) |
-| `history(handle, { window, urlOf, stateOf, navigate })` | Keeps the URL and the application in step. | [§8](../V1_CONTRACT.md#8-history) |
+| `history(handle, { window, urlOf, stateOf, navigate, container? })` | Keeps the URL and the application in step. With a `container` (`run` passes its own), a plain click on an `<a href>` inside it is a navigation, as a popstate is; the browser keeps every other click. | [§8](../V1_CONTRACT.md#8-history) |
+| `link` | A primitive for a link: an `<a>` with an `href` and no event. Put it in `primitives`. | [§8](../V1_CONTRACT.md#8-history) |
+| `event(type, payload?)` | A PORT event realization whose payload kind is declared (`{ kind, of }`), so a manifest can be derived. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
 | `WebPrimitives`, `attribute`, `booleanAttribute`, `property`, `textProperty` | The table that says which page element each building block becomes. Target configuration, not part of the application. | [§6](../V1_CONTRACT.md#6-mounts) |
+
+## Build time: `@valancex/valance/web/build`
+
+| Name | What it is | Rules |
+|---|---|---|
+| `manifest({ primitives, scopes, commands })` | The MESH component manifest, derived from the primitives table, each view's scope Schema and the command table. Pure; refuses (`ManifestError`) what it cannot derive safely. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
 
 ## Server: `@valancex/valance/web/server`
 

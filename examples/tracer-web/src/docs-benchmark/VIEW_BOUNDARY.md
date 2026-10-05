@@ -101,3 +101,48 @@ search: wait(Schema.Struct({ query: Schema.String }), {
 | Conditionals: if/else, expressions | **DEFER (teach now)** | MESH has not decided nesting or spelling; most flags were avoidable by teaching expressions |
 | Waiting command (`begin/work/wanted/settle`) | **REVISE** | add latest-wins; decide whether `wanted` is required, optional or defaulted (a silent failure if forgotten) |
 | A VALANCE component or view abstraction | **REJECT** | no evidence required one |
+
+## 8. Status after the adoption session
+
+| Decision | State |
+|---|---|
+| Link as a destination, handled by history | **Implemented** in Valance (`Web.link`, `HistoryOptions.container`; `Web.run` supplies its container). Contract §8. Tests: `test/links.test.ts` (14), `browser/links.browser.test.ts` (1, real Chromium). |
+| Derived manifest | **Implemented** (`@valancex/valance/web/build`, `manifest`; `Web.event`). Contract §15.1. Proof on a real application: `src/items` lost its hand-written `components.json` and its 7 jsdom and 1 Chromium tests pass unchanged. Tests: `packages/valance/test/manifest.test.ts` (14). |
+| Controlled-field contract | **Implemented in PORT** (`controlled(name)`, PORT commit `41f2db7`), 13 PORT tests, and confirmed end to end in real Chromium through `Web.run`. **Not yet usable from Valance**: Valance consumes the released `@valancex/port-web` (0.2.4), so a `Web.textField` preset, and the field in the benchmark, wait for a PORT release. `manifest` already derives a `controlled` prop (matched by its kind). |
+| Lists, conditionals | **Left provisional**: documented here, no VALANCE abstraction. |
+| Async | **Not adopted**: REVISE (below). Nothing was committed for it. |
+
+What the link implementation fixed beyond the benchmark: a link's navigate command that **waits** no longer holds the URL write back, because the click is handled as a caller, not in the history follower. A popstate whose navigate command waits still runs inside the follower (read from `web.ts`, not exercised by a test), so it can hold later URL writes back; that is existing behavior and was not changed.
+
+### The async decision gate
+
+Probes run against the local candidate (`begin / work / wanted / settle`, plus latest-wins per command) on a minimal application. Not committed.
+
+| Probe | Result |
+|---|---|
+| A. `a` then `a` | the first answer is ignored, the second accepted, in either completion order |
+| A. `a`, `as`, `a` | the third's answer is shown; the first `a`'s and `as`'s are ignored |
+| B. navigate away (another command changes the state), then the answer arrives | dropped **with `wanted`**; **lands in the moved-on state without it** (latest-wins alone does not cover it) |
+| C. close while pending | the work's signal is aborted, nothing commits afterwards, the invoking caller sees interruption |
+| D. a stale failure after a newer success | the success stays; a current failure becomes state |
+| E. as `start` work | admitted at start, owned by the application, its answer commits |
+| F. SSR | the start work begins during `renderToHtml` and is interrupted when the render ends; the HTML shows the loading state; the returned state is what the render read (the existing C36 behavior, unchanged by the candidate) |
+| headless | `invoke` waits for the run; a **superseded** run's caller sees **success** (it simply did nothing) |
+
+**The two questions are independent, and both are needed.** Latest-wins answers "is this completion still the current *run of this command*?" and `wanted` answers "is this result still relevant to the *application's current state*?". Probe B shows `wanted` is not redundant; the `a, as, a` case showed `wanted` alone is not enough.
+
+**Why this is REVISE and not ADOPT**, against the criteria:
+
+| Criterion | Candidate |
+|---|---|
+| Cognitive load | large win: no Effect, no NEXUS command, one input Schema |
+| Repeated-request and navigation correctness | proven (A, B) |
+| Close, lifecycle ownership, `start`, SSR, headless | the same as a NEXUS command, because it is one |
+| Second async state machine? | no: the state stays the application's; `begin` and `settle` are the loading and done transitions authors write anyway |
+| Duplicates NEXUS? | about 24 lines over the public API; not a large part |
+| **Typed errors** | **lost**: a failure is reduced to a string (`catch: String`), so a typed failure (`{ _tag: "Offline" }`) cannot reach `settle` as itself |
+| **A superseded run** | its delivery is dropped, but **its work is left running** and **its caller sees success**; whether a replaced run should be interrupted, and what its caller should observe, is a product decision the evidence does not make |
+| **`wanted`** | required by probe B, and **fails silently if it is wrong or forgotten** (the benchmark's `back` bug in a new form); whether it is required, optional or defaulted is undecided |
+| Defects (a throw in `begin`, `work` or `settle`) | not probed |
+
+The semantic expression the task asks for, *the application owns the work until it settles or is interrupted, and only a still-valid completion may affect state*, **can** be written in a small API. It cannot yet be written *safely* in one: the typed-error loss and the unspecified superseded-run behavior are the two things a public shape would have to settle first. Until then NEXUS and Effect remain the way to write a waiting command, and are the advanced escape hatch once a shape is adopted.
