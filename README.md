@@ -39,7 +39,7 @@ Build a counter and run it in your browser in about five minutes.
 ```console
 $ mkdir my-app && cd my-app
 $ pnpm init && pnpm pkg set type=module
-$ pnpm add @valancex/valance @valancex/nexus@^0.10.2 @valancex/mesh-runtime@^0.8.0 @valancex/port-web@^0.2.3 effect@^3.10.0
+$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
 $ pnpm add -D @valancex/mesh-compiler@^0.9.0 vite typescript
 ```
 
