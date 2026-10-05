@@ -210,3 +210,5 @@ With PORT's unreleased `controlled` (a local alias, not committed), the real sit
 - **Genuinely blocking:** (1) the waiting command (Red, and the only one); (2) the input, until PORT is released and a `textField` preset exists; (3) the navigate adapter every history application writes.
 - **Polish:** the `init` bootstrap, the repeated view name in `scopes`, the build script, the factoring recipe.
 - **To settle before the interface is frozen:** the shape of the waiting command (typed errors, what a superseded run does and its caller sees, whether `wanted` is required); how history supplies the navigate input; and whether MESH's list and conditional spelling is stable enough to teach as VALANCE's, or must be wrapped. None of these is a rendering question.
+
+> **Update (the freeze gate, `FREEZE_GATE.md`).** The two Red or blocking items below have moved: **Async** is now Green on this site (`command.waiting`: the search command is 8 lines and 0 NEXUS/Effect references, down from 14 and 15), and the navigate adapter is gone (`navigate: "go"`). The input waits only on the PORT 0.3.0 publication.

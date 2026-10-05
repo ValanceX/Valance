@@ -146,3 +146,5 @@ Probes run against the local candidate (`begin / work / wanted / settle`, plus l
 | Defects (a throw in `begin`, `work` or `settle`) | not probed |
 
 The semantic expression the task asks for, *the application owns the work until it settles or is interrupted, and only a still-valid completion may affect state*, **can** be written in a small API. It cannot yet be written *safely* in one: the typed-error loss and the unspecified superseded-run behavior are the two things a public shape would have to settle first. Until then NEXUS and Effect remain the way to write a waiting command, and are the advanced escape hatch once a shape is adopted.
+
+> **Update (the freeze gate, `FREEZE_GATE.md`).** The waiting command was **adopted**, scoped: the failure reaches `settle` as the Promise rejected, a superseded run's work is not cancelled and its caller sees it complete, and `wanted` is required by the type. History's `navigate` may be a bare command whose input is the navigation fact. The controlled field is validated against the prepared PORT 0.3.0 and waits for its publication.

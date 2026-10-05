@@ -1,0 +1,247 @@
+diff --git a/README.md b/README.md
+index de5a77b..968d91d 100644
+--- a/README.md
++++ b/README.md
+@@ -39,7 +39,7 @@ Build a counter and run it in your browser in about five minutes.
+ ```console
+ $ mkdir my-app && cd my-app
+ $ pnpm init && pnpm pkg set type=module
+-$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
++$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
+ $ pnpm add -D @valancex/mesh-compiler@^0.9.0 vite typescript
+ ```
+ 
+diff --git a/docs/V1_CONTRACT.md b/docs/V1_CONTRACT.md
+index 2022bee..4f8a8e6 100644
+--- a/docs/V1_CONTRACT.md
++++ b/docs/V1_CONTRACT.md
+@@ -210,12 +210,12 @@ Each package has one role. A strict package manager (pnpm) resolves only what th
+ | `@valancex/valance` | the release you target | this package | dependency |
+ | `@valancex/nexus` | `^0.10.3` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
+ | `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders MESH programs at run time | dependency |
+-| `@valancex/port-web` | `^0.2.4` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
++| `@valancex/port-web` | `^0.3.0` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
+ | `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
+ | `@valancex/mesh-compiler` | `^0.9.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
+ 
+ ```console
+-$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
++$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
+ $ pnpm add -D @valancex/mesh-compiler@^0.9.0
+ ```
+ 
+diff --git a/examples/tracer-web/browser/docs-field.browser.test.ts b/examples/tracer-web/browser/docs-field.browser.test.ts
+new file mode 100644
+index 0000000..68324c1
+--- /dev/null
++++ b/examples/tracer-web/browser/docs-field.browser.test.ts
+@@ -0,0 +1,60 @@
++// Controlled field through the real site, real Chromium: SSR value, hydration, typing, state-driven clearing and replacement, a focused caret. Needs @valancex/port-web >= 0.3.0 (`controlled`).
++import * as Web from "@valancex/valance/web";
++import { renderToHtml } from "@valancex/valance/web/server";
++import { init } from "@valancex/mesh-runtime";
++import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
++import { userEvent } from "@vitest/browser/context";
++import { Effect } from "effect";
++import { beforeAll, expect, inject, it } from "vitest";
++
++import { application, stateFor, stateOf, urlOf } from "../src/docs-benchmark/app.js";
++import { primitives } from "../src/docs-benchmark/web.js";
++
++const served = inject("docs");
++beforeAll(async () => { await init(wasmUrl); });
++const calls: Array<{ resolve: (hits: ReadonlyArray<{ id: string; title: string }>) => void }> = [];
++const searchDocs = () => new Promise<ReadonlyArray<{ id: string; title: string }>>((resolve) => { calls.push({ resolve }); });
++
++it("server-rendered non-empty value, hydration, typing, clearing, replacement and a focused caret", async () => {
++  history.replaceState(null, "", "/docs/guides/state");
++  const base = stateFor("/docs/guides/state");
++  const ssr = await Effect.runPromise(renderToHtml(application(served.programs, searchDocs), { primitives, state: { ...base, search: { ...base.search, query: "async", status: "done" as const, results: [] } } }));
++
++  expect(ssr.html).toContain('<input value="async">');                                          // the server wrote the value as the attribute
++
++  const root = document.createElement("div");
++  root.innerHTML = ssr.html;
++  document.body.append(root);
++  const original = root.querySelector("input")!;
++  const host = await Web.run(application(served.programs, searchDocs), { container: root, primitives, present: "hydrate", state: ssr.state, history: { window, urlOf, stateOf, navigate: "go" } });
++  const state = async () => (await Effect.runPromise(host.handle.state as never)) as any;
++  const box = root.querySelector("input")!;
++
++  expect(host.mounted.hydration).toEqual({ adopted: true });                                    // hydration verified the same attribute
++  expect(box).toBe(original);
++  expect(box.value).toBe("async");                                                              // the property agrees with what the server rendered
++
++  // typing: every character kept, state and box agree
++  await userEvent.clear(box);
++  await userEvent.type(box, "documentation-search");
++  await expect.poll(async () => (await state()).search.query).toBe("documentation-search");
++  expect(box.value).toBe("documentation-search");
++
++  // state-driven replacement: the application changes the query (a command, not the user); the box follows; a focused caret in the middle keeps its place
++  await userEvent.clear(box);
++  await userEvent.type(box, "abXc");
++  box.focus();
++  box.setSelectionRange(3, 3);
++  Effect.runFork(host.handle.invoke("app/search", [{ value: "abYc" }]) as never);              // the application changes the text (same length); an invoked waiting command is not awaited here
++  await expect.poll(() => box.value).toBe("abYc");
++  expect(document.activeElement).toBe(box);
++  expect(box.selectionStart).toBe(3);
++
++  // state-driven clearing: picking a page closes the search
++  await userEvent.click([...root.querySelectorAll("a")].find((a) => a.textContent === "Reference: API")!);
++  await expect.poll(async () => (await state()).page).toBe("api");
++  expect(box.value).toBe("");
++  expect(root.querySelector("input")).toBe(box);
++  await host.stop();
++  root.remove();
++});
+diff --git a/examples/tracer-web/package.json b/examples/tracer-web/package.json
+index 5a2aa94..6fe8aa4 100644
+--- a/examples/tracer-web/package.json
++++ b/examples/tracer-web/package.json
+@@ -24,7 +24,7 @@
+     "@valancex/mesh-compiler": "^0.9.0",
+     "@valancex/mesh-runtime": "^0.9.0",
+     "@valancex/nexus": "^0.10.3",
+-    "@valancex/port-web": "^0.2.4",
++    "@valancex/port-web": "^0.3.0",
+     "@vitest/browser": "3.2.7",
+     "effect": "^3.10.0",
+     "jsdom": "^26.0.0",
+diff --git a/examples/tracer-web/src/docs-benchmark/web.ts b/examples/tracer-web/src/docs-benchmark/web.ts
+index 45d1964..a55e8dd 100644
+--- a/examples/tracer-web/src/docs-benchmark/web.ts
++++ b/examples/tracer-web/src/docs-benchmark/web.ts
+@@ -16,11 +16,5 @@ export const primitives: Web.WebPrimitives = {
+   text: { element: "span" },
+   button: { element: "button", events: { click: { type: "click" } } },
+   link: Web.link,                                                         // a destination: the application navigates, the browser keeps modified clicks
+-  // A text field. `value` is an attribute because the server must be able to write it (PORT 0.2.4 has no form that is both server-renderable and live; the release after it adds
+-  // `controlled`, and then this is the only line that changes). Reading the field's text on input is the payload hook, and states its kind for the manifest.
+-  field: {
+-    element: "input",
+-    props: { value: Web.attribute("value") },
+-    events: { input: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
+-  },
++  field: Web.textField,                                                   // a text field: the box always shows the rendered value, and input carries what was typed
+ };
+diff --git a/examples/tracer-web/test/docs-benchmark.test.ts b/examples/tracer-web/test/docs-benchmark.test.ts
+index 68e19e7..61dd677 100644
+--- a/examples/tracer-web/test/docs-benchmark.test.ts
++++ b/examples/tracer-web/test/docs-benchmark.test.ts
+@@ -148,10 +148,9 @@ describe("the browser: hydrate a guide, then use the site", () => {
+     await new Promise((r) => setTimeout(r, 30));
+     expect(p.results()).toEqual([]);                                      // going to a page superseded the search
+     expect(p.status()).toBeUndefined();
+-    // FINDING (COGNITIVE_LOAD.md, search box): the application's state says the query is "", yet the box still shows what the reader typed. The server can only render `value` as an
+-    // attribute, and a DOM attribute no longer changes a field the reader has typed in. This pins the observed disagreement; delete it when the interface can clear a field.
++    // The application cleared the query and the box shows it (PORT `controlled`): state and screen agree. The benchmark's pinned mismatch ("st" here) is gone.
+     expect((await Effect.runPromise(host.handle.state)).search.query).toBe("");
+-    expect(p.container.querySelector("input")!.value).toBe("st");
++    expect(p.container.querySelector("input")!.value).toBe("");
+     expect(s.calls[3]!.aborted).toBe(false);                              // delivery was dropped; the work itself was left alone
+ 
+     p.type("last");                                                       // work in flight when the page stops is aborted
+diff --git a/packages/valance/README.md b/packages/valance/README.md
+index e281689..4d292de 100644
+--- a/packages/valance/README.md
++++ b/packages/valance/README.md
+@@ -13,7 +13,7 @@ import { renderToHtml } from "@valancex/valance/web/server";
+ - **Install** (a strict package manager resolves only what you declare, so declare the application-level and build-time packages yourself):
+ 
+   ```console
+-  $ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
++  $ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
+   $ pnpm add -D @valancex/mesh-compiler@^0.9.0
+   ```
+ 
+@@ -22,7 +22,7 @@ import { renderToHtml } from "@valancex/valance/web/server";
+   | `@valancex/valance` | the release you target | this package |
+   | `@valancex/nexus` | `^0.10.3` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
+   | `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders programs at run time (the one runtime: NEXUS 0.10.3 shares it) |
+-  | `@valancex/port-web` | `^0.2.4` | optional peer: needed for `./web` and `./web/server` |
++  | `@valancex/port-web` | `^0.3.0` | optional peer: needed for `./web` and `./web/server` |
+   | `effect` | `^3.10.0` | peer |
+   | `@valancex/mesh-compiler` | `^0.9.0` | **build time only** (devDependency): compiles MPRX to the `program` each view takes (`compileProgram`) |
+ 
+diff --git a/packages/valance/package.json b/packages/valance/package.json
+index bee119c..0588bc4 100644
+--- a/packages/valance/package.json
++++ b/packages/valance/package.json
+@@ -28,7 +28,7 @@
+   },
+   "peerDependencies": {
+     "@valancex/mesh-runtime": "^0.8.0 || ^0.9.0",
+-    "@valancex/port-web": "^0.2.4",
++    "@valancex/port-web": "^0.3.0",
+     "effect": "^3.10.0"
+   },
+   "peerDependenciesMeta": {
+@@ -38,7 +38,7 @@
+     "@types/node": "^22.0.0",
+     "@valancex/mesh-compiler": "^0.9.0",
+     "@valancex/mesh-runtime": "^0.9.0",
+-    "@valancex/port-web": "^0.2.4",
++    "@valancex/port-web": "^0.3.0",
+     "effect": "^3.10.0",
+     "typescript": "^5.6.0",
+     "vitest": "^3.2.0"
+diff --git a/packages/valance/src/web-manifest.ts b/packages/valance/src/web-manifest.ts
+index ef3c4a6..3a37a72 100644
+--- a/packages/valance/src/web-manifest.ts
++++ b/packages/valance/src/web-manifest.ts
+@@ -130,13 +130,9 @@ const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.Typ
+ // ---- the three sources ---------------------------------------------------------------------------------------------------------------------------------------------
+ 
+ const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["props"]>[string], path: string): Field => {
+-  // `controlled` (a text slot that is an attribute and its property, added to PORT after 0.2.4) is matched by its kind string: it is a text slot like `attribute`.
+-  if ((realization.kind as string) === "controlled") {
+-    return { type: { kind: "string" }, required: true };
+-  }
+-
+   switch (realization.kind) {
+     case "attribute":
++    case "controlled":
+     case "text-property": return { type: { kind: "string" }, required: true };
+     case "boolean-attribute": return { type: { kind: "boolean" }, required: false };
+     case "property": return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };
+diff --git a/packages/valance/src/web.ts b/packages/valance/src/web.ts
+index 530f9bb..873cc19 100644
+--- a/packages/valance/src/web.ts
++++ b/packages/valance/src/web.ts
+@@ -7,13 +7,14 @@ import type { HydrationResult, WebPort, WebPortOptions, WebPrimitive, WebPrimiti
+ import type { BoundaryValue } from "@valancex/mesh-runtime";
+ import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
+ 
+-import { attribute, createWebPort } from "@valancex/port-web";
++import { attribute, controlled, createWebPort } from "@valancex/port-web";
+ import { hydrate, mount, start } from "./index.js";
+ import { INPUT_KEY, runningOf } from "./internal.js";
++import { event } from "./web-payload.js";
+ import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
+ 
+ export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
+-export { attribute, booleanAttribute, property, textProperty } from "@valancex/port-web";
++export { attribute, booleanAttribute, controlled, property, textProperty } from "@valancex/port-web";
+ export { event } from "./web-payload.js";
+ export type { PayloadKind } from "./web-payload.js";
+ 
+@@ -23,6 +24,17 @@ export type { PayloadKind } from "./web-payload.js";
+  */
+ export const link: WebPrimitive = { element: "a", props: { href: attribute("href") } };
+ 
++/**
++ * A text field: an `<input>` whose `value` is the application's text and whose `input` event carries what the user typed (a string). After every presentation the field shows
++ * exactly the rendered value (PORT's `controlled`), so state and screen cannot disagree; an edit the application declines is reasserted by the next presentation. Put it in the
++ * primitives table under the name the view uses.
++ */
++export const textField: WebPrimitive = {
++  element: "input",
++  props: { value: controlled("value") },
++  events: { input: event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
++};
++
+ export const target = (options: Omit<WebPortOptions, "report">): TargetFactory<WebPort> => (report) => createWebPort({ ...options, report });
+ 
+ export interface HistoryOptions<S> {
