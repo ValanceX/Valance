@@ -1,0 +1,11 @@
+<shell>
+  <header><heading>{site}</heading></header>
+  <main>
+    <para>{tagline}</para>
+    <list>
+      <mesh-each items={guides} as="g" key={g.id}>
+        <item><link href={g.href} on.click={go(g.id)}>{g.label}</link></item>
+      </mesh-each>
+    </list>
+  </main>
+</shell>

@@ -1,0 +1,33 @@
+<shell>
+  <header>
+    <heading>{site}</heading>
+    <field value={query} on.input={search($event)} />
+    <mesh-if when={hasStatus}><text>{status}</text></mesh-if>
+    <mesh-if when={hasResults}>
+      <list>
+        <mesh-each items={results} as="r" key={r.id}>
+          <item><link href={r.href} on.click={go(r.id)}>{r.label}</link></item>
+        </mesh-each>
+      </list>
+    </mesh-if>
+  </header>
+  <nav>
+    <list>
+      <mesh-each items={nav} as="n" key={n.id}>
+        <item><text>{n.mark}</text><link href={n.href} on.click={go(n.id)}>{n.label}</link></item>
+      </mesh-each>
+    </list>
+  </nav>
+  <main>
+    <heading>{title}</heading>
+    <mesh-each items={paragraphs} as="p" key={p.id}><para>{p.text}</para></mesh-each>
+    <mesh-if when={hasCode}><code>{code}</code></mesh-if>
+    <button on.click={toggle()}>{detailsLabel}</button>
+    <mesh-if when={detailsOpen}><para>{details}</para></mesh-if>
+    <nav>
+      <mesh-if when={hasPrev}><link href={prevHref} on.click={go(prevId)}>{prevLabel}</link></mesh-if>
+      <mesh-if when={hasNext}><link href={nextHref} on.click={go(nextId)}>{nextLabel}</link></mesh-if>
+    </nav>
+  </main>
+  <footer><text>Valance documentation benchmark</text></footer>
+</shell>
