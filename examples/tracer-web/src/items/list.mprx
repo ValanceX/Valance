@@ -1,0 +1,5 @@
+<page title={title}>
+  <mesh-each items={items} as="item" key={item.id}>
+    <row><button on.click={select(item.id)}>{item.title}</button></row>
+  </mesh-each>
+</page>

@@ -9,13 +9,15 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 | Name | What it is | Rules |
 |---|---|---|
 | `define(definition)` | The application, as data: `name`, `state: { schema, initial }`, `views`, `view`, `commands`, and optionally `start` (a command key run once at start, added in 0.4.0). Returns the definition unchanged and starts nothing. | [§2](../V1_CONTRACT.md#2-application), [§5](../V1_CONTRACT.md#5-views-and-presentation), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
-| `start(app, { platform?, state? })` | Starts one application in the caller's `Scope`; returns the handle once state exists, the checks have passed and commands are admitted; then admits the `start` command, if the definition has one. Fails with a typed `StartError`. | [§2](../V1_CONTRACT.md#2-application), [§9](../V1_CONTRACT.md#9-scopes-and-shutdown), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) | [§2](../V1_CONTRACT.md#2-application), [§9](../V1_CONTRACT.md#9-scopes-and-shutdown) |
-| `ApplicationHandle` | `{ state, invoke }`: read the committed state; run a command by key. | [§2](../V1_CONTRACT.md#2-application), [§3](../V1_CONTRACT.md#3-state-and-commands) |
+| `start(app, { platform?, state? })` | Starts one application in the caller's `Scope`; returns the handle once state exists, the checks have passed and commands are admitted; then admits the `start` command, if the definition has one. Fails with a typed `StartError`. | [§2](../V1_CONTRACT.md#2-application), [§9](../V1_CONTRACT.md#9-scopes-and-shutdown), [§18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) |
+| `ApplicationHandle` | `{ state, invoke }`: read the committed state; run a command by key. `invoke(key, args)` takes each argument wrapped as `{ value }`, in the command's field order: `invoke("app/add", [{ value: 5 }])`; a command with no input takes `[]`. | [§2](../V1_CONTRACT.md#2-application), [§3](../V1_CONTRACT.md#3-state-and-commands) |
 | `command(state)(transition)`, `command(state)(input, transition)` | A command that is a pure transition of state; with `input`, validated by it. Put it in `commands` under its name. | [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
+| `command(state).waiting(input, spec)` | A command that waits: `begin`, `work` (a Promise), `wanted` (required), `settle`. A newer run supersedes an older; the failure reaches `settle` as the Promise rejected. | [§18.3](../V1_CONTRACT.md#183-a-command-that-waits-commandstatewaiting) |
 | `entry(run, input?)` | Advanced: an exact `"component/name"` entry for a command, adapting the event's arguments (plain values) to its input. Not needed for an ordinary command. | [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
 | `mount(handle, target)` | Draws the current state and follows it. Returns `Mounted`. | [§6](../V1_CONTRACT.md#6-mounts), [§7](../V1_CONTRACT.md#7-retained-render-and-interaction) |
 | `hydrate(handle, target)` | Takes over server markup, then behaves as `mount`. Adds `hydration`. | [§6](../V1_CONTRACT.md#6-mounts) |
 | `Mounted` | `{ dispatched, settled, followed }`: how a mount ended, and observation aids. | [§6](../V1_CONTRACT.md#6-mounts), [§10](../V1_CONTRACT.md#10-failure-model) |
+| `Program`, `StateHandle<S>` | Types only. `Program` is a compiled view description (what `compileProgram` returns and a view's `program` takes). `StateHandle<S>` is the `state` that `commands` receives, for writing `commands` apart from `define`. No runtime. | [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry), [§15](../V1_CONTRACT.md#15-building-a-view-description) |
 | `StartOptions`, `StartError`, `TargetFactory`, `Target` | Start options and failures (`InitialValueInvalid`, `ServiceGraphFailed`, `MeshDiagnostics`, `ConformanceViolation`, and `UnmappedCommand` for a `start` key the table lacks); the shape a target implements. | [§2](../V1_CONTRACT.md#2-application), [§6](../V1_CONTRACT.md#6-mounts), [§10](../V1_CONTRACT.md#10-failure-model) |
 
 ## Web: `@valancex/valance/web`
@@ -24,8 +26,18 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 |---|---|---|
 | `run(app, options)` | One application on one page, one lifetime; `stop()` ends it. | [§16](../V1_CONTRACT.md#16-the-browser-host-webrun) |
 | `target({ container, primitives })` | A browser target for `mount` / `hydrate`. | [§6](../V1_CONTRACT.md#6-mounts) |
-| `history(handle, { window, urlOf, stateOf, navigate })` | Keeps the URL and the application in step. | [§8](../V1_CONTRACT.md#8-history) |
+| `history(handle, { window, urlOf, stateOf, navigate, container? })` | Keeps the URL and the application in step. `navigate` is a bare command name (the navigation fact is its input) or an exact key. `titleOf?` keeps `document.title` in step with the state. A plain link click starts at the top. With a `container` (`run` passes its own), a plain click on an `<a href>` inside it is a navigation, as a popstate is; the browser keeps every other click. | [§8](../V1_CONTRACT.md#8-history) |
+| `textField` | A primitive for an `<input>` the user types in: its `value` is the application's text and its `input` event carries a string. The field always shows the rendered value. Put it in `primitives`. | [§6](../V1_CONTRACT.md#6-mounts) |
+| `controlled(name)` | The PORT realization `textField` is made of, re-exported for a custom field: an attribute that is also its DOM property. Needs `@valancex/port-web` 0.3.0. | [§6](../V1_CONTRACT.md#6-mounts) |
+| `link` | A primitive for a link: an `<a>` with an `href` and no event. Put it in `primitives`. | [§8](../V1_CONTRACT.md#8-history) |
+| `event(type, payload?)` | A PORT event realization whose payload kind is declared (`{ kind, of }`), so a manifest can be derived. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
 | `WebPrimitives`, `attribute`, `booleanAttribute`, `property`, `textProperty` | The table that says which page element each building block becomes. Target configuration, not part of the application. | [§6](../V1_CONTRACT.md#6-mounts) |
+
+## Build time: `@valancex/valance/web/build`
+
+| Name | What it is | Rules |
+|---|---|---|
+| `manifest({ primitives, scopes, commands })` | The MESH component manifest, derived from the primitives table, each view's scope Schema and the command table. Pure; refuses (`ManifestError`) what it cannot derive safely. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
 
 ## Server: `@valancex/valance/web/server`
 

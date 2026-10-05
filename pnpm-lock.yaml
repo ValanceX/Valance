@@ -34,8 +34,8 @@ importers:
         specifier: ^0.10.3
         version: 0.10.3(@valancex/mesh-runtime@0.9.0)
       '@valancex/port-web':
-        specifier: ^0.2.4
-        version: 0.2.4(@valancex/mesh-runtime@0.9.0)
+        specifier: ^0.3.0
+        version: 0.3.0(@valancex/mesh-runtime@0.9.0)
       '@vitest/browser':
         specifier: 3.2.7
         version: 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
@@ -74,8 +74,8 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0
       '@valancex/port-web':
-        specifier: ^0.2.4
-        version: 0.2.4(@valancex/mesh-runtime@0.9.0)
+        specifier: ^0.3.0
+        version: 0.3.0(@valancex/mesh-runtime@0.9.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -472,8 +472,8 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
 
-  '@valancex/port-web@0.2.4':
-    resolution: {integrity: sha512-G3BjlfhMwwabk/A4AuNMuQAfJroVx0YDQpF/UgKc43iV1dsy8h8jUuOndhAa2ozrVVdSnWrkKjQpmplHuCwoJw==}
+  '@valancex/port-web@0.3.0':
+    resolution: {integrity: sha512-p+Aqm9vMbJ40p5hrnOgANHqR0htpn8cvPWY8NcP+wuTmW2RA9XVXTe1oL0Og/OJ91iPSikdTuBjyiPLI/F0/HA==}
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0
@@ -1190,7 +1190,7 @@ snapshots:
       '@valancex/mesh-runtime': 0.9.0
       effect: 3.22.2
 
-  '@valancex/port-web@0.2.4(@valancex/mesh-runtime@0.9.0)':
+  '@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.9.0
 

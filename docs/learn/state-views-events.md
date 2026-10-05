@@ -87,7 +87,7 @@ return {
 };
 ```
 
-An exact key wins over a bare name for that event, so an entry can also give one view different behavior for a name the others share. `"app/navigate"` is explicit because the URL supplies a single object, and a single object is not unpacked into fields. You do not need entries for ordinary commands: a command named after its event, taking its arguments in order, is the normal form above.
+An exact key wins over a bare name for that event, so an entry can also give one view different behavior for a name the others share. `"app/navigate"` is how this example hands history an adapted binding; if the navigate command simply takes what `stateOf` reads as its input, you do not need an entry at all (see *URLs* below). You do not need entries for ordinary commands: a command named after its event, taking its arguments in order, is the normal form above.
 
 ## URLs are the application's decision
 
@@ -98,7 +98,43 @@ const stateOf = (url: URL) => ({ open: url.searchParams.get("open") ?? "" });
 Web.run(app, { container, primitives, present: "mount", history: { window, urlOf, stateOf, navigate: "app/navigate" } });
 ```
 
-State becomes a URL with `urlOf`; the browser's Back and Forward become a command (`"app/navigate"`) with what `stateOf` read. VALANCE has no router: it moves the URL when your state's URL changes and runs your command when the browser goes back.
+State becomes a URL with `urlOf`; the browser's Back and Forward become a command with what `stateOf` read. VALANCE has no router: it moves the URL when your state's URL changes and runs your command when the browser goes back.
+
+**Naming the navigate command.** The simplest form: `navigate` is a bare command name, and the object `stateOf` returns **is that command's input**:
+
+```ts
+const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) => ({ ...current, open }));
+// commands: { enter, … }       history: { window, urlOf, stateOf, navigate: "enter" }   with   stateOf = (url) => ({ open: … })
+```
+
+No adapter is needed. The input is checked by the command's schema like any other. (The inbox above passes an exact key, `"app/navigate"`, which is the form for a command whose arguments need adapting.)
+
+**A link is a destination.** Put `Web.link` in your `primitives` and write `<link href={…}>` in the view description. A click on it is the same request as the browser going to that URL: your navigate command runs with what `stateOf` reads from the `href`. You write no event, no command and no `preventDefault`, and a Ctrl-click, a middle click, `target="_blank"` or a link to another site still does what the browser does. A plain click also starts the new page at the top, as a page load does, and the browser's Back and Forward restore the position they left. Without `history`, the link is a plain anchor and loads the page.
+
+**The title** is not part of a view: it lives in the document's head. Give history a function and it keeps `document.title` in step with the state, Back and Forward included: `history: { …, titleOf: (state) => state.page === "home" ? "Docs" : `${titleOfPage(state)} · Docs` }`. The server's document writes the same function's result for the state it rendered, so the first paint already has the right title and hydration does not touch it.
+
+## A text field
+
+A text field is a primitive too. Put `Web.textField` in your `primitives` and write `<field value={query} on.input={search($event)} />`: the box shows the application's `query`, and what the person types arrives as a string. The box always shows what the state says: if a command resets the query (the reader went to another page), the box empties; if a command declines an edit, the next time the screen is redrawn it shows the application's value again. The server writes the value into the page, so a reload keeps it.
+
+## Repeated and conditional parts (provisional)
+
+A list of items and a part that shows only sometimes are written in the view description with two reserved tags. They are MESH's, and MESH calls their spelling provisional: they have not changed since they were introduced (MESH 0.7, through 0.9), but they are not promised.
+
+```
+<mesh-each items={nav} as="n" key={n.id}>      repeat the child for each item; `key` is the item's identity
+  <item><link href={n.href}>{n.label}</link></item>
+</mesh-each>
+
+<mesh-if when={search.status == "failed"}>      one child: shown when `when` is true
+  <text>Search failed</text>
+</mesh-if>
+```
+
+- **`key` is the identity.** An item keeps its on-screen element through reordering and removal; an item that leaves and returns is new. A `mesh-each` without a `key` is refused when the view is compiled.
+- **`mesh-if` has one or two children, by position**: the first when `when` is true, the second when it is false. With one, a false `when` shows nothing. A `mesh-if` may not be a *direct* child of another; wrap the inner one in an element.
+- **`when` and `items` are ordinary expressions** over what `scope` supplies: `search.status == "failed"`, `code != ""`, `!loading`. There is no length operator, so "the list is empty" is a value your `scope` computes.
+- You declare nothing else: the compiler is told these tags for you.
 
 ## What to take away
 
