@@ -36,23 +36,69 @@ export interface View<S> {
   readonly scope: (state: S) => Record<string, unknown>;
 }
 
+/**
+ * What `commands` holds, by the shape of the key:
+ *
+ *   `"component/name"`  a binding (`entry(...)`), for exactly that component and command.
+ *   `name`              a NEXUS command, for every declared `component/name` whose name it is, and for `"app/name"`.
+ *
+ * Both forms may be mixed in one table. An exact `"component/name"` key always wins over a bare name for that declaration (see `ApplicationDefinition.commands`).
+ */
+export type CommandTable<E, R extends Ambient> = Readonly<Record<string, Nexus.Mesh.Binding<E, R> | Nexus.Command.Command<any, any, E, R>>>;
+
 export interface ApplicationDefinition<S, E, R extends Ambient, V extends string> {
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
-  readonly state: { readonly schema: Schema.Schema<S>; readonly initial: S };
+  readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
   /** The MESH programs the application can show. The application's state outlives a change of program. */
   readonly views: { readonly [K in V]: View<S> };
   /** Which program the current state shows. A function of application state: what the active view is, is the application's. */
   readonly view: (state: S) => V;
-  /** Behavior: NEXUS commands over the state, bound to MESH command intents ("component/name"), for every view. */
-  readonly commands: (state: Nexus.State.StateHandle<S>) => Readonly<Record<string, Nexus.Mesh.Binding<E, R>>>;
+  /**
+   * Behavior, for every view: a function of the application's state that returns the table. A key is one of two forms:
+   *
+   *  - **`"component/name"`** binds exactly that declared event's command: `entry(command, input?)`, as always. `"app/name"` is the same form, for `invoke` and history.
+   *  - **a bare `name`** is a NEXUS command (`command(state)(…)` or `Command.define`). It is bound to every declared `component/name` whose `name` it is, and to `"app/name"`.
+   *
+   * **Resolution**, for each declared `component/name` and for each `app/name`: the exact key in the table wins; otherwise the bare `name` is used; otherwise there is
+   * no command, and `start` fails with `ConformanceViolation` (declared events) or the key is `UnmappedCommand` (everything else). One rule, no other precedence.
+   *
+   * **Arguments of a bare command.** If its input is a struct, the arguments an event (or `invoke`) supplies are its fields **in the struct's field order**: the first
+   * argument is the first field, and so on. An argument the event does not supply is `undefined` (so a required field then fails validation), and arguments beyond the
+   * fields are ignored. The event's own parameter names are not used. If its input is not a struct, the first argument is the whole input. The input is validated by the
+   * command's schema as always. (A single object argument is not unpacked into fields.)
+   *
+   * A bare name must hold a command object. A function there (such as an `entry`) is a mistake and `start` dies with a defect naming it.
+   */
+  readonly commands: (state: Nexus.State.StateHandle<S>) => CommandTable<E, R>;
+  /**
+   * The key of a command-table entry (an exact `"component/name"` key, or a bare command name, which means `"app/name"`) that `start` runs, once, with no arguments, as the application's own command: admitted before `start` returns, owned
+   * by the application's registry like any admitted command (closing the Scope interrupts and awaits it before NEXUS terminates), with no caller. Its exit is
+   * not reported anywhere: work that can fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
+   */
+  readonly start?: string;
 }
 
-/** The definition, typed. An application is data: defining one starts nothing. */
-export const define = <S, E, R extends Ambient, V extends string>(definition: ApplicationDefinition<S, E, R, V>): ApplicationDefinition<S, E, R, V> => definition;
+/** The failures a table can raise: the union over every command (and binding) in it, exactly. */
+type ErrorOf<V> = V extends Nexus.Command.Command<any, any, infer Err, any> ? Err : V extends Nexus.Mesh.Binding<infer Err, any> ? Err : never;
+/** The services a table needs: the union over every command (and binding) in it. */
+type RequirementOf<V> = V extends Nexus.Command.Command<any, any, any, infer Req> ? Req : V extends Nexus.Mesh.Binding<any, infer Req> ? Req : never;
+
+/**
+ * The definition, typed. An application is data: defining one starts nothing. `E` is the union of every failure in the command table (each command may fail
+ * differently), plus `CommandValidationError`: every command's input is validated, and a table of bare command names (which have no `entry` to carry it)
+ * would otherwise claim that failure cannot happen. `R` is the union of the services the table needs. Both are read from the table's own type, so no command's
+ * failure is narrowed to another's.
+ */
+export const define = <S, T extends CommandTable<any, Ambient>, V extends string>(
+  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T }
+): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V> => definition as unknown as ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
 
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
 const TRANSITION_COMMAND = "valance.command";
+
+/** The input of a command that takes none. */
+const NO_INPUT = Schema.Struct({});
 
 /**
  * Binds the application's state, and returns the function that makes commands whose whole behavior is a pure transition of it:
@@ -61,6 +107,7 @@ const TRANSITION_COMMAND = "valance.command";
  *
  *     const command = Valance.command(state);
  *     const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
+ *     const increment = command((current) => ({ ...current, count: current.count + 1 }));   // no input: the same as `command(Schema.Struct({}), (_input, current) => …)`
  *
  * It is the trusted, atomic writer of Contract §3, not the validating one: the result is committed AS RETURNED, without being checked
  * against the state's schema, and concurrent transitions all land. (It is `state.update`, never `state.set`.)
@@ -74,8 +121,36 @@ const TRANSITION_COMMAND = "valance.command";
  * transition together cannot do this: TypeScript then types the returned literals from a type parameter of that same call, and widens them.)
  * A returned object is not checked for excess properties, the same as returning it from `state.update`.
  */
-export const command = <S>(state: Nexus.State.StateHandle<S>): (<I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S) => Nexus.Command.Command<I, void, never, never>) =>
-  (input, transition) => Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
+export const command = <S>(state: Nexus.State.StateHandle<S>): {
+  (transition: (current: S) => S): Nexus.Command.Command<{}, void, never, never>;
+  <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
+} => {
+  const make = <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never> =>
+    Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
+
+  // The one-argument form is the two-argument form with the empty input: the same `Command`, validated, admitted and run in the same way.
+  return ((a: unknown, b?: unknown) => b === undefined
+    ? make(NO_INPUT, (_input, current) => (a as (current: S) => S)(current))
+    : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as never;
+};
+
+/** The field names of a command's struct input, in order; `undefined` when the input is not a struct. */
+const fieldsOf = (schema: Schema.Schema<any>): ReadonlyArray<string> | undefined => {
+  let ast = schema.ast;
+
+  while (ast._tag === "Refinement") {
+    ast = ast.from;
+  }
+
+  return ast._tag === "TypeLiteral" ? ast.propertySignatures.map((property) => String(property.name)) : undefined;
+};
+
+/** The binding of a bare command name: the arguments are the struct's fields in order, or the whole input when the input is not a struct. */
+const bareBinding = <E, R>(command: Nexus.Command.Command<any, any, E, R>): Nexus.Mesh.Binding<E | Nexus.Command.CommandValidationError, R> => {
+  const fields = fieldsOf(command.input);
+
+  return entry(command, (...values) => fields === undefined ? values[0] : Object.fromEntries(fields.map((field, index) => [field, values[index]])));
+};
 
 /** What an entry's argument is to the application: the value itself, or `undefined` when the argument is absent. */
 const plain = (argument: Nexus.Mesh.IntentArgument): unknown => "value" in argument ? argument.value : undefined;
@@ -119,7 +194,7 @@ export type ConformanceViolation = { readonly _tag: "ConformanceViolation"; read
  * Why `start` yields no handle: NEXUS's state and platform failures; the diagnostics MESH reports for a view's program (the first view, in the definition's order,
  * that has any: they depend on the program alone, never on state); or the conformance failure.
  */
-export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError | Nexus.Mesh.MeshDiagnostics | ConformanceViolation;
+export type StartError = Nexus.Application.ApplicationInitError | Nexus.State.StateInitError | Nexus.Mesh.MeshDiagnostics | ConformanceViolation | Nexus.Mesh.UnmappedCommand;
 
 export interface StartOptions<S> {
   /** Supplied to NEXUS `Application.start`, where platform services (capabilities, Clock, …) enter. */
@@ -176,7 +251,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       return Effect.forEach([...admitted], (command) => Fiber.interrupt(command), { discard: true });   // interrupts, and awaits each ACTUAL exit
     }));
     const state = yield* Nexus.Application.createState(nexus, app.state.schema, options.state ?? app.state.initial);
-    const commands = app.commands(state);
+    const given = app.commands(state);
 
     // Conformance, D ⊆ B (Contract §2). B is the table's own keys. D is what MESH says the programs of EVERY view declare (unselected views, inactive
     // conditional branches and repeated bodies included): VALANCE asks MESH and reads no program. A program MESH rejects has no declared events, so it fails
@@ -191,6 +266,33 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       }
 
       declared.push(...result.events.map((event) => ({ view, event })));
+    }
+
+    // The table every later step uses: exact keys as given, then bare names bound where an exact key is absent (the rule on `ApplicationDefinition.commands`).
+    // Built from D, which is already known, so the registry, the hosts, `invoke` and conformance see ONE plain table of exact keys.
+    const commands: Record<string, Nexus.Mesh.Binding<E, R>> = {};
+    const named = new Map<string, Nexus.Mesh.Binding<E, R>>();
+
+    for (const [key, value] of Object.entries(given)) {
+      if (key.includes("/")) {
+        commands[key] = value as Nexus.Mesh.Binding<E, R>;
+      } else if (typeof value === "function") {
+        throw new Error(`VALANCE: "${key}" is a bare command name, so it must hold a command; a binding (entry) belongs under a "component/name" key`);
+      } else {
+        named.set(key, bareBinding(value) as Nexus.Mesh.Binding<E, R>);
+      }
+    }
+
+    for (const [name, binding] of named) {
+      commands[`app/${name}`] ??= binding;
+    }
+
+    for (const { event } of declared) {
+      const bound = named.get(event.command);
+
+      if (bound !== undefined) {
+        commands[`${event.component}/${event.command}`] ??= bound;
+      }
     }
 
     const missing = declared.flatMap(({ view, event }): ReadonlyArray<UnmappedDeclaration> => {
@@ -259,6 +361,21 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
       },
     };
+
+    // Start-time work: the SAME admission as `invoke` and dispatch, with no caller. Last step before the handle exists, after every failure `start` can have, so a
+    // failed start runs nothing. The fiber registers itself first (`admit`); a Scope close that wins the race finds admission closed and the work dies unrun.
+    // `Effect.exit` keeps its exit from being an unhandled fiber failure: nobody joins it.
+    if (app.start !== undefined) {
+      const startKey = app.start.includes("/") ? app.start : `app/${app.start}`;
+      const binding = Object.hasOwn(commands, startKey) ? commands[startKey] : undefined;
+      const [component = "", name = ""] = startKey.split("/");
+
+      if (binding === undefined) {
+        return yield* Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name });
+      }
+
+      Nexus.Runtime.runFork(nexus.runtime, Effect.exit(admit(binding([]))));
+    }
 
     return handleOf(running);
   });

@@ -39,7 +39,7 @@ Build a counter and run it in your browser in about five minutes.
 ```console
 $ mkdir my-app && cd my-app
 $ pnpm init && pnpm pkg set type=module
-$ pnpm add @valancex/valance @valancex/nexus@^0.10.2 @valancex/mesh-runtime@^0.8.0 @valancex/port-web@^0.2.3 effect@^3.10.0
+$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
 $ pnpm add -D @valancex/mesh-compiler@^0.9.0 vite typescript
 ```
 
@@ -109,7 +109,7 @@ const app = Valance.define({
   commands: (state) => {
     const command = Valance.command(state);
     return {
-      "counter/increment": Valance.entry(command(Schema.Struct({}), (_input, current) => ({ count: current.count + 1 }))),
+      increment: command((current) => ({ count: current.count + 1 })),   // the screen's increment() runs this
     };
   },
 });
@@ -149,9 +149,12 @@ Follow these in order. Each one builds on the last.
 |---|---|---|
 | **1** | [Your first application](docs/learn/first-application.md) | The counter above, line by line, plus running it on a server and in tests |
 | **2** | [State, views and events](docs/learn/state-views-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
-| **3** | [Common tasks](docs/learn/README.md#common-tasks) | Recipes: adding screens and commands, syncing the URL, server rendering |
-| **4** | [API reference](docs/use/README.md) | Every export, by name |
-| **5** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
+| **3** | [Async work](docs/learn/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
+| **4** | [Startup work](docs/learn/startup-work.md) | Work the application starts by itself, and how its failures show |
+| **5** | [Mounting and hydration](docs/learn/mounting-and-hydration.md) | Drawing the application, taking over server HTML, what a server render does |
+| **6** | [Common tasks](docs/learn/README.md#common-tasks) | Recipes: adding screens and commands, syncing the URL, server rendering |
+| **7** | [API reference](docs/use/README.md) | Every export, by name |
+| **8** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
 
 **Going deeper:** [how Valance is built](docs/understand/README.md) covers the architecture and design decisions. You don't need it to build apps.
 

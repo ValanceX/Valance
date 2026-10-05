@@ -16,6 +16,9 @@ The documentation has three levels. Start at the first and go down only when you
 |---|---|
 | know what VALANCE is and what problem it solves | [What is VALANCE?](learn/what-is-valance.md) |
 | build the smallest working application | [Your first application](learn/first-application.md) |
+| wait for data, cancel it, or show loading and failure | [Async work](learn/async-work.md) |
+| run something when the application starts | [Startup work](learn/startup-work.md) |
+| draw the application, hydrate server HTML, or render on a server | [Mounting and hydration](learn/mounting-and-hydration.md) |
 | see how state, view and events fit together | [State, views and events](learn/state-views-events.md) |
 | do a common task (add a view, a command, a resource, URLs, server rendering) | [Common tasks](learn/README.md#common-tasks) |
 | look up exactly what an API does, and what happens when it fails | [API reference](use/README.md) |

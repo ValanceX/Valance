@@ -45,30 +45,49 @@ In the list's description:
 <button on.click={open(m.id)}>Open</button>
 ```
 
-`open(m.id)` names a command *of the list view*. The application binds that name to behavior:
+`open(m.id)` names a command. The application has a command with that name:
 
 ```ts
-const command = Valance.command(state);
-const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) =>
-  ({ open, messages: current.messages.map((m) => m.id === open ? { ...m, read: true } : m) }));
+commands: (state) => {
+  const command = Valance.command(state);
 
-commands: {
-  "list/open":     Valance.entry(enter, (open) => ({ open })),   // the click's argument becomes the input
-  "message/close": Valance.entry(enter, () => ({ open: "" })),
-  "app/navigate":  Valance.entry(enter, (navigation) => navigation),
-}
+  return {
+    open: command(
+      Schema.Struct({ open: Schema.String }),
+      ({ open }, current) => ({ open, messages: current.messages.map((m) => m.id === open ? { ...m, read: true } : m) })
+    ),
+    star: command((current) => ({ ...current, messages: current.messages.map((m) => m.id === current.open ? { ...m, starred: !m.starred } : m) })),
+  };
+},
 ```
 
 So a click goes:
 
 1. The person clicks *Open* on a row. The screen reports the event with its argument (`m.id`).
-2. VALANCE looks up `"list/open"` and runs that command with the input `{ open: id }`.
-3. The command's input is checked; `enter` computes the next state.
+2. VALANCE finds the command named `open` and runs it. The argument fills the command's input: the first argument is the first field, so the input is `{ open: id }`.
+3. The input is checked; the command computes the next state.
 4. State is committed. `view(state)` is now `"message"`, so the screen redraws as the message.
 
-`"app/navigate"` is the same `enter`, reached from outside any screen: the browser's Back button, a test, a host page. There is one way into behavior. `Valance.entry` is what lets a command be reached by a view's event (`"list/open"`) or by name (`"app/navigate"`).
+The name is the contract between a description and the application: the `open` in the description is the command `open`. If the description uses a name the application has no command for, the application does not start (`ConformanceViolation`, Contract §2). Two views that both use `star()` run the same command.
 
-The name `"component/name"` is the contract between a description and the application: `list/open` is the command `open` of the component `list`. A declared name with no entry stops the application from starting (`ConformanceViolation`, Contract §2), and a name looked up at run time that has no entry still fails with a clear error (`UnmappedCommand`) before anything runs.
+From outside the screen (a test, a host page, the browser's Back button) the same command is reached as `"app/open"`: `"app/"` and its name. There is one way into behavior.
+
+## When an event's input needs adapting
+
+Sometimes several events should run one command with different inputs, or an input should be a constant. Then you tie an exact `"component/name"` key to the command with `Valance.entry`, which says how the event's arguments become its input. The example inbox ([`examples/tracer-web/src/inbox/`](../../examples/tracer-web/src/inbox/)) uses one transition, `enter`, for opening, closing and going Back:
+
+```ts
+const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) =>
+  ({ open, messages: current.messages.map((m) => m.id === open ? { ...m, read: true } : m) }));
+
+return {
+  "list/open":     Valance.entry(enter, (open) => ({ open })),   // the click's argument becomes the input
+  "message/close": Valance.entry(enter, () => ({ open: "" })),   // a constant: closing "opens" nothing
+  "app/navigate":  Valance.entry(enter, (navigation) => navigation),   // an object from the URL (see below)
+};
+```
+
+An exact key wins over a bare name for that event, so an entry can also give one view different behavior for a name the others share. `"app/navigate"` is explicit because the URL supplies a single object, and a single object is not unpacked into fields. You do not need entries for ordinary commands: a command named after its event, taking its arguments in order, is the normal form above.
 
 ## URLs are the application's decision
 
@@ -87,5 +106,6 @@ State becomes a URL with `urlOf`; the browser's Back and Forward become a comman
 - `view(state)` picks the view; `scope(state)` feeds it; the description draws it.
 - Events run commands by name; the same names are open to anything outside the screen.
 - The application is data, so the same definition runs in a page, on a server, or in a test.
+- A command can wait. Its progress is state like any other: see [Async work](async-work.md) and [Startup work](startup-work.md).
 
 Exact rules for each of these are in the [API reference](../use/README.md) and the [contract](../V1_CONTRACT.md). How VALANCE is built, and the evidence for these rules, is in [Understand](../understand/README.md).

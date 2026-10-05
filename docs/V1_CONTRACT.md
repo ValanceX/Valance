@@ -23,16 +23,16 @@ VALANCE adds no behavior of its own to state, templates or targets. It connects 
 
 ```ts
 // abridged: the shapes, not a complete program
-const app = Valance.define({ name, state: { schema, initial }, views: { home: { program, scope }, about: { program, scope } }, view: (state) => "home", commands });
+const app = Valance.define({ name, state: { schema, initial }, views: { home: { program, scope }, about: { program, scope } }, view: (state) => "home", commands, start /* optional: a command key */ });
 const handle = yield* Valance.start(app, { platform, state });   // inside the caller's Scope
 // handle: { state: Effect<S>, invoke(key, args): Effect<unknown, UnmappedCommand | E> }
 ```
 
 - `define` returns the definition unchanged. An application is data; defining one starts nothing.
-- `start` creates **exactly one application lifetime** for the Scope it runs in, and returns the handle only once the state exists, the programs of every view have passed MESH's checks, every event they declare has a command-table key (below), and commands are admitted. It does no presentation, no URL work and creates no mount or history.
+- `start` creates **exactly one application lifetime** for the Scope it runs in, and returns the handle only once the state exists, the programs of every view have passed MESH's checks, every event they declare has a command-table key (below), the optional `start` key names a table entry, and commands are admitted. The `start` command, if any, is then admitted as the last step (§18). It does no presentation, no URL work and creates no mount or history.
 - **One handle is one application.** Every operation made from a handle (`state`, `invoke`, mounts, histories) refers to that application's state, command registry and lifetime. Two `start`s are two applications and share nothing. There is no global current application.
 - The **caller owns the application's Scope.** Closing it ends the application (section 9). VALANCE keeps nothing that outlives it, never restarts an application, and offers no shutdown call of its own.
-- `start` failure is typed and yields no handle. It is one of: an initial state that fails the schema (`InitialValueInvalid`); a platform that fails to initialize (`ServiceGraphFailed`); a view's MESH program that MESH rejects (`MeshDiagnostics`, MESH's own diagnostics for that program: they depend on the program alone, never on state); or a conformance failure (`ConformanceViolation`, below). No command has been admitted, because commands are admitted only through a handle. Whatever the platform had already acquired belongs to the caller's Scope and is released when that Scope closes. A Scope that is already closed, or that closes while `start` is still running, cannot produce an application: `start` dies with `NEXUS: the runtime has begun terminating`.
+- `start` failure is typed and yields no handle. It is one of: an initial state that fails the schema (`InitialValueInvalid`); a platform that fails to initialize (`ServiceGraphFailed`); a view's MESH program that MESH rejects (`MeshDiagnostics`, MESH's own diagnostics for that program: they depend on the program alone, never on state); a conformance failure (`ConformanceViolation`, below); or a `start` key that the command table lacks (`UnmappedCommand`, §18). No command has been admitted, because commands are admitted only through a handle. Whatever the platform had already acquired belongs to the caller's Scope and is released when that Scope closes. A Scope that is already closed, or that closes while `start` is still running, cannot produce an application: `start` dies with `NEXUS: the runtime has begun terminating`.
 - **Conformance (`D ⊆ B`).** `start` returns a handle only if every event the application's programs declare has an entry in its command table.
   - **D** is the set of `component/command` keys MESH reports as declared by the program of **every** view, whether or not that view is current, whether or not the declaring branch is currently rendered (an inactive conditional branch, a repeated body, a composite's own template all count). VALANCE asks MESH (`declaredEvents`); it reads no program. A key declared more than once is one requirement. No reachability is analysed.
   - **B** is the own keys of the table `commands(state)` returned. It is the application's: keys MESH never declares (`app/...` entries, history's navigate key) are permitted. Only `D ⊆ B` is checked, never `B ⊆ D`.
@@ -45,7 +45,10 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 **State is authoritative.** The application's single state cell is the only source of truth. Nothing a mount, a history or a target does feeds back into it.
 
 - `handle.state` reads the current committed state. A read creates no subscription and no obligation for anyone to present it. A commit is readable as soon as it completes.
+- `start` (§18.2) takes either key form: an exact key, or a bare name, which means `"app/name"`.
+- Asynchronous work is an ordinary command that waits; §18 states what it owns, how it ends, and who sees its failure.
 - A **command** is the only way state changes. `commands(state)` maps keys to NEXUS command bindings. Keys of the form `"component/name"` are the intents a MESH program can raise; other keys (`"app/..."`) are for `invoke`. Both enter the same table.
+- **Two key forms.** A key containing `/` is an exact binding (`entry(...)`) for that `component/name`, as above. A key **without** `/` is a *bare name* holding a NEXUS command; `start` binds it to every declared `component/name` whose `name` it is, and to `"app/name"` (for `invoke`, history and `start`). **Resolution, for each declared `component/name` and each `app/name`:** the exact key in the table wins; otherwise the bare name; otherwise there is no command (`ConformanceViolation` for a declared event, §2; `UnmappedCommand` for any other key). `D ⊆ B` is evaluated on the resulting table, unchanged. A bare name is one implementation for every component that declares it; to give one component different behavior, add its exact key. A bare name must hold a command object: a binding there is a mistake and `start` dies with a defect naming it. **Arguments of a bare command:** a struct input takes the supplied arguments as its fields **in field order** (missing is `undefined`, so a required field fails validation; arguments beyond the fields are ignored; the event's parameter names are not used); a non-struct input takes the first argument whole. A single object argument is not unpacked into fields, so a command that history's `navigate` calls with an object (`stateOf` returning an object) keeps its exact `"app/navigate"` binding. *(Tripwire: `examples/tracer-web/test/name-keyed-commands.test.ts`.)*
 - A key resolves **in its own application's registry**. An unknown key fails with the typed `UnmappedCommand`, before admission, and nothing runs. A key defined in another application is unknown here. For the events its programs declare, `start` has already established that the key is present (§2); this lookup nevertheless runs for every `invoke` and every dispatched event and stays total: a key MESH never declared (`app/...`, a mistake), another application's key, or a render that did not come from this application's programs is still the typed `UnmappedCommand`. That is defense in depth below `start`'s guarantee, not something a started application's own events can reach.
 - **Input** is validated by the command's schema before its body runs. Invalid or missing input fails with the typed `CommandValidationError`; the body is not entered and nothing commits. The body receives the decoded value.
 - **Admission** happens when the invocation runs, not when `invoke(...)` is called. After the application's Scope has begun closing, every run is refused with a defect (section 9).
@@ -64,6 +67,7 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 - A capability failure is the command's own failure: before a commit nothing commits, after a commit the commit stays. It never closes the application.
 - Mounts, histories and any observation (reading state, the state stream, presentation) never acquire, use or release a capability.
 - After the application closes, admission is terminal, so no command can reach a capability.
+- **Resource lifetime is not command lifetime.** A resource a command acquires in its own scope is released when that command ends. A resource that must outlive the command and end with the application belongs to the platform: it is acquired by `start` (above), or acquired later through a platform capability that runs the acquisition in a Scope the platform closes at termination. VALANCE exposes no application Scope to commands. The pattern is in §18, and is a use of NEXUS and Effect, not an addition to VALANCE.
 
 ## 5. Views and presentation
 
@@ -155,6 +159,8 @@ Closing the application and a mount at the same time breaks neither boundary; no
 | Unknown command key | typed `UnmappedCommand`, nothing admitted (runtime defense, §3) | the caller of `invoke` / history's log / a dispatch's ledger entry |
 | Command input invalid | typed `CommandValidationError`, body not entered | the caller of `invoke` |
 | `State.set` invalid | typed `StateValidationFailed`, no commit | the command |
+| `start` key not in the command table | typed `UnmappedCommand`, no handle, nothing run | the caller of `start` |
+| Start-time work (§18) fails, or is interrupted | the command's exit is discarded; any commit it made stays | nobody: there is no caller. State is the only record |
 | Capability fails before a commit | command fails, nothing committed | the command's caller; the application continues |
 | Capability fails after a commit | command fails, commit stays | the command's caller; consumers see the commit |
 | MESH cannot render a state (diagnostics that depend on the values the view's scope produced) | typed `MeshDiagnostics` for each mount that renders it | those mounts become inert; others may skip it |
@@ -200,35 +206,45 @@ Each package has one role. A strict package manager (pnpm) resolves only what th
 | Package | Range | Role | Declare it as |
 |---|---|---|---|
 | `@valancex/valance` | the release you target | this package | dependency |
-| `@valancex/nexus` | `^0.10.2` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
-| `@valancex/mesh-runtime` | `^0.8.0` | peer: renders MESH programs at run time | dependency |
-| `@valancex/port-web` | `^0.2.3` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
+| `@valancex/nexus` | `^0.10.3` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
+| `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders MESH programs at run time | dependency |
+| `@valancex/port-web` | `^0.2.4` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
 | `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
 | `@valancex/mesh-compiler` | `^0.9.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
 
 ```console
-$ pnpm add @valancex/valance @valancex/nexus@^0.10.2 @valancex/mesh-runtime@^0.8.0 @valancex/port-web@^0.2.3 effect@^3.10.0
+$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
 $ pnpm add -D @valancex/mesh-compiler@^0.9.0
 ```
 
+`@valancex/nexus` 0.10.3 takes the MESH runtime as a peer dependency, so the runtime you install is the only one: with an earlier NEXUS (a hard `^0.8.0` dependency), an application on MESH 0.9 gets a second, uninitialized runtime in the browser. `@valancex/mesh-runtime` is listed for both lines this release was run against (0.8 and 0.9; a 0.x caret admits one minor).
+
 Give the ranges explicitly, as above: an unversioned `pnpm add effect` resolves to a newer major than the peer range allows.
+
+The package's type declarations use TypeScript's `NoInfer` (so that an application's state type is inferred from its schema, not from `initial`), which needs **TypeScript 5.4 or newer** in the application that compiles against it.
 
 - **Entries:** `@valancex/valance` (`define`, `start`, `mount`, `hydrate`, `command`, `entry`), `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, and the PORT Web primitive helpers it re-exports), `@valancex/valance/web/server` (`renderToHtml`). `@valancex/valance/internal` is not part of the contract.
 - The MESH, NEXUS and PORT packages keep their own versions; the ranges above are the set this release is built and tested against.
 
 ## 14. Authoring helpers: `command` and `entry`
 
-Two helpers make the commands table of §3 short to write. They add no behavior: each returns what `commands(state)` already accepts.
+Two helpers make the commands table of §3 short to write. They add no behavior: each returns what `commands(state)` already accepts. `command` is the ordinary one; `entry` is for the case where an event's input needs adapting.
 
 ```ts
+// ordinary: commands found by their NAME (§3, "Two key forms")
 const command = Valance.command(state);                                   // the state is bound first
-const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount }));
+return {
+  increment: command((current) => ({ ...current, count: current.count + 1 })),                                                  // no input
+  add: command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: current.count + amount })),   // the event's arguments fill the fields, in order
+};
 
-// inside `commands: (state) => …`, with `command` and `add` made as above:
-return { "counter/add": Valance.entry(add, (amount) => ({ amount })) };      // an event argument becomes the command's input
+// advanced: one command, an exact key, and an input that is adapted (a constant here)
+const reset = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, current) => ({ ...current, count: amount }));
+return { "counter/clear": Valance.entry(reset, () => ({ amount: 0 })) };
 ```
 
 - `Valance.command(state)(input, transition)` returns an ordinary command whose whole behavior is `transition(validatedInput, currentState) → nextState`. `input` is a Schema: invalid input fails with the typed `CommandValidationError` before `transition` runs, and nothing commits.
+- A command with no input may be written `command((current) => next)`: exactly `command(Schema.Struct({}), (_input, current) => next)`, the same command, validated and run in the same way.
 - It is `State.update`, the **trusted, atomic** writer of §3, never `State.set`: the returned state is committed **as returned, without being validated against the state's schema**, and concurrent transitions all land.
 - The state is given in a first call, and `transition` must return that state's type. A returned object is not checked for excess properties, as when returned from `State.update`.
 - The command has no author-chosen name: every command made this way carries one shared diagnostic id, which only decorates `CommandValidationError.command` (so such a failure does not tell two of them apart, and its value is not something to match on). A command that must consult the platform, wait, or fail with its own error is written as a NEXUS command (`Command.define`) and bound the same way.
@@ -275,7 +291,48 @@ const host = await Web.run(app, { container, primitives, present: "mount" /* or 
 
 `renderToHtml(app, { primitives, state?, platform? })` (from `@valancex/valance/web/server`) starts the application, renders its current view once, ends it, and returns `Effect<{ html, state }, StartError | MeshDiagnostics>`. There is no target object and no DOM.
 
-- It uses `start`, so a `platform` is acquired and released for that one render (§4); no command runs. Every failure of `start` (§2), conformance included, is its failure: a page is never served from an application that cannot start.
-- `html` is the render written as HTML (use the same `primitives` as the client, so hydration can adopt it); `state` is the state it was rendered from. Embedding `state` in the page is the application's job.
-- The client takes the markup over with `present: "hydrate"` and that `state` (§6, §16). A mismatch is not a failure.
+- It uses `start`, so a `platform` is acquired and released for that one render (§4). Every failure of `start` (§2), conformance included, is its failure: a page is never served from an application that cannot start.
+- **No event command runs, but the application's start-time work does begin.** If the application declares `start` (§18), that command is admitted by `start` like anywhere else. The render does not wait for it. It then runs concurrently with the render, and when the render ends the application ends, so work still waiting is interrupted (a work item may be interrupted before it has done anything). Only a commit that lands before the render reads the state is in the HTML; one that lands after that read but before `state` is read is in `state` only (below). Declaring no `start` means no command runs.
+- `html` is the render written as HTML (use the same `primitives` as the client, so hydration can adopt it). `state` is the application's state **read after the render**. Without start-time work it is the state the HTML was rendered from. With start-time work that commits between the render's read and the final read, `state` is newer than the HTML; hydrating that pair draws the client's render afresh, which is a mismatch and not a failure (§6). Embedding `state` in the page is the application's job.
+- Nothing skips start-time work for a server. An application that must not do it on a server decides in the command: from the state it is given, or from a capability the server's platform does not provide (the command then fails, unobserved, as §18 states).
+- The client takes the markup over with `present: "hydrate"` and that `state` (§6, §16).
 - Failure is the same typed failures as `start` and a render's `MeshDiagnostics`.
+  *(Tripwires: `examples/tracer-web/test/server-start-work.test.ts`.)*
+
+## 18. Asynchronous work and start-time work
+
+*Evidence: C20 to C26, C33 and C35 to C37 in [`CONSTRAINTS.md`](CONSTRAINTS.md); the tests named below. Learner's version: [Async work](learn/async-work.md), [Startup work](learn/startup-work.md).*
+
+### 18.1 Asynchronous work is an admitted command
+
+VALANCE has no asynchronous API. A command that waits (on a timer, a fetch, a gate) is an ordinary command (§3), bound with `entry` like any other.
+
+- **Ownership.** Once admitted (by `invoke`, by a mount's event, or by `start`, §18.2), the command belongs to the application's registry until it exits. Not the caller, not the mount, not the platform. Closing a mount's Scope does not end it (C25).
+- **Cancellation is the application's close** (§9): admitted commands are interrupted and awaited before the runtime terminates and platform resources release. Interruption is Effect's: a signal given to `Effect.tryPromise` aborts. A result that arrives after the close changes nothing and admits nothing. *(Tripwires: `application-owned-async.test.ts`, `async-flow.test.ts`.)*
+- **Uninterruptible work holds the close open.** Work the author makes uninterruptible, including the acquire step of `Effect.acquireRelease` unless interruptibility is restored, keeps the close waiting for its actual exit (C23). Nothing is leaked: what it acquired is released with the application.
+- **Concurrency and staleness.** Commands run concurrently; completion order decides what commits. VALANCE has no notion of an older request: dropping a stale result is application logic over its own state or a counter in the command's closure (it is created per started application). *(Tripwires: `async-compose.test.ts`, group H.)*
+- **Loading, success and failure are state.** A command that waits commits what it wants shown. VALANCE represents none of them.
+- **Who sees a failure.**
+
+  | Work started by | The outcome is observable by |
+  |---|---|
+  | `invoke` | its caller: success, a typed failure, a defect, or interruption |
+  | a mount's event | the dispatching mount's record `Mounted.dispatched`, and what the command committed |
+  | `start` (§18.2) | only what the command committed |
+
+- **Resources.** A resource a command acquires in its own scope is released when the command ends. An application-lifetime resource is acquired by the platform at start, or later through a platform capability that offers `own(effect)`, which runs a scoped acquisition inside a Scope the platform closes when the application terminates (after the drain). It is released once, in reverse acquisition order, and is not exposed as a Scope. If a command is cancelled while acquiring, nothing is held. The recipe is in [Async work](learn/async-work.md#long-lived-resources). *(Tripwire: `application-scoped-capability.test.ts`.)*
+
+### 18.2 Start-time work: `ApplicationDefinition.start`
+
+*Added in 0.4.0.* `start?: string` is a key of the command table that `start` runs once.
+
+- **It is a command.** It is resolved in the same table as events and `invoke`. There is no second way to express behavior, and it can also be run by `invoke(key, [])`.
+- **Arguments.** None: the entry is called with no arguments, as `invoke(key, [])` would.
+- **Order.** It is admitted as the last step of `start`, after the checks of §2, in the application's registry. A `start` that fails (any `StartError`) runs nothing. The key is checked after `commands(state)` has returned: a key that the table lacks fails `start` with the typed `UnmappedCommand` (`{ component, name }` from the key split at the first `/`), with no handle.
+- **Ownership.** It has no caller and is the application's from the moment it is admitted. It does not need, and is not given, a caller's Scope. Closing the application interrupts and awaits it like any admitted command (§9), and `Scope.close` racing `start` either runs it and interrupts it, or never runs it; it never commits after the close resolves. *(Tripwires: `application-start-work.test.ts`.)*
+- **State.** It reads the state `start` was given (`StartOptions.state`, e.g. hydration). A command that finds its work already done can do nothing; nothing in VALANCE skips it.
+- **Presentation.** It may finish before anything is mounted; a later mount draws the settled state. Mounts follow its commits like any others.
+- **Failure.** Its exit is not reported anywhere: no caller, no mount ledger, no log. A failure it does not catch leaves state untouched and the application running. Work whose failure should be seen commits it as state (§18.1).
+- **Multiplicity.** One key. An application that has several things to do at start composes them in one command.
+- **Server render.** `renderToHtml` starts the application, so it begins there (§17).
+
