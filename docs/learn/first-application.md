@@ -116,6 +116,8 @@ const scope = await Effect.runPromise(Scope.make());
 const application = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
 await Effect.runPromise(application.invoke("app/increment", []));      // from outside the screen: "app/" and the command's name
 await Effect.runPromise(application.state);                       // { count: 1 }
+// With the `add` command from step 3 in the table, its argument is wrapped as { value }, in the command's field order:
+// await Effect.runPromise(application.invoke("app/add", [{ value: 5 }]));   // then the state is { count: 6 }
 await Effect.runPromise(Scope.close(scope, Exit.void));           // ends the application
 ```
 

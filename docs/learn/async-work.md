@@ -89,7 +89,7 @@ const mine = ++latest;
 if (mine !== latest) return;      // a newer request started meanwhile: drop this result
 ```
 
-That is ordinary application logic, and it is deliberately yours: whether a late answer is stale depends on your application. (A request counter in the command's closure is fine; it is created for each application that starts. You can also keep it in state.)
+That is ordinary application logic, and it is deliberately yours: whether a late answer is stale depends on your application. (Keep the counter in the command's closure, as above: it is created for each application that starts, and no one needs to see it. Keep it in state only if the screen shows it, because every state change is a commit that the screen may redraw.)
 
 ## What the person sees while it works
 
