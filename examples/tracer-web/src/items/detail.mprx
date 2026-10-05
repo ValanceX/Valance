@@ -1,0 +1,6 @@
+<page title={title}>
+  <text>{heading}</text>
+  <text>{status}</text>
+  <button on.click={reload()}>Reload</button>
+  <button on.click={back()}>Back</button>
+</page>
