@@ -7,7 +7,7 @@ import { Effect } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
-import { application, stateFor, stateOf, urlOf, type SearchDocs } from "../src/docs-benchmark/app.js";
+import { application, stateFor, stateOf, titleOf, urlOf, type SearchDocs } from "../src/docs-benchmark/app.js";
 import { compilePrograms } from "../src/docs-benchmark/compile.js";
 import { primitives } from "../src/docs-benchmark/web.js";
 import { until } from "./helpers.js";
@@ -62,6 +62,8 @@ describe("server rendering: the same application, three kinds of page", () => {
     expect(reference.html).toContain("<pre>Valance.define(definition)</pre>");
     expect((await serve("/docs/reference/configuration")).html).not.toContain("→");                   // the last page has no next
     expect(guide.state).toMatchObject({ page: "state" });
+    // the server's document writes the title from the state it rendered, with the same function history later keeps in step in the browser
+    expect([home, guide, reference].map(({ state }) => titleOf(state))).toEqual(["Valance", "State · Valance", "API · Valance"]);
   });
 });
 
@@ -70,7 +72,7 @@ describe("the browser: hydrate a guide, then use the site", () => {
     const served = await serve(path);
     const p = page(`http://localhost${path}`, served.html);
     const s = service();
-    const host = await Web.run(application(programs, s.searchDocs), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, navigate: "go" } });
+    const host = await Web.run(application(programs, s.searchDocs), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, titleOf, navigate: "go" } });
 
     return { p, s, host, served };
   };
@@ -81,12 +83,14 @@ describe("the browser: hydrate a guide, then use the site", () => {
     expect(host.mounted.hydration).toMatchObject({ adopted: true });
     expect(p.title()).toBe("State");
     expect(p.active()).toBe("Guides: State");
+    await until(() => p.win.document.title === "State · Valance");               // history sets it for the first state (its baseline is taken just after attaching): hydration need not
 
     const items = p.navItems();
     const event = p.click("Reference: API");
 
     expect(event.defaultPrevented).toBe(true);
     await until(() => p.title() === "API");
+    expect(p.win.document.title).toBe("API · Valance");                          // client navigation updated the document's title with the URL
     expect(p.win.location.pathname).toBe("/docs/reference/api");
     expect(p.active()).toBe("Reference: API");
     expect(p.navItems()).toEqual(items);                                  // the same <li> elements: keyed identity through the whole stack

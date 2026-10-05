@@ -180,6 +180,80 @@ describe("the browser keeps every other click", () => {
   });
 });
 
+describe("a plain link click starts at the top, as a page load does; the browser keeps everything else about scroll", () => {
+  /** The page is scrolled to `y`; every `scrollTo` the application asks for is recorded. */
+  const scrolled = (p: ReturnType<typeof page>, y = 800) => {
+    const asked: Array<readonly [number, number]> = [];
+
+    Object.defineProperty(p.win, "scrollY", { value: y, configurable: true });
+    (p.win as unknown as { scrollTo: (x: number, y: number) => void }).scrollTo = (x, top) => { asked.push([x, top]); };
+
+    return asked;
+  };
+
+  it("a plain click scrolls to the top once the navigation has happened", async () => {
+    const p = page("http://localhost/app/home");
+    const asked = scrolled(p);
+    const host = await run(p);
+
+    await p.click(p.anchor("About"));
+    await until(() => p.title() === "page about" && asked.length === 1);
+    expect(asked).toEqual([[0, 0]]);
+    await host.stop();
+  });
+
+  it("not when the page is already at the top (nothing to reset)", async () => {
+    const p = page("http://localhost/app/home");
+    const asked = scrolled(p, 0);
+    const host = await run(p);
+
+    await p.click(p.anchor("About"));
+    await until(() => p.title() === "page about");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked).toEqual([]);
+    await host.stop();
+  });
+
+  it("not for a click the browser keeps, a destination with a #fragment, or a failed navigation", async () => {
+    const p = page("http://localhost/app/home");
+    const asked = scrolled(p);
+    const host = await run(p);
+
+    await p.click(p.anchor("About"), { ctrlKey: true });
+    await p.click(p.raw("/app/about#part"));                               // the application navigates; scrolling to a fragment is its own
+    await until(() => p.title() === "page about");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked).toEqual([]);
+    await host.stop();
+
+    const q = page("http://localhost/app/home");
+    const askedQ = scrolled(q);
+    const failing = await Web.run(application(), { container: q.container, primitives, present: "mount", history: { window: q.win, urlOf, stateOf, navigate: "nowhere" } });
+
+    await q.click(q.anchor("About"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(q.title()).toBe("page home");                                    // UnmappedCommand: logged, nothing changed
+    expect(askedQ).toEqual([]);
+    await failing.stop();
+  });
+
+  it("Back and Forward never scroll: the browser restores them", async () => {
+    const p = page("http://localhost/app/home");
+    const asked = scrolled(p);
+    const host = await run(p);
+
+    await p.click(p.anchor("About"));
+    await until(() => asked.length === 1);
+    p.win.history.back();
+    await until(() => p.title() === "page home");
+    p.win.history.forward();
+    await until(() => p.title() === "page about");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked).toHaveLength(1);                                          // only the link click's
+    await host.stop();
+  });
+});
+
 describe("server rendering and hydration", () => {
   it("the server writes a real anchor with its href; the browser adopts it and a click is the application's", async () => {
     const served = await Effect.runPromise(renderToHtml(application(), { primitives, state: { page: "home" } }));

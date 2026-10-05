@@ -28,6 +28,8 @@ const pageOf = (id: string): Page | undefined => pages.find((page) => page.id ==
 
 export const urlOf = ({ page }: AppState): string => pageOf(page)?.path ?? "/docs/";
 export const stateOf = (url: URL): { readonly id: string } => ({ id: pages.find((page) => page.path === url.pathname)?.id ?? "home" });
+/** The document's title for a state: `history` keeps the browser's in step, and the server's document writes the same function's result for the state it rendered. */
+export const titleOf = ({ page }: AppState): string => page === "home" ? "Valance" : `${pageOf(page)?.title ?? "Valance"} · Valance`;
 export const stateFor = (url: string): AppState => ({ ...initial, page: stateOf(new URL(url, "http://localhost")).id });
 
 // ---- what each view reads ---------------------------------------------------------------------------------------------------------------------------------------------

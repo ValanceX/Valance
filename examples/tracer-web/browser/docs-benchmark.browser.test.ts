@@ -6,7 +6,7 @@ import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import { userEvent } from "@vitest/browser/context";
 import { beforeAll, expect, inject, it } from "vitest";
 
-import { application, stateOf, urlOf, type SearchDocs } from "../src/docs-benchmark/app.js";
+import { application, stateOf, titleOf, urlOf, type SearchDocs } from "../src/docs-benchmark/app.js";
 import { primitives } from "../src/docs-benchmark/web.js";
 
 const served = inject("docs");
@@ -37,22 +37,26 @@ it("a hydrated guide: sidebar and prev/next navigation keep keyed identity, the 
   const title = () => root.querySelector("main > h1")!.textContent;
   const status = () => root.querySelector("header > span")?.textContent;
   const results = () => [...root.querySelectorAll("header ul a")].map((a) => a.textContent).join();
-  const host = await Web.run(application(served.programs, searchDocs), { container: root, primitives, present: "hydrate", state: served.guide.state, history: { window, urlOf, stateOf, navigate: "go" } });
+  const host = await Web.run(application(served.programs, searchDocs), { container: root, primitives, present: "hydrate", state: served.guide.state, history: { window, urlOf, stateOf, titleOf, navigate: "go" } });
 
   // hydration adopted the server's elements, and the document is still this page after real clicks on real anchors
   expect(host.mounted.hydration).toMatchObject({ adopted: true });
   expect([...root.querySelectorAll("nav > ul > li")]).toEqual(adopted);
 
+  await until(() => document.title === "State · Valance");                // set for the first state, just after history attaches
   await userEvent.click(link("Reference: API"));
   await until(() => title() === "API");
+  expect(document.title).toBe("API · Valance");                          // the browser's own title follows the application
   expect(location.pathname).toBe("/docs/reference/api");                // pushed by history; the document itself was not navigated
   expect([...root.querySelectorAll("nav > ul > li")]).toEqual(adopted); // keyed identity: the same <li> elements after navigation
   await userEvent.click(link("Configuration →"));
   await until(() => title() === "Configuration");
   history.back();
   await until(() => title() === "API");
+  expect(document.title).toBe("API · Valance");                          // Back and Forward keep the title with the URL
   history.forward();
   await until(() => title() === "Configuration");
+  expect(document.title).toBe("Configuration · Valance");
 
   // search: loading, then a newer query's answer wins over an older query's late one; then a failure
   const box = root.querySelector("input")!;

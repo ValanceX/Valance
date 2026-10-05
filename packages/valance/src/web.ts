@@ -39,6 +39,12 @@ export interface HistoryOptions<S> {
    */
   readonly navigate: string;
   /**
+   * The document's title for a state, kept in step with the URL: set for the first state and for every later one, Back and Forward included. A title lives in the document's head,
+   * outside the container the view is drawn in, so it is not part of a view and the server cannot take it from one: the server's document writes the result of this same function
+   * for the state it rendered. Absent: the title is left alone.
+   */
+  readonly titleOf?: (state: S) => string;
+  /**
    * The element whose links are navigations. When given, a plain left click on an `<a href>` inside it that leads somewhere in this application's origin is a navigation
    * request, exactly as a popstate is: `navigate` runs with `stateOf(destination)`, and the URL follows the state like any other navigation. The browser keeps every
    * other click: Ctrl, Meta, Shift or Alt held, a non-primary button, `target` other than `_self`, `download`, another origin, a link to a place in the page you are
@@ -107,6 +113,9 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const navigateKey = options.navigate.includes("/") ? options.navigate : INPUT_KEY(options.navigate);
     // The application URL of the last state this mechanism has accounted for. Unset until the first state: the baseline.
     let last: string | undefined;
+    // A link click whose destination starts at the top is waiting for its URL to be written: the browser records the position of the entry being left WHEN the URL is pushed, so the
+    // reset must come after the push, never before it, or Back would restore the top.
+    let top = false;
 
     const follower = yield* Stream.runForEach(
       Stream.merge(
@@ -122,6 +131,19 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
           } else if (url !== last) {
             last = url;
             win.history.pushState(null, "", url);
+
+            if (top) {
+              top = false;
+
+              if (win.scrollY !== 0 || win.scrollX !== 0) {
+                win.scrollTo(0, 0);
+              }
+            }
+          }
+
+          // After the URL, so a title function that throws cannot keep the URL from following the state.
+          if (options.titleOf !== undefined) {
+            win.document.title = options.titleOf(event.state);
           }
         })
         : Effect.gen(function* () {
@@ -153,8 +175,15 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       }
 
       event.preventDefault();
+      // A link click is a page change, and a page change starts at the top, as a native link does (taking the click took that with it). The follower does it, after it writes the URL.
+      // Back and Forward are not this: the browser restores their position itself. A destination with a #fragment is the application's own to scroll to.
+      top = destination.hash === "";
+
       Effect.runFork(running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(
-        Effect.catchAllCause((cause) => Effect.logError("link navigation failed", cause)),
+        Effect.flatMap(() => running.state),
+        // The command is done. If the state's URL is the one already written, no push is coming (or it already happened): nothing is waiting for the top any more.
+        Effect.flatMap((state) => Effect.sync(() => { if (options.urlOf(state) === last) { top = false; } })),
+        Effect.catchAllCause((cause) => Effect.sync(() => { top = false; }).pipe(Effect.zipRight(Effect.logError("link navigation failed", cause)))),
         Effect.forkIn(scope)
       ));
     };

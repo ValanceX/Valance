@@ -1,6 +1,6 @@
 # The V1 interface freeze gate
 
-Decisions and evidence for freezing VALANCE's public conceptual model. Companion to `COGNITIVE_LOAD.md` (what composing the site cost) and `VIEW_BOUNDARY.md` (why the interface has this shape). **Verdict: ONE BLOCKER REMAINS** (section 7): PORT 0.3.0, which the controlled field needs, is prepared and validated but unpublished, and publishing is the maintainer's.
+Decisions and evidence for freezing VALANCE's public conceptual model. Companion to `COGNITIVE_LOAD.md` (what composing the site cost) and `VIEW_BOUNDARY.md` (why the interface has this shape). **Verdict: READY TO FREEZE** (sections 7 and 8). The only thing outstanding is external: PORT 0.3.0, which the controlled field needs, is prepared and validated but unpublished, and publishing is the maintainer's. (The first pass of this gate read ONE BLOCKER REMAINS because one criterion, title, scroll and focus, was untested; section 8 tests it.)
 
 ## 1. Navigation: a rule, not an API
 
@@ -112,7 +112,7 @@ Outside the definition: where it is drawn (tag → element) and the build step (
 
 The model lost its fifth box: **work is a command that waits**, so the site's whole behavior is state, views, commands and navigation. The normal path reads without NEXUS, MESH, PORT or Effect in the lead; `app.ts` imports `@valancex/valance`, `effect` (for `Schema`) and its own content.
 
-## 7. Freeze assessment: ONE BLOCKER REMAINS
+## 7. Freeze assessment (first pass; superseded by section 8)
 
 | Freeze criterion | State |
 |---|---|
@@ -126,6 +126,70 @@ The model lost its fifth box: **work is a command that waits**, so the site's wh
 | 8. No generic component system | met |
 | 9. No second state, rendering or runtime model | met |
 | 10. Remaining exposure is advanced, provisional or build-time | met (section 5) |
-| 11. The composition reveals no other major missing ordinary-website concept | **met for the site as specified, with one thing it never exercised**: the site does not set the document's `<title>` or other head metadata on navigation, restore scroll, or move focus, and VALANCE has no concept for the document head. This composition did not reveal it because it did not try. It is the first thing a real application will ask, and it should be probed before the surface is declared complete |
+| 11. The composition reveals no other major missing ordinary-website concept | **untested in the first pass** (title, scroll, focus); **met after the probe in section 8**: no new concept; two small gaps in existing navigation behavior were found and fixed |
 
-Once PORT 0.3.0 is published and the prepared patch applied (section 2), criterion 4 is met and the gate reads READY TO FREEZE, subject to the head-and-title probe in criterion 11.
+Once PORT 0.3.0 is published and the prepared patch applied (section 2), criterion 4 is met.
+
+## 8. The document-navigation probe: title, scroll, focus
+
+**The question:** does ordinary document navigation require a *concept* beyond state, views, commands and navigation, or machinery a normal author should not have to know? Method: the documentation site in real Chromium (hydrated, real history, real keyboard), recording what happens, with a deliberately tall page and, where it mattered, pages of different heights. A target wrapper over `Valance.mount` was also tried, to see what the public API can express.
+
+### Title
+
+| | Result |
+|---|---|
+| Can the view carry it? | **No, by PORT's deliberate contract.** PORT's server entry refuses a `<title>` element (`unserializable-element`, with `script`, `style`, `textarea`, `template`…: elements whose content is not a tree of nodes and text), and a title lives in the head, outside the container. The attempt failed at server rendering, before any browser |
+| SSR | the server's document writes `titleOf(state)`, the application's own pure function (the tracer's real page already owns its head template; its title was a constant) |
+| Hydration | never touches the head, so it cannot replace the title |
+| Client navigation today (before the fix) | a static title never follows the state. The only routes were an **impure `urlOf`** (a side effect in a function that is pure by contract; it did work, including Back and Forward), or leaving `Web.run` for core composition with a target wrapper and its `Effect` and `Scope` plumbing (it also worked) |
+
+**Classification: D, genuine and small.** A normal application cannot make the tab title follow state through `Web.run` without a contract-violating trick or core composition, and every documentation site needs it. It is **not a new concept**: history already keeps the document's location in step with the state, and the title is the other half of a history entry. **Fix:** `HistoryOptions.titleOf?: (state) => string`, set for the first state and every later one, Back and Forward included, after the URL step. Tested: 4 unit tests, the site in jsdom (initial, navigation, SSR title function) and in real Chromium (initial, navigation, Back, Forward).
+
+### Scroll
+
+| | Observed (Chromium) |
+|---|---|
+| `history.scrollRestoration` | `auto` |
+| **A, C. A plain link click** (client navigation) | `scrollY` stayed at 800; a native link starts at 0. **VALANCE introduced this** by taking the click |
+| **B.** A direct load of another page | a document load: the browser starts at the top. Inherent; not exercised in the iframe |
+| **D. Back and Forward** | the browser restores each entry's position, **also across pages of very different height** (a tall page left at 2180 → a short page, clamped to 1290 → Back restored exactly 2180 → Forward 1290). It waits for the render; VALANCE adds nothing |
+
+**Classification: browser behavior (B) for Back and Forward, and D, small, for the link click.** The link click is VALANCE's to preserve (the task's "preserve browser semantics"): the application cannot do it itself, because every navigation path (link, command, Back) reaches the same command and state, so no application code can tell a link click from a Back. **Fix:** after the navigation, a plain link click scrolls to the top, in `Web.history`'s link handler; a destination with a `#fragment`, a failed navigation and a link to the page already shown scroll nothing.
+
+**A bug the real browser caught in the first version of that fix.** The reset ran when the navigate command finished, which can be *before* the URL is pushed. The browser records the position of the page being left **at the moment of `pushState`**, so resetting first made Back restore the top. The reset now runs in the follower, **after the push**; the Chromium test asserts the whole sequence (scroll 800 → link click → 0 → Back → 800). It was found only because the test went through Back.
+
+### Focus
+
+| | Observed (Chromium) |
+|---|---|
+| A sidebar or prev/next link, pressed with Enter | focus stays on the same element (keyed identity keeps it) |
+| Navigation by an application command | focus stays where it was (the search box) |
+| Back and Forward | focus unchanged |
+| The focused link leaves the view (the "next" link on the last page) | focus falls to `body`: the DOM's own behavior for a removed element |
+| The page heading | not focusable without `tabindex`, so "focus the heading after navigation" needs a hook |
+| Can the public API express such a policy? | **yes**: a target wrapper over `Valance.mount` set `tabindex="-1"` on the new heading and focused it, with no internals |
+
+**Classification: C, an advanced escape hatch.** Browser focus semantics are unchanged by VALANCE, nothing breaks, and moving focus after navigation is an accessibility *policy* sites differ on, not part of every navigation. It is expressible through the public core API (a target wrapper), not through `Web.run`, which offers no presentation hook; that is acceptable for an advanced policy and is not a blocker.
+
+### Result
+
+| | Class | Action |
+|---|---|---|
+| Title | **D, small** | `titleOf` on history (done) |
+| Scroll, Back and Forward | **B, the browser's** | none |
+| Scroll, plain link click | **D, small** | start at the top, after the push (done) |
+| Focus | **C, advanced escape hatch** | none; documented |
+
+**No new concept.** Both fixes live inside **navigation**: where the application is now includes the document's title, and a link navigation behaves like a page change. The model stays `state`, `views`, `commands`, `navigation`.
+
+**Not in V1, and not blockers:** analytics, canonical URLs, Open Graph and other head metadata (crawlers and unfurlers read them from the **server's** HTML, which the server's document already writes; nothing about them needs to follow the client), fragment scrolling, a focus policy, syntax highlighting, copy buttons. None changes how a developer thinks about VALANCE.
+
+### Final freeze assessment: READY TO FREEZE
+
+| Criterion | State |
+|---|---|
+| 1-3, 5-10 | met (section 7) |
+| 4. Controlled fields have a released, consumable PORT contract | **external**: PORT 0.3.0 is prepared and validated (section 2), unpublished; publication and its tag are the maintainer's |
+| 11. No other major missing ordinary-website concept | **met**: title, scroll and focus probed; two small gaps in existing navigation behavior fixed, one advanced escape hatch documented, no new concept |
+
+Tests added: `history.test.ts` +4 (title), `links.test.ts` +4 (scroll), the site's jsdom and Chromium tests (title), `links.browser.test.ts` +1 (scroll and Back). Full runs after the change: package 12 files / 114 tests, tracer Node 74 / 547, Chromium 24 / 56.

@@ -29,6 +29,7 @@ const fakeWindow = (initial: string) => {
   const writes: Array<string> = [];
   const listeners = new Set<() => void>();
   const win = {
+    document: { title: "" },
     location: { get pathname() { return current.pathname; }, get search() { return current.search; }, get href() { return current.href; } },
     history: {
       pushState: (_data: unknown, _unused: string, url: string) => { writes.push(`push ${url}`); current = new URL(url, current); },
@@ -40,6 +41,7 @@ const fakeWindow = (initial: string) => {
 
   return {
     window: win as unknown as Window,
+    title: () => win.document.title,
     writes,
     listeners,
     location: () => current.pathname + current.search,
@@ -57,7 +59,7 @@ const NAVIGATE = "app/navigate";
 const navigates: Navigate = (path, state) => state.update((current) => Effect.succeed({ ...current, path }));
 
 /** Runs `body` with Web.history started over a real application whose navigate command is `navigate`. */
-const scenario = <A>(initial: { readonly browser: string; readonly state: App; readonly navigateOption?: string }, navigate: Navigate, body: (context: {
+const scenario = <A>(initial: { readonly browser: string; readonly state: App; readonly navigateOption?: string; readonly titleOf?: (state: App) => string }, navigate: Navigate, body: (context: {
   readonly browser: ReturnType<typeof fakeWindow>;
   readonly state: Nexus.State.StateHandle<App>;
   readonly invoked: Array<unknown>;
@@ -84,7 +86,7 @@ const scenario = <A>(initial: { readonly browser: string; readonly state: App; r
     },
   };
 
-  yield* history(handleOf(running), { window: browser.window, urlOf, stateOf, navigate: initial.navigateOption ?? NAVIGATE });
+  yield* history(handleOf(running), { window: browser.window, urlOf, stateOf, navigate: initial.navigateOption ?? NAVIGATE, ...(initial.titleOf === undefined ? {} : { titleOf: initial.titleOf }) });
   // The follower consumes in its own fiber; give it room to catch up before observing.
   const settle = Effect.sleep("30 millis");
   yield* settle;
@@ -95,6 +97,62 @@ const scenario = <A>(initial: { readonly browser: string; readonly state: App; r
 const HOME: App = { path: "/home", n: 0 };
 const go = (state: Nexus.State.StateHandle<App>, path: string) => state.update((current) => Effect.succeed({ ...current, path }));
 const bump = (state: Nexus.State.StateHandle<App>) => state.update((current) => Effect.succeed({ ...current, n: current.n + 1 }));
+
+describe("Web.history: the document's title follows the state like the URL", () => {
+  const titleOf = ({ path }: App): string => `title of ${path}`;
+
+  it("is set for the first state (no URL write), then follows every change", async () => {
+    const result = await scenario({ browser: "/app/home", state: HOME, titleOf }, navigates, ({ browser, state, settle }) => Effect.gen(function* () {
+      const first = browser.title();
+
+      yield* go(state, "/about");
+      yield* settle;
+
+      return { first, later: browser.title(), writes: browser.writes };
+    }));
+
+    expect(result.first).toBe("title of /home");
+    expect(result.later).toBe("title of /about");
+    expect(result.writes).toEqual(["push /app/about"]);
+  });
+
+  it("follows a state a popstate produced (Back and Forward), without writing a URL", async () => {
+    const result = await scenario({ browser: "/app/home", state: HOME, titleOf }, navigates, ({ browser, settle }) => Effect.gen(function* () {
+      browser.pop("/app/about");
+      yield* settle;
+
+      return { title: browser.title(), writes: browser.writes };
+    }));
+
+    expect(result.title).toBe("title of /about");
+    expect(result.writes).toEqual([]);
+  });
+
+  it("without `titleOf` the title is left alone", async () => {
+    const title = await scenario({ browser: "/app/home", state: HOME }, navigates, ({ browser, state, settle }) => Effect.gen(function* () {
+      yield* go(state, "/about");
+      yield* settle;
+
+      return browser.title();
+    }));
+
+    expect(title).toBe("");
+  });
+
+  it("a title function that throws is a failed synchronization step, logged, and cannot keep the URL from following the state", async () => {
+    const result = await scenario({ browser: "/app/home", state: HOME, titleOf: ({ path }) => { if (path === "/about") { throw new Error("no title"); } return path; } }, navigates, ({ browser, state, settle }) => Effect.gen(function* () {
+      yield* go(state, "/about");
+      yield* settle;
+      yield* go(state, "/other");
+      yield* settle;
+
+      return { writes: browser.writes, title: browser.title() };
+    }));
+
+    expect(result.writes).toEqual(["push /app/about", "push /app/other"]);
+    expect(result.title).toBe("/other");                                         // the follower survived the defect and kept following
+  });
+});
 
 describe("Web.history: application navigation", () => {
   it("the first state is a baseline: starting writes nothing, even at a browser URL that is not urlOf(state)", async () => {

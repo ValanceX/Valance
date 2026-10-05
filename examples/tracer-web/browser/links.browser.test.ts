@@ -39,3 +39,34 @@ it("hydrate the server's page; a real click navigates the application, not the d
   await host.stop();
   root.remove();
 });
+
+it("a plain link click starts at the top, as a page load does; the browser's Back restores the position it left", async () => {
+  history.replaceState(null, "", "/app/home");
+
+  const tall = document.createElement("style");
+
+  tall.textContent = "body{margin:0} div{min-height:4000px}";
+  document.head.append(tall);
+
+  const root = document.createElement("div");
+
+  root.innerHTML = served.html;
+  document.body.append(root);
+
+  const title = () => root.querySelector("span")!.textContent;
+  const host = await Web.run(application(served.program), { container: root, primitives, present: "hydrate", state: served.state, history: { window, urlOf, stateOf, navigate: "go" } });
+
+  console.log("SCROLLDBG height", document.documentElement.scrollHeight, "inner", window.innerHeight, "overflow", getComputedStyle(document.documentElement).overflow, getComputedStyle(document.body).overflow, "root h", root.getBoundingClientRect().height);
+  window.scrollTo(0, 800);
+  await expect.poll(() => window.scrollY).toBe(800);
+  [...root.querySelectorAll("a")].find((a) => a.textContent === "About")!.click();   // a script click: a real one would first scroll the link into view
+  await expect.poll(() => title()).toBe("page about");
+  await expect.poll(() => window.scrollY).toBe(0);                        // a native link would have started at the top
+  window.scrollTo(0, 1500);
+  history.back();
+  await expect.poll(() => title()).toBe("page home");
+  await expect.poll(() => window.scrollY).toBe(800);                      // restored by the browser, not by VALANCE
+  await host.stop();
+  root.remove();
+  tall.remove();
+});
