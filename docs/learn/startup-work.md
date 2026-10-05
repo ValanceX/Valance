@@ -59,6 +59,6 @@ What *can* fail at start itself is reported to whoever started the application, 
 
 ## Exact rules
 
-[Contract §18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) and [§2](../V1_CONTRACT.md#2-application). *Added after 0.3.0.*
+[Contract §18](../V1_CONTRACT.md#18-asynchronous-work-and-start-time-work) and [§2](../V1_CONTRACT.md#2-application). *Added in 0.4.0.*
 
 Next: [Mounting and hydration](mounting-and-hydration.md).

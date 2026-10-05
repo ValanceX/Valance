@@ -207,7 +207,7 @@ Each package has one role. A strict package manager (pnpm) resolves only what th
 |---|---|---|---|
 | `@valancex/valance` | the release you target | this package | dependency |
 | `@valancex/nexus` | `^0.10.3` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
-| `@valancex/mesh-runtime` | `^0.8.0 || ^0.9.0` | peer: renders MESH programs at run time | dependency |
+| `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders MESH programs at run time | dependency |
 | `@valancex/port-web` | `^0.2.4` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
 | `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
 | `@valancex/mesh-compiler` | `^0.9.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
@@ -324,7 +324,7 @@ VALANCE has no asynchronous API. A command that waits (on a timer, a fetch, a ga
 
 ### 18.2 Start-time work: `ApplicationDefinition.start`
 
-*Added after 0.3.0.* `start?: string` is a key of the command table that `start` runs once.
+*Added in 0.4.0.* `start?: string` is a key of the command table that `start` runs once.
 
 - **It is a command.** It is resolved in the same table as events and `invoke`. There is no second way to express behavior, and it can also be run by `invoke(key, [])`.
 - **Arguments.** None: the entry is called with no arguments, as `invoke(key, [])` would.

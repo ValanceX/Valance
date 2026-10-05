@@ -13,20 +13,20 @@ import { renderToHtml } from "@valancex/valance/web/server";
 - **Install** (a strict package manager resolves only what you declare, so declare the application-level and build-time packages yourself):
 
   ```console
-  $ pnpm add @valancex/valance @valancex/nexus@^0.10.2 @valancex/mesh-runtime@^0.8.0 @valancex/port-web@^0.2.3 effect@^3.10.0
+  $ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.2.4 effect@^3.10.0
   $ pnpm add -D @valancex/mesh-compiler@^0.9.0
   ```
 
   | Package | Range | Role |
   |---|---|---|
   | `@valancex/valance` | the release you target | this package |
-  | `@valancex/nexus` | `^0.10.2` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
-  | `@valancex/mesh-runtime` | `^0.8.0` | peer: renders programs at run time |
-  | `@valancex/port-web` | `^0.2.3` | optional peer: needed for `./web` and `./web/server` |
+  | `@valancex/nexus` | `^0.10.3` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
+  | `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders programs at run time (the one runtime: NEXUS 0.10.3 shares it) |
+  | `@valancex/port-web` | `^0.2.4` | optional peer: needed for `./web` and `./web/server` |
   | `effect` | `^3.10.0` | peer |
   | `@valancex/mesh-compiler` | `^0.9.0` | **build time only** (devDependency): compiles MPRX to the `program` each view takes (`compileProgram`) |
 
-- **Async work and startup:** a command can wait; once admitted it belongs to the application, and closing the application cancels it. Loading and failure are ordinary state. The optional `start` field of `define` names a command the application runs once when it starts (added after 0.3.0). See [Async work](https://github.com/ValanceX/Valance/blob/main/docs/learn/async-work.md) and [Startup work](https://github.com/ValanceX/Valance/blob/main/docs/learn/startup-work.md).
+- **Async work and startup:** a command can wait; once admitted it belongs to the application, and closing the application cancels it. Loading and failure are ordinary state. The optional `start` field of `define` names a command the application runs once when it starts (added in 0.4.0). See [Async work](https://github.com/ValanceX/Valance/blob/main/docs/learn/async-work.md) and [Startup work](https://github.com/ValanceX/Valance/blob/main/docs/learn/startup-work.md).
 - **Lifetimes:** the application, each mount and each history live in separate, caller-owned `Scope`s; closing one never closes another. Closing the application's `Scope` ends commits (state stays readable); mounts then end inert.
 - **Presentation:** a mount presents committed state as a latest-state consumer: it may skip superseded intermediate states and converges on the latest. Same view is an `update`, another view a `draw`; `hydrate` takes over server markup and then behaves like `mount`. A mount's failure is local to it; recovery is a fresh mount.
 - **History:** `Web.history` follows committed state and runs the application's own navigate command on popstate; it owns its listener's `Scope` only.
