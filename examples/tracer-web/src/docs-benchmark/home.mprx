@@ -4,7 +4,7 @@
     <para>{tagline}</para>
     <list>
       <mesh-each items={guides} as="g" key={g.id}>
-        <item><link href={g.href} on.click={go(g.id)}>{g.label}</link></item>
+        <item><link href={g.href}>{g.label}</link></item>
       </mesh-each>
     </list>
   </main>

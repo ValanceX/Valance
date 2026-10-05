@@ -1,5 +1,7 @@
 # Cognitive-load log: the documentation-site benchmark
 
+> **Superseded ratings.** Everything from here to the line `The V1 authoring pass` records the *first* composition, written against the interface as it stood before the destination link, the derived manifest and the controlled field. It is kept as the evidence trail. The ratings that stand are in the pass at the end.
+
 The question this answers: **could a competent frontend developer build a documentation-site slice thinking in pages, state, views, behavior, content and navigation, or did they have to learn how the engines work?**
 
 `app.ts` is a small documentation site (home, introduction, two guide pages and a state/async guide, two reference pages; header, sidebar, main, footer; a keyed navigation list and a keyed content list; code blocks; an expandable section; search with loading, results, failure and stale answers; URLs and Back/Forward; server rendering; hydration). It was written as an application author would write it, from the Learn pages and the public API. **Nothing was fixed while building**: this records the interface as it is. It is an instrument, not the VALANCE website.
@@ -111,3 +113,100 @@ Result: the **same three tests pass unchanged** (SSR, hydration, navigation, sea
 - **Lists and conditionals: inherent exposure or a teaching gap?** Both, and the second does not fix the first. They are untaught (a documentation gap), but the construct they would teach is, in MESH's own words, *provisional*, and it needs a manifest entry and a flag per condition. Teaching it as a VALANCE concept would publish a provisional engine construct as public API. That is an abstraction-boundary question, not a documentation patch.
 - **`init(wasmUrl)`.** Every browser author must know it, and it cannot be hidden without a bundler convention, because the URL is the bundler's (`?url`). It belongs in the browser bootstrap, so it is a candidate for an option on `Web.run`, with `init` kept as the escape hatch. The failure when forgotten is already clear. Node needs nothing.
 - **A native event cannot be stopped from the application.** PORT stops nothing, by contract. The only hook is the payload builder, so a link needs PORT knowledge. A real application will want links on every page.
+
+---
+
+# The V1 authoring pass: the site recomposed with the interface VALANCE has earned
+
+The site above was recomposed in place with `Web.link`, a derived manifest, expressions instead of scope flags, scope Schemas typed against the `scope` functions, and the one waiting command left on the NEXUS escape hatch. **The benchmark's tests pass unchanged**: same SSR HTML, same link behavior, keyed `<li>` identity through navigation, search success, failure, stale answers, supersession and abort on stop. `components.json` (375 lines) is gone. One thing was added to VALANCE because the composition needed it: two type-only aliases, `Valance.Program` and `Valance.StateHandle<S>`.
+
+Measured from the files (`app.ts` 121 non-blank lines, `web.ts` 25, `compile.ts` 23, `doc.mprx` 38, `home.mprx` 11, `content.ts` 18):
+
+| | Before | Now |
+|---|---|---|
+| Manifest lines the author writes | 375 | **0** |
+| `link` code the author writes | a primitive, a payload hook calling `preventDefault`, a command per link | `link: Web.link`, and `<link href={…}>` in the markup |
+| Scope booleans for conditions | 6 | 2 (`detailsOpen` is plain state; `search.empty` is the one a view cannot compute) |
+| `scope` checked against what the view reads | `Record<string, unknown>`, at render | the function's return type (TypeScript), the template (build time) |
+| Engine type imports with no async involved | `Mesh.Program`, `Nexus.State.StateHandle` | none |
+| NEXUS and Effect references in `app.ts` | 15, all in one 14-line command | 15, all in the same command |
+
+## The mental model that emerged
+
+```
+Application  (Valance.define)
+├── state        a Schema and an initial value                    what is true
+├── views        name → { program, scope }                        what can be shown, and the values it reads
+│   └── view(state)                                               which one is current
+├── commands     name → a transition of state                     the only way anything changes (a bare name is the name the view uses)
+├── navigation   urlOf / stateOf, and one navigate entry          where the application is; a link is a destination
+└── work         a command that waits                             (today, written with NEXUS and Effect)
+Outside the definition: where it is drawn (a table: tag → element), and the build step (view description → program)
+```
+
+A page is **not** a framework concept here: it is a row of `content.ts` data, a `state.page` string, and one `view` whose scope derives the title, the sidebar's active mark and previous/next from that row. Adding a page is one entry in `content.ts` and nothing else.
+
+**Could a new developer understand this without NEXUS, MESH and PORT?** Almost all of it. It fails in exactly four places, each named below: the waiting command (NEXUS and Effect), the spelling of the view description's list and conditional (`mesh-each`, `mesh-if`), the navigate adapter (`Valance.entry(go, (navigation) => navigation)`), and the input's payload hook (`of: element.value`).
+
+## What the author had to think about, feature by feature
+
+| Feature | VALANCE concepts required | Engine concepts required | Friction | Why (the evidence) |
+|---|---|---|---|---|
+| Page (a view) | state, view, scope (a Schema and a function), the tags table, the view description | MPRX syntax (MESH's), `Valance.Program` (a type) | **Yellow** | the manifest is gone, and every drift between template, Schema and `scopes` is a build-time diagnostic (probed: *manifest declares no component "doc"*, *unknown reference "next": it isn't in the template's scope*, *number has no member "href"*). What remains is writing MPRX and keeping three things in agreement, all checked |
+| Navigation (sidebar, active, previous/next, Back/Forward) | `urlOf`, `stateOf`, `history`, a navigate command | none | **Yellow** | the content is derived from data (Green). The one irritant: history hands the navigate command one object, which a bare name does not unpack, so every history application writes `Valance.entry(go, (navigation) => navigation)` (this site, `items`, the inbox, the links fixture) |
+| List | `scope` supplies the items | `<mesh-each items as key>`, MESH's provisional spelling | **Yellow** | 4 uses, 3 attributes each, no manifest entry to write (derived). Semantic: items, identity, what one looks like. MESH syntax: the element name and `as`. Identity held (verified through reorder, removal and re-insertion) |
+| Conditional | `scope` supplies values, expressions compare them | `<mesh-if when>`, positional alternatives | **Yellow** | 8 uses, **all one-branch**, so the positional else never bit; `when` is an ordinary expression (`search.status == "failed"`, `code != ""`). Two things leak: emptiness needs a computed boolean (MPRX has no length), and one nested conditional needed a wrapper element (1 in 8). Both are MESH's language |
+| Link | `Web.link` in the tags table, `href` in the markup | none | **Green** | 5 uses, no code. A plain click navigates the application; Ctrl, middle, `target`, `download`, another origin and `#fragment` stay the browser's (asserted on this site) |
+| Input | state, a command that takes the text | the payload hook (`of: element.value`), `attribute("value")` | **Yellow** | with the PORT release the box follows state with no application code (verified in real Chromium on this site, below). What remains is the hook that reads `element.value`, identical for every text field, and the attribute form until `controlled` ships |
+| Search (the UI around it) | state for query, status, results, message; links in results | as for List and Conditional | **Yellow** | loading, failure and empty results are four expressions in the markup and one `search` record in state |
+| Async (the waiting command) | a command, state that says loading, a ticket | `Nexus.Command.define`, `Effect.gen`, `yield*`, `tryPromise`, `either`, `state.update` ×2, `Effect.succeed` ×2 | **Red** | 14 lines, 15 references. The only place an ordinary author meets NEXUS and Effect. Unchanged since the benchmark, by decision |
+| SSR | `renderToHtml`, `stateFor(url)`, the same tags table | `Effect.runPromise` at the call (it returns an `Effect`) | **Yellow** | the same application definition; the server cannot await search, which the first paint does not need |
+| Hydration | `present: "hydrate"`, the state | none | **Green** | the server's own nodes are adopted (`adopted: true`), verified in jsdom and Chromium |
+| Setup | the build script, `Web.run` | `compileProgram` (`@valancex/mesh-compiler`), and in the browser `init(wasmUrl)` | **Yellow** | 23 lines of build script that are the same in every application; the browser call is a known candidate to fold into `Web.run`, **not re-measured in this pass** |
+
+## The input, in the real site
+
+With PORT's unreleased `controlled` (a local alias, not committed), the real site in real Chromium: typing 16 characters keeps every one; picking a page closes the search and the box empties (`state.search.query === ""` **and** `box.value === ""`; the benchmark's pinned mismatch is gone); the server's attribute-form HTML is adopted unchanged. The application contains no synchronization code. What the author still writes for the field is the **payload**: `events: { input: Web.event("input", { kind: "string", of: … element.value }) }`, which `controlled` does not touch.
+
+## Remaining engine exposure, classified
+
+| Exposure in normal authoring | Class | Evidence and reason |
+|---|---|---|
+| `Nexus.Command.define`, `Effect.*` for the waiting command | **async API not mature** (and a legitimate advanced escape hatch once it is) | the one 14-line command; the candidate's open questions (typed errors, superseded runs, `wanted`) are in `VIEW_BOUNDARY.md` |
+| `Valance.entry(go, (navigation) => navigation)` | **genuine missing VALANCE concept**, shape unclear | the application states `stateOf` (an object that *is* the command's input) and the command's Schema, so VALANCE has what it needs; but the fix changes how an argument becomes an input, which is a runtime rule with a tripwire |
+| `<mesh-each>`, `<mesh-if>` | **provisional engine feature** | MESH calls them "a tracer, not a language feature". Used 12 times in 49 lines of markup, so the spelling is frequent. The semantics are not at fault |
+| nested `mesh-if` needing a wrapper; positional alternatives | **underlying engine problem** | MESH lists nested conditionals as "not decided"; one nested case in 8 |
+| no length operator (emptiness needs a computed value) | **underlying engine problem** | MPRX's expression language |
+| input payload hook (`of: element.value`) | **genuine missing VALANCE concept, gated on a PORT release** | identical for every text field; a `Web.textField` preset (value and input, with the kind declared) would hold it, but needs `controlled`, which is not in the released PORT |
+| `attribute("value")` instead of `controlled("value")` | **underlying engine problem, fixed, unreleased** | PORT `41f2db7` |
+| `compileProgram` and `@valancex/mesh-compiler` | **mask?** or ordinary build tooling | the script is identical across the site, `items` and the earlier benchmark; whether it is VALANCE's to hide is open |
+| `init(wasmUrl)` in the browser | **mask candidate** | carried from the earlier measurement; not re-measured here |
+| `Effect.runPromise(renderToHtml(…))` | **advanced escape hatch** | the Effect-shaped core is documented; `Web.run` is the Promise-shaped host for the page, `renderToHtml` has none |
+| `Schema` (from `effect`) for state, scope, input | **a user concept** | it states what is true and what a view reads; no VALANCE alias would add anything |
+| `Valance.Program`, `Valance.StateHandle<S>` | **masked in this pass** | opaque handles that three applications imported from the engines |
+| factoring `commands` out of `define` | **documentation problem** | the build step needs the command table and `define` needs the compiled programs, so the author discovers a function `commands(service)` shared by both. A recipe, not an API |
+
+## Interface candidates the composition supports
+
+| Candidate | Meaning | Smallest API | Information VALANCE has | Delegates to | Duplicates an engine? | Changes runtime semantics? | In V1? |
+|---|---|---|---|---|---|---|---|
+| `Valance.Program`, `Valance.StateHandle<S>` (**implemented**) | the names of two opaque handles | two type aliases | n/a | NEXUS and MESH types | no | no | yes |
+| Text-field preset `Web.textField` | a text field: its value in, its text out on input | one primitive, like `Web.link` | the kind (a string) and how to read it | PORT `controlled` and `Web.event` | no | no | **yes, after the PORT release** |
+| History supplies the navigate command's input | "go to the place `stateOf(url)` describes" | undecided (history passes the object as the input, or `navigate` takes the command itself) | `stateOf`'s result, the command's input Schema | the existing navigate path | no | **yes**: it changes how an argument becomes an input, which `name-keyed-commands.test.ts` pins | decide first; seen in four applications |
+| `Web.run` initializes the MESH runtime | "run" without a separate bootstrap call | an option carrying the wasm URL | the URL is the bundler's | `init` | no | no | likely; not re-measured |
+| A view declares what it reads once | tie the scope Schema to the view, not to a second `scopes` map | undecided: the programs depend on the manifest, which depends on the Schemas, while `define` needs the programs | n/a | `manifest` | no | no | **not yet**: drift is already a build-time diagnostic, so the pain is one repeated name |
+
+## Explicit non-decisions
+
+- **Lists, conditionals:** unchanged. They are frequent (12 uses in 49 lines) and tolerable (derived manifest, no boilerplate, no positional else needed). The spelling is MESH's, and MESH has not decided it.
+- **Async:** unchanged. 14 lines, 15 engine references, and the open questions in `VIEW_BOUNDARY.md`.
+- **A generic component or page abstraction:** the site has pages and needed none. A page is a data row and a view.
+- **A router:** `urlOf`, `stateOf`, `Web.link` and `history` carried every navigation here, including previous/next, active marks and Back/Forward.
+- **A query or resource abstraction:** the site has one waiting command and no cache; nothing asked for one.
+
+## V1 readiness
+
+- **Solid:** state, view, scope (now typed against what the view reads), commands, lifecycle, history, destination links, SSR, hydration, the derived manifest (the page/view boundary no longer asks the author for a manifest), and the benchmark's whole behavior under the new composition.
+- **Genuinely blocking:** (1) the waiting command (Red, and the only one); (2) the input, until PORT is released and a `textField` preset exists; (3) the navigate adapter every history application writes.
+- **Polish:** the `init` bootstrap, the repeated view name in `scopes`, the build script, the factoring recipe.
+- **To settle before the interface is frozen:** the shape of the waiting command (typed errors, what a superseded run does and its caller sees, whether `wanted` is required); how history supplies the navigate input; and whether MESH's list and conditional spelling is stable enough to teach as VALANCE's, or must be wrapped. None of these is a rendering question.

@@ -1,4 +1,5 @@
-// The Web realization table: target configuration, not part of the application definition.
+// Where the application is drawn: which element each tag becomes. Target configuration, not part of the application, and the one declaration of the tags: MESH's manifest
+// is derived from it (./compile.ts).
 import * as Web from "@valancex/valance/web";
 
 export const primitives: Web.WebPrimitives = {
@@ -14,8 +15,12 @@ export const primitives: Web.WebPrimitives = {
   code: { element: "pre" },
   text: { element: "span" },
   button: { element: "button", events: { click: { type: "click" } } },
-  // A link is a real anchor (its href is in the server's HTML), and a click must not also navigate the document: the only place PORT lets an event be
-  // stopped is the hook that builds its payload.
-  link: { element: "a", props: { href: Web.attribute("href") }, events: { click: { type: "click", payload: (event) => { event.preventDefault(); return null; } } } },
-  field: { element: "input", props: { value: Web.attribute("value") }, events: { input: { type: "input", payload: (_event, element) => (element as HTMLInputElement).value } } },
+  link: Web.link,                                                         // a destination: the application navigates, the browser keeps modified clicks
+  // A text field. `value` is an attribute because the server must be able to write it (PORT 0.2.4 has no form that is both server-renderable and live; the release after it adds
+  // `controlled`, and then this is the only line that changes). Reading the field's text on input is the payload hook, and states its kind for the manifest.
+  field: {
+    element: "input",
+    props: { value: Web.attribute("value") },
+    events: { input: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
+  },
 };

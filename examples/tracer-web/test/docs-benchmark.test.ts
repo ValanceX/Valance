@@ -36,7 +36,7 @@ const page = (url: string, html: string) => {
   const win = dom.window as unknown as Window;
   const container = dom.window.document.querySelector("#root")!;
   const link = (label: string) => [...container.querySelectorAll("a")].find((candidate) => candidate.textContent === label)!;
-  const click = (label: string) => { const event = new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }); link(label).dispatchEvent(event); return event; };
+  const click = (label: string, init: MouseEventInit = {}) => { const event = new dom.window.MouseEvent("click", { bubbles: true, cancelable: true, button: 0, ...init }); link(label).dispatchEvent(event); return event; };
   const press = (label: string) => [...container.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
   const type = (value: string) => { const input = container.querySelector("input")!; input.value = value; input.dispatchEvent(new dom.window.Event("input", { bubbles: true })); };
   const title = () => container.querySelector("main > h1")?.textContent ?? container.querySelector("h1")?.textContent;
@@ -90,6 +90,15 @@ describe("the browser: hydrate a guide, then use the site", () => {
     expect(p.win.location.pathname).toBe("/docs/reference/api");
     expect(p.active()).toBe("Reference: API");
     expect(p.navItems()).toEqual(items);                                  // the same <li> elements: keyed identity through the whole stack
+
+    // the browser keeps what is not a plain click: a modified click, and a link to another site (the author wrote no code for either)
+    expect(p.click("Configuration →", { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(p.title()).toBe("API");
+    const foreign = p.container.ownerDocument.createElement("a");
+
+    foreign.setAttribute("href", "https://example.com/docs");
+    p.container.append(foreign);
+    expect(foreign.dispatchEvent(new (p.win as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }))).toBe(true);
 
     p.click("Configuration →");
     await until(() => p.title() === "Configuration");

@@ -28,6 +28,12 @@ import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "eff
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;
 
+/** A compiled view description: what `compileProgram` returns as `program`, and what a view's `program` takes. Opaque; VALANCE never looks inside it. */
+export type Program = Nexus.Mesh.Program;
+
+/** The state as `commands` receives it, for typing a `commands` function written apart from `define` (for example, to derive the manifest from it). */
+export type StateHandle<S> = Nexus.State.StateHandle<S>;
+
 /** One MESH program the application can show, and the manifest-shaped values it is rendered from. */
 export interface View<S> {
   /** MESH program: templates compiled at build time, and the manifest's text. */
