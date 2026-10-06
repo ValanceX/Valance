@@ -1,0 +1,38 @@
+<shell>
+  <header>
+    <heading>{site}</heading>
+    <field value={query} on.input={search($event)} />
+    <mesh-if when={search.status == "loading"}><text>Searching…</text></mesh-if>
+    <mesh-if when={search.status == "failed"}><text>Search failed: {search.message}</text></mesh-if>
+    <mesh-if when={search.empty}><text>No results</text></mesh-if>
+    <list>
+      <mesh-each items={search.results} as="r" key={r.id}>
+        <item><link href={r.href}>{r.label}</link></item>
+      </mesh-each>
+    </list>
+  </header>
+  <nav>
+    <list>
+      <mesh-each items={nav} as="n" key={n.id}>
+        <item><text>{n.mark}</text><link href={n.href}>{n.label}</link></item>
+      </mesh-each>
+    </list>
+  </nav>
+  <main>
+    <heading>{title}</heading>
+    <mesh-each items={paragraphs} as="p" key={p.id}><para>{p.text}</para></mesh-each>
+    <mesh-if when={code != ""}><code>{code}</code></mesh-if>
+    <button on.click={toggle()}>{detailsLabel}</button>
+    <mesh-if when={detailsOpen}>
+      <shell>
+        <para>{details}</para>
+        <mesh-if when={code != ""}><text>This page has an example.</text></mesh-if>
+      </shell>
+    </mesh-if>
+    <nav>
+      <mesh-if when={prev.href != ""}><link href={prev.href}>{prev.label}</link></mesh-if>
+      <mesh-if when={next.href != ""}><link href={next.href}>{next.label}</link></mesh-if>
+    </nav>
+  </main>
+  <footer><text>Valance documentation site (an example)</text></footer>
+</shell>

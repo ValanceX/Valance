@@ -20,6 +20,7 @@ The documentation has three levels. Start at the first and go down only when you
 | run something when the application starts | [Startup work](learn/startup-work.md) |
 | draw the application, hydrate server HTML, or render on a server | [Mounting and hydration](learn/mounting-and-hydration.md) |
 | see how state, view and events fit together | [State, views and events](learn/state-views-events.md) |
+| see a whole, runnable application (links, search, titles, SSR, hydration) | [`examples/docs-site`](../examples/docs-site) |
 | do a common task (add a view, a command, a resource, URLs, server rendering) | [Common tasks](learn/README.md#common-tasks) |
 | look up exactly what an API does, and what happens when it fails | [API reference](use/README.md) |
 | know what VALANCE guarantees, and what it does not | [The contract](V1_CONTRACT.md) |

@@ -38,7 +38,7 @@ The same split is stated normatively in [Contract §1](../V1_CONTRACT.md#1-what-
 - [`CONSTRAINTS.md`](../CONSTRAINTS.md): the engineering constraints and tripwires the code is held to, each with the test that enforces it. A maintainer's record, not the user contract.
 - [`FINDINGS.md`](../FINDINGS.md): the chronological investigation record (Stages 1 to 56 and the milestone): what each guarded experiment proved, invalidated or left open. It is evidence, kept as it was written. Where a later stage replaced an earlier mechanism, the later stage wins; its own header says how to read it. Start with [Canonical lifecycle architecture](../FINDINGS.md#canonical-lifecycle-architecture-consolidated-at-stage-41-evidence-in-stages-29-to-40) and [Architectural checkpoint](../FINDINGS.md#architectural-checkpoint-stage-56-what-the-real-vertical-slice-has-demonstrated).
 - [`releases/`](../releases/): what changed in each release.
-- Executable evidence: `packages/valance/test/` (the contract's tripwires) and `examples/tracer-web/` (the tracer: jsdom tests, Chromium tests, a built page).
+- Executable evidence: `packages/valance/test/` (the contract's tripwires) and `examples/tracer-web/` (the contract test suite, formerly the tracer: jsdom tests, Chromium tests, a built page). A model application, built on the published package, is `examples/docs-site/`.
 
 ## From a concept to its evidence
 
