@@ -2,7 +2,7 @@
   "name": "@valancex/tracer-web",
   "version": "0.0.0",
   "private": true,
-  "description": "Guarded tracer bullet: a small real Web application through @valancex/valance, NEXUS, MESH and PORT Web.",
+  "description": "VALANCE's contract test suite: tripwire tests (Node, jsdom, real Chromium) and small fixture applications through @valancex/valance, NEXUS, MESH and PORT Web. For a model application see examples/docs-site.",
   "type": "module",
   "license": "MIT",
   "scripts": {

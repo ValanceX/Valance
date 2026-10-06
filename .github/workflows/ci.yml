@@ -32,3 +32,4 @@ jobs:
       - run: pnpm test
       - run: pnpm --filter @valancex/tracer-web exec playwright install chromium
       - run: pnpm test:browser
+      - run: pnpm test:examples

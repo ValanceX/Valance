@@ -54,7 +54,7 @@ $ pnpm add -D @valancex/mesh-compiler@^0.9.0 vite typescript
 </page>
 ```
 
-**`components.json`** lists the tags the screen may use. `counter` is the screen itself: it reads `count` and runs `increment`.
+**`components.json`** lists the tags the screen may use. (It is written by hand here to keep the first example small. In a real application you do not write it: [`manifest`](docs/learn/README.md#common-tasks) derives it from your primitives, scopes and commands, as in [`examples/docs-site`](examples/docs-site).) `counter` is the screen itself: it reads `count` and runs `increment`.
 
 ```json
 {
@@ -160,7 +160,8 @@ Follow these in order. Each one builds on the last.
 
 ## Examples
 
-- [`examples/tracer-web`](examples/tracer-web): a complete app with multiple screens, URL routing, server rendering and browser tests.
+- [`examples/docs-site`](examples/docs-site): a real, runnable app on the **published** package: a documentation site with links, a search box (a command that waits), URLs and document titles, server rendering and hydration. Start here.
+- [`examples/tracer-web`](examples/tracer-web): VALANCE's contract test suite (lifetimes, hydration, history, failure), with small fixture apps. It is the evidence behind the contract, not a model application.
 
 ## Releases
 

@@ -35,12 +35,12 @@ Each line is either enforced by a tripwire (`packages/valance/test/boundaries.te
 - **C10.** Still one `Valance.start`, one state, one platform lifetime. The URL is derived from, and feeds, application `path`; it is never a second source of truth.
 - **C11.** Browser Back/Forward enters application behavior through the SAME navigate command a MESH intent uses. No second navigation pathway.
 - **C12.** MESH and PORT do not change. NEXUS changes only if the tracer proves a missing primitive.
-- No Router/Route/route DSL/registry/link primitive/guards/loaders/redirects/outlets/parameters/wildcards; exact-path comparison only.
+- No Router/Route/route DSL/registry/guards/loaders/redirects/outlets/parameters/wildcards; exact-path comparison only. *(A destination link primitive was added in 0.5.0: see C39.)*
 
 ## Added for stage 4 (URL shape; written before the code)
 
 - **C13.** URL ≠ state. What a URL means is application code (`urlOf`, `stateOf` in the example app). `Web.history` reads and writes the URL and calls them; it parses nothing.
-- **C14.** Same navigate command, same single application. No Router, codec, mapper, normalization, link primitive, or public `urlOf`/`stateOf` API.
+- **C14.** Same navigate command, same single application. No Router, codec, mapper, normalization, or public `urlOf`/`stateOf` API.
 
 ## Added for stage 5 (initial URL canonicalization; written before the code)
 
@@ -121,3 +121,12 @@ C10 to C19 are satisfied by the code at `40a9793` and its tests. The contract is
 
 - **C38, a bare command name is an identity, not a global behavior.** In the table `commands(state)` returns, a key without `/` holds a NEXUS command and is bound to every declared `component/name` with that name and to `app/name`; a key with `/` is an exact binding. For each of those keys the exact entry wins over the bare name; there is no other precedence. The table `start` uses (conformance, hosts, `invoke`, `start`) is the one plain table of exact keys built from both forms and D, so `D ⊆ B` (C34), admission and the registry are unchanged. A bare command's struct input takes arguments in field order; a non-struct input takes the first argument; a binding under a bare name is a startup defect. `define` reads the table's own type: `E` is the exact union of every command's failure plus `CommandValidationError` (a table of bare commands carries it nowhere else), and `R` the union of the services the table needs, so commands that fail differently share one table with no failure widened (tripwire: `packages/valance/test/command-errors.test.ts`). A table built by spreading another definition's `commands(state)` loses the spread-in members from `E` (TypeScript drops the index signature of a spread `CommandTable`): that gap is older than this rule and is not fixed by it.
 
+
+## Added for the 0.5.0 interface (`packages/valance/test/{links,history,history-navigate,manifest,payload,waiting}.test.ts`, `examples/tracer-web/browser/{links,docs-field}.browser.test.ts`)
+
+- **C39, a link is a destination, not a handler.** `Web.link` is an `<a href>`; the application never writes an event for it. `Web.history({ container })` handles a link click only when it is a plain primary click on a same-origin anchor; a modified click, `target`, `download`, a foreign origin, a `#fragment` and a prevented click are left to the browser. Still no Router, route table or guard: what a URL means is `urlOf` / `stateOf` (C13).
+- **C40, the MESH manifest is derived, never written.** `manifest({ primitives, scopes, commands })` (from `@valancex/valance/web/build`) derives it from the tags, each view's scope Schema and the command table. A hand-written manifest is not a supported path for ordinary authoring.
+- **C41, a text field shows the rendered value.** `Web.textField` (`controlled("value")`) writes the DOM property after every presentation, only when it differs, and never moves a focused caret otherwise; its `input` event carries the typed string. This needs PORT Web 0.3.0.
+- **C42, `waiting` is a NEXUS command, scoped.** `command(state).waiting` adds no concept to the model: latest-wins per command, `wanted` required and evaluated atomically with the commit, a superseded run is not cancelled, interruption is not failure, a failure is passed as received. Typed failures and several effects stay with the general NEXUS form.
+- **C43, a bare `navigate` name receives the navigation fact as the command's whole input.** An exact key behaves as before; the positional rule for events and `invoke` is untouched (C38).
+- **C44, the document title is the application's function.** `history.titleOf` sets `document.title` for the first state and every later one, after the URL step; the server writes the same function's result. A view cannot carry a `<title>`.
