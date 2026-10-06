@@ -1,3 +1,8 @@
 packages:
   - "packages/*"
   - "examples/*"
+allowBuilds:
+  esbuild: false
+minimumReleaseAgeExclude:
+  - '@valancex/nexus@0.10.3'
+  - '@valancex/port-web@0.3.0'
