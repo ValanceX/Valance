@@ -19,6 +19,9 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 | `Mounted` | `{ dispatched, settled, followed }`: how a mount ended, and observation aids. | [§6](../V1_CONTRACT.md#6-mounts), [§10](../V1_CONTRACT.md#10-failure-model) |
 | `Program`, `StateHandle<S>` | Types only. `Program` is a compiled view description (what `compileProgram` returns and a view's `program` takes). `StateHandle<S>` is the `state` that `commands` receives, for writing `commands` apart from `define`. No runtime. | [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry), [§15](../V1_CONTRACT.md#15-building-a-view-description) |
 | `StartOptions`, `StartError`, `TargetFactory`, `Target` | Start options and failures (`InitialValueInvalid`, `ServiceGraphFailed`, `MeshDiagnostics`, `ConformanceViolation`, and `UnmappedCommand` for a `start` key the table lacks); the shape a target implements. | [§2](../V1_CONTRACT.md#2-application), [§6](../V1_CONTRACT.md#6-mounts), [§10](../V1_CONTRACT.md#10-failure-model) |
+| `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` | The stable identity of a defect VALANCE dies with: a `code` (`admission-closed`, `application-ended`, `not-an-application`, `bare-command-binding`, `unknown-view`, `target-not-drawn`). `isRefusal(defect)` is true for work turned away because the application or the NEXUS runtime under it is closing, ended or was never started, and false for a bug. Added in 0.6.0. | [§9](../V1_CONTRACT.md#9-scopes-and-shutdown), [§10](../V1_CONTRACT.md#10-failure-model) |
+| `View<S>`, `CommandTable`, `CommandMaker<S>`, `Ambient` | Types only. `View` is one MESH program and the scope that feeds it; `CommandTable` is what `commands` returns (bare names and exact keys); `CommandMaker` is what `command(state)` returns; `Ambient` is what a command may require from the application runtime. | [§2](../V1_CONTRACT.md#2-application), [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
+| `Report`, `HydratableTarget<H>`, `UnmappedDeclaration`, `Outcome<A>` | Types only. `Report` is the function a target calls with a handler identifier and a payload; `HydratableTarget` is a target whose PORT can take over server output; `UnmappedDeclaration` is one event a view declares that the command table lacks (in `ConformanceViolation`); `Outcome` is how a waiting command's work ended. | [§6](../V1_CONTRACT.md#6-mounts), [§14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
 
 ## Web: `@valancex/valance/web`
 
@@ -32,18 +35,21 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 | `link` | A primitive for a link: an `<a>` with an `href` and no event. Put it in `primitives`. | [§8](../V1_CONTRACT.md#8-history) |
 | `event(type, payload?)` | A PORT event realization whose payload kind is declared (`{ kind, of }`), so a manifest can be derived. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
 | `WebPrimitives`, `attribute`, `booleanAttribute`, `property`, `textProperty` | The table that says which page element each building block becomes. Target configuration, not part of the application. | [§6](../V1_CONTRACT.md#6-mounts) |
+| `RunOptions`, `Host<S, E>`, `HistoryOptions<S>` | Types only. `RunOptions` extends `StartOptions` with `container`, `primitives`, `present` and an optional `history`; `Host` is what `run` resolves to (`handle`, `mounted`, `stop`); `HistoryOptions` is `history`'s options without the handle. | [§16](../V1_CONTRACT.md#16-the-browser-host-webrun), [§8](../V1_CONTRACT.md#8-history) |
 
 ## Build time: `@valancex/valance/web/build`
 
 | Name | What it is | Rules |
 |---|---|---|
 | `manifest({ primitives, scopes, commands })` | The MESH component manifest, derived from the primitives table, each view's scope Schema and the command table. Pure; refuses (`ManifestError`) what it cannot derive safely. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
+| `Manifest`, `ManifestOptions`, `MeshType` | Types only. `Manifest` is the derived MESH component manifest (manifest format 1), `ManifestOptions` the arguments of `manifest`, `MeshType` a MESH type. | [§15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) |
 
 ## Server: `@valancex/valance/web/server`
 
 | Name | What it is | Rules |
 |---|---|---|
 | `renderToHtml(app, { primitives, state?, platform? })` | Renders the current view once as HTML, and returns the state read after it. Start-time work begins and is interrupted when the render ends. | [§17](../V1_CONTRACT.md#17-server-rendering-rendertohtml) |
+| `Served<S>` | Types only. What `renderToHtml` returns: the HTML and the state read after it. | |
 
 ## Build time: `@valancex/mesh-compiler`
 

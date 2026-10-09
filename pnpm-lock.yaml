@@ -15,8 +15,8 @@ importers:
   examples/docs-site:
     dependencies:
       '@valancex/valance':
-        specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.9.0)(@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0))(effect@3.22.2)
+        specifier: ^0.6.0
+        version: 0.6.0(@valancex/mesh-runtime@0.9.0)(@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -28,8 +28,8 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0
       '@valancex/nexus':
-        specifier: ^0.10.3
-        version: 0.10.3(@valancex/mesh-runtime@0.9.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.9.0)
       '@valancex/port-web':
         specifier: ^0.3.0
         version: 0.3.0(@valancex/mesh-runtime@0.9.0)
@@ -503,12 +503,6 @@ packages:
     resolution: {integrity: sha512-w540OVud5qJAjoIx1FK8YfRgH7SncR79J136KUN/O6NczkCDsHSooLzjCPcV8REpcJGSEBq1AwVYMT1GkqlCkg==}
     engines: {node: '>=22'}
 
-  '@valancex/nexus@0.10.3':
-    resolution: {integrity: sha512-ficZpBTecCmDrAsrw+Olk1goDCnU10shaaQt1Lji7r3mXqd8IRmSWYhYOEWld0Lbhr2upq11danTI2t5Q0lCmQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
-
   '@valancex/nexus@0.11.0':
     resolution: {integrity: sha512-1gr6f5kxFV3CIwXtF+TEmvMFEMkpesvrf+UIhB9oUVXg7REuWIhyuwAOxxgUsO8+cB/Wc8faq3rxuUF063WF1Q==}
     engines: {node: '>=22'}
@@ -521,8 +515,8 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0
 
-  '@valancex/valance@0.5.0':
-    resolution: {integrity: sha512-yq9rNKRL3W6+SMUs3g9jDv8LOGOpQ8Q8Hk+kV1PR60mb+108g0GgYww+e9S1N9YPM/kBV9Sl9MOQvN77w9cVsQ==}
+  '@valancex/valance@0.6.0':
+    resolution: {integrity: sha512-pegOjXYkuDiOEds62bZH24udcuMy86Mpj3+PEqMUwxVvyZd+WZfs7LZynYmGcIZTcsdjmOIQWOGyX4+zpm3gPA==}
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
@@ -1239,11 +1233,6 @@ snapshots:
 
   '@valancex/mesh-runtime@0.9.0': {}
 
-  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.9.0)':
-    dependencies:
-      '@valancex/mesh-runtime': 0.9.0
-      effect: 3.22.2
-
   '@valancex/nexus@0.11.0(@valancex/mesh-runtime@0.9.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.9.0
@@ -1253,10 +1242,10 @@ snapshots:
     dependencies:
       '@valancex/mesh-runtime': 0.9.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.9.0)(@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0))(effect@3.22.2)':
+  '@valancex/valance@0.6.0(@valancex/mesh-runtime@0.9.0)(@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0))(effect@3.22.2)':
     dependencies:
       '@valancex/mesh-runtime': 0.9.0
-      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.9.0)
+      '@valancex/nexus': 0.11.0(@valancex/mesh-runtime@0.9.0)
       effect: 3.22.2
     optionalDependencies:
       '@valancex/port-web': 0.3.0(@valancex/mesh-runtime@0.9.0)

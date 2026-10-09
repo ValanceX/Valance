@@ -1,6 +1,6 @@
 # docs-site: a real VALANCE example
 
-A documentation site built on the **published** [`@valancex/valance`](https://www.npmjs.com/package/@valancex/valance) 0.5 (it installs the package from npm, not from this workspace): a home page and five documentation pages with a sidebar, previous and next links, an expandable section, code samples, and a **search box**. It is server rendered, takes over in the browser without reloading, and keeps the URL and the document title in step as you move around.
+A documentation site built on the **published** [`@valancex/valance`](https://www.npmjs.com/package/@valancex/valance) 0.6 (it installs the package from npm, not from this workspace): a home page and five documentation pages with a sidebar, previous and next links, an expandable section, code samples, and a **search box**. It is server rendered, takes over in the browser without reloading, and keeps the URL and the document title in step as you move around.
 
 ```console
 $ pnpm install

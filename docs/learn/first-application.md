@@ -28,6 +28,8 @@ It may only use building blocks the application declares, and say which values a
 }
 ```
 
+This tutorial writes the file by hand so you see it once. A real application derives it: `manifest` from `@valancex/valance/web/build` builds it from the primitives table, each view's scope schema and the command table, so it is never written twice (the [docs-site example](../../examples/docs-site) does).
+
 `counter` is the view itself: its `scope` is the values the description may use (`count`), and its `commands` are the ones it may run (`increment`).
 
 ## 2. Compile it, before the application runs
