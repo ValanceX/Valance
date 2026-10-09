@@ -22,7 +22,7 @@ it("a page is rendered on the server through the layout's slot: title, navigatio
 
   expect(html).toContain("<title>Getting Started · Valance</title>");
   expect(html).toContain('<a href="/docs/guides/state"');
-  expect(html).toMatch(/<h1[^>]*>Getting Started<\/h1>/);
+  expect(html).toMatch(/<h1[^>]*>(<span>)+Getting Started(<\/span>)+<\/h1>/);     // each run is wrapped: a composite has one root element (FINDINGS F3)
   expect(html).toMatch(/<aside[^>]*><strong[^>]*>tip<\/strong>/);                       // the callout composite, with its text placed by its slot
   expect(html).toMatch(/<figure[^>]*><pre[^>]*>import \* as Valance/);                 // the code-block composite
   expect(html).toMatch(/<button[^>]*>Copy<\/button>/);
@@ -79,4 +79,12 @@ it("the page shows Copied for the copied block", async () => {
 
 it("the generated site is the content's site (pnpm build:content ran)", () => {
   expect(readGeneratedSite()).toEqual(site);
+});
+
+it("inline marks (strong, code, link) are runs the views draw", async () => {
+  const html = await renderDocument(site, "/docs/introduction", "/assets/page.js");
+
+  expect(html).toMatch(/<strong[^>]*>one value<\/strong>/);
+  expect(html).toMatch(/<code[^>]*>Valance\.command<\/code>/);
+  expect(html).toMatch(/<a href="\/docs\/guides\/getting-started"[^>]*>(<span>)*getting-started guide/);
 });

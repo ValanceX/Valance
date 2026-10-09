@@ -20,6 +20,7 @@ export const primitives: Web.WebPrimitives = {
   pre: { element: "pre" },
   strong: { element: "strong" },
   text: { element: "span" },
+  code: { element: "code" },
   button: { element: "button", events: { click: { type: "click" } } },
   link: Web.link,
 };

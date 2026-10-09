@@ -11,10 +11,10 @@ Valance keeps an application's state in one place. The screen is a function of t
 
 ## What you get
 
-- State in one value, validated where it enters.
+- State in **one value**, validated where it enters.
 - Views written once, in MPRX, and drawn on the server and in the browser.
 - Commands that can wait, with loading and failure as ordinary state.
 
 ## Where to go next
 
-Start with the getting-started guide.
+Start with the [getting-started guide](/docs/guides/getting-started), then read about `Valance.command`.

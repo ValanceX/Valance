@@ -1,43 +1,348 @@
 {
   "comment": "The components these templates define (layout, block, callout, code-block), as MESH's manifest needs them. Valance derives the primitives, the root view and its commands; it does not derive composites, so they are written here (see FINDINGS.md, F2). `mesh-slot` is declared here for the same reason.",
   "components": {
-    "mesh-slot": { "props": {}, "events": {}, "commands": {}, "scope": {} },
+    "mesh-slot": {
+      "props": {},
+      "events": {},
+      "commands": {},
+      "scope": {}
+    },
     "layout": {
-      "props": { "site": { "type": { "kind": "string" }, "required": true } },
-      "events": {}, "commands": {},
-      "scope": { "site": { "kind": "string" } }
+      "props": {
+        "site": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {
+        "site": {
+          "kind": "string"
+        }
+      }
     },
     "callout": {
-      "props": { "tone": { "type": { "kind": "string" }, "required": true } },
-      "events": {}, "commands": {},
-      "scope": { "tone": { "kind": "string" } }
+      "props": {
+        "tone": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {
+        "tone": {
+          "kind": "string"
+        }
+      }
     },
     "code-block": {
       "props": {
-        "code": { "type": { "kind": "string" }, "required": true },
-        "lang": { "type": { "kind": "string" }, "required": true },
-        "blockId": { "type": { "kind": "string" }, "required": true },
-        "copyLabel": { "type": { "kind": "string" }, "required": true }
+        "code": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "lang": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "blockId": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "copyLabel": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
       },
-      "events": { "copy": { "payload": { "kind": "string" } } },
+      "events": {
+        "copy": {
+          "payload": {
+            "kind": "string"
+          }
+        }
+      },
       "commands": {},
-      "scope": { "code": { "kind": "string" }, "lang": { "kind": "string" }, "blockId": { "kind": "string" }, "copyLabel": { "kind": "string" } }
+      "scope": {
+        "code": {
+          "kind": "string"
+        },
+        "lang": {
+          "kind": "string"
+        },
+        "blockId": {
+          "kind": "string"
+        },
+        "copyLabel": {
+          "kind": "string"
+        }
+      }
     },
     "block": {
       "props": {
-        "kind": { "type": { "kind": "string" }, "required": true },
-        "text": { "type": { "kind": "string" }, "required": true },
-        "level": { "type": { "kind": "number" }, "required": true },
-        "lang": { "type": { "kind": "string" }, "required": true },
-        "tone": { "type": { "kind": "string" }, "required": true },
-        "blockId": { "type": { "kind": "string" }, "required": true },
-        "copyLabel": { "type": { "kind": "string" }, "required": true }
+        "kind": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "text": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "level": {
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        },
+        "lang": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "tone": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "blockId": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "copyLabel": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "spans": {
+          "type": {
+            "kind": "list",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "id": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                },
+                "kind": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                },
+                "text": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                },
+                "href": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                }
+              }
+            }
+          },
+          "required": true
+        }
       },
-      "events": { "copy": { "payload": { "kind": "string" } } },
+      "events": {
+        "copy": {
+          "payload": {
+            "kind": "string"
+          }
+        }
+      },
       "commands": {},
       "scope": {
-        "kind": { "kind": "string" }, "text": { "kind": "string" }, "level": { "kind": "number" }, "lang": { "kind": "string" },
-        "tone": { "kind": "string" }, "blockId": { "kind": "string" }, "copyLabel": { "kind": "string" }
+        "kind": {
+          "kind": "string"
+        },
+        "text": {
+          "kind": "string"
+        },
+        "level": {
+          "kind": "number"
+        },
+        "lang": {
+          "kind": "string"
+        },
+        "tone": {
+          "kind": "string"
+        },
+        "blockId": {
+          "kind": "string"
+        },
+        "copyLabel": {
+          "kind": "string"
+        },
+        "spans": {
+          "kind": "list",
+          "element": {
+            "kind": "record",
+            "fields": {
+              "id": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "kind": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "text": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "href": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "runs": {
+      "props": {
+        "spans": {
+          "type": {
+            "kind": "list",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "id": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                },
+                "kind": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                },
+                "text": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                },
+                "href": {
+                  "type": {
+                    "kind": "string"
+                  },
+                  "required": true
+                }
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {
+        "spans": {
+          "kind": "list",
+          "element": {
+            "kind": "record",
+            "fields": {
+              "id": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "kind": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "text": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              },
+              "href": {
+                "type": {
+                  "kind": "string"
+                },
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "inline": {
+      "props": {
+        "kind": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "text": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        "href": {
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      },
+      "events": {},
+      "commands": {},
+      "scope": {
+        "kind": {
+          "kind": "string"
+        },
+        "text": {
+          "kind": "string"
+        },
+        "href": {
+          "kind": "string"
+        }
       }
     }
   }

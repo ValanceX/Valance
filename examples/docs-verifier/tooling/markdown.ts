@@ -1,16 +1,36 @@
 // Build time, in Node: the small markdown this site is written in, as a flat list of blocks (../model/site.ts). Headings (#, ##, ###), paragraphs, bullet lists, fenced code
 // and callouts (a `> [!NOTE]` quote). Inline marks are not parsed: text is plain (see FINDINGS.md).
-import type { Block } from "../model/site.js";
+import type { Block, Span } from "../model/site.js";
 
 const TONES: Readonly<Record<string, string>> = { NOTE: "note", TIP: "tip", WARNING: "warning" };
 
 const slug = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+export const parseInline = (text: string, blockId: string): ReadonlyArray<Span> => {
+  const spans: Array<Span> = [];
+  const add = (kind: Span["kind"], run: string, href = ""): void => { if (run !== "") { spans.push({ id: `${blockId}.${spans.length}`, kind, text: run, href }); } };
+  const marks = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
+  let from = 0;
+
+  for (let found = marks.exec(text); found !== null; found = marks.exec(text)) {
+    add("text", text.slice(from, found.index));
+
+    if (found[1] !== undefined) { add("strong", found[1]); } else if (found[2] !== undefined) { add("code", found[2]); } else { add("link", found[3]!, found[4]!); }
+
+    from = found.index + found[0].length;
+  }
+
+  add("text", text.slice(from));
+
+  return spans;
+};
+
 export const parseMarkdown = (source: string, pageId: string): ReadonlyArray<Block> => {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: Array<Block> = [];
   const add = (kind: Block["kind"], text: string, extra: Partial<Pick<Block, "level" | "lang" | "tone">> = {}): void => {
-    blocks.push({ id: `${pageId}:${blocks.length}`, kind, text, level: extra.level ?? 0, lang: extra.lang ?? "", tone: extra.tone ?? "" });
+    const id = `${pageId}:${blocks.length}`;
+    blocks.push({ id, kind, text, spans: kind === "code" ? [] : parseInline(text, id), level: extra.level ?? 0, lang: extra.lang ?? "", tone: extra.tone ?? "" });
   };
   let paragraph: Array<string> = [];
   const flush = (): void => {

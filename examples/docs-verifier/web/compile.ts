@@ -20,7 +20,7 @@ export const mergedManifest = (): string => {
   return JSON.stringify({ ...derived, components: { ...derived.components, ...composites.components } });
 };
 
-const COMPONENTS = ["page", "layout", "block", "callout", "code-block"] as const;
+const COMPONENTS = ["page", "layout", "block", "callout", "code-block", "runs", "inline"] as const;
 
 export const compilePage = async () => {
   const result = await compileProgram({

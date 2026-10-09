@@ -8,7 +8,7 @@
   </nav>
   <main>
     <mesh-each items={blocks} as="b" key={b.id}>
-      <block kind={b.kind} text={b.text} level={b.level} lang={b.lang} tone={b.tone} blockId={b.id} copyLabel={b.copyLabel} on.copy={copyCode($event)} />
+      <block kind={b.kind} text={b.text} spans={b.spans} level={b.level} lang={b.lang} tone={b.tone} blockId={b.id} copyLabel={b.copyLabel} on.copy={copyCode($event)} />
     </mesh-each>
     <nav>
       <mesh-if when={prev.href != ""}><link href={prev.href}>{prev.label}</link></mesh-if>

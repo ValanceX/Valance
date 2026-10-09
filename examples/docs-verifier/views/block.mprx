@@ -1,9 +1,9 @@
 <section>
-  <mesh-if when={kind == "heading" && level == 1}><h1>{text}</h1></mesh-if>
-  <mesh-if when={kind == "heading" && level == 2}><h2>{text}</h2></mesh-if>
-  <mesh-if when={kind == "heading" && level == 3}><h3>{text}</h3></mesh-if>
-  <mesh-if when={kind == "paragraph"}><para>{text}</para></mesh-if>
-  <mesh-if when={kind == "item"}><para>• {text}</para></mesh-if>
-  <mesh-if when={kind == "callout"}><callout tone={tone}>{text}</callout></mesh-if>
+  <mesh-if when={kind == "heading" && level == 1}><h1><runs spans={spans} /></h1></mesh-if>
+  <mesh-if when={kind == "heading" && level == 2}><h2><runs spans={spans} /></h2></mesh-if>
+  <mesh-if when={kind == "heading" && level == 3}><h3><runs spans={spans} /></h3></mesh-if>
+  <mesh-if when={kind == "paragraph"}><para><runs spans={spans} /></para></mesh-if>
+  <mesh-if when={kind == "item"}><para>• <runs spans={spans} /></para></mesh-if>
+  <mesh-if when={kind == "callout"}><callout tone={tone}><runs spans={spans} /></callout></mesh-if>
   <mesh-if when={kind == "code"}><code-block code={text} lang={lang} blockId={blockId} copyLabel={copyLabel} on.copy={copy($event)} /></mesh-if>
 </section>

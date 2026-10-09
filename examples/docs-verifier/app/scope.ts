@@ -15,6 +15,7 @@ export const PageScope = Schema.Struct({
     id: Schema.String,
     kind: Schema.String,
     text: Schema.String,
+    spans: Schema.Array(Schema.Struct({ id: Schema.String, kind: Schema.String, text: Schema.String, href: Schema.String })),
     level: Schema.Number,
     lang: Schema.String,
     tone: Schema.String,
@@ -30,7 +31,7 @@ const missing: Page = {
   path: "",
   title: "Not found",
   section: "",
-  blocks: [{ id: "not-found:0", kind: "heading", text: "Not found", level: 1, lang: "", tone: "" }, { id: "not-found:1", kind: "paragraph", text: "There is no such page.", level: 0, lang: "", tone: "" }],
+  blocks: [{ id: "not-found:0", kind: "heading", text: "Not found", spans: [{ id: "not-found:0.0", kind: "text", text: "Not found", href: "" }], level: 1, lang: "", tone: "" }, { id: "not-found:1", kind: "paragraph", text: "There is no such page.", spans: [{ id: "not-found:1.0", kind: "text", text: "There is no such page.", href: "" }], level: 0, lang: "", tone: "" }],
 };
 
 const none = { href: "", label: "" };
