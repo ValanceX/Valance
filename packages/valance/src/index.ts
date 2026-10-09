@@ -516,9 +516,19 @@ const connect = <S, E, T extends Target, A>(
       }
 
       // `dispatch` runs inside the application (its platform's FiberRefs apply) and nothing flows back (NEXUS I44).
-      pending.push(Effect.runFork(Effect.exit(running.dispatch(render, handler, payload)).pipe(
+      const fiber = Effect.runFork(Effect.exit(running.dispatch(render, handler, payload)).pipe(
         Effect.tap((exit) => Effect.sync(() => { dispatched.push(exit); }))
-      )));
+      ));
+
+      // A dispatch that has ended is settled: it leaves `pending` at once, so a long-lived mount whose host never calls `settled` doesn't hold every fiber.
+      pending.push(fiber);
+      fiber.addObserver(() => {
+        const index = pending.indexOf(fiber);
+
+        if (index >= 0) {
+          pending.splice(index, 1);
+        }
+      });
     });
 
     // `running.values` is the render of the current state, then of the latest state after each wake-up (superseded intermediate states may be
