@@ -1798,6 +1798,8 @@ No stop condition occurred. No constraint added: "failure is not rendered" is cu
 
 **One event (A).** After completion: 1 Exit in `dispatched`, the fiber still held by `pending`. Completed does not mean released. `settled` then drops the fiber and leaves the Exit.
 
+> **Superseded in part (API review, 2026-10-09).** A finished dispatch now leaves `pending` at once, so the measurements below that count fibers held "until `settled`" describe Stage 34 as first recorded; today they read zero after completion. The ledger (`dispatched`) is as measured. `test/event-retention.test.ts` has the current expectations.
+
 **Many events (B, C).** Logical growth is linear and exact: N events give N recorded Exits and N held fibers (N = 10, 100, 1000 measured), until `settled` or the Scope close. `settled` then releases the N fibers; the N Exits remain. Typed failures and defects are retained exactly like successes (C, 100 each): same ledger, same fiber retention, same effect of `settled`. Retention is by completion, not by outcome.
 
 **Mixed (D).** success, failure, success, defect, async success, async failure: one ledger in settle order (the later event that completed first appears first); all six fibers held; one `settled` releases them all. One mechanism for every outcome, sync or async.

@@ -1,4 +1,6 @@
-// Stage 34: who owns an event-command Exit, how long does it live, what releases it. Characterisation only.
+// Stage 34: who owns an event-command Exit, how long does it live, what releases it. Characterisation only. (Updated by the API review: a finished dispatch
+// now leaves `pending` at once, so only a dispatch still running holds a fiber; the ledger is unchanged. The comments below that speak of fibers held
+// until `settled` describe Stage 34 as first recorded.)
 // The real path is exercised (click -> PORT report -> `connect` -> `running.dispatch` -> command), with ONE piece of test
 // instrumentation: the Running's `dispatch` is wrapped (as Stage 28 wrapped `invoke`) so that each dispatch carries two canaries:
 //   - a FIBER canary, pinned only by the fiber that `connect` forks for the event (set in that fiber's FiberRefs): alive while `pending` holds it;
@@ -135,33 +137,33 @@ const boot = async () => {
 };
 
 describe("A: one event", () => {
-  it("after completion the Exit is in `dispatched` and the fiber is still held (`pending`); `settled` drops the fiber, not the Exit", async () => {
+  it("after completion the Exit is in `dispatched` and the fiber has left `pending`; `settled` has nothing to drop", async () => {
     const b = await boot();
 
     b.click("ok");
     await b.recorded(1);
-    expect(await b.census()).toEqual({ dispatched: 1, fibersAlive: 1, exitsAlive: 1, total: 1 });   // completed != released: both retained
+    expect(await b.census()).toEqual({ dispatched: 1, fibersAlive: 0, exitsAlive: 1, total: 1 });   // a finished dispatch leaves `pending` at once; the ledger entry stays
     await b.settled();
-    expect(await b.census()).toEqual({ dispatched: 1, fibersAlive: 0, exitsAlive: 1, total: 1 });   // `pending` emptied; the ledger entry stays
+    expect(await b.census()).toEqual({ dispatched: 1, fibersAlive: 0, exitsAlive: 1, total: 1 });
   });
 });
 
 describe("B, C: many events, success and failure", () => {
   for (const count of [10, 100, 1000]) {
-    it(`B ${count} successful events: ${count} Exits recorded and ${count} fibers held, until \`settled\``, async () => {
+    it(`B ${count} successful events: ${count} Exits recorded and no fiber held`, async () => {
       const b = await boot();
 
       for (let n = 0; n < count; n += 1) { b.click("ok"); }
 
       await b.recorded(count);
-      expect(await b.census()).toEqual({ dispatched: count, fibersAlive: count, exitsAlive: count, total: count });   // logical growth: N events -> N and N
+      expect(await b.census()).toEqual({ dispatched: count, fibersAlive: 0, exitsAlive: count, total: count });   // logical growth: N events -> N Exits, no fibers
       await b.settled();
       expect(await b.census()).toEqual({ dispatched: count, fibersAlive: 0, exitsAlive: count, total: count });
     }, 60_000);                                                                   // 1000 real clicks take ~4.5s in jsdom: more than vitest's 5s default when the suite runs in parallel
   }
 
   for (const [kind, id] of [["typed failures", "fail"], ["defects", "die"]] as const) {
-    it(`C 100 ${kind}: retained exactly like successes (Exit in \`dispatched\`, fiber in \`pending\`); \`settled\` treats them alike`, async () => {
+    it(`C 100 ${kind}: recorded exactly like successes (Exit in \`dispatched\`, no fiber held); \`settled\` treats them alike`, async () => {
       const b = await boot();
 
       for (let n = 0; n < 100; n += 1) { b.click(id); }
@@ -170,7 +172,7 @@ describe("B, C: many events, success and failure", () => {
       expect(new Set(b.mount.dispatched.map(show))).toEqual(new Set([id === "fail" ? "failed" : "died"]));
       const exitsAlive = id === "fail" ? 100 : 0;                                // defects carry no exit canary (see the header); `dispatched.length` is the measure
 
-      expect(await b.census()).toEqual({ dispatched: 100, fibersAlive: 100, exitsAlive, total: 100 });
+      expect(await b.census()).toEqual({ dispatched: 100, fibersAlive: 0, exitsAlive, total: 100 });
       await b.settled();                                                          // returns normally: it does not fail on failed events
       expect(await b.census()).toEqual({ dispatched: 100, fibersAlive: 0, exitsAlive, total: 100 });
     });
@@ -192,7 +194,7 @@ describe("D: mixed outcomes share one mechanism", () => {
     await b.recorded(6);
 
     expect(b.mount.dispatched.map(show)).toEqual(["succeeded", "failed", "succeeded", "died", "failed", "succeeded"]);
-    expect(await b.census()).toEqual({ dispatched: 6, fibersAlive: 6, exitsAlive: 5, total: 6 });   // 5: the defect carries no exit canary
+    expect(await b.census()).toEqual({ dispatched: 6, fibersAlive: 0, exitsAlive: 5, total: 6 });   // 5: the defect carries no exit canary
     await b.settled();
     expect(await b.census()).toEqual({ dispatched: 6, fibersAlive: 0, exitsAlive: 5, total: 6 });
   });
@@ -240,7 +242,7 @@ describe("E, F, I: what `settled` is", () => {
     for (let n = 0; n < 3; n += 1) { b.click("fail"); }
 
     await b.recorded(8);
-    expect(await b.census()).toEqual({ dispatched: 8, fibersAlive: 3, exitsAlive: 8, total: 8 });   // new events are held again, old ones were not re-held
+    expect(await b.census()).toEqual({ dispatched: 8, fibersAlive: 0, exitsAlive: 8, total: 8 });   // finished events hold no fiber, so there is nothing to hold again
     await b.settled();
     expect(await b.census()).toEqual({ dispatched: 8, fibersAlive: 0, exitsAlive: 8, total: 8 });
   });
@@ -303,13 +305,13 @@ describe("G, H, J, K: mount close, and what the application can see", () => {
     expect(alive(run.canaries.exits)).toBe(0);
   });
 
-  it("G the close finalizer itself empties `pending`: while the Mounted is still held, fibers are released at close, the recorded Exits are not (the holder of `Mounted` keeps the ledger)", async () => {
+  it("G closing the mount leaves `pending` empty: no fiber is held, before or after, and the recorded Exits are not released (the holder of `Mounted` keeps the ledger)", async () => {
     const b = await boot();
 
     for (let n = 0; n < 4; n += 1) { b.click("ok"); }
 
     await b.recorded(4);
-    expect((await b.census()).fibersAlive).toBe(4);
+    expect((await b.census()).fibersAlive).toBe(0);
     await b.closeScope();
     expect(await b.census()).toEqual({ dispatched: 4, fibersAlive: 0, exitsAlive: 4, total: 4 });
   });

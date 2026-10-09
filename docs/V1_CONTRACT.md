@@ -370,7 +370,7 @@ It is a command (§3) and an ordinary NEXUS command underneath: admission, owner
 - **Ownership.** It has no caller and is the application's from the moment it is admitted. It does not need, and is not given, a caller's Scope. Closing the application interrupts and awaits it like any admitted command (§9), and `Scope.close` racing `start` either runs it and interrupts it, or never runs it; it never commits after the close resolves. *(Tripwires: `application-start-work.test.ts`.)*
 - **State.** It reads the state `start` was given (`StartOptions.state`, e.g. hydration). A command that finds its work already done can do nothing; nothing in VALANCE skips it.
 - **Presentation.** It may finish before anything is mounted; a later mount draws the settled state. Mounts follow its commits like any others.
-- **Failure.** Its exit is not reported anywhere: no caller, no mount ledger, no log. A failure it does not catch leaves state untouched and the application running. Work whose failure should be seen commits it as state (§18.1).
+- **Failure.** Its exit is returned nowhere: no caller, no mount ledger. A failure it does not catch is **logged** (`Effect.logError`, "start-time work failed"; interruption by the application closing is not), leaves state untouched and the application running. The log is for whoever runs the application; the channel for the screen is still state: work whose failure should be seen commits it as state (§18.1).
 - **Multiplicity.** One key. An application that has several things to do at start composes them in one command.
 - **Server render.** `renderToHtml` starts the application, so it begins there (§17).
 

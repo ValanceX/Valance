@@ -23,7 +23,7 @@ import type { BoundaryValue, DeclaredEvent, RenderTree, SourceSpan } from "@vala
 import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;
@@ -437,7 +437,8 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
 
     // Start-time work: the SAME admission as `invoke` and dispatch, with no caller. Last step before the handle exists, after every failure `start` can have, so a
     // failed start runs nothing. The fiber registers itself first (`admit`); a Scope close that wins the race finds admission closed and the work dies unrun.
-    // `Effect.exit` keeps its exit from being an unhandled fiber failure: nobody joins it.
+    // `Effect.exit` keeps its exit from being an unhandled fiber failure: nobody joins it. A failure is LOGGED (`Effect.logError`, as a failed popstate is, C28),
+    // never returned: there is no caller to return it to, and the state stays the only channel. Interruption and a refusal by a closing application are not failures.
     if (app.start !== undefined) {
       const startKey = app.start.includes("/") ? app.start : `app/${app.start}`;
       const binding = Object.hasOwn(commands, startKey) ? commands[startKey] : undefined;
@@ -447,7 +448,9 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return yield* Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name });
       }
 
-      Nexus.Runtime.runFork(nexus.runtime, Effect.exit(admit(binding([]))));
+      Nexus.Runtime.runFork(nexus.runtime, Effect.exit(admit(binding([])).pipe(
+        Effect.tapErrorCause((cause) => admissionClosed || Cause.isInterruptedOnly(cause) ? Effect.void : Effect.logError("start-time work failed", cause))
+      )));
     }
 
     return handleOf(running);
