@@ -9,6 +9,7 @@
  */
 import type * as Nexus from "@valancex/nexus";
 import type { Effect, Exit, Stream } from "effect";
+import { ValanceError } from "./errors.js";
 import type { ApplicationHandle } from "./index.js";
 
 /**
@@ -60,7 +61,7 @@ export const runningOf = <S, E>(handle: ApplicationHandle<S, E>): Running<S, E> 
   const running = registry.get(handle);
 
   if (running === undefined) {
-    throw new Error("not an application handle that Valance started");
+    throw new ValanceError("not-an-application", "not an application handle that Valance started");
   }
 
   return running as unknown as Running<S, E>;

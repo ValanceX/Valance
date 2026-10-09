@@ -20,15 +20,15 @@ describe("dependency boundary", () => {
     expect(declared("../node_modules/@valancex/nexus/package.json").filter((name) => name.startsWith("@valancex/")).sort()).toEqual(["@valancex/mesh-runtime"]);
   });
 
-  it("Valance's core (index, internal) names no PORT package and nothing Web; only the ./web entries do", () => {
-    for (const file of ["index.ts", "internal.ts"]) {
+  it("Valance's core (index, internal, errors) names no PORT package and nothing Web; only the ./web entries do", () => {
+    for (const file of ["index.ts", "internal.ts", "errors.ts"]) {
       const core = source(file);
 
       expect(importsOf(core).filter((name) => name.includes("port")), file).toEqual([]);
       expect(core, file).not.toMatch(/\b(DOM|Element|document|window|HTML|Web)\b/);
     }
 
-    for (const file of readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts")) {
+    for (const file of readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts")) {
       expect(file.startsWith("web")).toBe(true);
     }
   });
