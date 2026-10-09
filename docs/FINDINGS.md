@@ -91,7 +91,7 @@ MPRX source --MESH compiler (Node)--> template-v1 + manifest  (a `Mesh.Program`:
 - *A second target.* Everything ran through PORT Web. `Target`/`TargetFactory` is the stated seam for any PORT, but no other PORT (native, canvas, terminal) has used it.
 - *A real asynchronous resource in a real page.* Capabilities, command lifetime and drain (Stages 19 to 32) were validated with controllable test resources in jsdom; the real page has only the platform `Clock`. A network or storage capability living in the browser across navigation and bfcache is unexercised.
 - *Data that ages.* No application behavior depends on data age (Stage 50), so any resume policy after a restore is unobserved; likewise stale results under real latency.
-- *Long-lived pages.* The mount's ledger and `pending` list grow per event for the life of the mount (Stage 34, linear and mount-scoped); no page has run long enough for that to matter.
+- *Long-lived pages.* The mount's ledger (`dispatched`) grows per event for the life of the mount (Stage 34, linear and mount-scoped); no page has run long enough for that to matter. The `pending` list no longer does: a dispatch leaves it when it ends (API review V1, reasoned from the code and not measured), so a page that never calls `settled` holds only the dispatches still running.
 - *Several mounts in a real browser page.* Multi-mount ownership was exercised in jsdom (Stages 35 to 37) and one Chromium case (Stage 38); the real page has one mount.
 - *Other browsers.* Only Chromium (and its bfcache) was driven; history and bfcache behavior in Firefox and WebKit is unverified.
 - *Published-package consumption.* `@valancex/valance` is unpublished; an external project consuming it, and the stability of `./internal`, are untested. *(Update 2026-10-06: published from 0.1.0 on 2026-10-03, now at 0.5.0; `examples/docs-site` and the README quick start consume the published package. The stability of `./internal` is still untested.)*
@@ -1797,6 +1797,8 @@ No stop condition occurred. No constraint added: "failure is not rendered" is cu
 **Ownership.** `pending` and `dispatched` are owned by the mount: created by `connect`, reachable only from its closure, the target's report callback and the `Mounted` value the caller holds. They are released when nothing references the mount.
 
 **One event (A).** After completion: 1 Exit in `dispatched`, the fiber still held by `pending`. Completed does not mean released. `settled` then drops the fiber and leaves the Exit.
+
+> **Superseded in part (API review, 2026-10-09).** A finished dispatch now leaves `pending` at once, so the measurements below that count fibers held "until `settled`" describe Stage 34 as first recorded; today they read zero after completion. The ledger (`dispatched`) is as measured. `test/event-retention.test.ts` has the current expectations.
 
 **Many events (B, C).** Logical growth is linear and exact: N events give N recorded Exits and N held fibers (N = 10, 100, 1000 measured), until `settled` or the Scope close. `settled` then releases the N fibers; the N Exits remain. Typed failures and defects are retained exactly like successes (C, 100 each): same ledger, same fiber retention, same effect of `settled`. Retention is by completion, not by outcome.
 

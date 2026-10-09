@@ -22,8 +22,12 @@ import type { BoundaryValue, DeclaredEvent, RenderTree, SourceSpan } from "@vala
 
 import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
+import { ValanceError } from "./errors.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+
+export { isRefusal, isValanceError, ValanceError } from "./errors.js";
+export type { ValanceErrorCode } from "./errors.js";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;
@@ -344,7 +348,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       if (key.includes("/")) {
         commands[key] = value as Nexus.Mesh.Binding<E, R>;
       } else if (typeof value === "function") {
-        throw new Error(`VALANCE: "${key}" is a bare command name, so it must hold a command; a binding (entry) belongs under a "component/name" key`);
+        throw new ValanceError("bare-command-binding", `VALANCE: "${key}" is a bare command name, so it must hold a command; a binding (entry) belongs under a "component/name" key`);
       } else {
         named.set(key, bareBinding(value) as Nexus.Mesh.Binding<E, R>);
       }
@@ -399,7 +403,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
     const admit = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F, R> => Effect.acquireUseRelease(
       Effect.withFiberRuntime<void>((fiber) => Effect.sync(() => {
         if (admissionClosed) {
-          throw new Error("VALANCE: admission is closed (draining)");
+          throw new ValanceError("admission-closed", "VALANCE: admission is closed (draining)");
         }
 
         admitted.add(fiber as Fiber.RuntimeFiber<unknown, unknown>);
@@ -423,7 +427,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
 
-        return host === undefined ? Effect.die(new Error(`no view named ${viewed.view}`)) : inApplication(host.dispatch(viewed.render, handler, payload));
+        return host === undefined ? Effect.die(new ValanceError("unknown-view", `no view named ${viewed.view}`)) : inApplication(host.dispatch(viewed.render, handler, payload));
       },
       state: state.get,
       states: state.values,
@@ -437,7 +441,8 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
 
     // Start-time work: the SAME admission as `invoke` and dispatch, with no caller. Last step before the handle exists, after every failure `start` can have, so a
     // failed start runs nothing. The fiber registers itself first (`admit`); a Scope close that wins the race finds admission closed and the work dies unrun.
-    // `Effect.exit` keeps its exit from being an unhandled fiber failure: nobody joins it.
+    // `Effect.exit` keeps its exit from being an unhandled fiber failure: nobody joins it. A failure is LOGGED (`Effect.logError`, as a failed popstate is, C28),
+    // never returned: there is no caller to return it to, and the state stays the only channel. Interruption and a refusal by a closing application are not failures.
     if (app.start !== undefined) {
       const startKey = app.start.includes("/") ? app.start : `app/${app.start}`;
       const binding = Object.hasOwn(commands, startKey) ? commands[startKey] : undefined;
@@ -447,7 +452,9 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
         return yield* Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name });
       }
 
-      Nexus.Runtime.runFork(nexus.runtime, Effect.exit(admit(binding([]))));
+      Nexus.Runtime.runFork(nexus.runtime, Effect.exit(admit(binding([])).pipe(
+        Effect.tapErrorCause((cause) => admissionClosed || Cause.isInterruptedOnly(cause) ? Effect.void : Effect.logError("start-time work failed", cause))
+      )));
     }
 
     return handleOf(running);
@@ -512,13 +519,23 @@ const connect = <S, E, T extends Target, A>(
       const render = drawn.current;
 
       if (render === undefined) {
-        throw new Error("the target reported an interaction before anything was drawn");
+        throw new ValanceError("target-not-drawn", "the target reported an interaction before anything was drawn");
       }
 
       // `dispatch` runs inside the application (its platform's FiberRefs apply) and nothing flows back (NEXUS I44).
-      pending.push(Effect.runFork(Effect.exit(running.dispatch(render, handler, payload)).pipe(
+      const fiber = Effect.runFork(Effect.exit(running.dispatch(render, handler, payload)).pipe(
         Effect.tap((exit) => Effect.sync(() => { dispatched.push(exit); }))
-      )));
+      ));
+
+      // A dispatch that has ended is settled: it leaves `pending` at once, so a long-lived mount whose host never calls `settled` doesn't hold every fiber.
+      pending.push(fiber);
+      fiber.addObserver(() => {
+        const index = pending.indexOf(fiber);
+
+        if (index >= 0) {
+          pending.splice(index, 1);
+        }
+      });
     });
 
     // `running.values` is the render of the current state, then of the latest state after each wake-up (superseded intermediate states may be
@@ -548,7 +565,7 @@ const connect = <S, E, T extends Target, A>(
       // Ending before the first render (a diagnostic, a failure of the target, an application that ended) is mount's failure.
       Effect.onExit((exit) => Exit.match(exit, {
         onFailure: (cause) => Deferred.failCause(firstDone, cause),
-        onSuccess: () => Deferred.die(firstDone, new Error("the application ended before its first render")),
+        onSuccess: () => Deferred.die(firstDone, new ValanceError("application-ended", "the application ended before its first render")),
       })),
       Effect.forkIn(scope)
     );
@@ -558,7 +575,7 @@ const connect = <S, E, T extends Target, A>(
       Deferred.await(firstDone),
       Effect.flatMap(Fiber.await(follower), (exit) => Exit.match(exit, {
         onFailure: (cause) => Effect.failCause(cause),
-        onSuccess: () => Effect.die(new Error("the application ended before its first render")),
+        onSuccess: () => Effect.die(new ValanceError("application-ended", "the application ended before its first render")),
       }))
     );
 

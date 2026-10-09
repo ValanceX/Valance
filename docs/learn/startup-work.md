@@ -39,9 +39,9 @@ If you start the application with a state that is already `ready` (for example t
 
 ## Failure
 
-Startup work has **no caller waiting for it**. If it fails and nothing catches the failure, nobody hears about it: state is unchanged, the application keeps running, and the screen does not change.
+Startup work has **no caller waiting for it**. If it fails and nothing catches the failure, nobody on the screen hears about it: state is unchanged, the application keeps running, and the screen does not change. The failure is written to Effect's log (`start-time work failed`, with the whole cause), so a developer looking at the console sees it. The log carries whatever the error carries, and VALANCE does not redact it: keep secrets and personal data out of the errors a command lets escape ([what is logged](../stability.md#what-is-logged)).
 
-The usual way to meet this is forgetting the `platform` a command's capability comes from: the command fails with `CapabilityUnavailableError`, and the screen simply stays in its starting state. To see why, run the same command with `invoke` (in a test, for example): `invoke` tells its caller.
+The usual way to meet this is forgetting the `platform` a command's capability comes from: the command fails with `CapabilityUnavailableError`, and the screen simply stays in its starting state. The log line names the cause; or run the same command with `invoke` (in a test, for example): `invoke` tells its caller.
 
 So if a failure should be visible, make it state, exactly as for any async work: catch it in the command and commit it (`phase: "failed"` in the example). VALANCE has no startup error channel; the state is the channel.
 

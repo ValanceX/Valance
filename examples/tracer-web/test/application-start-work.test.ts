@@ -2,7 +2,7 @@
 // command, forks nothing, and owns nothing. No DOM, no Web: the non-DOM text target draws the view; the resource is a gate the test opens.
 import * as Valance from "@valancex/valance";
 import * as Nexus from "@valancex/nexus";
-import { Deferred, Effect, Exit, Schema, Scope } from "effect";
+import { Deferred, Effect, Exit, Logger, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { textTarget, type TextTarget } from "./non-dom-target.js";
@@ -60,10 +60,12 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
   const resource = fakeResource();
   const scope = await Effect.runPromise(Scope.make());
   const released: Array<string> = [];
+  const logs: Array<string> = [];
+  const logger = Logger.replace(Logger.defaultLogger, Logger.make(({ message }) => { logs.push(String(message)); }));
 
   await Effect.runPromise(Scope.addFinalizer(scope, Effect.sync(() => { released.push("platform resource released"); })));   // before start: runs after NEXUS terminates
 
-  const handle = await Effect.runPromise(Valance.start(app(resource, options), options.state === undefined ? {} : { state: options.state }).pipe(Scope.extend(scope)));   // the host's ONLY act
+  const handle = await Effect.runPromise(Valance.start(app(resource, options), options.state === undefined ? {} : { state: options.state }).pipe(Effect.provide(logger), Scope.extend(scope)));   // the host's ONLY act
   let target: TextTarget | undefined;
 
   if (options.mount !== false) {
@@ -72,7 +74,7 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
     await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
   }
 
-  return { resource, scope, released, handle, close: () => Effect.runPromise(Scope.close(scope, Exit.void)), screen: () => target?.screen() ?? "", state: () => Effect.runPromise(handle.state) };
+  return { resource, scope, released, logs, handle, close: () => Effect.runPromise(Scope.close(scope, Exit.void)), screen: () => target?.screen() ?? "", state: () => Effect.runPromise(handle.state) };
 };
 
 describe("start-time work declared by the application", () => {
@@ -144,7 +146,7 @@ describe("start-time work declared by the application", () => {
     await b.close();
   });
 
-  it("3b: failure NOT caught fails the command and nothing else: its exit is reported nowhere, state is untouched, the application stays healthy", async () => {
+  it("3b: failure NOT caught fails the command and nothing else: its exit is logged, never returned, state is untouched, the application stays healthy", async () => {
     const b = await boot({ raise: true });
 
     await wait(() => b.resource.log.includes("started"));
@@ -154,11 +156,28 @@ describe("start-time work declared by the application", () => {
 
     expect(await b.state()).toEqual({ phase: "loading", detail: "" });
     expect(b.screen()).toContain("loading");
+    expect(b.logs).toEqual(["start-time work failed"]);
     // contrast: the same command through `invoke` reports the same failure to ITS caller (the gate is already open); start-time work has no caller
     const viaInvoke = await Effect.runPromise(Effect.exit(b.handle.invoke("app/load", [])));
 
     expect(viaInvoke._tag === "Failure" && JSON.stringify(viaInvoke.cause)).toContain("LoadError");
     await b.close();
+  });
+
+  it("3b2: work that succeeds, or is interrupted by the application closing, logs nothing", async () => {
+    const done = await boot();
+
+    await wait(() => done.resource.log.includes("started"));
+    await done.resource.open({ _tag: "Ok", value: "fine" });
+    await wait(() => done.resource.log.includes("settled"));
+    await done.close();
+    expect(done.logs).toEqual([]);
+
+    const interrupted = await boot();
+
+    await wait(() => interrupted.resource.log.includes("started"));
+    await interrupted.close();
+    expect(interrupted.logs).toEqual([]);
   });
 
   it("3c: a start key the table lacks fails `start` with UnmappedCommand and runs nothing", async () => {

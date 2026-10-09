@@ -78,7 +78,7 @@ describe("application event entry", () => {
 
     void absent;
     expectTypeOf<Valance.Mounted<never>["dispatched"]>().not.toBeAny();         // its structure stays readable through `Mounted`
-    expect(Object.keys(Valance).sort()).toEqual(["command", "define", "entry", "hydrate", "mount", "start"]);
+    expect(Object.keys(Valance).sort()).toEqual(["ValanceError", "command", "define", "entry", "hydrate", "isRefusal", "isValanceError", "mount", "start"]);
   });
 
   it("the handle is the application's face and nothing else: state and invoke, frozen, with no composition or substrate", async () => {

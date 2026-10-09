@@ -2,7 +2,7 @@
 
 The exact behavior of every public name. The reference itself is the [**V1 contract**](../V1_CONTRACT.md); this page is the index to it by name. New to VALANCE? Start with [Learn](../learn/README.md).
 
-Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser target, history, host), `@valancex/valance/web/server` (server rendering). `@valancex/valance/internal` is outside the contract.
+Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser target, history, host), `@valancex/valance/web/server` (server rendering), `@valancex/valance/web/build` (the manifest from a definition). What each promises: [API stability](../stability.md). `@valancex/valance/internal` is outside the contract.
 
 ## Core: `@valancex/valance`
 

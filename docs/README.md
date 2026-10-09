@@ -7,7 +7,7 @@ The documentation has three levels. Start at the first and go down only when you
 | Level | For | Start here |
 |---|---|---|
 | **1. Learn** | Understanding the model and building your first application. Uses VALANCE's own words only. | [`learn/`](learn/README.md) |
-| **2. Use** | Exact API, options, behavior, lifecycle, failure and what is *not* promised. | [`use/`](use/README.md), then the [contract](V1_CONTRACT.md) |
+| **2. Use** | Exact API, options, behavior, lifecycle, failure and what is *not* promised. | [`use/`](use/README.md), then the [contract](V1_CONTRACT.md) and [API stability](stability.md) |
 | **3. Understand** | Why it is built this way, and the evidence: architecture, constraints, investigation record, and the three packages underneath. | [`understand/`](understand/README.md) |
 
 ## I want to…

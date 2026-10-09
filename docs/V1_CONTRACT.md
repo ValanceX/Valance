@@ -138,6 +138,8 @@ One Scope never closes another. The caller may put them in one Scope or in sever
 **Closing the application's Scope** (`Scope.close` on A):
 
 1. Admission closes synchronously. Every later `invoke`, mount event or popstate is refused with a defect (`VALANCE: admission is closed (draining)`, then `NEXUS: the runtime has begun terminating`). An unknown key is still the typed `UnmappedCommand`.
+
+   **Telling a refusal from a bug.** Each of these defects has a stable identity, not just text. VALANCE's own are a `ValanceError` with a `code` (`admission-closed`, `application-ended`, `not-an-application`, and for definition and target mistakes `bare-command-binding`, `unknown-view`, `target-not-drawn`); NEXUS's are a `Runtime.Refusal` with its own `code`. `isRefusal(defect)` is true for work turned away because the application or runtime is closing, ended, or was never started (`admission-closed`, `application-ended`, `not-an-application`, and any NEXUS refusal); it is false for a bug. Read the defect from the `Cause` (`Cause.dieOption`). Messages are unchanged and are for people. A typed failure carries `_tag`; a dying error carries `code`.
 2. Admitted commands are interrupted and awaited one at a time (how they interleave inside the drain is not specified, only that every commit precedes the close's resolution). A command that is uninterruptible keeps the close waiting for its actual exit; if it commits meanwhile, the commit stands, though its caller still sees `Interrupted`. The state, not the caller's exit, is the record of what committed.
 3. The runtime terminates and platform resources are released, once.
 4. **No commit happens after `Scope.close` resolves**, and `handle.state` stays readable as the last committed state. The state stream ends and never resumes.
@@ -370,7 +372,7 @@ It is a command (§3) and an ordinary NEXUS command underneath: admission, owner
 - **Ownership.** It has no caller and is the application's from the moment it is admitted. It does not need, and is not given, a caller's Scope. Closing the application interrupts and awaits it like any admitted command (§9), and `Scope.close` racing `start` either runs it and interrupts it, or never runs it; it never commits after the close resolves. *(Tripwires: `application-start-work.test.ts`.)*
 - **State.** It reads the state `start` was given (`StartOptions.state`, e.g. hydration). A command that finds its work already done can do nothing; nothing in VALANCE skips it.
 - **Presentation.** It may finish before anything is mounted; a later mount draws the settled state. Mounts follow its commits like any others.
-- **Failure.** Its exit is not reported anywhere: no caller, no mount ledger, no log. A failure it does not catch leaves state untouched and the application running. Work whose failure should be seen commits it as state (§18.1).
+- **Failure.** Its exit is returned nowhere: no caller, no mount ledger. A failure it does not catch is **logged** (`Effect.logError`, "start-time work failed"; interruption by the application closing is not), leaves state untouched and the application running. The log is for whoever runs the application; the channel for the screen is still state: work whose failure should be seen commits it as state (§18.1).
 - **Multiplicity.** One key. An application that has several things to do at start composes them in one command.
 - **Server render.** `renderToHtml` starts the application, so it begins there (§17).
 
