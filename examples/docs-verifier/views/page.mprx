@@ -1,0 +1,18 @@
+<layout site={site}>
+  <nav>
+    <list>
+      <mesh-each items={nav} as="n" key={n.id}>
+        <item><link href={n.href}>{n.label}</link></item>
+      </mesh-each>
+    </list>
+  </nav>
+  <main>
+    <mesh-each items={blocks} as="b" key={b.id}>
+      <block kind={b.kind} text={b.text} level={b.level} lang={b.lang} tone={b.tone} blockId={b.id} copyLabel={b.copyLabel} on.copy={copyCode($event)} />
+    </mesh-each>
+    <nav>
+      <mesh-if when={prev.href != ""}><link href={prev.href}>{prev.label}</link></mesh-if>
+      <mesh-if when={next.href != ""}><link href={next.href}>{next.label}</link></mesh-if>
+    </nav>
+  </main>
+</layout>

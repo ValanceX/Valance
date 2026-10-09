@@ -1,0 +1,5 @@
+# This project is its own root: it is not part of the Valance workspace, because it must resolve MESH and PORT from their
+# development checkouts (see package.json "overrides" and README.md), which the other examples must not.
+packages: []
+allowBuilds:
+  esbuild: false
