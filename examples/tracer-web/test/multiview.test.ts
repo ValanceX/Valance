@@ -1,6 +1,6 @@
 // Stage 2: can ONE Valance application own several MESH programs and keep its state across view switches?
 // One application, one NEXUS state, two programs. `path` is application state; `view` derives the program from it.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -17,7 +17,7 @@ import { load, until } from "./helpers.js";
 type Operation = "draw" | "hydrate" | "update";
 
 /** The Web target, recording every PORT operation Valance asks for. PORT's own behavior is untouched. */
-const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<WebPort> => (report) => {
+const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container, primitives })(report);
 
   return {

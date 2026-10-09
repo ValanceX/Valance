@@ -6,7 +6,7 @@
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import { runningOf } from "@valancex/valance/internal";
 import { Cause, Effect, Exit, Fiber, Schema, Scope, Stream } from "effect";
 import { JSDOM } from "jsdom";
@@ -52,7 +52,7 @@ const world = async () => {
     const page = load("");
     const scope = await run(Scope.make());
 
-    await run(Valance.mount(handle, ((report) => Web.target({ container: page.container, primitives })(report)) as Valance.TargetFactory<WebPort>).pipe(Scope.extend(scope)));
+    await run(Valance.mount(handle, ((report) => Web.target({ container: page.container, primitives })(report)) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)));
 
     return { label: () => page.container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
   };

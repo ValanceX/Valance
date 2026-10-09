@@ -22,7 +22,7 @@ const attempt = async (b: Booted) => {
   const page = load("");
   const ops: Array<string> = [];
   const scope = await run(Scope.make());
-  const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+  const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };

@@ -1,6 +1,6 @@
 // Shared by inert-dispatch.test.ts and shared-vs-local-failure.test.ts: a two-view application (A: notfound program, whose render fails while `bad`; B: details program),
 // commands that tell the views apart (A's button repairs and adds 10, B's adds 100), and `mountOn` over a recording target whose update can throw or act.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -45,7 +45,7 @@ export const boot = async () => {
   const mountOn = async (options: { readonly page?: ReturnType<typeof load>; readonly updateThrows?: () => boolean; readonly onUpdate?: () => void } = {}) => {
     const page = options.page ?? load("");
     const ops: Array<string> = [];
-    const target: Valance.TargetFactory<WebPort> = (report) => {
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       const port = Web.target({ container: page.container, primitives })(report);
 
       return { draw: (t) => { port.draw(t); ops.push(`draw ${label()}`); }, update: (t) => { if (options.updateThrows?.() === true) { throw new Error("update failed"); } port.update(t); ops.push(`update ${label()}`); options.onUpdate?.(); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };

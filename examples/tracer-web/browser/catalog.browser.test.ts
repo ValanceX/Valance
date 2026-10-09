@@ -6,7 +6,7 @@
 //         reappearance. No history anywhere: the application runs without it.
 // Part 2: `Web.history` bound to the same union state through the application's own `urlOf` / `stateOf`.
 
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -31,7 +31,7 @@ const ABC = items("ABC");
 
 type Operation = "hydrate" | "draw" | "update";
 
-const recording = (root: Element, operations: Array<Operation>): Valance.TargetFactory<WebPort> => (report) => {
+const recording = (root: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container: root, primitives })(report);
 
   return {

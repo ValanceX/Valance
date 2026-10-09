@@ -5,7 +5,7 @@
 //   same-view structural failure → inert (C31); fresh mount draws normally; mounts are independent
 //   events after a structural update resolve against the newly presented render
 // VALANCE decides draw/update from the view name alone; MESH owns structure and identity; PORT owns the realization.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -97,17 +97,17 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
   });
   const appScope = await run(Scope.make());
   const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
-  const mountOn = async (options: { readonly onUpdate?: () => void; readonly updateThrows?: () => "before" | "after" | undefined; readonly page?: ReturnType<typeof load> } = {}) => {
+  const mountOn = async (options: { readonly patch?: boolean; readonly onUpdate?: () => void; readonly updateThrows?: () => "before" | "after" | undefined; readonly page?: ReturnType<typeof load> } = {}) => {
     const page = options.page ?? load("");
     const ops: Array<string> = [];
     const trees: Array<string> = [];
     const reports: Array<{ readonly handler: string; readonly payload: unknown; readonly send: () => void }> = [];
     let reporter: ((handler: string, payload: never) => void) | undefined;
-    const factory: Valance.TargetFactory<WebPort> = (report) => {
+    const factory: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       reporter = report;
       const port = Web.target({ container: page.container, primitives })((handler, payload) => { reports.push({ handler, payload, send: () => { report(handler, payload); } }); report(handler, payload); });
 
-      return { draw: (t) => { port.draw(t); ops.push("draw"); trees.push(JSON.stringify(t)); }, update: (t) => { const when = options.updateThrows?.(); if (when === "before") { throw new Error("update failed"); } port.update(t); if (when === "after") { throw new Error("update failed after mutation"); } ops.push("update"); trees.push(JSON.stringify(t)); options.onUpdate?.(); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
+      return { draw: (t) => { port.draw(t); ops.push("draw"); trees.push(JSON.stringify(t)); }, update: (t) => { const when = options.updateThrows?.(); if (when === "before") { throw new Error("update failed"); } port.update(t); if (when === "after") { throw new Error("update failed after mutation"); } ops.push("update"); trees.push(JSON.stringify(t)); options.onUpdate?.(); }, hydrate: (t) => port.hydrate(t), ...(options.patch === true ? { patch: (patches: Parameters<typeof port.patch>[0]) => { port.patch(patches); ops.push("update"); options.onUpdate?.(); } } : {}), unmount: () => { port.unmount(); ops.push("unmount"); } };
     };
     const scope = await run(Scope.make());
     const mounted = await run(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
@@ -145,7 +145,7 @@ export const hydrateOn = async (b: Booted, html: string, options: { readonly thr
 
   page.window.addEventListener("error", (event) => { errors.push(event.message); });
   if (options.page !== undefined) { page.container.innerHTML = html; }
-  const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+  const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
     const port = Web.target({ container: page.container, primitives })((handler, payload) => { reports.push({ handler, send: () => { report(handler, payload); } }); report(handler, payload); });
 
     return {

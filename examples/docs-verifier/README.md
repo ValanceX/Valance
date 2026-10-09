@@ -25,6 +25,19 @@ web/       compile, SSR, browser, dev  may import app, model, Valance, Mesh, Por
 
 ## Setup
 
+The verifier tests prepared, unpublished versions (MESH 0.10, PORT Web 0.4, NEXUS 0.12, VALANCE 0.7). Until they are on the registry, run it against their packs, which is also how a set of releases is validated before it is published:
+
+```
+# in each of Mesh/packages/mesh-compiler, Mesh/packages/mesh-runtime, Port/packages/port-web, Nexus, Valance/packages/valance
+npm run build && npm pack --pack-destination <packs>
+# then, here
+node scripts/with-local-packs.mjs <packs> --smoke
+```
+
+The alternative below links the sibling Mesh and Port checkouts and takes VALANCE and NEXUS from the registry, which is the pre-0.7 setup.
+
+## Linking the checkouts
+
 Needs sibling checkouts `../../../Mesh` and `../../../Port` (relative to this
 directory) on the development branch; they are `link:`ed through `pnpm.overrides`.
 Nexus is deliberately not linked: a second copy would duplicate `effect`.
@@ -43,4 +56,5 @@ pnpm start         # serve the built site
 - A named slot (`layout`'s `nav`, filled by `page`) beside the default slot, and `mesh-switch` choosing a block's kind.
 - SSR + hydration + history navigation (`Web.run`, `renderToHtml`).
 - The `update` + Port `patch` path and the `diff` + `updateChanges` path against a
-  fresh draw at every step (Valance 0.6.0 does not use them yet).
+  fresh draw at every step, directly (unit) and through VALANCE 0.7, which now draws only what
+  changed: the smoke test compares the page after in-place navigation with the server's HTML.

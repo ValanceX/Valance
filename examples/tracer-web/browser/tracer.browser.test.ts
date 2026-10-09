@@ -2,7 +2,7 @@
 //   server HTML for a request path (from Node, ./setup.ts) → page → Valance.start (MESH runtime in WebAssembly, init() here)
 //   → hydrate (PORT Web) → real clicks through Chromium's input pipeline → MESH intent → NEXUS command → state
 //   → render → PORT update in place, or draw afresh when the click changed the program.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -34,7 +34,7 @@ const container = (html: string): HTMLElement => {
   return main;
 };
 
-const recording = (root: Element, operations: Array<string>): Valance.TargetFactory<WebPort> => (report) => {
+const recording = (root: Element, operations: Array<string>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container: root, primitives })(report);
 
   return {

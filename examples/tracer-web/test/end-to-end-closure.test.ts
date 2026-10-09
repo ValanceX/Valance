@@ -2,7 +2,7 @@
 //   start with an application-owned capability → mount → a command that reads state, uses the capability and commits → presentation → an event from the retained render (a view
 //   change, and back) → a capability failure before a commit, and one after it → history and its navigate command → a second mount → one mount closes → history closes → the
 //   application closes: its resource released once, nothing committing or reaching the capability afterwards
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -71,7 +71,7 @@ describe("one application, every boundary at once", () => {
       const ops: Array<string> = [];
       const scope = await run(Scope.make());
 
-      await run(Valance.mount(handle, ((report) => { const port = Web.target({ container: page.container, primitives })(report); return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } }; }) as Valance.TargetFactory<WebPort>).pipe(Scope.extend(scope)));
+      await run(Valance.mount(handle, ((report) => { const port = Web.target({ container: page.container, primitives })(report); return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } }; }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)));
 
       return {
         page, ops, scope,

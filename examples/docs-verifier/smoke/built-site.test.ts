@@ -36,6 +36,20 @@ it("serves a rendered document, and a 404 with the application's own page for an
   expect(await missing.text()).toContain("There is no such page.");
 });
 
+/** What the server draws for `path`, parsed and written by the browser itself, to compare with what the page holds after the client has drawn it in place. */
+const sameAsServer = async (page: import("playwright").Page, path: string): Promise<boolean> => {
+  const document = await (await fetch(`${served.origin}${path}`)).text();
+  const server = /<div id="app">([\s\S]*)<\/div><script id="valance-boot"/.exec(document)?.[1] ?? "";
+
+  return page.evaluate((html) => {
+    const parsed = window.document.createElement("div");
+
+    parsed.innerHTML = html;
+
+    return parsed.innerHTML === window.document.querySelector("#app")!.innerHTML;
+  }, server);
+};
+
 it("hydrates, navigates by links, keeps the title, Back restores, and the copy button's event reaches its command", async () => {
   const page = await (await browser.newContext()).newPage();
   const failures: Array<string> = [];
@@ -58,11 +72,13 @@ it("hydrates, navigates by links, keeps the title, Back restores, and the copy b
   await page.waitForFunction(() => location.pathname === "/docs/guides/state");
   expect(await page.title()).toBe("State · Valance");
   expect(await page.getByRole("heading", { name: "State", exact: true }).count()).toBe(1);
+  expect(await sameAsServer(page, "/docs/guides/state")).toBe(true);                      // patched in place, the page is what a fresh render of the state draws
 
   await page.goBack();
   await page.waitForFunction(() => location.pathname === "/docs/guides/getting-started");
   expect(await page.title()).toBe("Getting Started · Valance");
   expect(await page.getByRole("button", { name: "Copy", exact: true }).count()).toBe(1);   // back on the page, the mark is gone
+  expect(await sameAsServer(page, "/docs/guides/getting-started")).toBe(true);
 
   expect(failures).toEqual([]);
   expect(documents).toEqual(["/docs/guides/getting-started"]);                            // one document load: everything after was in place

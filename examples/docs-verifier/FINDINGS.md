@@ -8,7 +8,7 @@ Principle: the user writes the application, never system config (JSON, TS or JS)
 | F2 | `mesh-slot` had to be declared in the manifest by hand. | Gap | **Fixed (Mesh dev).** Reserved tags (`mesh-slot`, `mesh-fill`, `mesh-switch`, `mesh-case`, `mesh-default`, `mesh-if`, `mesh-each`) are declared by the toolchain when a template uses them. |
 | F3 | Inline marks (strong, code, link). | Model gap, not a feature gap: expressed as `spans` rendered by `runs`/`inline` composites. Cost: every run is a wrapper element, because a composite has exactly one root element and a `mesh-if` body must be an element. | Open: fragment roots. |
 | F4 | Lists are flattened to `item` blocks. | Partly a gap. A fixed-depth list is expressible (`mesh-each` inside `mesh-each`). Arbitrary nesting is not: composites cannot recurse. | Open: bounded recursion. |
-| F5 | Valance 0.6.0 redraws the whole tree on every change. | Gap | Open: Valance adopts `update`/`patch` once Mesh and Port release. |
+| F5 | Valance 0.6.0 redraws the whole tree on every change. | Gap | **Fixed (Valance 0.7 prepared).** A later render of a view is MESH's `update` of the previous one, applied with PORT's `patch`; the smoke test compares the patched page with the server's HTML for the same URL. |
 | F6 | Kind dispatch needed seven sibling `mesh-if`s. | Gap | **Fixed (Mesh dev).** `block.mprx` is one `mesh-switch`. |
 | F7 | One unnamed slot per template. | Gap | **Fixed (Mesh dev).** `layout.mprx` has a `nav` slot and the default; `page.mprx` fills `nav`. |
 | F8 | Copy-to-clipboard needs a platform capability. | Open | Port capability design. |
@@ -34,4 +34,16 @@ Learned while probing F3: `mesh-if` already takes a second element child as its 
 2. **`mesh-switch` (F6).** Written by the compiler as the `mesh-if`s it stands for, so the runtime, identity and updates are unchanged.
 3. **Named slots (F7).** `mesh-slot name` and `mesh-fill slot`; a named slot's identity step carries its name, so no existing key changes.
 
-Still to build: fragment roots (F3), bounded recursion (F4), and Valance on `update`/`patch` (F5).
+4. **Valance on `update`/`patch` (F5).** `Nexus.Mesh.update` (NEXUS 0.12) and an optional `Target.patch` (VALANCE 0.7); a target without `patch` is given `update` as before.
+
+Still to build: fragment roots (F3) and bounded recursion (F4).
+
+## Found by validating the prepared set (the packs, in a clean project and in this repository)
+
+| # | Finding | Status |
+|---|---------|--------|
+| V1 | `WebPort` gained members (`patch`, `inspect`, `[Symbol.dispose]`), so code that implements the interface stops typechecking; VALANCE's own tracer had about thirty wrappers typed `TargetFactory<WebPort>`. | Named in the PORT 0.4 and VALANCE 0.7 notes; the tracer is typed as the contract it needs. |
+| V2 | Tripwires that pinned the old model (every commit renders in full; `Web.run` without `init()` rejects) failed, as they should. | Updated: they count and gate `update` as well as `render`, and the uninitialized-runtime test now expects the new message and code. |
+| V3 | A stale Vite dependency cache after swapping packages made three real-page browser tests fail once. | Environment, not a defect; delete `node_modules/.vite`. |
+| V4 | NEXUS's lockfile test needs the lockfile to name the installed runtime, which can only be written once MESH 0.10 is published. | Open until the set is published, in order. |
+| V5 | MESH's two browser test files hang here unless `MESH_CHROMIUM=/opt/pw-browsers/chromium` is set; with it they pass (1 and 5 tests). | Environment. |

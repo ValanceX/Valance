@@ -1,7 +1,7 @@
 // Stage 32: async COMPOSITION, observed. Same rules as Stage 31: ordinary application, ordinary commands, ordinary Effect, deterministic gates;
 // no async abstraction anywhere. Each command composes gate-controlled operations with plain Effect (sequencing, `Effect.all`, `Effect.either`,
 // `fork`, `forkDaemon`). One ordered trace records the commands' steps, `State.values` emissions (internal face, read on purpose) and renders.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -103,7 +103,7 @@ const boot = async () => {
 
   const page = load("");
   const label = () => page.container.querySelector("section")?.getAttribute("aria-label") ?? "";
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return {

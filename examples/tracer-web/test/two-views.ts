@@ -2,7 +2,7 @@
 // identity) over the real stack: MESH compiler and runtime, NEXUS, Valance, PORT Web (jsdom). PORT is not faked: the
 // target only records the operation Valance asks for, then calls PORT.
 import type { Mesh } from "@valancex/nexus";
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { compileProgram } from "@valancex/mesh-compiler";
 import * as Nexus from "@valancex/nexus";
@@ -97,7 +97,7 @@ export const platformOf = () => {
 
 export type Operation = "hydrate" | "draw" | "update";
 
-export const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<WebPort> => (report) => {
+export const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container, primitives })(report);
 
   return {

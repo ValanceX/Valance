@@ -10,7 +10,7 @@
 // One Valance.start, one NEXUS application, one state, one platform lifetime, two MESH programs. The harness cannot
 // load this page at an arbitrary URL, so `replaceState` stands in for "the server served this URL"; the server HTML
 // for each path comes from ./setup.ts.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -36,7 +36,7 @@ const container = (html: string): HTMLElement => {
   return main;
 };
 
-const recording = (root: Element, operations: Array<string>): Valance.TargetFactory<WebPort> => (report) => {
+const recording = (root: Element, operations: Array<string>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container: root, primitives })(report);
 
   return {

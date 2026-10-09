@@ -4,7 +4,7 @@
 //   "parented"    each mount in a child Scope forked from the application's Scope (Effect's `Scope.fork`)
 //   "independent" each mount in its own unrelated Scope
 // The harness is Stage 35/36's. Event ownership is NOT touched: production behavior, the Stage 36 decision stays open.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -96,7 +96,7 @@ const boot = async (topology: Topology = "independent") => {
   const mountOn = async (name: string, options: { readonly failDraw?: boolean } = {}) => {
     const page = load("");
     const label = () => (page.container.querySelector("span")?.textContent ?? "").replace(/^\d+ items: /, "");
-    const target: Valance.TargetFactory<WebPort> = (report) => {
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       const port = Web.target({ container: page.container, primitives })(report);
 
       return {

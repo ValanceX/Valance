@@ -1,7 +1,7 @@
 // Stage 20: the Stage 19 capability, made asynchronous. Same ownership, same platform mechanism, same command boundary, same
 // render path; the capability's operation is now an Effect that can suspend, be completed by the test, and be interrupted.
 // No timing: the test waits on signals the controllable implementation raises, and completes operations by hand.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -193,7 +193,7 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
 const mounted = () => {
   const page = load("");
   const operations: Array<string> = [];
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return { draw: (tree) => { operations.push("draw"); port.draw(tree); }, update: (tree) => { operations.push("update"); port.update(tree); }, hydrate: (tree) => port.hydrate(tree), unmount: () => { port.unmount(); } };

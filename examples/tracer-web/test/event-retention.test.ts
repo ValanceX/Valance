@@ -9,7 +9,7 @@
 // instrumentation artifact), so defect Exits carry no exit canary: their retention is read from `dispatched` itself, their fiber from the fiber canary.
 // Canaries are WeakRefs; liveness is read after a forced full GC. `pending` is private to `connect`; this is how it is seen without changing source.
 // Logical counts only (how many canaries are alive), never bytes or timing.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -88,7 +88,7 @@ const build = async (canaries: Canaries) => {
     },
   });
   const page = load("");
-  const target: Valance.TargetFactory<WebPort> = (report) => Web.target({ container: page.container, primitives })(report);
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => Web.target({ container: page.container, primitives })(report);
   const scope = await Effect.runPromise(Scope.make());
   const started = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.extend(scope)))) as Valance.ApplicationHandle<State, string>;
   const real = runningOf(started as never);

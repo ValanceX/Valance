@@ -1,6 +1,6 @@
 // Stage 33 in Chromium: the same event-boundary failure semantics as test/async-event.test.ts, with real clicks (userEvent) in a real page.
 // Only the sync typed failure, the defect, the caught failure and the follow-up event: enough to show jsdom and Chromium agree.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -43,7 +43,7 @@ describe("event-driven command failure, in Chromium", () => {
           "home/reverse": Nexus.Mesh.bind(Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.asVoid(state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, items: [...current.items].reverse(), value: "reversed" })))), () => ({})),
         }) as unknown as Record<string, Nexus.Mesh.Binding<string, never>>,
       });
-      const target: Valance.TargetFactory<WebPort> = (report) => Web.target({ container: main, primitives })(report);
+      const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => Web.target({ container: main, primitives })(report);
 
       await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
         const handle = (yield* Valance.start(app as never, { state: initial })) as Valance.ApplicationHandle<State, string>;

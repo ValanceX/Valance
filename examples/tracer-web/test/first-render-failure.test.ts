@@ -27,7 +27,7 @@ const attempt = async (v: Variant) => {
 
   container.innerHTML = v.html ?? "";
   doc.body.append(container);
-  const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+  const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
     const port = Web.target({ container, primitives })(report);
     const close = () => { void Effect.runPromise(Scope.close(scope, Exit.void)); };
 
