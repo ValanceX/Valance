@@ -39,8 +39,8 @@ pnpm start         # serve the built site
 
 ## What it verifies
 
-- `mesh-slot` and composites (`layout`, `block`, `callout`, `code-block`), including
-  an event forwarded through two composite levels to a command.
+- Composites (`layout`, `block`, `callout`, `code-block`, `runs`, `inline`) with **no declared contract**: the compiler infers them, including an event forwarded through two composite levels to a command.
+- A named slot (`layout`'s `nav`, filled by `page`) beside the default slot, and `mesh-switch` choosing a block's kind.
 - SSR + hydration + history navigation (`Web.run`, `renderToHtml`).
 - The `update` + Port `patch` path and the `diff` + `updateChanges` path against a
   fresh draw at every step (Valance 0.6.0 does not use them yet).

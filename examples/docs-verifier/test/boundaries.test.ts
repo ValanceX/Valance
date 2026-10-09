@@ -4,7 +4,7 @@
 //   model/     the shape of the site's data (Schemas). Depends on `effect` only.
 //   tooling/   build time: content → generated/site.json. Depends on model/ and Node.
 //   app/       the Valance application. Depends on model/, `effect` and the Valance core. Names no target, no DOM, no file, no tooling.
-//   views/     MPRX templates and the composites' manifest entries. No code.
+//   views/     MPRX templates. No code.
 //   web/       the target: primitives, compile, server, browser. Depends on app/, model/, Valance, MESH, PORT and Node. Not on tooling/.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";

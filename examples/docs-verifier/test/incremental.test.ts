@@ -12,16 +12,14 @@ import { initial } from "../app/state.js";
 import type { AppState } from "../app/state.js";
 import type { Site } from "../model/site.js";
 import { readSite } from "../tooling/content.js";
-import { compilePage, mergedManifest } from "../web/compile.js";
+import { compilePage } from "../web/compile.js";
 import { primitives } from "../web/primitives.js";
 
 let site: Site;
 let program: Awaited<ReturnType<typeof compilePage>>;
-let model: string;
 
 beforeAll(() => {
   site = readSite(fileURLToPath(new URL("../content", import.meta.url)));
-  model = mergedManifest();
 });
 
 const scopeOf = (state: AppState): Record<string, unknown> => pageScope(site, state) as unknown as Record<string, unknown>;
@@ -43,7 +41,7 @@ const states: ReadonlyArray<AppState> = [
 
 it("a walk through the site, applied as patches (update), gives the DOM a fresh draw gives, at every step", async () => {
   program ??= await compilePage();
-  const input = (state: AppState) => ({ program: { root: program.root, templates: program.templates }, model, snapshot: scopeOf(state) });
+  const input = (state: AppState) => ({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(state) });
   const patched = target();
   let current: Render | undefined;
   let applied = 0;
@@ -77,7 +75,7 @@ it("a walk through the site, applied as patches (update), gives the DOM a fresh 
 
 it("the same walk through the changes form (diff → updateChanges) gives the same DOM, starting from a plain render()", async () => {
   program ??= await compilePage();
-  const input = (state: AppState) => ({ program: { root: program.root, templates: program.templates }, model, snapshot: scopeOf(state) });
+  const input = (state: AppState) => ({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(state) });
   const patched = target();
   let previous = scopeOf(states[0]!);
   let current: Render = (await render(input(states[0]!))).render!;
@@ -107,7 +105,7 @@ it("an event on the patched DOM still reaches the command through the composite 
   program ??= await compilePage();
   const { dispatch } = await import("@valancex/mesh-runtime");
   const state: AppState = { page: "guides-getting-started", copied: "" };
-  const first = (await render({ program: { root: program.root, templates: program.templates }, model, snapshot: scopeOf(initial) })).render!;
+  const first = (await render({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(initial) })).render!;
   const next = (await update(first, scopeOf(state))).render!;
   const button = JSON.stringify(next.tree).match(/"events":\{"click":"([^"]+)"\}/)?.[1];
 
