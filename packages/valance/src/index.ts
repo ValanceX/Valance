@@ -394,6 +394,16 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       return Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render.pipe(Effect.map((render) => ({ view, render })));
     };
 
+    // The render of `value` after `previous`: the same view is MESH's update of the previous render (the new render and the patches that turn the one into the other), anything else
+    // is rendered afresh. The previous render is the last one this stream produced, so what `update` is given is always the render the target was last given.
+    const advance = (previous: Viewed | undefined, value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> => {
+      const view = app.view(value);
+
+      return previous === undefined || previous.view !== view
+        ? renderOf(value)
+        : Nexus.Mesh.update(previous.render, app.views[view].scope(value) as Record<string, unknown>).pipe(Effect.map(({ render, patches }): Viewed => ({ view, render, patches })));
+    };
+
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
     // `runFork`: the handle holds none of them, so joining it imports nothing into the caller). The caller's
     // interruption interrupts the event; results, typed failures and defects pass through unchanged.
@@ -423,7 +433,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
       // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
       // `state.get` is read after the wake, so what is rendered is never older than the element that woke it; the first element is still the first draw.
-      values: Stream.mapEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), renderOf),
+      values: Stream.mapAccumEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), undefined as Viewed | undefined, (previous, value) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed]))),
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
 
@@ -463,10 +473,14 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
 /** Reports what the user did: PORT's handler identifier and payload. */
 export type Report = (handler: string, payload?: BoundaryValue) => void;
 
-/** PORT's contract as the composer uses it. `draw`/`update` carry program continuity, which only the composer knows. */
+/**
+ * PORT's contract as the composer uses it. `draw`/`update` carry program continuity, which only the composer knows. A PORT that can apply MESH's patches in place also has `patch`: the
+ * composer then gives it the patches of each later render of the same view, and `update` only when there are none (a target without `patch` is always given `update`).
+ */
 export interface Target {
   draw(tree: RenderTree): void;
   update(tree: RenderTree): void;
+  patch?(patches: Nexus.Mesh.RenderPatches): unknown;
   unmount(): void;
 }
 
@@ -546,7 +560,11 @@ const connect = <S, E, T extends Target, A>(
     const follower = yield* Stream.runForEach(running.values, (viewed) => Effect.suspend(() => {
       if (drawn.current !== undefined) {
         if (drawn.current.view === viewed.view) {
-          target.update(viewed.render.tree);
+          if (viewed.patches !== undefined && target.patch !== undefined) {
+            target.patch(viewed.patches);
+          } else {
+            target.update(viewed.render.tree);
+          }
         } else {
           target.draw(viewed.render.tree);
         }

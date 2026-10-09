@@ -72,7 +72,7 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 ## 5. Views and presentation
 
 - `view(state)` returns the name of the current view; `views` maps names to `{ program, scope }`. `scope(state)` produces the values the MESH program renders. The view is a function of state: the application, not the presentation, decides it.
-- **Continuity is decided by view name alone.** A presentation of the same view as the one the mount has drawn is an `update`; a presentation of a different view is a `draw`. VALANCE never compares render trees, so two different views that render identical output are still a `draw`, and a same-view change of any structure (a conditional appearing, keyed items added, removed or reordered) is an `update`.
+- **Continuity is decided by view name alone.** A presentation of the same view as the one the mount has drawn is an update; a presentation of a different view is a `draw`. An update reaches the target as MESH's `patches` for it (`patch`) when the target has `patch`, so only what changed is drawn, and as `update` with the whole tree when it has not: VALANCE gets the patches from MESH's `update` of the render before, and never compares render trees itself, so two different views that render identical output are still a `draw`, and a same-view change of any structure (a conditional appearing, keyed items added, removed or reordered) is an `update`.
 - Which nodes an `update` keeps, creates or removes is MESH's identity and PORT's realization; VALANCE promises nothing about it.
 - **Every state that reaches a mount is presented as `update` or `draw`.** There is no render-equality or no-op optimization: a state change outside the render, or an equal-valued new state, still reaches the target. The one state a mount does not present again is the very state object it last read.
 
@@ -212,15 +212,15 @@ Each package has one role. A strict package manager (pnpm) resolves only what th
 | Package | Range | Role | Declare it as |
 |---|---|---|---|
 | `@valancex/valance` | the release you target | this package | dependency |
-| `@valancex/nexus` | `^0.11.0` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
-| `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders MESH programs at run time | dependency |
-| `@valancex/port-web` | `^0.3.0` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
+| `@valancex/nexus` | `^0.12.0` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
+| `@valancex/mesh-runtime` | `^0.10.0` | peer: renders MESH programs at run time | dependency |
+| `@valancex/port-web` | `^0.4.0` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
 | `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
-| `@valancex/mesh-compiler` | `^0.9.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
+| `@valancex/mesh-compiler` | `^0.10.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
 
 ```console
-$ pnpm add @valancex/valance @valancex/nexus@^0.11.0 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
-$ pnpm add -D @valancex/mesh-compiler@^0.9.0
+$ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.10.0 @valancex/port-web@^0.4.0 effect@^3.10.0
+$ pnpm add -D @valancex/mesh-compiler@^0.10.0
 ```
 
 `@valancex/nexus` 0.10.3 and later take the MESH runtime as a peer dependency, so the runtime you install is the only one: with an earlier NEXUS (a hard `^0.8.0` dependency), an application on MESH 0.9 gets a second, uninitialized runtime in the browser. `@valancex/mesh-runtime` is listed for both lines this release was run against (0.8 and 0.9; a 0.x caret admits one minor).

@@ -18,9 +18,10 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 | `@valancex/valance/web/server` (`renderToHtml`) | Stable |
 | `@valancex/valance/web/build` (`manifest` and its helpers) | Stable |
 | `@valancex/valance/internal` | **Internal**: the composition protocol for binding authors and tests, unstable by design |
-| `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` (the defects' stable `code`s) | Unreleased |
-| A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`, with the whole cause) | Unreleased |
-| A finished event dispatch leaves a mount's `pending` list at once | Unreleased (observable only through memory and the tracer tests) |
+| `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` (the defects' stable `code`s) (since 0.6.0) | Stable |
+| A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`, with the whole cause) (since 0.6.0) | Stable |
+| A finished event dispatch leaves a mount's `pending` list at once (since 0.6.0) | Stable (observable only through memory and the tracer tests) |
+| `Target.patch` (optional): a later render of the same view reaches a target that has it as MESH's patches, and `update` otherwise (since 0.7.0) | Stable |
 
 ## What is logged
 

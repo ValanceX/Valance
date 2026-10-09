@@ -23,6 +23,11 @@ export type DispatchExit<E> = Exit.Exit<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDi
 export interface Viewed {
   readonly view: string;
   readonly render: Nexus.Mesh.Render;
+  /**
+   * The `render-patch-v1` operations that turn the previous render's tree into this one's, present when this render was made by updating the previous
+   * one of the same view (a stream's later elements), absent when it was rendered afresh (the first, or another view's).
+   */
+  readonly patches?: Nexus.Mesh.RenderPatches;
 }
 
 export interface Running<S, E> {
@@ -30,7 +35,11 @@ export interface Running<S, E> {
   readonly nexus: Nexus.Application.RunningApplication<never>;
   /** The render of the current state, in the view the current state selects. */
   readonly render: Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics>;
-  /** The render of the state current at subscription, then of the latest state each time the state changes: superseded intermediates may be skipped, order is kept, the last render is the last committed state, and a state already rendered is not rendered twice. */
+  /**
+   * The render of the state current at subscription, then of the latest state each time the state changes: superseded intermediates may be skipped, order is kept, the last render is the last
+   * committed state, and a state already rendered is not rendered twice. Each later render of the same view is MESH's update of the one before it, so it comes with the `patches` that
+   * turn the one into the other and costs what changed; a render of another view starts afresh.
+   */
   readonly values: Stream.Stream<Viewed, Nexus.Mesh.MeshDiagnostics>;
   /**
    * Dispatches an event against exactly the render it was reported on, through its own view's command table. It runs

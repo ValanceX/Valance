@@ -27,7 +27,7 @@ Each line is either enforced by a tripwire (`packages/valance/test/boundaries.te
 ## Added for stage 2 (written before the multi-view code)
 
 - **C8.** One `Valance.start` per application, however many MESH programs it shows; route state lives in application state; the active program is derived from it.
-- **C9.** A program change is PORT's `draw` (continuity is the composer's fact); Valance never asks PORT to `update` across programs.
+- **C9.** A program change is PORT's `draw` (continuity is the composer's fact); Valance never asks PORT to `update` or `patch` across programs.
 - No `@valancex/router`, route DSL, navigation registry, or route lifecycle; no second application to simulate navigation.
 
 ## Added for stage 3 (URL ↔ application state; written before the code)
