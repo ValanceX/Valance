@@ -49,18 +49,17 @@ What is generated lives in `.valance/` (git-ignored), the site in `dist/`. Look 
 
 ## 3. Make your own project, outside the repo
 
-This is what a user would do. Because nothing is published, install from a tarball of the package.
+Nothing is published, so install the tool **by path**. A path install is a link to your clone, so it follows every rebuild. (A tarball from `pnpm pack` is a frozen copy: a project that uses one never gets newer tooling, and the editor's ctrl+click and references silently fall back to the generated manifest. The status bar then shows `$(warning) VALANCE` and says so.)
 
 ```console
-# in the Valance clone
-$ cd packages/cli
-$ pnpm pack --pack-destination ~/vlx-pack          # makes ~/vlx-pack/valancex-cli-0.0.0.tgz
+# in the Valance clone, once and after every pull
+$ pnpm install && pnpm build
 
 # a new project anywhere
 $ mkdir ~/my-notes && cd ~/my-notes
 $ npm init -y
 $ npm pkg set type=module scripts.dev="vlx dev" scripts.build="vlx build" scripts.check="vlx check"
-$ npm install -D ~/vlx-pack/valancex-cli-0.0.0.tgz
+$ npm install -D ~/path/to/Valance/packages/cli
 
 $ echo '{ "name": "My notes" }' > valance.json
 $ mkdir content
@@ -80,7 +79,7 @@ $ cp ~/path/to/Valance/examples/docs-app/public/logo.svg public/
 
 Edit them; `npm run dev` picks everything up. The conventions are in [`packages/cli/README.md`](../../packages/cli/README.md).
 
-To keep using a *changing* copy of the tool (while you modify the Valance repo), install it by path instead of by tarball, and rebuild after changes: `npm install -D ~/path/to/Valance/packages/cli` then `pnpm build` in the Valance clone.
+After pulling new code: `pnpm build` in the Valance clone, then `npx vlx check` in your project (it rewrites `.valance/`). If you installed from a tarball earlier, remove it and install by path: `npm uninstall @valancex/cli && npm install -D ~/path/to/Valance/packages/cli`.
 
 ## 4. Editor support (VS Code)
 
@@ -137,6 +136,7 @@ The reasons, and the fix for each:
 |---|---|
 | "No valance.json was found in this folder or the folders below it" | open the project's folder (or a folder that contains it, up to three levels) |
 | "The project has not been built yet" | run `npx vlx check` (or `vlx dev`) in the project. The window notices by itself; no reload |
+| "The language server is running, but ctrl+click, references and the connection lenses cannot reach your files" | `.valance/` has no `wiring.json`: the project's `@valancex/cli` is older than the clone (a tarball is a frozen copy). Install it by path (section 3), then `npx vlx check`. The window recovers by itself |
 | "The template language server was not found at …" | `npm install -D @valancex/mesh-lsp@0.10.0` in the project, then *VALANCE: Restart the language server* from the command palette |
 | "The template language server did not start: …" | the rest of the message is the cause; *VALANCE: Show details* has the server's log |
 

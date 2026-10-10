@@ -227,6 +227,28 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     }
   }],
 
+  ["a project without wiring data (built by an older vlx) is said to be partial, not ready, and recovers by itself when vlx writes it", async () => {
+    const wiring = join(project(), ".valance", "wiring.json");
+
+    assert.equal(api().status(), "ready");
+    unlinkSync(wiring);
+    await waitFor(`the status to become partial (it is ${api().status()})`, () => api().status() === "partial");
+
+    // Navigation to the author's files is off, as the message says: the server's answer is the generated manifest again.
+    const { document } = await open("src/layout.mprx");
+    const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
+
+    assert.ok(found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) || found.length === 0, "without wiring data the definition is the manifest");
+
+    // `vlx` writes the wiring again: the window notices, no reload.
+    execFileSync(join(project(), "node_modules", ".bin", "vlx"), ["check"], { cwd: project() });
+    await waitFor(`the status to become ready again (it is ${api().status()})`, () => api().status() === "ready", 60_000);
+
+    const again = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
+
+    assert.ok(again.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith(join("src", "main.ts"))), "with wiring data the definition is main.ts");
+  }],
+
   ["valance.json is validated against the schema the extension contributes", async () => {
     const { document, editor, original } = await open("valance.json");
 

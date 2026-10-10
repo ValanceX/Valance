@@ -95,11 +95,12 @@ export const forWorkspace = (workspace: string, project: string, settings: LspSe
 };
 
 /** What to tell the author when the server is not running, and what to do about it. */
-export const explain = (readiness: Readiness | { readonly kind: "no-server"; readonly path: string }): string => {
+export const explain = (readiness: Readiness | { readonly kind: "no-server"; readonly path: string } | { readonly kind: "partial" }): string => {
   switch (readiness.kind) {
     case "ready": return "Language features are on.";
     case "not-a-project": return "No valance.json was found in this folder or the folders below it (three levels). Open the project's folder, or the folder that contains it.";
     case "not-generated": return "The project has not been built yet, so the editor does not know its components. Run `vlx check` (or `vlx dev`) in the project once; this window notices by itself.";
+    case "partial": return "The language server is running, but ctrl+click, references and the connection lenses cannot reach your files: this project's .valance/ has no wiring.json, so it was built by an older @valancex/cli (an installed tarball is a frozen copy). Install the CLI by path (npm install -D /path/to/Valance/packages/cli), or repack and reinstall it, then run `vlx check`: this window notices by itself.";
     case "no-server": return `The template language server was not found at ${readiness.path}. Install it in the project: npm install -D @valancex/mesh-lsp@0.10.0`;
   }
 };

@@ -14,7 +14,8 @@ import { explain, findProjects, forWorkspace, readProject, templateOf } from "./
 import type { LspSettings } from "./project";
 import { authoredPlace, lensesFor, readWiring, referencesOf } from "./wiring";
 
-export type Status = "starting" | "ready" | "not-a-project" | "not-generated" | "no-server" | "failed";
+/** `partial`: the language server runs, but the project has no wiring data, so navigation to the author's files and the connection lenses are off. */
+export type Status = "starting" | "ready" | "partial" | "not-a-project" | "not-generated" | "no-server" | "failed";
 
 /** What the extension exposes (to tests, and to anyone who asks `extensions.getExtension(...).exports`). */
 export interface Api {
@@ -63,7 +64,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   const markUnmapped = (): void => {
     notes.clear();
 
-    if (root === undefined || status !== "ready") { return; }
+    if (root === undefined || (status !== "ready" && status !== "partial")) { return; }
 
     for (const document of vscode.workspace.textDocuments) {
       const path = document.uri.fsPath;
@@ -135,6 +136,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
     known = new Set(Object.keys(project.settings.components));
     wiringFile = project.wiring;
+
+    // A project built by an older `vlx` has no wiring data. Everything else works; say what does not, and why.
+    const working: "ready" | "partial" = readWiring(root, project.wiring) === undefined ? "partial" : "ready";
     lensesChanged.fire();
 
     const settings = forWorkspace(workspace, root, project.settings);
@@ -147,7 +151,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
         output.appendLine("The project changed; the language server was told.");
       }
 
-      show("ready", explain(project));
+      show(working, explain(working === "ready" ? project : { kind: "partial" as const }));
       markUnmapped();
 
       return;
@@ -209,7 +213,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
       client = started;
       await started.start();
-      show("ready", explain(project));
+      show(working, explain(working === "ready" ? project : { kind: "partial" as const }));
       markUnmapped();
     } catch (error) {
       await stop();
@@ -302,7 +306,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     vscode.languages.registerReferenceProvider({ language: "mprx" }, referenceProvider),
     wiringWatcher,
     wiringWatcher.onDidChange(() => { lensesChanged.fire(); }),
-    wiringWatcher.onDidCreate(() => { lensesChanged.fire(); }),
+    wiringWatcher.onDidCreate(() => { lensesChanged.fire(); void refresh(); }),
+    wiringWatcher.onDidDelete(() => { lensesChanged.fire(); void refresh(); }),
     watcher,
     watcher.onDidCreate(onProject),
     watcher.onDidChange(onProject),

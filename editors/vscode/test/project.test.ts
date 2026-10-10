@@ -199,3 +199,22 @@ describe("wiring: both ends of each connection", () => {
     expect(readWiring(root, undefined)).toBeUndefined();
   });
 });
+
+describe("a project built by an older vlx", () => {
+  it("is explained plainly: what still works, what does not, why, and how to fix it", async () => {
+    const { explain } = await import("../src/project");
+    const text = explain({ kind: "partial" });
+
+    expect(text).toMatch(/language server is running/);
+    expect(text).toMatch(/wiring\.json/);
+    expect(text).toMatch(/tarball is a frozen copy/);
+    expect(text).toMatch(/npm install -D \/path\/to\/Valance\/packages\/cli/);
+    expect(text).toMatch(/vlx check/);
+  });
+
+  it("has no wiring pointer in editor.json, which readProject reports as ready without one", () => {
+    const old = readProject(dir({ "valance.json": "{}", ".valance/editor.json": JSON.stringify({ version: 1, model: ".valance/manifest.json", components: { "src/layout.mprx": "layout" } }) }));
+
+    expect(old).toEqual({ kind: "ready", settings: { model: ".valance/manifest.json", components: { "src/layout.mprx": "layout" } } });
+  });
+});
