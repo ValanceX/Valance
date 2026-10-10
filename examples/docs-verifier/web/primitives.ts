@@ -14,7 +14,7 @@ export const primitives: Web.WebPrimitives = {
   shell: { element: "div", props: { class: klass, theme: Web.attribute("data-theme"), menu: Web.attribute("data-menu") } },
   header: { element: "header", props: { class: klass } },
   nav: { element: "nav", props: { class: klass, label } },
-  main: { element: "main" },
+  main: { element: "main", props: { tabindex: Web.attribute("tabindex") } },
   footer: { element: "footer" },
   div: { element: "div", props: { class: klass } },
   section: { element: "section" },
@@ -45,6 +45,11 @@ export const primitives: Web.WebPrimitives = {
   button: { element: "button", props: { class: klass }, events: { click: { type: "click" } } },
   toggle: { element: "button", props: { class: klass, label, pressed: Web.attribute("aria-pressed") }, events: { click: { type: "click" } } },
   link: Web.link,
+  searchbox: {
+    ...Web.textField,
+    props: { ...Web.textField.props, class: klass, label, placeholder: Web.attribute("placeholder"), type: Web.attribute("type") },
+  },
+  live: { element: "div", props: { class: klass, role, live: Web.attribute("aria-live") } },
   anchorLink: { element: "a", props: { href: Web.attribute("href"), class: klass, label } },
   navLink: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
 };

@@ -4,7 +4,7 @@
 //   snippets/  the examples the content shows: TypeScript, compiled with the project. Depend on the published packages only.
 //   model/     the shape of the site's data (Schemas). Depends on `effect` only.
 //   tooling/   build time: content → generated/site.json. Depends on model/ and Node.
-//   app/       the Valance application. Depends on model/, `effect` and the Valance core. Names no target, no DOM, no file, no tooling.
+//   app/       the Valance application. Depends on model/, `effect`, the Valance core and NEXUS (its capabilities are NEXUS's). Names no target, no DOM, no file, no tooling.
 //   views/     MPRX templates. No code.
 //   styles/    the stylesheet. No code; the browser entry (web/page.ts) imports it, and the build turns it into one hashed file.
 //   web/       the target: primitives, compile, server, browser. Depends on app/, model/, Valance, MESH, PORT and Node. Not on tooling/.
@@ -49,7 +49,7 @@ describe("the layers", () => {
   });
 
   it("app/ depends on model/, effect and the Valance core, and names no target", () => {
-    expect(outside("app", (specifier, layer) => specifier === "effect" || specifier === "@valancex/valance" || layer === "model")).toEqual([]);
+    expect(outside("app", (specifier, layer) => specifier === "effect" || specifier === "@valancex/valance" || specifier === "@valancex/nexus" || layer === "model")).toEqual([]);
 
     for (const file of code("app")) {
       expect(withoutComments(readFileSync(join(root, file), "utf8")), file).not.toMatch(/\b(document|window|HTMLElement|localStorage)\b|node:/);
@@ -58,7 +58,7 @@ describe("the layers", () => {
 
   it("web/ depends on the application and the target libraries, never on tooling/", () => {
     const allowed = (specifier: string, layer: string | undefined): boolean =>
-      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build|\/plugin)?)?|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model" || layer === "styles";
+      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build|\/plugin)?)?|nexus|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model" || layer === "styles";
 
     expect(outside("web", allowed)).toEqual([]);
   });

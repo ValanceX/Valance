@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { readSite } from "./content.js";
+import { buildSearchIndex } from "./search.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 let site;
@@ -18,4 +19,7 @@ try {
 
 mkdirSync(`${root}generated`, { recursive: true });
 writeFileSync(`${root}generated/site.json`, `${JSON.stringify(site, null, 2)}\n`);
-console.log(`${site.pages.length} pages → generated/site.json`);
+const index = buildSearchIndex(site);
+
+writeFileSync(`${root}generated/search.json`, `${JSON.stringify(index)}\n`);
+console.log(`${site.pages.length} pages → generated/site.json, ${index.entries.length} sections → generated/search.json`);

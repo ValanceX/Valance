@@ -109,11 +109,15 @@ export const define = <S, T extends CommandTable<any, Ambient>, V extends string
 export type Outcome<A> = { readonly ok: true; readonly value: A } | { readonly ok: false; readonly error: unknown };
 
 /** What a command that waits says. Every function is a plain function of the state; none may throw (a throw is a defect, as in any command). */
-export interface Waiting<S, I, A> {
+export interface Waiting<S, I, A, R extends Ambient = never> {
   /** The state when the run starts, before the work: typically "loading". Optional: the state may already say so (start-time work). */
   readonly begin?: (input: I, current: S) => S;
-  /** The work: the only asynchronous thing. `signal` aborts when the run is interrupted (the application closes). Its result, or rejection, reaches `settle`. */
-  readonly work: (input: I, signal: AbortSignal) => Promise<A>;
+  /**
+   * The work: the only asynchronous thing. Either a Promise (`signal` aborts when the run is interrupted: the application closes), or, when the work needs a capability, an Effect
+   * that requires the application's environment (`Nexus.Capability.require`), which Effect interrupts itself. Its result, or its rejection or failure, reaches `settle`; an
+   * Effect's typed failure arrives exactly as it failed.
+   */
+  readonly work: (input: I, signal: AbortSignal) => Promise<A> | Effect.Effect<A, unknown, R>;
   /**
    * Is the result still relevant to the state as it is NOW? Asked when the work ends, in the same step as the commit; false and nothing is committed. **Required**, because a
    * result that no longer fits the application must not land silently. This is relevance to the application's state; it is separate from, and in addition to, a newer run of this
@@ -133,7 +137,7 @@ export interface CommandMaker<S> {
    * **A newer run of the same command supersedes an older one**: the older run is NOT cancelled (its work continues, and its caller sees it complete) but its result is discarded,
    * success or failure. Whether a result is still wanted by the state is `wanted`'s question, answered per run.
    */
-  waiting<I, A>(input: Schema.Schema<I>, spec: Waiting<S, I, A>): Nexus.Command.Command<I, void, never, never>;
+  waiting<I, A, R extends Ambient = never>(input: Schema.Schema<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R>;
 }
 
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
@@ -174,7 +178,7 @@ export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> =
     : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as unknown as (...args: ReadonlyArray<unknown>) => unknown;
 
   return Object.assign(transition, {
-    waiting: <I, A>(input: Schema.Schema<I>, spec: Waiting<S, I, A>): Nexus.Command.Command<I, void, never, never> => {
+    waiting: <I, A, R extends Ambient = never>(input: Schema.Schema<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R> => {
       let latest = 0;                      // this command's newest run: created with the command, so there is one per started application
 
       return Nexus.Command.define(WAITING_COMMAND, input, (decoded) => Effect.gen(function* () {
@@ -186,10 +190,21 @@ export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> =
 
         // A Promise's rejection is `unknown` and is passed to `settle` exactly as received. Interruption (the application closing, or the caller's) is not a failure: it ends the
         // run here, aborts `signal`, and `settle` never runs.
-        const outcome = yield* Effect.tryPromise({ try: (signal) => spec.work(decoded, signal), catch: (error) => error }).pipe(
-          Effect.map((value): Outcome<A> => ({ ok: true, value })),
-          Effect.catchAll((error) => Effect.succeed<Outcome<A>>({ ok: false, error }))
-        );
+        // The work is a Promise or an Effect. A Promise is awaited here, with the signal; an Effect is only taken here and run after, so it is interrupted as any Effect is and may use the
+        // application's capabilities. Whichever it is, a throw from `work` itself is a failure outcome.
+        const started = yield* Effect.tryPromise({
+          try: async (signal) => {
+            const produced = spec.work(decoded, signal);
+
+            return Effect.isEffect(produced) ? { effect: produced as Effect.Effect<A, unknown, R> } : { value: await produced };
+          },
+          catch: (error) => error,
+        }).pipe(Effect.catchAll((error) => Effect.succeed({ failed: error })));
+        const outcome: Outcome<A> = "failed" in started
+          ? { ok: false, error: started.failed }
+          : "value" in started
+            ? { ok: true, value: started.value }
+            : yield* started.effect.pipe(Effect.map((value): Outcome<A> => ({ ok: true, value })), Effect.catchAll((error) => Effect.succeed<Outcome<A>>({ ok: false, error })));
 
         // Both questions are asked in the same atomic step as the commit: is this still the newest run of this command, and is the result still wanted by the state as it is now.
         yield* state.update((current) => Effect.sync(() => mine === latest && spec.wanted(decoded, current) ? spec.settle(outcome, decoded, current) : current));

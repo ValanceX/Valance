@@ -21,8 +21,9 @@ export const builtAssets = async (dir: string): Promise<Built> => {
   if (entry === undefined) { throw new Error("the build has no entry chunk"); }
 
   const style = entry.css?.[0];
+  const search = (JSON.parse(await readFile(join(dir, "built.json"), "utf8").catch(() => "{}")) as { readonly search?: string }).search;
 
-  return { script: `/${entry.file}`, ...(style === undefined ? {} : { style: `/${style}` }) };
+  return { script: `/${entry.file}`, ...(style === undefined ? {} : { style: `/${style}` }), ...(search === undefined ? {} : { search }) };
 };
 
 export const serve = async (site: Site, dir: string, port = 0): Promise<{ readonly server: Server; readonly origin: string }> => {

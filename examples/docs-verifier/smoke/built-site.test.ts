@@ -70,8 +70,12 @@ const sameAsServer = async (page: import("playwright").Page, path: string): Prom
   }, server);
 };
 
-const ready = async (browser: Browser, path: string, viewport?: { width: number; height: number }) => {
+const ready = async (browser: Browser, path: string, viewport?: { width: number; height: number }, clipboard = false) => {
   const context = await browser.newContext(viewport === undefined ? {} : { viewport });
+
+  // A browser lets a page write the clipboard when the reader allowed it: a test reader allows it only when the test is about copying.
+  if (clipboard) { await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: served.origin }); }
+
   const page = await context.newPage();
   const failures: Array<string> = [];
 
@@ -84,7 +88,7 @@ const ready = async (browser: Browser, path: string, viewport?: { width: number;
 };
 
 it("hydrates, navigates by links, keeps the title and the head, Back restores, and the copy button's event reaches its command", async () => {
-  const { page, failures } = await ready(browser, "/docs/guides/getting-started");
+  const { page, failures } = await ready(browser, "/docs/guides/getting-started", undefined, true);
   const documents: Array<string> = [];
 
   page.on("request", (request) => { if (request.resourceType() === "document") { documents.push(new URL(request.url()).pathname); } });
@@ -135,7 +139,7 @@ it("headings link to themselves, the table of contents scrolls to them, and the 
 });
 
 it("a code group shows one alternative, the choice is remembered across pages, and the copy button follows the alternative", async () => {
-  const { page, failures } = await ready(browser, "/docs/guides/getting-started");
+  const { page, failures } = await ready(browser, "/docs/guides/getting-started", undefined, true);
   const shown = () => page.locator('[role="tabpanel"]').innerText();
 
   expect(await shown()).toContain("npm install");
@@ -244,5 +248,138 @@ it("on a small screen the navigation is behind the menu button, which opens it, 
   await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Getting Started", exact: true }).click();
   await page.waitForFunction(() => location.pathname === "/docs/guides/getting-started");
   expect(await sidebar()).toBe("none");
+  expect(failures).toEqual([]);
+});
+
+// ---- what the platform gives: the clipboard, the store, the search index; and what the reader's scrolling and links do ------------------------------------------------------
+
+it("copies to the real clipboard, and says Copied only then", async () => {
+  const context = await browser.newContext();
+
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: served.origin });
+
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/docs/guides/getting-started`);
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+  await page.getByRole("tab", { name: "pnpm", exact: true }).click();
+  await page.locator('[role="tabpanel"]').getByRole("button", { name: "Copy", exact: true }).click();
+  await page.locator('[role="tabpanel"]').getByRole("button", { name: "Copied", exact: true }).waitFor();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("pnpm add @valancex/valance");
+  await context.close();
+});
+
+it("a browser with no clipboard gets Failed, not a Copied that did not happen", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await page.addInitScript(() => { Object.defineProperty(navigator, "clipboard", { value: undefined }); });
+  await page.goto(`${served.origin}/docs/guides/getting-started`);
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+  await page.getByRole("button", { name: "Copy", exact: true }).first().click();
+  await page.getByRole("button", { name: "Failed", exact: true }).waitFor();
+  expect(await page.getByRole("button", { name: "Copied", exact: true }).count()).toBe(0);
+  await context.close();
+});
+
+it("searches the site: results as you type, a result goes to its section and clears the search, and nothing found says so", async () => {
+  const { page, failures } = await ready(browser, "/docs/introduction", { width: 1280, height: 800 });
+  const documents: Array<string> = [];
+
+  page.on("request", (request) => { if (request.resourceType() === "document") { documents.push(request.url()); } });
+  await page.getByRole("searchbox", { name: "Search the documentation" }).fill("waits");
+  await page.getByRole("status").filter({ hasText: /results?$/ }).waitFor();
+
+  const first = page.locator("a.hit").first();
+
+  expect(await first.locator(".hit-title").innerText()).toBe("State");
+  expect(await first.locator(".hit-where").innerText()).toContain("A command that waits");
+  expect((await first.locator(".hit-excerpt").innerText()).length).toBeGreaterThan(10);
+
+  await first.click();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/state" && location.hash === "#a-command-that-waits");
+  expect(await page.getByRole("searchbox").inputValue()).toBe("");                              // moving on clears the search
+  expect(await page.locator(".results").count()).toBe(0);
+  expect(await page.evaluate(() => { const top = document.getElementById("a-command-that-waits")!.getBoundingClientRect().top; return top >= 56 && top < innerHeight; })).toBe(true);
+  expect(documents).toEqual([]);                                                                // all in place
+
+  await page.getByRole("searchbox").fill("zzzzzz");
+  await page.getByRole("status").filter({ hasText: "No results for “zzzzzz”." }).waitFor();
+  expect(failures).toEqual([]);
+});
+
+it("when the index cannot be loaded the page says search is not available, and recovers on the next query", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  let blocked = true;
+
+  await context.route(/\/assets\/search-.*\.json$/, (route) => blocked ? route.abort() : route.continue());
+  await page.goto(`${served.origin}/docs/introduction`);
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+  await page.getByRole("searchbox").fill("state");
+  await page.getByRole("status").filter({ hasText: "Search is not available right now." }).waitFor();
+  blocked = false;
+  await page.getByRole("searchbox").fill("states");
+  await page.getByRole("status").filter({ hasText: /results?$/ }).waitFor();
+  await context.close();
+});
+
+it("remembers the theme and the code group's tab for the next visit, and takes them back once the page has taken over", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/docs/guides/getting-started`);
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+  await page.getByRole("button", { name: "Use the dark theme" }).click();
+  await page.getByRole("tab", { name: "yarn", exact: true }).click();
+  await page.waitForFunction(() => localStorage.getItem("docs.theme") === "dark" && localStorage.getItem("docs.tabs") === '{"pkg":"yarn"}');
+
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+  await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "dark");
+  expect(await page.getByRole("tab", { name: "yarn", exact: true }).getAttribute("aria-selected")).toBe("true");
+  await context.close();
+});
+
+it("a page whose store is blocked still works, and the choice lasts as long as the page", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const failures: Array<string> = [];
+
+  page.on("pageerror", (error) => { failures.push(error.message); });
+  await page.addInitScript(() => { Object.defineProperty(window, "localStorage", { get: () => { throw new DOMException("blocked", "SecurityError"); } }); });
+  await page.goto(`${served.origin}/docs/introduction`);
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+  await page.getByRole("button", { name: "Use the dark theme" }).click();
+  await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "dark");
+  expect(failures).toEqual([]);
+  await context.close();
+});
+
+it("marks the heading the reader has scrolled to in 'On this page'", async () => {
+  const { page } = await ready(browser, "/docs/guides/state", { width: 1280, height: 600 });
+  const current = () => page.locator('.toc a[aria-current="location"]').allInnerTexts();
+
+  expect(await current()).toEqual([]);
+  await page.evaluate(() => document.getElementById("commands")!.scrollIntoView());
+  await page.waitForFunction(() => document.querySelector('.toc a[aria-current="location"]')?.textContent === "Commands");
+  expect(await current()).toEqual(["Commands"]);
+
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForFunction(() => document.querySelector('.toc a[aria-current="location"]')?.textContent === "Ending");
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.waitForFunction(() => document.querySelector('.toc a[aria-current="location"]') === null);
+});
+
+it("a link to a section of another page lands on the section and keeps the address; a link to a page puts focus on its content", async () => {
+  const { page, failures } = await ready(browser, "/docs/introduction", { width: 1280, height: 700 });
+
+  await page.getByRole("link", { name: "state and commands" }).click();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/state" && location.hash === "#commands");
+  expect(await page.evaluate(() => { const top = document.getElementById("commands")!.getBoundingClientRect().top; return top >= 56 && top < innerHeight; })).toBe(true);
+
+  await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Views", exact: true }).click();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/views");
+  await page.waitForFunction(() => document.activeElement?.tagName === "MAIN");
   expect(failures).toEqual([]);
 });

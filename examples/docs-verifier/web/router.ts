@@ -6,4 +6,6 @@ import { routes } from "../app/routes.js";
 import type { AppState } from "../app/state.js";
 import type { Site } from "../model/site.js";
 
-export const router = (site: Site): Plugin<AppState> => ({ name: "docs-router", routes: routes(site) });
+import { afterNavigation } from "./navigation.js";
+
+export const router = (site: Site): Plugin<AppState> => ({ name: "docs-router", routes: { ...routes(site), onNavigated: afterNavigation } });

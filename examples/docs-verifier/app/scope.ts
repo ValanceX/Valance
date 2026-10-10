@@ -59,6 +59,8 @@ export const BlockView = Schema.Struct({
 });
 export type BlockView = typeof BlockView.Type;
 
+const HitView = Schema.Struct({ id: Schema.String, href: Schema.String, title: Schema.String, where: Schema.String, excerpt: Schema.String });
+
 export const PageScope = Schema.Struct({
   site: Schema.String,
   /** The home page's URL. */
@@ -68,10 +70,15 @@ export const PageScope = Schema.Struct({
   menu: Schema.Literal("true", "false"),
   /** The navigation, grouped as the content groups it. `current` is the value of `aria-current`: `page` for the page shown, `false` for the rest. */
   sections: Schema.Array(NavSection),
+  /** What the reader typed in the search box, and what the search says about it: nothing (empty), that it is working, how many answers, or that it cannot. */
+  query: Schema.String,
+  searching: Schema.Boolean,
+  status: Schema.String,
+  hits: Schema.Array(HitView),
   /** Whether the page has headings for "On this page". */
   hasToc: Schema.Boolean,
   /** The headings of the page, for "On this page". */
-  toc: Schema.Array(Schema.Struct({ id: Schema.String, href: Schema.String, label: Schema.String, cls: Schema.String })),
+  toc: Schema.Array(Schema.Struct({ id: Schema.String, href: Schema.String, label: Schema.String, cls: Schema.String, current: Schema.String })),
   blocks: Schema.Array(BlockView),
   prev: Link,
   next: Link,
@@ -104,7 +111,7 @@ const empty: BlockView = {
 
 /** One block, as the record the templates read. The copy label belongs to the state: a block is "Copied" when it is the one last copied. */
 const view = (block: Block, state: AppState): BlockView => {
-  const copy = (id: string): string => state.copied === id ? "Copied" : "Copy";
+  const copy = (id: string): string => state.copied === id ? "Copied" : state.copyFailed === id ? "Failed" : "Copy";
 
   switch (block.kind) {
     case "heading": return { ...empty, id: block.id, kind: block.kind, level: block.level, anchor: block.anchor, hash: `#${block.anchor}`, spans: block.spans.map(spanView) };
@@ -128,6 +135,16 @@ const view = (block: Block, state: AppState): BlockView => {
   }
 };
 
+/** What the search says, in words: shown to the reader, and announced to a screen reader. */
+const statusOf = ({ query, status, hits }: AppState["search"]): string => {
+  switch (status) {
+    case "idle": return "";
+    case "loading": return "Searching…";
+    case "failed": return "Search is not available right now.";
+    case "ready": return hits.length === 0 ? `No results for “${query.trim()}”.` : `${hits.length} ${hits.length === 1 ? "result" : "results"}`;
+  }
+};
+
 export const pageScope = (site: Site, state: AppState): PageScope => {
   const at = site.pages.findIndex((page) => page.id === state.page);
   const page = site.pages[at] ?? missing;
@@ -147,8 +164,12 @@ export const pageScope = (site: Site, state: AppState): PageScope => {
     theme: state.theme,
     menu: state.menu ? "true" : "false",
     sections,
+    query: state.search.query,
+    searching: state.search.status !== "idle",
+    status: statusOf(state.search),
+    hits: state.search.hits.map((hit) => ({ id: hit.id, href: hit.href, title: hit.title, where: [hit.section, hit.heading].filter((part) => part !== "").join(" › "), excerpt: hit.excerpt })),
     hasToc: page.outline.length > 0,
-    toc: page.outline.map((entry) => ({ id: entry.id, href: `#${entry.anchor}`, label: entry.label, cls: `toc-link toc-level-${entry.level}` })),
+    toc: page.outline.map((entry) => ({ id: entry.id, href: `#${entry.anchor}`, label: entry.label, cls: `toc-link toc-level-${entry.level}`, current: entry.anchor === state.active ? "location" : "false" })),
     blocks: page.blocks.map((block) => view(block, state)),
     prev: at > 0 ? link(site.pages[at - 1], (title) => `← ${title}`) : none,
     next: at >= 0 ? link(site.pages[at + 1], (title) => `${title} →`) : none,

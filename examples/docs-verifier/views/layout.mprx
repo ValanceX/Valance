@@ -2,12 +2,14 @@
   <header class="bar">
     <toggle class="menu-button" label="Navigation" pressed={menu} on.click={toggleMenu()}>Menu</toggle>
     <navLink class="brand" href={home} current="false">{site}</navLink>
+    <searchbox class="search" label="Search the documentation" placeholder="Search" type="search" value={query} on.input={search($event)} />
     <nav class="themes" label="Colour theme">
       <toggle class="theme-option" label="Follow the system theme" pressed={theme == "system" ? "true" : "false"} on.click={setTheme("system")}>Auto</toggle>
       <toggle class="theme-option" label="Use the light theme" pressed={theme == "light" ? "true" : "false"} on.click={setTheme("light")}>Light</toggle>
       <toggle class="theme-option" label="Use the dark theme" pressed={theme == "dark" ? "true" : "false"} on.click={setTheme("dark")}>Dark</toggle>
     </nav>
   </header>
+  <mesh-slot name="search" />
   <div class="frame">
     <mesh-slot name="nav" />
     <mesh-slot />

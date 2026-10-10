@@ -230,3 +230,28 @@ main :is(h1, h2, h3) { scroll-margin-top: calc(var(--bar-height) + var(--space-3
   .frame { grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 15rem; }
   .toc { display: block; position: sticky; top: calc(var(--bar-height) + var(--space-4)); align-self: start; max-height: calc(100vh - var(--bar-height) - var(--space-5)); overflow-y: auto; padding: var(--space-4) var(--space-3) var(--space-4) 0; }
 }
+
+/* ---- search ---- */
+
+.search { flex: 0 1 18rem; min-width: 0; padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); color: var(--fg); font: inherit; font-size: 0.9375rem; }
+.search::placeholder { color: var(--fg-muted); }
+.search:focus { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--bg); }
+
+.results { position: sticky; top: var(--bar-height); z-index: 9; padding: var(--space-3); border-bottom: 1px solid var(--border); background: var(--bg-subtle); box-shadow: 0 6px 16px #00000014; }
+.results-status { margin: 0 auto var(--space-2); max-width: var(--content-width); color: var(--fg-muted); font-size: 0.875rem; }
+.hits { list-style: none; margin: 0 auto; padding: 0; max-width: var(--content-width); display: grid; gap: var(--space-2); }
+.hit { display: grid; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--fg); text-decoration: none; }
+.hit:hover, .hit:focus-visible { border-color: var(--accent); }
+.hit-title { font-weight: 600; }
+.hit-where { color: var(--fg-muted); font-size: 0.8125rem; }
+.hit-excerpt { color: var(--fg-muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+
+main:focus { outline: none; }
+.toc-link[aria-current="location"] { color: var(--accent); font-weight: 600; }
+
+@media (max-width: 52rem) {
+  .bar { flex-wrap: wrap; height: auto; min-height: var(--bar-height); padding: var(--space-2) var(--space-3); }
+  .brand { margin-right: 0; }
+  .search { order: 5; flex: 1 1 100%; }
+  .results { top: 0; position: static; }
+}

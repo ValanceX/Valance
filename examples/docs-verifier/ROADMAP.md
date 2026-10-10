@@ -63,7 +63,11 @@ Plan as written:
 - Kit composites: layout, nav, callout, tabs, code group.
 - **Exit:** parser and rendered-HTML tests per feature; a broken link fails the build.
 
-### D. Capabilities and interactivity
+### D. Capabilities and interactivity: **done**
+
+Delivered: capabilities `Clipboard`, `Storage` and `Index` named in `app/capabilities.ts` and supplied by `web/platform.ts` (the web platform stand-in, X7) as a plugin; copy that says Copied only when the clipboard took it and Failed otherwise; theme and tab choices remembered and taken back after hydration; search (build-time index of every section, a pure ranked query, `command.waiting` with Effect work so it reaches the capability, loading/ready/failed as state, the index validated on arrival); an outline that follows the reader (`web/scrollspy.ts`); `onNavigated` policy (fragment kept and scrolled to, focus to content); Valance's `waiting` accepts Effect work (F20). 116 unit tests, 17 Chromium tests. Friction F20–F23.
+
+Plan as written:
 
 - **X7 web platform** (clipboard, storage, fetch) as NEXUS capabilities merged through `Plugin.platform`. `copyCode` becomes a command that writes and fails visibly, so "Copied" is true.
 - Search: a build-time index and `command.waiting` (as `examples/docs-site`). Table of contents from heading ids; scroll-spy needs **Port event realization** (V0.4 evidence). Theme persisted through storage.

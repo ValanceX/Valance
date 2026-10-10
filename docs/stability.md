@@ -20,6 +20,7 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 | `@valancex/valance/web/plugin` (`Plugin`, `RouteTable`, `HeadTags`, `Navigation`, `Delivery`, `compose`, `mergePlatforms`, `mergeHeads`, `renderHead`, `applyHead`, `deliveryOf`, `staticPaths`), and the `plugins` option of `Web.run`, `renderToHtml` and `manifest` | **Unreleased** (0.8) |
 | `HistoryOptions.head` and `HistoryOptions.onNavigated`; `renderToHtml`'s `head` option and `Served.head`; `RunOptions.primitives` and `renderToHtml`'s `primitives` becoming optional | **Unreleased** (0.8) |
 | `ValanceErrorCode` `plugin-conflict` and `invalid-head` | **Unreleased** (0.8) |
+| `command(state).waiting`: `work` may return an `Effect` that requires the application's environment (a capability), as well as a Promise | **Unreleased** (0.8) |
 | `@valancex/valance/internal` | **Internal**: the composition protocol for binding authors and tests, unstable by design |
 | `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` (the defects' stable `code`s) (since 0.6.0) | Stable |
 | A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`, with the whole cause) (since 0.6.0) | Stable |

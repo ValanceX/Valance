@@ -1,6 +1,7 @@
 // The site without a browser: the document the server renders (the head the plugins say, the layout's slots, the callout, the code block with its composite event), the application's
 // commands, the stylesheet's coverage of what the templates write, and the not-found page.
 import type { BoundaryValue } from "@valancex/mesh-runtime";
+import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { Effect, Exit, Scope } from "effect";
 import { readdirSync, readFileSync } from "node:fs";
@@ -14,6 +15,7 @@ import { compilePage } from "../web/compile.js";
 import type { Built } from "../web/built.js";
 import { readGeneratedSite, renderDocument } from "../web/document.js";
 import { plugins } from "../web/plugins.js";
+import { fakePlatform } from "./support.js";
 import { readSite } from "../tooling/content.js";
 import { fileURLToPath } from "node:url";
 import type { Site } from "../model/site.js";
@@ -103,10 +105,10 @@ it("the site's plugins are the kit, the router and the head, each a value with i
   expect(composed.head?.({ ...initial, page: "guides-state" }).links).toEqual([{ rel: "stylesheet", href: "/assets/page.css" }, { rel: "canonical", href: "/docs/guides/state" }]);
 });
 
-const withApplication = async <A>(body: (handle: Valance.ApplicationHandle<AppState, never>, state: () => AppState) => Promise<A>): Promise<A> => {
+const withApplication = async <A>(body: (handle: Valance.ApplicationHandle<AppState, never>, state: () => AppState) => Promise<A>, platform?: Nexus.Application.Platform): Promise<A> => {
   const program = await compilePage();
   const scope = Effect.runSync(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application(program, site)).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
+  const handle = await Effect.runPromise(Valance.start(application(program, site), platform === undefined ? {} : { platform }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
 
   try {
     return await body(handle, () => Effect.runSync(handle.state as never) as AppState);
@@ -127,7 +129,7 @@ it("the copy button's composite event travels code-block → block → page to t
     expect(state().copied).toBe(code.id);
     await invoke(handle, "app/go", "guides-state");
     expect(state().copied).toBe("");                                                    // moving on clears it
-  });
+  }, fakePlatform().platform);
 });
 
 it("the menu opens and closes by its command, and moving to a page closes it", async () => {
@@ -242,7 +244,7 @@ it("makes no node that a template did not write: no wrapper elements around runs
   const tags = new Set([...app.matchAll(/<([a-z0-9]+)[\s>]/g)].map((match) => match[1]));
 
   // Every element is one a template names (the primitives table), and nothing the framework added.
-  const written = new Set(["a", "aside", "button", "code", "div", "em", "figure", "footer", "h1", "h2", "h3", "header", "li", "main", "nav", "ol", "p", "pre", "section", "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul"]);
+  const written = new Set(["a", "aside", "button", "code", "div", "em", "figure", "footer", "h1", "h2", "h3", "header", "input", "li", "main", "nav", "ol", "p", "pre", "section", "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul"]);
 
   expect([...tags].filter((tag) => !written.has(tag!))).toEqual([]);
   // A `span` is a token of code and nothing else: text and marks are never wrapped.
