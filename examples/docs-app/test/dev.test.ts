@@ -1,5 +1,5 @@
-import { dev } from "@valancex/app/node";
-import type { Dev } from "@valancex/app/node";
+import { dev } from "@valancex/cli/node";
+import type { Dev } from "@valancex/cli/node";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-// `valance dev` on a scratch copy of the application (inside this project, so it resolves the same packages), edited the way an author edits it, with a real browser watching.
+// `vlx dev` on a scratch copy of the application (inside this project, so it resolves the same packages), edited the way an author edits it, with a real browser watching.
 const here = join(dirname(fileURLToPath(import.meta.url)), "..");
 const work = mkdtempSync(join(here, ".work-"));
 const copy = join(work, "app");
@@ -43,7 +43,7 @@ afterAll(async () => {
   rmSync(work, { recursive: true, force: true });
 });
 
-describe("valance dev", () => {
+describe("vlx dev", () => {
   it("serves a server-rendered page that hydrates, and navigates in place", async () => {
     expect(await page.textContent("h1")).toBe("Getting started");
     await page.click('a.nav-link[href="/"]');

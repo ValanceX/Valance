@@ -24,7 +24,7 @@ export const loadAuthor = async (server: ViteDevServer, root: string): Promise<D
 
   const definition = loaded["default"] as (DefinedApp & { readonly [APP]?: true }) | undefined;
 
-  if (definition === undefined || definition[APP] !== true) { throw new AppError([diagnostic(ENTRY_FILE, 1, "entry-export", `${ENTRY_FILE} must export default defineApp({ … }) from "@valancex/app"`)]); }
+  if (definition === undefined || definition[APP] !== true) { throw new AppError([diagnostic(ENTRY_FILE, 1, "entry-export", `${ENTRY_FILE} must export default defineApp({ … }) from "@valancex/cli"`)]); }
 
   try {
     checkDefinition(definition);

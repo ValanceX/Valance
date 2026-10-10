@@ -1,6 +1,6 @@
 # docs-app: a VALANCE application
 
-A small documentation site, written the way a VALANCE application is written. It is the canonical example of the developer experience proposed in [`docs/application-model/`](../../docs/application-model/); the machinery it hides is in [`@valancex/app`](../../packages/app) (read its README for the conventions).
+A small documentation site, written the way a VALANCE application is written. It is the canonical example of the developer experience proposed in [`docs/application-model/`](../../docs/application-model/); the machinery it hides is in [`@valancex/cli`](../../packages/cli) (read its README for the conventions).
 
 ```console
 $ pnpm install
@@ -32,4 +32,4 @@ Everything else is generated into `.valance/` (git-ignored) and `dist/`.
 
 ## Checked
 
-`pnpm typecheck`; `pnpm test:smoke` builds the site, serves it as a static host does and drives it in Chromium (direct loads, in-place navigation, Back and Forward, a link to a heading on another page, the application's command, the 404 page, the stylesheet), then runs `valance dev` on a scratch copy and edits it (Markdown, a component, a stylesheet, a mistake and its fix, a new page, a configuration change).
+`pnpm typecheck`; `pnpm test:smoke` builds the site, serves it as a static host does and drives it in Chromium (direct loads, in-place navigation, Back and Forward, a link to a heading on another page, the application's command, the 404 page, the stylesheet), then runs `vlx dev` on a scratch copy and edits it (Markdown, a component, a stylesheet, a mistake and its fix, a new page, a configuration change).

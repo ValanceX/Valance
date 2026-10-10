@@ -1,4 +1,4 @@
-// `valance dev`: the project served from memory and from disk, rebuilt as its authored files change. Built on a Vite server for what Vite is good at (serving modules, style updates without a
+// `vlx dev`: the project served from memory and from disk, rebuilt as its authored files change. Built on a Vite server for what Vite is good at (serving modules, style updates without a
 // reload, the error overlay); everything else is this file's: each page is rendered on the server with the same code a build uses, so development shows what production will.
 //
 // What each change does:
@@ -115,7 +115,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
       try {
         await work();
 
-        if (failed.delete(name)) { log(`valance: ${name} is fine again`); }
+        if (failed.delete(name)) { log(`vlx: ${name} is fine again`); }
       } catch (error) {
         if (!(error instanceof AppError)) { throw error; }
 
@@ -151,12 +151,12 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
     if (stages.size === 0) { return; }
 
-    log(`valance: ${batch.map(([file]) => file).join(", ")} changed`);
+    log(`vlx: ${batch.map(([file]) => file).join(", ")} changed`);
     pending = pending.then(async () => {
       if (stages.has("restart")) { await restart(); return; }
 
       await rebuild([...stages]);
-    }).catch((error: unknown) => { log(`valance: ${error instanceof Error ? error.stack ?? error.message : String(error)}`); });
+    }).catch((error: unknown) => { log(`vlx: ${error instanceof Error ? error.stack ?? error.message : String(error)}`); });
   };
 
   const onChange = (event: "change" | "add" | "unlink") => (path: string): void => {
@@ -193,19 +193,19 @@ export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> 
   const log = options.log ?? ((line: string) => { console.log(line); });
 
   const restart = async (): Promise<void> => {
-    log("valance: the configuration changed; restarting");
+    log("vlx: the configuration changed; restarting");
     await current.close();
 
     try {
       const config = loadConfig(root);
 
       current = await start(root, config, { ...options, port: portOf(current) }, restart);
-      log(`valance: serving ${current.url}`);
+      log(`vlx: serving ${current.url}`);
     } catch (error) {
       if (!(error instanceof AppError)) { throw error; }
 
       error.diagnostics.forEach((each) => { log(format(each)); });
-      log("valance: fix the configuration and save it; the server is stopped until then");
+      log("vlx: fix the configuration and save it; the server is stopped until then");
       waitForConfig();
     }
   };

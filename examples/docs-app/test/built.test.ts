@@ -1,4 +1,4 @@
-import { build } from "@valancex/app/node";
+import { build } from "@valancex/cli/node";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright";
 import type { Server } from "node:http";

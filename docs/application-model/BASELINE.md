@@ -80,7 +80,7 @@ Ownership: engine-level behavior stays NEXUS (state/commands), MESH (language/co
 
 ## 6. Questions the next phases must answer
 
-1. Where may `valance dev|build` live, given the core may not contain a CLI? (Answered in Phase 1.)
+1. Where may `vlx dev|build` live, given the core may not contain a CLI? (Answered in Phase 1.)
 2. What does the author write in `src/main.ts` if the framework owns boot?
 3. Can the dev loop reuse Vite (CSS HMR, module graph, overlay) while the page is still server-rendered with `renderToHtml`?
 4. Which changes need reload vs restart?

@@ -37,7 +37,7 @@ describe("reading a project", () => {
   });
 });
 
-describe("diagnostics from `valance check`", () => {
+describe("diagnostics from `vlx check`", () => {
   it("places a line-only diagnostic on the whole line, and a located one on its column", () => {
     expect(place({ file: "content/a.md", line: 12, column: 0, code: "link-broken", message: "x" })).toMatchObject({ startLine: 11, startColumn: 0, endColumn: -1 });
     expect(place({ file: "valance.json", line: 0, column: 0, code: "config-missing", message: "x" })).toMatchObject({ startLine: 0 });
@@ -57,9 +57,9 @@ describe("diagnostics from `valance check`", () => {
 });
 
 describe("shipped schemas", () => {
-  it("are the ones @valancex/app owns", () => {
+  it("are the ones @valancex/cli owns", () => {
     for (const name of ["valance.schema.json", "valance.web.schema.json"]) {
-      expect(readFileSync(join(__dirname, "..", "schemas", name), "utf8")).toBe(readFileSync(join(__dirname, "../../../packages/app/schemas", name), "utf8"));
+      expect(readFileSync(join(__dirname, "..", "schemas", name), "utf8")).toBe(readFileSync(join(__dirname, "../../../packages/cli/schemas", name), "utf8"));
     }
   });
 });

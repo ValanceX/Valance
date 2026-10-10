@@ -40,7 +40,7 @@ describe("the valance command", () => {
     expect(await main(["serve"])).toBe(2);
     expect(err.mock.calls.flat().join("\n")).toContain('unknown command "serve"');
     expect(await main([])).toBe(0);
-    expect(out.mock.calls.flat().join("\n")).toContain("valance <command>");
+    expect(out.mock.calls.flat().join("\n")).toContain("vlx <command>");
   });
 });
 

@@ -8,7 +8,7 @@ record where composing it is awkward (`docs/FINDINGS.md`).
 When the features are mature enough, this grows into the polished docs site.
 After that, a more complex specialised app takes over as the verifier.
 
-> **Not the model for writing an application.** This is the evidence base: a kit that composes the engines by hand, four sites, and the friction record. The proposed way to *write* a VALANCE application, with `valance dev` and `valance build`, is [`examples/docs-app`](../docs-app) (see [`docs/application-model/`](../../docs/application-model/)); `docs/EXTERNALS.md` says which of this verifier's stand-ins that work has replaced and which remain.
+> **Not the model for writing an application.** This is the evidence base: a kit that composes the engines by hand, four sites, and the friction record. The proposed way to *write* a VALANCE application, with `vlx dev` and `vlx build`, is [`examples/docs-app`](../docs-app) (see [`docs/application-model/`](../../docs/application-model/)); `docs/EXTERNALS.md` says which of this verifier's stand-ins that work has replaced and which remain.
 
 See `docs/ROADMAP.md` for where this is going (a complete, styled, statically generated documentation site) and `docs/EXTERNALS.md` for the pieces that are deliberately outside VALANCE and plug in through its seams.
 

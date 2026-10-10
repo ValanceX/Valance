@@ -1,4 +1,4 @@
-// The VS Code side: thin. It starts the MESH language server with the settings the project generated, shows `valance check` diagnostics for the files that server does not read, and
+// The VS Code side: thin. It starts the MESH language server with the settings the project generated, shows `vlx check` diagnostics for the files that server does not read, and
 // sends a tag to the template that defines it. Everything else (the language, the diagnostics, hover, completion) is the server's.
 import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
@@ -32,7 +32,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const project = readProject(root);
 
     if (project.kind !== "ready") {
-      output.appendLine(project.kind === "not-generated" ? "No .valance/editor.json yet: run `valance dev`, `valance build` or `valance check` once, and reload the window." : "Not a VALANCE project.");
+      output.appendLine(project.kind === "not-generated" ? "No .valance/editor.json yet: run `vlx dev`, `vlx build` or `vlx check` once, and reload the window." : "Not a VALANCE project.");
 
       return;
     }
@@ -67,7 +67,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
   // ---- everything else the project can get wrong -------------------------------------------------------------------------------------------------------------------
 
   const check = async (): Promise<void> => {
-    const command = binary(root, "valance");
+    const command = binary(root, "vlx");
 
     if (!existsSync(command)) { return; }
 
@@ -89,7 +89,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
 
       for (const [file, list] of byFile) { collection.set(vscode.Uri.file(join(root, file)), list); }
     } catch (error) {
-      output.appendLine(`valance check: ${error instanceof Error ? error.message : String(error)}`);
+      output.appendLine(`vlx check: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

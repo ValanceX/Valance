@@ -12,7 +12,7 @@ const BASIC = { "content/index.md": PAGE("Home", "See [the guide](/guide/a)."), 
 
 const codes = async (files: Record<string, string>): Promise<ReadonlyArray<string>> => (await check(project(files))).diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
 
-describe("valance check", () => {
+describe("vlx check", () => {
   it("finds no problem in a project with only content, using the built-in layout", async () => {
     const result = await check(project(BASIC));
 
@@ -42,12 +42,12 @@ describe("valance check", () => {
   });
 
   it("reads src/main.ts: state fields become names a layout may read, and a clash is an error", async () => {
-    const main = (fields: string): string => `import { defineApp, Schema } from "@valancex/app";\nexport default defineApp({ state: { schema: Schema.Struct({ ${fields} }), initial: { ${fields.replace(/: Schema\.\w+/g, ": 0")} } } });\n`;
+    const main = (fields: string): string => `import { defineApp, Schema } from "@valancex/cli";\nexport default defineApp({ state: { schema: Schema.Struct({ ${fields} }), initial: { ${fields.replace(/: Schema\.\w+/g, ": 0")} } } });\n`;
 
     expect((await check(project({ ...BASIC, "src/main.ts": main("count: Schema.Number"), "src/layout.mprx": '<shell class="x" theme="light"><para class="y">{count}</para></shell>' }))).diagnostics).toEqual([]);
     expect(await codes({ ...BASIC, "src/main.ts": main("title: Schema.Number") })).toEqual(["src/main.ts:1 entry-definition"]);
     expect(await codes({ ...BASIC, "src/main.ts": "export default 1;\n" })).toEqual(["src/main.ts:1 entry-export"]);
-    expect(await codes({ ...BASIC, "src/main.ts": 'import { defineApp } from "@valancex/app";\nexport default defineApp({ commands: (command) => ({ go: command((state) => state) }) });\n' })).toEqual(["src/main.ts:1 entry-definition"]);
+    expect(await codes({ ...BASIC, "src/main.ts": 'import { defineApp } from "@valancex/cli";\nexport default defineApp({ commands: (command) => ({ go: command((state) => state) }) });\n' })).toEqual(["src/main.ts:1 entry-definition"]);
   });
 
   it("does not need a build or a browser, and does not write outside .valance/", async () => {
@@ -59,7 +59,7 @@ describe("valance check", () => {
   });
 });
 
-describe("valance build", () => {
+describe("vlx build", () => {
   it("writes one document per page, a 404 page, the bundle and public files, and nothing else into the project", async () => {
     const root = project({ ...BASIC, "public/logo.svg": "<svg/>" });
     const built = await build(root);
@@ -132,7 +132,7 @@ describe("a mistake in src/main.ts itself", () => {
 
 describe("what an editor reads", () => {
   it("manifest.json declares the author's own components, with the props their uses pass; editor.json maps files to components", async () => {
-    const root = project({ ...BASIC, "src/main.ts": 'import { defineApp, Schema } from "@valancex/app";\nexport default defineApp({ state: { schema: Schema.Struct({ n: Schema.Number }), initial: { n: 0 } } });\n', "src/layout.mprx": '<shell class="x" theme="light"><badge count={n} /></shell>', "src/badge.mprx": '<span class="b">{count}</span>' });
+    const root = project({ ...BASIC, "src/main.ts": 'import { defineApp, Schema } from "@valancex/cli";\nexport default defineApp({ state: { schema: Schema.Struct({ n: Schema.Number }), initial: { n: 0 } } });\n', "src/layout.mprx": '<shell class="x" theme="light"><badge count={n} /></shell>', "src/badge.mprx": '<span class="b">{count}</span>' });
 
     await build(root);
 

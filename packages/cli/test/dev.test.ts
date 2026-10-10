@@ -22,7 +22,7 @@ describe("what a change asks for", () => {
   });
 });
 
-describe("valance dev", () => {
+describe("vlx dev", () => {
   it("serves pages under the base, once: the address it prints, the pages, a 404 for what is not one", async () => {
     const root = project({ "content/index.md": PAGE("Home", "[A](/guide/a)"), "content/guide/a.md": PAGE("A"), "public/x.txt": "x", "valance.web.json": '{ "base": "/docs/" }' });
     const running = await dev(root, { port: 5600 + Math.floor(Math.random() * 300), log: () => undefined });

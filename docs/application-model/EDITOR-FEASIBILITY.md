@@ -15,33 +15,33 @@ The spike is [`editors/vscode`](../../editors/vscode) (private, outside the work
 | `mesh-lsp` language server (Rust), npm-installable as `@valancex/mesh-lsp@0.10.0` with native binaries for linux x64/arm64, macOS x64/arm64, Windows x64 | Published. Diagnostics (identical to `mesh check`), quick fixes from suggestions, hover, go to definition, completion, all from a manifest. **No semantic tokens.** One workspace root. |
 | Tree-sitter grammar + `queries/highlights.scm` for MPRX | Exists, tested; used by Neovim (`editors/neovim`, verified headless) and Helix (unverified). **VS Code does not use Tree-sitter**: it needs a TextMate grammar. |
 | Editor guide | `docs/guides/editor-setup.md`: "Zed and VS Code add languages through extensions, and MESH doesn't ship one yet. A future extension will only start `mesh-lsp` and pass these settings." This spike is that extension. |
-| JSON Schemas for diagnostics and manifest | In `Mesh/schemas`. Valance's config schemas are in `packages/app/schemas`. |
+| JSON Schemas for diagnostics and manifest | In `Mesh/schemas`. Valance's config schemas are in `packages/cli/schemas`. |
 
 ## What was tried, and the result
 
 | # | Question | Experiment | Result |
 |---|---|---|---|
 | E1 | Does the server work on a Valance project at all? | Scripted LSP session against `examples/docs-app` with the manifest `valance` wrote | It ran, but reported **false errors**: `unknown component "theme-toggle"` and `"blocks"`. The manifest declared only tags and the layout; the compiler infers the author's components later. |
-| E2 | Is that fixable on our side? | Gave the server the program's own model (the manifest *with* inferred contracts) | **Zero false errors.** Fixed in `@valancex/app`: `.valance/manifest.json` is now that enriched model, and a new `.valance/editor.json` says where it is and which file is which component. A test pins both. |
+| E2 | Is that fixable on our side? | Gave the server the program's own model (the manifest *with* inferred contracts) | **Zero false errors.** Fixed in `@valancex/cli`: `.valance/manifest.json` is now that enriched model, and a new `.valance/editor.json` says where it is and which file is which component. A test pins both. |
 | E3 | Do the real features work on real files? | Real server, project-derived settings, broken `layout.mprx` | Misspelt name → `unknown-reference` at the right line and column and quick fix `Replace with "site"`; missing prop → `missing-required-prop`; hover on `<theme-toggle>` → `component theme-toggle { theme: string, on.toggle }`; completion lists the 41 components and scope names. All in `editors/vscode/test/e2e.test.ts`. |
-| E4 | Can the extension need no knowledge of Valance's conventions? | Extension reads only `.valance/editor.json` | Yes: it passes `{ model, components }` straight to the server. The convention (what is a component, where the manifest is) stays in `@valancex/app`. |
+| E4 | Can the extension need no knowledge of Valance's conventions? | Extension reads only `.valance/editor.json` | Yes: it passes `{ model, components }` straight to the server. The convention (what is a component, where the manifest is) stays in `@valancex/cli`. |
 | E5 | Highlighting in VS Code | Hand-written `mprx.tmLanguage.json` (tags, attributes, `on.event`, strings, expressions, operators, commands, `$event`, nested objects), tested with `vscode-textmate` + `vscode-oniguruma`, the engine VS Code runs | Scopes asserted token by token; every template of the example and the built-in kit returns to the top level. On MESH's own **96** sample files: **94 close cleanly**; the other 2 are the intentionally unclosed-tag fixtures. Mutating the grammar makes the tests fail (checked). |
-| E6 | Everything the template server cannot see (Markdown, front matter, links, `valance.json`, `main.ts`) | `valance check --json` through the extension's own `run`, mapped to editor ranges | Works; ~0.75 s per run in this container, so on save, not per keystroke. Template diagnostics are filtered out to avoid showing them twice. |
-| E7 | Config files in the editor | `contributes.jsonValidation` with the schemas | Declarative, no code; a test pins that the shipped copies equal `@valancex/app`'s. Not run in VS Code. |
+| E6 | Everything the template server cannot see (Markdown, front matter, links, `valance.json`, `main.ts`) | `vlx check --json` through the extension's own `run`, mapped to editor ranges | Works; ~0.75 s per run in this container, so on save, not per keystroke. Template diagnostics are filtered out to avoid showing them twice. |
+| E7 | Config files in the editor | `contributes.jsonValidation` with the schemas | Declarative, no code; a test pins that the shipped copies equal `@valancex/cli`'s. Not run in VS Code. |
 | E8 | Go to definition of a component | The server answers with the *manifest* (generated JSON), not the template | Unwanted. The extension has a definition middleware that sends a tag to `src/<tag>.mprx` through `editor.json`. Pure parts tested; the middleware itself is unexecuted. |
 
 ## Gaps and risks
 
 | # | Gap | Severity | Resolution |
 |---|---|---|---|
-| G1 | **Extension host never run here** (VS Code can't be fetched from the authoring sandbox) | Medium. **Now addressed by a CI job** (`vscode` in `.github/workflows/ci.yml`, VS Code 1.90.0 and stable, under `xvfb-run`) that runs 8 cases in a real host: activation, language id, diagnostic at place and clearing, hover, definition to the template, completion, a Markdown diagnostic after save, config-schema validation. Everything around it was verified here (launcher setup, `valance check` on the scratch workspace, the real server through the pnpm shim the extension spawns, the host code compiles against `@types/vscode`). **First run: 7 of 8 cases passed on both versions; the 8th was a test bug, now fixed.** Green once the rerun confirms | Run the job; fix what it finds |
+| G1 | **Extension host never run here** (VS Code can't be fetched from the authoring sandbox) | Medium. **Now addressed by a CI job** (`vscode` in `.github/workflows/ci.yml`, VS Code 1.90.0 and stable, under `xvfb-run`) that runs 8 cases in a real host: activation, language id, diagnostic at place and clearing, hover, definition to the template, completion, a Markdown diagnostic after save, config-schema validation. Everything around it was verified here (launcher setup, `vlx check` on the scratch workspace, the real server through the pnpm shim the extension spawns, the host code compiles against `@types/vscode`). **First run: 7 of 8 cases passed on both versions; the 8th was a test bug, now fixed.** Green once the rerun confirms | Run the job; fix what it finds |
 | G2 | No semantic tokens from `mesh-lsp` | Low: highlighting is lexical (TextMate), so an unknown tag looks like a known one; the diagnostic still marks it | Upstream request to MESH if wanted |
 | G3 | Two highlighters to keep in step (Tree-sitter queries and the TextMate grammar) | Low-medium. **Decided:** the grammar lives in MESH (`editors/vscode`), tested there against MESH's own files with VS Code's engine (32 valid files must close, 60 failing fixtures must still tokenize); CI job added in MESH | Keep both tested on the same corpus |
 | G4 | Content diagnostics: line but no column, only for saved files, ~0.75 s | Low | Acceptable for a first release. As-you-type needs `check` to accept unsaved buffers (an in-process API), later |
 | G5 | The server supports **one** workspace root; the extension uses the first folder | Medium for monorepos (e.g. opening this repository's root instead of `examples/docs-app`) | Document; later, one client per `valance.json` folder |
 | G6 | Built-in templates (`views/*.mprx` in the package) are not mapped, so opening one gets no diagnostics | Low | Intended: they are not the author's. A copy in `src/` is mapped normally |
-| G7 | A brand-new component is "unknown" until the next successful compile updates the manifest | Low, transient | `valance dev` recompiles on save; the server reloads the manifest when it changes. **Not measured** here |
-| G8 | Distributing the native server | **Decided:** a dev dependency of the *project* (`@valancex/mesh-lsp`, as `examples/docs-app` now has), so the server and the project's MESH compiler stay in the same version; `valance.meshLsp.path` overrides. Not an optional peer of `@valancex/app`: it would put a native binary in every install, including builds | Documented in `packages/app/README.md` |
+| G7 | A brand-new component is "unknown" until the next successful compile updates the manifest | Low, transient | `vlx dev` recompiles on save; the server reloads the manifest when it changes. **Not measured** here |
+| G8 | Distributing the native server | **Decided:** a dev dependency of the *project* (`@valancex/mesh-lsp`, as `examples/docs-app` now has), so the server and the project's MESH compiler stay in the same version; `valance.meshLsp.path` overrides. Not an optional peer of `@valancex/cli`: it would put a native binary in every install, including builds | Documented in `packages/cli/README.md` |
 | G9 | Publishing: Marketplace publisher, Open VSX, `vsce`, icon, versioning | **Deferred** until the host job passes and the integration is proven | Not started |
 | G10 | Other editors | Info | Neovim/Helix can read the same `.valance/editor.json` for their `model`/`components` settings; **not tested** |
 
@@ -49,7 +49,7 @@ The spike is [`editors/vscode`](../../editors/vscode) (private, outside the work
 
 - `.valance/manifest.json` is now the compiler's enriched model (author components included), not the pre-compile manifest.
 - New `.valance/editor.json` `{ version: 1, model, components }`.
-- `packages/app/test/pipeline.test.ts`: "what an editor reads". Core untouched.
+- `packages/cli/test/pipeline.test.ts`: "what an editor reads". Core untouched.
 
 ## Decisions
 
@@ -68,7 +68,7 @@ What the large language servers do:
 Applied here, with what was left out:
 
 - **Taken:** the grammar belongs to whoever owns the *language*, beside the tooling and tests of that language, not to a framework built on it. MPRX is MESH's, MESH already holds the Tree-sitter grammar, the server, the Neovim setup and the fixtures, so the TextMate grammar is at `Mesh/editors/vscode`, with a test over MESH's own 92 MPRX files. Valance's extension is the Angular-style *consumer*: thin, project-local server, Valance-specific wiring only.
-- **Taken:** one editor-agnostic server for every editor (`mesh-lsp`), a grammar corpus test (Svelte/Astro), a real-host CI test (Svelte/Angular), a separate CLI check for CI (`svelte-check`/`vue-tsc`/`astro check` ↔ `valance check`).
+- **Taken:** one editor-agnostic server for every editor (`mesh-lsp`), a grammar corpus test (Svelte/Astro), a real-host CI test (Svelte/Angular), a separate CLI check for CI (`svelte-check`/`vue-tsc`/`astro check` ↔ `vlx check`).
 - **Left out:** TypeScript-server plugins and virtual files (Vue/Angular: for languages embedded in TypeScript, which MPRX is not); a YAML grammar source with a build step (Svelte: ~100 lines of JSON does not need one yet); a standalone grammar repository (TypeScript: premature for one language with one grammar).
 - **Interim:** until MESH publishes its language extension, this extension ships a byte-identical copy (`pnpm sync-grammar`; a test compares it with a MESH checkout when `MESH_DIR` or a sibling `Mesh/` exists). Then it declares `extensionDependencies` on MESH's extension and drops the copy.
 
@@ -92,7 +92,7 @@ Estimate for 1–3, given what exists: small (days, not weeks); almost all the r
 ## How to reproduce
 
 ```console
-$ cd editors/vscode && pnpm install && pnpm test      # 16 tests: grammar (VS Code's engine), project reading, schemas, real mesh-lsp, real `valance check`
+$ cd editors/vscode && pnpm install && pnpm test      # 16 tests: grammar (VS Code's engine), project reading, schemas, real mesh-lsp, real `vlx check`
 $ pnpm typecheck                                      # extension code against @types/vscode and vscode-languageclient
 ```
-The host suite needs a display and network: `xvfb-run -a pnpm test:host` (`VSCODE_VERSION` picks the version). `e2e.test.ts` runs `valance check` in `examples/docs-app` first, so build the workspace (`pnpm build` at the root) before running it.
+The host suite needs a display and network: `xvfb-run -a pnpm test:host` (`VSCODE_VERSION` picks the version). `e2e.test.ts` runs `vlx check` in `examples/docs-app` first, so build the workspace (`pnpm build` at the root) before running it.

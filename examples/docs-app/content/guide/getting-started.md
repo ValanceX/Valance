@@ -13,7 +13,7 @@ pnpm install
 pnpm dev
 ```
 
-Open the address `valance dev` prints. Edit this file and save: the page reloads with your change.
+Open the address `vlx dev` prints. Edit this file and save: the page reloads with your change.
 
 ## Build it
 

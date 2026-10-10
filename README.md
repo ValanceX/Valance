@@ -160,7 +160,7 @@ Follow these in order. Each one builds on the last.
 
 ## Examples
 
-- [`examples/docs-app`](examples/docs-app): **the application model**: content, a layout, a component, a stylesheet and `valance dev` / `valance build`, with none of the compiler, server or hydration plumbing in sight. Provisional: see [`docs/application-model/`](docs/application-model/) and [`packages/app`](packages/app).
+- [`examples/docs-app`](examples/docs-app): **the application model**: content, a layout, a component, a stylesheet and `vlx dev` / `vlx build`, with none of the compiler, server or hydration plumbing in sight. Provisional: see [`docs/application-model/`](docs/application-model/) and [`packages/cli`](packages/cli).
 - [`examples/docs-site`](examples/docs-site): a real, runnable app on the **published** package: a documentation site with links, a search box (a command that waits), URLs and document titles, server rendering and hydration. Start here.
 - [`examples/tracer-web`](examples/tracer-web): VALANCE's contract test suite (lifetimes, hydration, history, failure), with small fixture apps. It is the evidence behind the contract, not a model application.
 

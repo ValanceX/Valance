@@ -2,7 +2,7 @@
 
 Hypothesis pipeline tested: `Markdown → content model → layout → components → rendered page`.
 
-Constraint found in Phase 0: `@valancex/valance` may not gain a CLI, compiler, router or dev server (`CONSTRAINTS.md` l.21). Any candidate needs a **separate tooling package**. Provisional name `@valancex/app`, private/unpublished in this cycle (names and publishing are the owner's decision, `GRADUATION.md`).
+Constraint found in Phase 0: `@valancex/valance` may not gain a CLI, compiler, router or dev server (`CONSTRAINTS.md` l.21). Any candidate needs a **separate tooling package**. Provisional name `@valancex/cli`, private/unpublished in this cycle (names and publishing are the owner's decision, `GRADUATION.md`).
 
 ## Candidate A: content-only (VitePress-like)
 
@@ -32,7 +32,7 @@ my-docs/
 ```
 `src/main.ts`:
 ```ts
-import { defineApp, Schema } from "@valancex/app";
+import { defineApp, Schema } from "@valancex/cli";
 export default defineApp({
   state: { schema: Schema.Struct({ theme: Schema.Literal("light", "dark") }), initial: { theme: "light" } },
   commands: (command) => ({ toggleTheme: command((s) => ({ ...s, theme: s.theme === "light" ? "dark" : "light" })) }),
@@ -82,7 +82,7 @@ Trade-offs accepted:
 ### Configuration decisions
 - `valance.json`: `{ version?: 1, name: string }`. Only `name` has evidence (nav/site title and `<title>`). Nothing else is added.
 - `valance.web.json`: `{ base?: "/", url?: "https://…" }`. These are the two web-only settings the verifier already keeps in `site.json`. `url` enables `sitemap.xml` and canonical links.
-- Unknown keys are errors (typos should not be silent). Schema owned by `@valancex/app` (`schemas/valance.schema.json`, referenced via `$schema`), versioned by `version`. Target files for other targets are reserved by name (`valance.<target>.json`) but not read until a second target exists.
+- Unknown keys are errors (typos should not be silent). Schema owned by `@valancex/cli` (`schemas/valance.schema.json`, referenced via `$schema`), versioned by `version`. Target files for other targets are reserved by name (`valance.<target>.json`) but not read until a second target exists.
 - Not invented: content directory setting, port (a CLI flag), theme, plugin lists.
 
 ### Dev lifecycle (hypothesis, verified in Phase 2/3F)
@@ -97,7 +97,7 @@ Trade-offs accepted:
 | error in any of the above | keep last good build; show file:line in terminal and browser overlay |
 
 ### Editor foundation (Phase 5 plan)
-Emit `.valance/manifest.json` (tags, props, scope names the templates may use), ship the JSON Schemas for the config, and use one diagnostic shape `{ file, line, column, code, message }` for config, content, links and templates, available as `valance check --json`.
+Emit `.valance/manifest.json` (tags, props, scope names the templates may use), ship the JSON Schemas for the config, and use one diagnostic shape `{ file, line, column, code, message }` for config, content, links and templates, available as `vlx check --json`.
 
 ### Unresolved
 - Package name/publishing; whether `defineApp` should one day live in a core subpath.

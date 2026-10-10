@@ -26,7 +26,7 @@ describe("what the application package depends on", () => {
   it("imports VALANCE, the MESH compiler and runtime, effect and Vite, and never NEXUS or PORT directly", () => {
     const names = new Set(files.flatMap((file) => importsOf(read(join(src, file))).filter((name) => !name.startsWith("."))).map((name) => name.startsWith("node:") ? "node" : name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0]!));
 
-    expect([...names].sort()).toEqual(["@valancex/app", "@valancex/mesh-compiler", "@valancex/mesh-runtime", "@valancex/valance", "effect", "node", "vite"]);
+    expect([...names].sort()).toEqual(["@valancex/cli", "@valancex/mesh-compiler", "@valancex/mesh-runtime", "@valancex/valance", "effect", "node", "vite"]);
   });
 
   it("keeps Node and Vite out of everything the browser or an author's main.ts loads", () => {
@@ -40,15 +40,15 @@ describe("what the application package depends on", () => {
   });
 
   it("is not known to the core: VALANCE's package and sources never mention it", () => {
-    expect(read(join(core, "package.json"))).not.toContain("@valancex/app");
+    expect(read(join(core, "package.json"))).not.toContain("@valancex/cli");
 
-    for (const file of readdirSync(join(core, "src"))) { expect(read(join(core, "src", file)), file).not.toContain("@valancex/app"); }
+    for (const file of readdirSync(join(core, "src"))) { expect(read(join(core, "src", file)), file).not.toContain("@valancex/cli"); }
   });
 
   it("owns the command the core is forbidden to have (a CLI), and publishes none of itself yet", () => {
     const manifest = JSON.parse(read(join(src, "..", "package.json"))) as { private?: boolean; bin?: Record<string, string> };
 
-    expect(manifest.bin).toEqual({ valance: "./bin/valance.js" });
+    expect(manifest.bin).toEqual({ vlx: "./bin/vlx.js" });
     expect(manifest.private).toBe(true);
   });
 });

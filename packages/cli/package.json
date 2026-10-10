@@ -1,8 +1,8 @@
 {
-  "name": "@valancex/app",
+  "name": "@valancex/cli",
   "version": "0.0.0",
   "private": true,
-  "description": "The VALANCE application model and its commands (`valance dev`, `valance build`, `valance check`): content, layout, components and styles in, a website out. Provisional name; unpublished.",
+  "description": "The VALANCE application model and its commands (`vlx dev`, `vlx build`, `vlx check`): content, layout, components and styles in, a website out. Provisional name; unpublished.",
   "type": "module",
   "license": "MIT",
   "author": "Jack Miller <jackmiller0899@gmail.com>",
@@ -10,7 +10,7 @@
     "node": ">=22"
   },
   "bin": {
-    "valance": "./bin/valance.js"
+    "vlx": "./bin/vlx.js"
   },
   "sideEffects": false,
   "exports": {

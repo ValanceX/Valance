@@ -1,5 +1,5 @@
 // What the extension knows about a VALANCE project, read from the files `valance` generates. The conventions (where the manifest is, which file is which component) stay in
-// `@valancex/app`, which writes `.valance/editor.json`; the extension never re-derives them. Pure: no `vscode` import, so it is tested without an editor.
+// `@valancex/cli`, which writes `.valance/editor.json`; the extension never re-derives them. Pure: no `vscode` import, so it is tested without an editor.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -19,7 +19,7 @@ export interface LspSettings {
 
 export type Readiness =
   | { readonly kind: "ready"; readonly settings: LspSettings }
-  /** `valance.json` is there but nothing has been generated yet: run `valance dev`, `build` or `check` once. */
+  /** `valance.json` is there but nothing has been generated yet: run `vlx dev`, `build` or `check` once. */
   | { readonly kind: "not-generated" }
   | { readonly kind: "not-a-project" };
 

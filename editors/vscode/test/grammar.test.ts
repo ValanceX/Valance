@@ -93,7 +93,7 @@ describe("the MPRX TextMate grammar", () => {
   it("returns to the top level after every template of the example application and of the built-in kit", async () => {
     const files = [
       ...readdirSync(here("../../examples/docs-app/src")).filter((name) => name.endsWith(".mprx")).map((name) => here(`../../examples/docs-app/src/${name}`)),
-      ...readdirSync(here("../../packages/app/views")).map((name) => here(`../../packages/app/views/${name}`)),
+      ...readdirSync(here("../../packages/cli/views")).map((name) => here(`../../packages/cli/views/${name}`)),
     ];
 
     expect(files.length).toBeGreaterThanOrEqual(10);

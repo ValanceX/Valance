@@ -1,8 +1,8 @@
 // The `valance` command.
 //
-//   valance dev [--port N] [--host H]   serve the project and rebuild it as it changes
-//   valance build                       write the site to dist/
-//   valance check [--json]              find mistakes in authored files without building
+//   vlx dev [--port N] [--host H]   serve the project and rebuild it as it changes
+//   vlx build                       write the site to dist/
+//   vlx check [--json]              find mistakes in authored files without building
 import { readFileSync } from "node:fs";
 
 import { build } from "./build.js";
@@ -11,7 +11,7 @@ import { findRoot } from "./config.js";
 import { dev } from "./dev.js";
 import { AppError, format } from "./diagnostics.js";
 
-const HELP = `valance <command>
+const HELP = `vlx <command>
 
   dev [--port N] [--host H]   serve the project and rebuild it as it changes
   build                       write the site to dist/
@@ -38,7 +38,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const host = option(rest, "--host");
         const running = await dev(findRoot(cwd), { ...(port === undefined ? {} : { port: Number(port) }), ...(host === undefined ? {} : { host }) });
 
-        console.log(`valance dev: ${running.url}`);
+        console.log(`vlx dev: ${running.url}`);
 
         // Until interrupted.
         await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
@@ -50,14 +50,14 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const started = Date.now();
         const built = await build(findRoot(cwd));
 
-        console.log(`valance build: ${built.pages.length} pages, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+        console.log(`vlx build: ${built.pages.length} pages, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
 
         return 0;
       }
       case "check": {
         const result = await check(findRoot(cwd));
 
-        if (rest.includes("--json")) { console.log(JSON.stringify(result.diagnostics, null, 2)); } else if (result.diagnostics.length === 0) { console.log(`valance check: ${result.pages} pages, ${result.components.length} components, no problems`); } else { result.diagnostics.forEach((each) => { console.error(format(each)); }); console.error(`valance check: ${result.diagnostics.length} problem${result.diagnostics.length === 1 ? "" : "s"}`); }
+        if (rest.includes("--json")) { console.log(JSON.stringify(result.diagnostics, null, 2)); } else if (result.diagnostics.length === 0) { console.log(`vlx check: ${result.pages} pages, ${result.components.length} components, no problems`); } else { result.diagnostics.forEach((each) => { console.error(format(each)); }); console.error(`vlx check: ${result.diagnostics.length} problem${result.diagnostics.length === 1 ? "" : "s"}`); }
 
         return result.diagnostics.length === 0 ? 0 : 1;
       }
@@ -74,7 +74,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         return 0;
       default:
-        console.error(`valance: unknown command "${command}"\n\n${HELP}`);
+        console.error(`vlx: unknown command "${command}"\n\n${HELP}`);
 
         return 2;
     }

@@ -1,16 +1,16 @@
-# @valancex/app
+# @valancex/cli
 
 > **Provisional and unpublished.** The name, the conventions and the `defineApp` API are this cycle's proposal (see [`docs/application-model/`](../../docs/application-model/)). Use it inside this workspace; it is not on npm.
 
-The VALANCE application model and the commands that run it: you write **content**, a **layout**, **components** and **styles**; `valance dev` serves them as you edit and `valance build` produces a website. You do not write a compiler step, a manifest, a server, a hydration script or a bundler config.
+The VALANCE application model and the commands that run it: you write **content**, a **layout**, **components** and **styles**; `vlx dev` serves them as you edit and `vlx build` produces a website. You do not write a compiler step, a manifest, a server, a hydration script or a bundler config.
 
 ```console
-$ valance dev       # serve the project, rebuild as files change
-$ valance build     # write the site to dist/
-$ valance check     # find mistakes in your files without building (--json for tools)
+$ vlx dev       # serve the project, rebuild as files change
+$ vlx build     # write the site to dist/
+$ vlx check     # find mistakes in your files without building (--json for tools)
 ```
 
-The worked example is [`examples/docs-app`](../../examples/docs-app): about 200 lines of authored files.
+Try it locally: [`docs/application-model/TRY-IT.md`](../../docs/application-model/TRY-IT.md). The worked example is [`examples/docs-app`](../../examples/docs-app): about 200 lines of authored files.
 
 ## How do I create an application, run it, and change a page?
 
@@ -18,7 +18,7 @@ The worked example is [`examples/docs-app`](../../examples/docs-app): about 200 
    ```json
    { "version": 1, "name": "Notes" }
    ```
-   and a `package.json` that depends on `@valancex/app` and has `"dev": "valance dev"`, `"build": "valance build"`.
+   and a `package.json` that depends on `@valancex/cli` and has `"dev": "vlx dev"`, `"build": "vlx build"`.
 2. Add pages: **`content/index.md`** is the first page (`# Notes` and some text). Every other `.md` file under `content/` is a page.
 3. `pnpm dev`. Open the address it prints. Edit a Markdown file and save: the page reloads with your change.
 4. `pnpm build`. The site is in `dist/`; any host that serves files can serve it.
@@ -40,7 +40,7 @@ That is a complete application. It uses a built-in layout. Everything below is h
 | `.valance/` | Generated: content, compiled templates, the entries, and for editors `manifest.json` (what a template may use) and `editor.json` (which file is which component). Git-ignored by a `.gitignore` inside it. | the tools |
 | `dist/` | The built site. | the tools |
 
-Settings are validated, unknown keys are errors, and editors can use the JSON Schemas in `schemas/` (`"$schema": "./node_modules/@valancex/app/schemas/valance.schema.json"`).
+Settings are validated, unknown keys are errors, and editors can use the JSON Schemas in `schemas/` (`"$schema": "./node_modules/@valancex/cli/schemas/valance.schema.json"`).
 
 ## Content
 
@@ -81,7 +81,7 @@ A component is a file; nothing registers it. One that nothing uses is an error (
 
 ```ts
 // src/main.ts
-import { defineApp, Schema } from "@valancex/app";
+import { defineApp, Schema } from "@valancex/cli";
 
 export default defineApp({
   state: { schema: Schema.Struct({ theme: Schema.Literal("light", "dark") }), initial: { theme: "light" } },
@@ -93,7 +93,7 @@ export default defineApp({
 
 `theme` is now a name the layout reads (`<shell theme={theme}>`) and `toggleTheme()` a command it runs (`on.click={toggleTheme()}`). A component forwards an event (`on.click={toggle()}`) and its user binds it (`<theme-toggle on.toggle={toggleTheme()} />`). A state field may not reuse a framework name (`site`, `title`, `blocks`…), and `go` is the framework's command. Both are errors that say so.
 
-## What `valance dev` does when you save
+## What `vlx dev` does when you save
 
 | You change | It does |
 |---|---|
@@ -114,11 +114,11 @@ A mistake leaves the last good build serving and appears in the terminal and as 
 $ pnpm add -D @valancex/mesh-lsp
 ```
 
-The VS Code extension in [`editors/vscode`](../../editors/vscode) (not published yet) starts it, highlights `.mprx`, and shows `valance check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/guides/editor-setup.md)).
+The VS Code extension in [`editors/vscode`](../../editors/vscode) (not published yet) starts it, highlights `.mprx`, and shows `vlx check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/guides/editor-setup.md)).
 
 ## Diagnostics
 
-Every mistake the tools can attribute to a file has one shape: `{ file, line, column, code, message }`. `valance check --json` prints them for editors and CI; codes are stable (`link-broken`, `md-html`, `front-unknown`, `config-unknown`, `template-unused`, `entry-export`, and the MESH compiler's own for templates).
+Every mistake the tools can attribute to a file has one shape: `{ file, line, column, code, message }`. `vlx check --json` prints them for editors and CI; codes are stable (`link-broken`, `md-html`, `front-unknown`, `config-unknown`, `template-unused`, `entry-export`, and the MESH compiler's own for templates).
 
 ## Limits (this cycle)
 

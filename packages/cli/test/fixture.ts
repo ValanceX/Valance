@@ -1,4 +1,4 @@
-// A throwaway project on disk. `node_modules/@valancex/app` links to this package, so a project built here resolves it the way an installed one does.
+// A throwaway project on disk. `node_modules/@valancex/cli` links to this package, so a project built here resolves it the way an installed one does.
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -12,7 +12,7 @@ export const project = (files: Readonly<Record<string, string>>): string => {
 
   made.push(root);
   mkdirSync(join(root, "node_modules", "@valancex"), { recursive: true });
-  symlinkSync(PACKAGE, join(root, "node_modules", "@valancex", "app"), "dir");
+  symlinkSync(PACKAGE, join(root, "node_modules", "@valancex", "cli"), "dir");
 
   for (const [name, text] of Object.entries({ "valance.json": '{ "name": "Test" }', ...files })) {
     mkdirSync(dirname(join(root, name)), { recursive: true });

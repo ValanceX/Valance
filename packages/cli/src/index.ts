@@ -21,7 +21,7 @@ export interface AppDefinition<F extends Schema.Struct.Fields = {}> {
 }
 
 /** The brand that says a value came from `defineApp`. */
-export const APP = Symbol.for("valancex.app");
+export const APP = Symbol.for("valancex.cli");
 
 export interface DefinedApp extends AppDefinition<any> { readonly [APP]: true }
 

@@ -1,4 +1,4 @@
-// `valance build`: the project → a static site in `dist/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
+// `vlx build`: the project → a static site in `dist/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
 // when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only the site.
 import { build as bundle } from "vite";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

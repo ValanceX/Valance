@@ -1,5 +1,5 @@
 // One shape for every mistake the tooling can attribute to authored source: the config, a Markdown page, a link, a template. A terminal prints it as `file:line:column code: message`,
-// an editor reads it as JSON (`valance check --json`), the dev overlay shows it. `file` is relative to the project root. `line` and `column` start at 1 (0 when unknown).
+// an editor reads it as JSON (`vlx check --json`), the dev overlay shows it. `file` is relative to the project root. `line` and `column` start at 1 (0 when unknown).
 export interface Diagnostic {
   readonly file: string;
   readonly line: number;

@@ -2,18 +2,18 @@
   "name": "@valancex/docs-app",
   "version": "0.0.0",
   "private": true,
-  "description": "The canonical VALANCE application: a small documentation site. Content, a layout, a component, a stylesheet and `valance dev` / `valance build`. Nothing else.",
+  "description": "The canonical VALANCE application: a small documentation site. Content, a layout, a component, a stylesheet and `vlx dev` / `vlx build`. Nothing else.",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "valance dev",
-    "build": "valance build",
-    "check": "valance check",
+    "dev": "vlx dev",
+    "build": "vlx build",
+    "check": "vlx check",
     "typecheck": "tsc -p tsconfig.json",
     "test:smoke": "vitest run"
   },
   "dependencies": {
-    "@valancex/app": "workspace:*"
+    "@valancex/cli": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

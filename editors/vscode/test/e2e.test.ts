@@ -1,5 +1,5 @@
 // The pieces the extension connects, run for real and together: the project's own `valance` writes what the editor reads, the real `mesh-lsp` is started with exactly those settings,
-// and `valance check --json` is run through the extension's own `run`. What is not run here is VS Code itself (see docs/application-model/EDITOR.md).
+// and `vlx check --json` is run through the extension's own `run`. What is not run here is VS Code itself (see docs/application-model/EDITOR.md).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,7 +11,7 @@ import { readProject } from "../src/project";
 import type { Client } from "./lsp-client";
 import { connect } from "./lsp-client";
 
-const valance = resolve(__dirname, "../../../packages/app/bin/valance.js");
+const valance = resolve(__dirname, "../../../packages/cli/bin/vlx.js");
 const app = resolve(__dirname, "../../../examples/docs-app");
 // The project's own server, as the extension finds it: a dev dependency of the application (examples/docs-app), not of the extension.
 const server = resolve(app, "node_modules/@valancex/mesh-lsp/dist/cli.js");
@@ -84,12 +84,12 @@ describe("the real language server on a real project", () => {
 });
 
 describe("what the server cannot see", () => {
-  it("is found by `valance check --json` through the extension's own run, and placed on the right line", async () => {
+  it("is found by `vlx check --json` through the extension's own run, and placed on the right line", async () => {
     const root = mkdtempSync(join(tmpdir(), "valance-vscode-e2e-"));
 
     mkdirSync(join(root, "node_modules/@valancex"), { recursive: true });
     mkdirSync(join(root, "content"));
-    symlinkSync(resolve(__dirname, "../../../packages/app"), join(root, "node_modules/@valancex/app"), "dir");
+    symlinkSync(resolve(__dirname, "../../../packages/cli"), join(root, "node_modules/@valancex/cli"), "dir");
     writeFileSync(join(root, "valance.json"), '{ "name": "T" }');
     writeFileSync(join(root, "content/index.md"), "---\ntitle: Home\n---\n\n# Home\n\n[gone](/nowhere)\n");
 

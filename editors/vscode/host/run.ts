@@ -19,8 +19,8 @@ const main = async (): Promise<void> => {
   writeFileSync(join(workspace, "valance.json"), '{\n  "version": 1,\n  "name": "Notes"\n}\n');
   symlinkSync(join(app, "node_modules"), join(workspace, "node_modules"), "dir");
 
-  // What a developer has after their first `valance dev`: the generated files the extension reads.
-  execFileSync(join(workspace, "node_modules", ".bin", "valance"), ["check"], { cwd: workspace, stdio: "inherit" });
+  // What a developer has after their first `vlx dev`: the generated files the extension reads.
+  execFileSync(join(workspace, "node_modules", ".bin", "vlx"), ["check"], { cwd: workspace, stdio: "inherit" });
 
   await runTests({
     version: process.env["VSCODE_VERSION"] ?? "stable",

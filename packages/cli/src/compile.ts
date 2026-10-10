@@ -37,7 +37,7 @@ export const templatesOf = (root: string): ReadonlyArray<Template> => {
   for (const file of mprxIn(BUILT_IN)) {
     const component = basename(file, ".mprx");
 
-    found.set(component, { component, path: `@valancex/app/views/${file}`, source: readFileSync(join(BUILT_IN, file), "utf8"), builtIn: true });
+    found.set(component, { component, path: `@valancex/cli/views/${file}`, source: readFileSync(join(BUILT_IN, file), "utf8"), builtIn: true });
   }
 
   const own = new Map<string, string>();

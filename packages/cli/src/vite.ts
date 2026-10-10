@@ -22,7 +22,7 @@ export const baseConfig = (root: string, config: Config): InlineConfig => ({
   clearScreen: false,
   build: { outDir: join(root, OUTPUT_DIR), emptyOutDir: true, target: "esnext", manifest: true, chunkSizeWarningLimit: 1500, rollupOptions: { input: join(root, CLIENT_ENTRY) } },
   // The MESH runtime refers to node:fs/promises on a path the browser never takes.
-  optimizeDeps: { exclude: ["@valancex/mesh-runtime", "@valancex/app"] },
+  optimizeDeps: { exclude: ["@valancex/mesh-runtime", "@valancex/cli"] },
 });
 
 /** A Vite server that serves nothing: it loads the author's TypeScript and the generated server entry in Node. Used by build and check. */

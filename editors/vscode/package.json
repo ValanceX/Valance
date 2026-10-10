@@ -1,7 +1,7 @@
 {
   "name": "valance-vscode",
   "displayName": "VALANCE",
-  "description": "VALANCE for VS Code: wires mesh-lsp and `valance check` diagnostics into a project. A feasibility spike: not published.",
+  "description": "VALANCE for VS Code: wires mesh-lsp and `vlx check` diagnostics into a project. A feasibility spike: not published.",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -59,7 +59,7 @@
         "valance.check.onType": {
           "type": "boolean",
           "default": false,
-          "description": "Also run `valance check` after every change to a Markdown or template file, not only on save."
+          "description": "Also run `vlx check` after every change to a Markdown or template file, not only on save."
         }
       }
     },

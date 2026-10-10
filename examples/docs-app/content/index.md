@@ -11,6 +11,6 @@ This site is a **VALANCE application**. Everything you are reading is a Markdown
 
 - Pages are Markdown files. Their path is their address.
 - The layout and the components are templates.
-- `valance dev` serves the site and updates it as you edit.
+- `vlx dev` serves the site and updates it as you edit.
 
 Start with [Getting started](/guide/getting-started), or see [how a page is written](/guide/writing-pages#front-matter).
