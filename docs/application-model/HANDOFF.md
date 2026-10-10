@@ -38,4 +38,4 @@ Branch `claude/fervent-ptolemy-gbtc8u`. Newest entries at the bottom of each pha
 - [`EDITOR.md`](EDITOR.md). Implemented: one diagnostic shape, `check --json`, schemas, derived manifest. Not built: any server or extension.
 
 ## Phase 6 — regression, documentation, decision (done)
-- See [`REPORT.md`](REPORT.md).
+- [`REPORT.md`](REPORT.md): final report (what the cycle proved, structure, commands, status, API changes, validation, decisions, blockers). Run from a fresh clone of the pushed commit.
