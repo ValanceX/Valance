@@ -6,12 +6,13 @@ import { start } from "@valancex/valance";
 import { application } from "../app/application.js";
 import { compilePage } from "../web/compile.js";
 import { initial } from "../app/state.js";
+import { siteDir } from "./sites.js";
 import { readSite } from "../tooling/content.js";
 import { mapOf } from "../model/site.js";
 import { fileURLToPath } from "node:url";
 
 it("start takes shutdown.grace, and closing the application resolves at once when nothing is running", async () => {
-  const site = readSite(fileURLToPath(new URL("../content", import.meta.url)));
+  const site = readSite(siteDir("docs"));
   const program = await compilePage();
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(start(application(program, mapOf(site)), { shutdown: { grace: "5 seconds" } }).pipe(Scope.extend(scope)));

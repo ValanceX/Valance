@@ -13,19 +13,22 @@ const textOf = (block: Block): string => {
     case "code": return block.text;
     case "codegroup": return block.tabs.map((tab) => tab.text).join(" ");
     case "image": return block.alt;
+    case "hero": return [spans(block.title), spans(block.lead), ...block.actions.map((action) => action.label)].join(" ");
+    case "cards": return block.cards.map((card) => `${card.title} ${spans(card.spans)}`).join(" ");
+    case "postlist": return "";
   }
 };
 
 export const buildSearchIndex = (site: Site): SearchIndex => {
   const entries: Array<SearchEntry> = [];
 
-  for (const page of site.pages) {
+  for (const page of site.pages.filter((candidate) => candidate.layout !== "list")) {
     let current: { heading: string; anchor: string; level: number; words: Array<string> } = { heading: "", anchor: "", level: 1, words: [] };
     const close = (): void => {
       const text = current.words.join(" ").replace(/\s+/g, " ").trim();
 
       if (text !== "") {
-        entries.push({ id: `${page.id}#${current.anchor}`, href: current.anchor === "" ? page.path : `${page.path}#${current.anchor}`, title: page.title, section: page.section, heading: current.heading, text });
+        entries.push({ id: `${page.id}#${current.anchor}`, locale: page.locale, version: page.version, href: current.anchor === "" ? page.path : `${page.path}#${current.anchor}`, title: page.title, section: page.section, heading: current.heading, text });
       }
     };
 

@@ -16,6 +16,7 @@ import type { AppState } from "../app/state.js";
 import type { SiteMap } from "../model/site.js";
 
 import type { Built } from "./built.js";
+import { followLanguage } from "./language.js";
 import { browserPlatform } from "./platform.js";
 import { plugins } from "./plugins.js";
 import { watchHeadings } from "./scrollspy.js";
@@ -37,11 +38,12 @@ try {
   // Once the page has taken over (what the reader chose last time would not match the server's HTML before): take back their choices, and follow where they scroll.
   const invoke = (key: string, value?: string) => { void Effect.runPromise(host.handle.invoke(key, value === undefined ? [] : [{ value }]) as Effect.Effect<unknown>).catch(() => undefined); };
   const spy = watchHeadings(window, (anchor) => { invoke("app/setActive", anchor); });
+  const language = followLanguage(window, container);
 
   invoke("app/restore");
   container.dataset["valance"] = "running";                      // readiness marker for whoever drives the page
 
-  addEventListener("pagehide", (event) => { if (!event.persisted) { spy.stop(); void host.stop(); } });
+  addEventListener("pagehide", (event) => { if (!event.persisted) { spy.stop(); language(); void host.stop(); } });
 } catch (error) {
   container.dataset["valance"] = "failed";
   console.error("the application did not start", error);        // the server's HTML stays as drawn

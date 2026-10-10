@@ -37,13 +37,14 @@ const excerptOf = (text: string, words: ReadonlyArray<string>): string => {
   return `${from > 0 ? "…" : ""}${text.slice(from, to).trim()}${to < text.length ? "…" : ""}`;
 };
 
-/** The entries that answer `query`, best first, at most eight. An empty query answers nothing. */
-export const search = (index: SearchIndex, query: string): ReadonlyArray<Hit> => {
+/** The entries that answer `query`, best first, at most eight; in the reader's language and version when `within` says which. An empty query answers nothing. */
+export const search = (index: SearchIndex, query: string, within?: { readonly locale: string; readonly version: string }): ReadonlyArray<Hit> => {
   const words = wordsOf(query);
 
   if (words.length === 0) { return []; }
 
   return index.entries
+    .filter((entry) => within === undefined || (entry.locale === within.locale && (entry.version === within.version || entry.version === "")))
     .map((entry, at) => ({ entry, at, score: score(entry, words) }))
     .filter(({ score: value }) => value > 0)
     .sort((a, b) => b.score - a.score || a.at - b.at)

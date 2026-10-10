@@ -1,0 +1,11 @@
+{
+  "name": "Loom",
+  "footer": "Loom is made up for this example. Its page is drawn by the same kit as the documentation and the blog.",
+  "header": [
+    { "label": "Features", "href": "/#features" },
+    { "label": "Source", "href": "https://example.com/loom" }
+  ],
+  "collections": [
+    { "name": "pages", "dir": "pages", "path": "", "layout": "landing" }
+  ]
+}

@@ -37,6 +37,6 @@ export const AppState = Schema.Struct({
 });
 export type AppState = typeof AppState.Type;
 
-const nothing: Page = { id: "", path: "", title: "", description: "", section: "", outline: [], blocks: [] };
+const nothing: Page = { id: "", path: "", title: "", description: "", section: "", layout: "doc", collection: "", slug: "", locale: "en", version: "", date: "", tags: [], author: "", outline: [], blocks: [] };
 
-export const initial: AppState = { page: "introduction", content: nothing, status: "ready", copied: "", copyFailed: "", theme: "system", tabs: {}, search: { query: "", status: "idle", hits: [] }, active: "", menu: false };
+export const initial: AppState = { page: "", content: nothing, status: "ready", copied: "", copyFailed: "", theme: "system", tabs: {}, search: { query: "", status: "idle", hits: [] }, active: "", menu: false };

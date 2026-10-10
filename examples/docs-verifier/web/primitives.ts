@@ -11,7 +11,7 @@ const id = Web.attribute("id");
 const role = Web.attribute("role");
 
 export const primitives: Web.WebPrimitives = {
-  shell: { element: "div", props: { class: klass, theme: Web.attribute("data-theme"), menu: Web.attribute("data-menu") } },
+  shell: { element: "div", props: { class: klass, theme: Web.attribute("data-theme"), menu: Web.attribute("data-menu"), layout: Web.attribute("data-layout"), lang: Web.attribute("lang") } },
   header: { element: "header", props: { class: klass } },
   nav: { element: "nav", props: { class: klass, label } },
   main: { element: "main", props: { tabindex: Web.attribute("tabindex"), busy: Web.attribute("aria-busy"), status: Web.attribute("data-status") } },
@@ -50,6 +50,8 @@ export const primitives: Web.WebPrimitives = {
     props: { ...Web.textField.props, class: klass, label, placeholder: Web.attribute("placeholder"), type: Web.attribute("type") },
   },
   live: { element: "div", props: { class: klass, role, live: Web.attribute("aria-live") } },
+  time: { element: "time", props: { class: klass, datetime: Web.attribute("datetime") } },
+  choiceLink: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current"), lang: Web.attribute("lang"), hreflang: Web.attribute("hreflang") } },
   anchorLink: { element: "a", props: { href: Web.attribute("href"), class: klass, label } },
   navLink: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
 };

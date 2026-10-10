@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { ContentError, readSite } from "../tooling/content.js";
+import { SITES, siteDir } from "./sites.js";
 import { highlight, languages } from "../tooling/highlight.js";
 import { parseInline, parseMarkdown, plainText } from "../tooling/markdown.js";
 
@@ -192,39 +193,42 @@ describe("highlight", () => {
 describe("the content directory is the site", () => {
   const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
-  it("nav.json orders the pages, front matter titles and describes them, and the outline is the headings", () => {
-    const site = readSite(here("../content"));
+  it("site.json orders the pages, front matter titles and describes them, and the outline is the headings", () => {
+    const site = readSite(siteDir("docs"));
 
-    expect(site.pages.map(({ id }) => id)).toEqual(["introduction", "guides-getting-started", "guides-state", "guides-views", "guides-plugins", "reference-api", "reference-errors"]);
+    expect(site.pages.map(({ id }) => id)).toEqual(["docs-introduction", "docs-guides-getting-started", "docs-guides-state", "docs-guides-views", "docs-guides-plugins", "docs-reference-api", "docs-reference-errors"]);
     expect(site.pages.map(({ path }) => path)[1]).toBe("/docs/guides/getting-started");
     expect(site.pages[1]!.section).toBe("Guides");
     expect(site.pages[0]!.description).toContain("one place");
     expect(site.pages[2]!.outline.map(({ label }) => label)).toEqual(["Rules", "Commands", "A command that waits", "Ending"]);
     expect(site.pages.every((page) => page.description !== "")).toBe(true);
+    expect(site.pages.every((page) => page.layout === "doc" && page.collection === "docs" && page.locale === "en" && page.version === "")).toBe(true);
+    expect(site.pages[2]).toMatchObject({ slug: "docs/guides/state" });
   });
 
-  it("every example in snippets/ is used by a page, and every page example is a snippet (nothing is dead, nothing is unchecked)", () => {
-    const used = new Set(readdirSync(here("../content/docs"), { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(".md")).flatMap((name) => [...readFileSync(join(here("../content/docs"), name), "utf8").matchAll(/file=snippets\/(\S+)/g)].map((found) => found[1]!)));
-    const present = readdirSync(here("../snippets")).filter((name) => name.endsWith(".ts"));
+  it.each(SITES)("%s: every example in its snippets/ is used by a page, and every page example is a snippet (nothing is dead, nothing is unchecked)", (name) => {
+    const content = join(siteDir(name), "content");
+    const used = new Set(readdirSync(content, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".md")).flatMap((file) => [...readFileSync(join(content, file), "utf8").matchAll(/file=snippets\/(\S+)/g)].map((found) => found[1]!)));
+    const present = readdirSync(join(siteDir(name), "snippets")).filter((file) => file.endsWith(".ts"));
 
     // `counter-views.ts` is shown on the getting-started page, and imported by `counter.ts`.
-    expect(present.filter((name) => !used.has(name))).toEqual([]);
-    expect([...used].filter((name) => !present.includes(name))).toEqual([]);
+    expect(present.filter((file) => !used.has(file))).toEqual([]);
+    expect([...used].filter((file) => !present.includes(file))).toEqual([]);
   });
 
   describe("a mistake fails the build, with where it is", () => {
-    const site = (pages: Readonly<Record<string, string>>, snippets: Readonly<Record<string, string>> = {}, nav: Readonly<Record<string, unknown>> = {}): string => {
+    const site = (pages: Readonly<Record<string, string>>, snippets: Readonly<Record<string, string>> = {}, config: Readonly<Record<string, unknown>> = {}): string => {
       const root = mkdtempSync(join(tmpdir(), "verifier-"));
 
       mkdirSync(join(root, "content", "docs", "guides"), { recursive: true });
       mkdirSync(join(root, "snippets"));
-      writeFileSync(join(root, "content", "nav.json"), JSON.stringify({ site: "x", ...nav, sections: [{ title: "", pages: Object.keys(pages) }] }));
+      writeFileSync(join(root, "site.json"), JSON.stringify({ name: "x", ...config, collections: [{ name: "docs", dir: "docs", path: "/docs", layout: "doc", sections: [{ title: "", pages: Object.keys(pages) }] }] }));
 
       for (const [name, text] of Object.entries(pages)) { writeFileSync(join(root, "content", "docs", `${name}.md`), text); }
 
       for (const [name, text] of Object.entries(snippets)) { writeFileSync(join(root, "snippets", name), text); }
 
-      return join(root, "content");
+      return root;
     };
     const page = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`;
     const message = (dir: string): string => { try { readSite(dir); } catch (error) { return String((error as Error).message); } throw new Error("expected the build to fail"); };
@@ -238,8 +242,8 @@ describe("the content directory is the site", () => {
     it("a page nav.json names and nobody wrote", () => {
       const dir = site({ a: page("A", "# A\n") });
 
-      writeFileSync(join(dir, "nav.json"), JSON.stringify({ site: "x", sections: [{ title: "", pages: ["a", "ghost"] }] }));
-      expect(message(dir)).toBe('content/nav.json:1: nav.json names the page "ghost" and content/docs/ghost.md does not exist');
+      writeFileSync(join(dir, "site.json"), JSON.stringify({ name: "x", collections: [{ name: "docs", dir: "docs", path: "/docs", layout: "doc", sections: [{ title: "", pages: ["a", "ghost"] }] }] }));
+      expect(message(dir)).toBe('site.json:1: site.json names the page "ghost" of "docs" and content/docs/ghost.md does not exist');
     });
 
     it("a mistake in a page is reported at the page's own line, past its front matter", () => {

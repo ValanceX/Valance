@@ -5,6 +5,7 @@ import type { Plugin } from "@valancex/valance/web/plugin";
 import { Schema } from "effect";
 
 import { Clipboard, Index, Pages, Storage } from "../app/capabilities.js";
+import { contentFile } from "../app/routes.js";
 import { SearchIndex } from "../model/search.js";
 import { Page } from "../model/site.js";
 import type { AppState } from "../app/state.js";
@@ -68,7 +69,7 @@ export const browserPlatform = (win: Window, built: Pick<Built, "base" | "search
 
       if (known !== undefined) { return known; }
 
-      const url = `${base}${path.replace(/^\//, "")}/index.json`;
+      const url = `${base}${contentFile(path)}`;
       const loading = win.fetch(url).then((response) => {
         if (!response.ok) { throw new Error(`${url} answered ${response.status}`); }
 
@@ -82,5 +83,5 @@ export const browserPlatform = (win: Window, built: Pick<Built, "base" | "search
     },
   });
 
-  return { name: "docs-browser", platform: Nexus.Capability.EnvironmentLive(resolutions) };
+  return { name: "site-browser", platform: Nexus.Capability.EnvironmentLive(resolutions) };
 };

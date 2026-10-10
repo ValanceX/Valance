@@ -15,8 +15,8 @@ let served: Awaited<ReturnType<typeof serveStatic>>;
 let browser: Browser;
 
 beforeAll(async () => {
-  execFileSync("pnpm", ["run", "build"], { cwd: process.cwd(), stdio: "pipe" });
-  served = await serveStatic(join(process.cwd(), "dist", "site"));
+  execFileSync("pnpm", ["run", "build"], { cwd: process.cwd(), stdio: "pipe", env: { ...process.env, SITE: "docs" } });
+  served = await serveStatic(join(process.cwd(), "dist", "docs"));
   browser = await chromium.launch();
 });
 
@@ -288,7 +288,7 @@ it("searches the site: results as you type, a result goes to its section and cle
   const documents: Array<string> = [];
 
   page.on("request", (request) => { if (request.resourceType() === "document") { documents.push(request.url()); } });
-  await page.getByRole("searchbox", { name: "Search the documentation" }).fill("waits");
+  await page.getByRole("searchbox", { name: "Search the site" }).fill("waits");
   await page.getByRole("status").filter({ hasText: /results?$/ }).waitFor();
 
   const first = page.locator("a.hit").first();
@@ -333,7 +333,7 @@ it("remembers the theme and the code group's tab for the next visit, and takes t
   await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
   await page.getByRole("button", { name: "Use the dark theme" }).click();
   await page.getByRole("tab", { name: "yarn", exact: true }).click();
-  await page.waitForFunction(() => localStorage.getItem("docs.theme") === "dark" && localStorage.getItem("docs.tabs") === '{"pkg":"yarn"}');
+  await page.waitForFunction(() => localStorage.getItem("kit.theme") === "dark" && localStorage.getItem("kit.tabs") === '{"pkg":"yarn"}');
 
   await page.reload();
   await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
@@ -448,7 +448,7 @@ it("going somewhere else while a page is on its way: the one asked for last is t
 // ---- delivered per request, and served from under a base --------------------------------------------------------------------------------------------------------------------
 
 it("the same site rendered per request (opt-in) hydrates and navigates the same way, fetching its pages from the renderer", async () => {
-  const rendered = await serveSsr(readGeneratedSite(), join(process.cwd(), "dist", "site"));
+  const rendered = await serveSsr(readGeneratedSite(), join(process.cwd(), "dist", "docs"));
 
   try {
     const context = await browser.newContext();
@@ -470,10 +470,10 @@ it("the same site rendered per request (opt-in) hydrates and navigates the same 
 
 it("served from under a base, every address is under it: the document, its assets, its pages' content, its search; and what is outside it is not the site", async () => {
   const base = "/valance/";
-  const dir = join(process.cwd(), "dist", "site-base");
+  const dir = join(process.cwd(), "dist", "docs-base");
 
-  execFileSync("pnpm", ["exec", "vite", "build", "-c", "vite.page.config.ts", "--base", base, "--outDir", "dist/site-base"], { cwd: process.cwd(), stdio: "pipe" });
-  execFileSync("node", ["scripts/finish-build.mjs", "dist/site-base"], { cwd: process.cwd(), stdio: "pipe" });
+  execFileSync("pnpm", ["exec", "vite", "build", "-c", "vite.page.config.ts", "--base", base, "--outDir", "dist/docs-base"], { cwd: process.cwd(), stdio: "pipe" });
+  execFileSync("node", ["scripts/finish-build.mjs", "dist/docs-base"], { cwd: process.cwd(), stdio: "pipe" });
   await exportSite({ ...readGeneratedSite(), base, url: "https://example.com" }, dir, await builtAssets(dir, base));
 
   const hosted = await serveStatic(dir, { base });

@@ -15,6 +15,7 @@ import type { Site, SiteMap } from "../model/site.js";
 import { mapOf } from "../model/site.js";
 import { contentOf } from "../app/content.js";
 import { initial } from "../app/state.js";
+import { siteDir } from "./sites.js";
 import { readSite } from "../tooling/content.js";
 import { buildSearchIndex } from "../tooling/search.js";
 import { compilePage } from "../web/compile.js";
@@ -25,7 +26,7 @@ let map: SiteMap;
 let index: SearchIndex;
 
 beforeAll(() => {
-  site = readSite(fileURLToPath(new URL("../content", import.meta.url)));
+  site = readSite(siteDir("docs"));
   map = mapOf(site);
   index = buildSearchIndex(site);
 });
@@ -39,7 +40,7 @@ const run = async (fakes: Fakes = { clipboard: async () => undefined, storage: {
   const program = await compilePage();
   const scope = Effect.runSync(Scope.make());
   const made = fakePlatform({ pages: async (path) => site.pages.find((page) => page.path === path)!, ...fakes });
-  const handle = await Effect.runPromise(Valance.start(application(program, map), { platform: made.platform, state: onPage("guides-getting-started") }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
+  const handle = await Effect.runPromise(Valance.start(application(program, map), { platform: made.platform, state: onPage("docs-guides-getting-started") }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
 
   return {
     written: made.written,
@@ -51,7 +52,7 @@ const run = async (fakes: Fakes = { clipboard: async () => undefined, storage: {
 };
 
 const firstCode = (): { readonly id: string; readonly text: string } => {
-  const page = site.pages.find((candidate) => candidate.id === "guides-getting-started")!;
+  const page = site.pages.find((candidate) => candidate.id === "docs-guides-getting-started")!;
   const group = page.blocks.find((block) => block.kind === "codegroup")!;
 
   if (group.kind !== "codegroup") { throw new Error("expected a code group"); }
@@ -76,7 +77,7 @@ describe("the clipboard", () => {
 
     await t.invoke("app/copyCode", id);
     expect(t.state()).toMatchObject({ copied: "", copyFailed: id });
-    expect(pageScope(map, { ...t.state(), page: "guides-getting-started" }).blocks.flatMap((block) => block.tabs).find((tab) => tab.id === id)?.copyLabel).toBe("Failed");
+    expect(pageScope(map, { ...t.state(), page: "docs-guides-getting-started" }).blocks.flatMap((block) => block.tabs).find((tab) => tab.id === id)?.copyLabel).toBe("Failed");
     await t.close();
   });
 
@@ -119,13 +120,13 @@ describe("what the reader chose", () => {
 
     await t.invoke("app/setTheme", "dark");
     await t.invoke("app/selectTab", "pkg|pnpm");
-    expect(storage).toEqual({ "docs.theme": "dark", "docs.tabs": '{"pkg":"pnpm"}' });
+    expect(storage).toEqual({ "kit.theme": "dark", "kit.tabs": '{"pkg":"pnpm"}' });
     expect(t.state()).toMatchObject({ theme: "dark", tabs: { pkg: "pnpm" } });
     await t.close();
   });
 
   it("and taken back, once asked, on the next visit", async () => {
-    const t = await run({ clipboard: undefined, storage: { "docs.theme": "light", "docs.tabs": '{"pkg":"yarn"}' } });
+    const t = await run({ clipboard: undefined, storage: { "kit.theme": "light", "kit.tabs": '{"pkg":"yarn"}' } });
 
     expect(t.state()).toMatchObject({ theme: "system", tabs: {} });           // nothing is applied by itself: a choice drawn before the page took over would not match the server's HTML
     await t.invoke("app/restore");
@@ -134,7 +135,7 @@ describe("what the reader chose", () => {
   });
 
   it("what is stored but is not a choice is ignored, not trusted", async () => {
-    const t = await run({ clipboard: undefined, storage: { "docs.theme": "sepia", "docs.tabs": "{not json" } });
+    const t = await run({ clipboard: undefined, storage: { "kit.theme": "sepia", "kit.tabs": "{not json" } });
 
     await t.invoke("app/restore");
     expect(t.state()).toMatchObject({ theme: "system", tabs: {} });
@@ -242,7 +243,7 @@ describe("search", () => {
 
     void t.invoke("app/search", "state");
     await settle();
-    await t.invoke("app/go", "guides-plugins");
+    await t.invoke("app/go", "docs-guides-plugins");
     load(index); await settle();
     expect(t.state().search).toEqual({ query: "", status: "idle", hits: [] });
     await t.close();
@@ -253,10 +254,10 @@ describe("the heading the reader is at", () => {
   it("is reported by the scroll adapter, marked in the outline, and cleared by moving on", async () => {
     const t = await run();
 
-    await t.invoke("app/go", "guides-state");
+    await t.invoke("app/go", "docs-guides-state");
     await t.invoke("app/setActive", "commands");
     expect(pageScope(map, t.state()).toc.map((entry) => [entry.href, entry.current])).toEqual([["#rules", "false"], ["#commands", "location"], ["#a-command-that-waits", "false"], ["#ending", "false"]]);
-    await t.invoke("app/go", "guides-views");
+    await t.invoke("app/go", "docs-guides-views");
     expect(t.state().active).toBe("");
     await t.close();
   });
@@ -278,7 +279,7 @@ describe("the application asks for abilities, it does not reach for them", () =>
   it("names no browser, and every capability it asks for has a contract of its own", async () => {
     const { Clipboard, Index, Storage } = await import("../app/capabilities.js");
 
-    expect([Clipboard.id, Storage.id, Index.id]).toEqual(["docs/clipboard", "docs/storage", "docs/search-index"]);
+    expect([Clipboard.id, Storage.id, Index.id]).toEqual(["kit/clipboard", "kit/storage", "kit/search-index"]);
     expect(Nexus.Capability.define).toBeTypeOf("function");
   });
 });

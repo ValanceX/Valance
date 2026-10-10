@@ -9,6 +9,7 @@ import type { Page, SiteMap } from "../model/site.js";
 
 import { Clipboard, Index, Pages, Storage } from "./capabilities.js";
 import { missing } from "./content.js";
+import { isNotFound } from "./variants.js";
 import { search } from "./search.js";
 import { pageScope } from "./scope.js";
 import { AppState, initial, Theme } from "./state.js";
@@ -28,7 +29,7 @@ export const copyTextOf = (page: Page, id: string): string | undefined => {
   return undefined;
 };
 
-const STORED = { theme: "docs.theme", tabs: "docs.tabs" } as const;
+const STORED = { theme: "kit.theme", tabs: "kit.tabs" } as const;
 
 /** Best effort: remember `value` if the platform has a store, and carry on if it has none or refuses. */
 const remember = (key: string, value: string) => Nexus.Capability.resolve(Storage).pipe(
@@ -52,7 +53,7 @@ export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => 
         const found = map.pages.find((page) => page.id === id);
 
         return found === undefined
-          ? Effect.succeed(missing)
+          ? Effect.succeed(missing(map, isNotFound(id) ? id : "not-found"))
           : Nexus.Capability.require(Pages).pipe(Effect.flatMap((pages) => Effect.tryPromise(() => pages.load(found.path))));
       },
       wanted: ({ id }, current) => current.page === id,
@@ -62,7 +63,7 @@ export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => 
      * A code block's copy button was pressed: put its text on the clipboard, and say what happened. The page says "Copied" only when the clipboard took it, and "Failed" when it did
      * not (no clipboard on this platform, or the browser refused), so the label is never a claim the application did not check.
      */
-    copyCode: Nexus.Command.define("docs.copyCode", Schema.Struct({ blockId: Schema.String }), ({ blockId }) => Effect.gen(function* () {
+    copyCode: Nexus.Command.define("kit.copyCode", Schema.Struct({ blockId: Schema.String }), ({ blockId }) => Effect.gen(function* () {
       const text = copyTextOf((yield* state.get).content, blockId);
       const copied = text === undefined
         ? false
@@ -77,7 +78,7 @@ export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => 
     /** Open or close the navigation on a small screen. */
     toggleMenu: command(Schema.Struct({}), (_input, current) => ({ ...current, menu: !current.menu })),
     /** Choose a tab of a code group, and remember the choice. `tab` is `<group>|<label>`; anything else changes nothing. */
-    selectTab: Nexus.Command.define("docs.selectTab", Schema.Struct({ tab: Schema.String }), ({ tab }) => Effect.gen(function* () {
+    selectTab: Nexus.Command.define("kit.selectTab", Schema.Struct({ tab: Schema.String }), ({ tab }) => Effect.gen(function* () {
       const at = tab.indexOf("|");
 
       if (at <= 0) { return; }
@@ -87,12 +88,12 @@ export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => 
       yield* remember(STORED.tabs, JSON.stringify(next.tabs));
     })),
     /** Choose the colour theme, and remember the choice. */
-    setTheme: Nexus.Command.define("docs.setTheme", Schema.Struct({ theme: Theme }), ({ theme }) => Effect.gen(function* () {
+    setTheme: Nexus.Command.define("kit.setTheme", Schema.Struct({ theme: Theme }), ({ theme }) => Effect.gen(function* () {
       yield* state.update((current) => Effect.succeed({ ...current, theme }));
       yield* remember(STORED.theme, theme);
     })),
     /** Take back what the reader chose on an earlier visit. Run once the page has taken over (a choice drawn before then would not match the server's HTML). Nothing stored, nothing changes. */
-    restore: Nexus.Command.define("docs.restore", Schema.Struct({}), () => Effect.gen(function* () {
+    restore: Nexus.Command.define("kit.restore", Schema.Struct({}), () => Effect.gen(function* () {
       const store = yield* Nexus.Capability.resolve(Storage);
 
       if (store._tag !== "Available") { return; }
@@ -114,7 +115,12 @@ export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => 
       begin: ({ query }, current) => ({ ...current, search: { query, status: query.trim() === "" ? "idle" : "loading", hits: [] } }),
       work: ({ query }) => query.trim() === ""
         ? Effect.succeed([])
-        : Nexus.Capability.require(Index).pipe(Effect.flatMap((index) => Effect.tryPromise(() => index.load())), Effect.map((loaded) => search(loaded, query))),
+        : Effect.gen(function* () {
+          const loaded = yield* Nexus.Capability.require(Index).pipe(Effect.flatMap((index) => Effect.tryPromise(() => index.load())));
+          const { content } = yield* state.get;
+
+          return search(loaded, query, { locale: content.locale, version: content.version });
+        }),
       wanted: ({ query }, current) => current.search.query === query && current.search.status === "loading",
       settle: (outcome, { query }, current) => ({ ...current, search: outcome.ok ? { query, status: "ready", hits: outcome.value } : { query, status: "failed", hits: [] } }),
     }),
@@ -122,7 +128,7 @@ export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => 
 };
 
 export const application = (program: Valance.Program, map: SiteMap) => Valance.define({
-  name: "docs",
+  name: "site",
   state: { schema: AppState, initial },
   views: { page: { program, scope: (state: AppState) => pageScope(map, state) } },
   view: () => "page" as const,

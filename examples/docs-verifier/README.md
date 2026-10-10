@@ -10,11 +10,44 @@ After that, a more complex specialised app takes over as the verifier.
 
 See `ROADMAP.md` for where this is going (a complete, styled, statically generated documentation site) and `EXTERNALS.md` for the pieces that are deliberately outside VALANCE and plug in through its seams.
 
+## Sites
+
+The kit (everything outside `sites/`) builds any number of sites, all the same way. A site is a directory under `sites/` that holds **data and no code**: a `site.json`, its markdown, the examples its pages show, and optionally a theme.
+
+| Site | Is | Shows |
+|---|---|---|
+| `docs` | documentation: sections, an outline beside each page, a pager | the original verifier |
+| `blog` | posts newest first, an index, a page of tags and one per tag, a feed | a layout that is one column with a date, author and tags |
+| `landing` | one page at `/` with a hero and cards, the full width | markdown containers (`::: hero`, `::: cards`) |
+| `handbook` | documentation in two versions (`v2` at the root, `v1` under `/v1`) and two languages (`fr` under `/fr`) | switchers, `hreflang`, canonical addresses, a translated interface |
+
+```
+SITE=blog pnpm build        # content, views, page bundle, the static site in dist/blog (default SITE=docs)
+SITE=blog pnpm start        # serve dist/blog as a static host does (start:ssr renders per request)
+pnpm build:all              # every site in sites/
+```
+
+`site.json`:
+
+| Field | Meaning |
+|---|---|
+| `name`, `footer` | the site's name (the brand and the end of every title) and the words at the bottom |
+| `base`, `url` | where it is served from (`/` or `/docs-site/`) and the origin it is published at (for the sitemap, absolute canonical addresses and the feed) |
+| `header` | links at the top: `{ "label", "href", "labels": { "fr": "…" } }` |
+| `defaultLocale`, `locales` | the languages: `{ "code", "name", "ui": { … } }`; `ui` gives the words of the interface in that language (the keys are in `model/ui.ts`), the rest stay English |
+| `collections` | the site's pages: `{ "name", "dir", "path", "layout", "sections"?, "versions"?, "list"?, "feed"? }` |
+
+A collection's `layout` is `doc`, `post`, `landing` or `list`; `sections` fixes the order of its pages (otherwise every file in `content/<dir>` is a page, newest first for posts); `versions` (newest first) are directories, the first served without a prefix; `list` generates an index and, with `"tags": true`, the tags; `feed` writes `feed.xml`. A translation of `name.md` is `name.fr.md` beside it. A page's front matter is `title`, and `description`, `date`, `author`, `tags` and `layout`.
+
+Links in content are written as `/docs/guides/state`, without a language or version: they go to the page in the reader's own language and version, or to the nearest that exists, and a link to nowhere fails the build. `/v1/docs/x` names a version; `latest:/docs/x` names the newest.
+
+A theme (`sites/<site>/theme.css`) may declare custom properties and nothing else (`test/sites.test.ts` checks it).
+
 ## Layers
 
 ```
-content/   markdown + nav.json         data only, no code
-snippets/  the examples the content    TypeScript, compiled with the project (tsc); included by `file=`
+sites/     one directory per site      data only: site.json, content/*.md, theme.css, and snippets/*.ts (TypeScript, compiled
+                                       with the project and included by `file=`)
 model/     Block, Page, Site schemas   imports effect only
 tooling/   markdown -> generated site  imports model, node:*
 app/       state, routes, scope,       imports effect, @valancex/valance core, model

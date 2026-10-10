@@ -13,7 +13,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
 
 import { contentOf } from "../app/content.js";
-import { routes } from "../app/routes.js";
+import { contentFile, routes } from "../app/routes.js";
 import type { Site } from "../model/site.js";
 import { mapOf } from "../model/site.js";
 
@@ -33,9 +33,15 @@ export const builtAssets = async (dir: string, base = "/"): Promise<Built> => {
   if (entry === undefined) { throw new Error("the build has no entry chunk"); }
 
   const style = entry.css?.[0];
-  const search = (JSON.parse(await readFile(join(dir, "built.json"), "utf8").catch(() => "{}")) as { readonly search?: string }).search;
+  const found = JSON.parse(await readFile(join(dir, "built.json"), "utf8").catch(() => "{}")) as { readonly search?: string; readonly theme?: string };
 
-  return { base, script: `${base}${entry.file}`, ...(style === undefined ? {} : { style: `${base}${style}` }), ...(search === undefined ? {} : { search: `${base}${search}` }) };
+  return {
+    base,
+    script: `${base}${entry.file}`,
+    ...(style === undefined ? {} : { style: `${base}${style}` }),
+    ...(found.theme === undefined ? {} : { theme: `${base}${found.theme}` }),
+    ...(found.search === undefined ? {} : { search: `${base}${found.search}` }),
+  };
 };
 
 /** The path of `pathname` inside the site, or nothing when it is outside `base`. */
@@ -103,7 +109,7 @@ export const serveSsr = async (site: Site, dir: string, options: { readonly port
   const built = await builtAssets(dir, site.base);
   const map = mapOf(site);
   const { known } = routes(map);
-  const byPath = new Map<string, string>(site.pages.map((page) => [`${site.base}${page.path.slice(1)}/index.json`, page.id]));
+  const byPath = new Map<string, string>(site.pages.map((page) => [`${site.base}${contentFile(page.path)}`, page.id]));
   const root = normalize(dir);
 
   return listen(async (pathname, respond) => {

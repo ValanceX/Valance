@@ -29,6 +29,10 @@ export interface LinkTag {
   readonly href: string;
   readonly as?: string;
   readonly type?: string;
+  /** The language of the document it points to: an `alternate` in another language (`hreflang`). */
+  readonly hreflang?: string;
+  /** What a reader or a feed reader calls it (`title`): a feed's name. */
+  readonly title?: string;
 }
 
 /** What the document's head says for a state: the one title, and the metas and links that go with it. Plain data, the same on the server and in the browser. */
@@ -116,8 +120,7 @@ const APPLICATION = "the application";
  *   primitives  a tag is declared once. Two declarations of one tag are a `plugin-conflict`, naming both owners; nothing is overridden silently.
  *   routes      one URL policy. The application's own `history` and a plugin's `routes`, or two plugins' `routes`, are a `plugin-conflict`.
  *   platform    merged in order (`mergePlatforms`): plugins as listed, the application's own last, so a capability provided twice is the later one's.
- *   head        merged in order, the application's own first. The title is the first one defined; a meta is identified by its name or property and a link by its rel and
- *               href, and the first one wins; the rest are appended in order.
+ *   head        merged in order, the application's own first. The title is the first one defined; a meta is identified by its name or property and a link by its rel, href and language, and the first one wins; the rest are appended in order.
  *
  * Pure, and the same inputs give the same output.
  */
@@ -205,7 +208,7 @@ export const mergeHeads = (heads: ReadonlyArray<HeadTags>): HeadTags => {
     }
 
     for (const tag of head.links ?? []) {
-      const key = `${tag.rel}\n${tag.href}`;
+      const key = `${tag.rel}\n${tag.href}\n${tag.hreflang ?? ""}`;
 
       if (!links.has(key)) { links.set(key, tag); }
     }
@@ -244,7 +247,7 @@ export const renderHead = (head: HeadTags): string => {
   return [
     title === undefined ? "" : `<title>${escapeText(title)}</title>`,
     ...meta.map((tag) => `<meta ${"name" in tag ? `name="${escapeAttribute(tag.name)}"` : `property="${escapeAttribute(tag.property)}"`} content="${escapeAttribute(tag.content)}" ${HEAD_MARK}>`),
-    ...links.map((tag) => `<link rel="${escapeAttribute(tag.rel)}" href="${escapeAttribute(tag.href)}"${tag.as === undefined ? "" : ` as="${escapeAttribute(tag.as)}"`}${tag.type === undefined ? "" : ` type="${escapeAttribute(tag.type)}"`} ${HEAD_MARK}>`)
+    ...links.map((tag) => `<link rel="${escapeAttribute(tag.rel)}" href="${escapeAttribute(tag.href)}"${tag.as === undefined ? "" : ` as="${escapeAttribute(tag.as)}"`}${tag.type === undefined ? "" : ` type="${escapeAttribute(tag.type)}"`}${tag.hreflang === undefined ? "" : ` hreflang="${escapeAttribute(tag.hreflang)}"`}${tag.title === undefined ? "" : ` title="${escapeAttribute(tag.title)}"`} ${HEAD_MARK}>`)
   ].join("");
 };
 
@@ -279,6 +282,6 @@ export const applyHead = (document: Document, head: HeadTags): void => {
   }
 
   for (const tag of links) {
-    add("link", { rel: tag.rel, href: tag.href, as: tag.as, type: tag.type });
+    add("link", { rel: tag.rel, href: tag.href, as: tag.as, type: tag.type, hreflang: tag.hreflang, title: tag.title });
   }
 };

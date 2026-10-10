@@ -1,12 +1,27 @@
-<shell class="shell" theme={theme} menu={menu}>
+<shell class="shell" theme={theme} menu={menu} layout={layout} lang={lang}>
   <header class="bar">
-    <toggle class="menu-button" label="Navigation" pressed={menu} on.click={toggleMenu()}>Menu</toggle>
+    <mesh-if when={showNav}><toggle class="menu-button" label={ui.navigation} pressed={menu} on.click={toggleMenu()}>{ui.menu}</toggle></mesh-if>
     <navLink class="brand" href={home} current="false">{site}</navLink>
-    <searchbox class="search" label="Search the documentation" placeholder="Search" type="search" value={query} on.input={search($event)} />
-    <nav class="themes" label="Colour theme">
-      <toggle class="theme-option" label="Follow the system theme" pressed={theme == "system" ? "true" : "false"} on.click={setTheme("system")}>Auto</toggle>
-      <toggle class="theme-option" label="Use the light theme" pressed={theme == "light" ? "true" : "false"} on.click={setTheme("light")}>Light</toggle>
-      <toggle class="theme-option" label="Use the dark theme" pressed={theme == "dark" ? "true" : "false"} on.click={setTheme("dark")}>Dark</toggle>
+    <mesh-if when={hasHeader}>
+      <nav class="header-links" label={ui.navigation}>
+        <mesh-each items={header} as="l" key={l.id}><navLink class="header-link" href={l.href} current="false">{l.label}</navLink></mesh-each>
+      </nav>
+    </mesh-if>
+    <searchbox class="search" label={ui.searchLabel} placeholder={ui.search} type="search" value={query} on.input={search($event)} />
+    <mesh-if when={hasVersions}>
+      <nav class="switch" label={ui.version}>
+        <mesh-each items={versions} as="v" key={v.id}><choiceLink class="switch-link" href={v.href} current={v.current} lang={lang} hreflang={lang}>{v.label}</choiceLink></mesh-each>
+      </nav>
+    </mesh-if>
+    <mesh-if when={hasLocales}>
+      <nav class="switch" label={ui.language}>
+        <mesh-each items={locales} as="l" key={l.id}><choiceLink class="switch-link" href={l.href} current={l.current} lang={l.code} hreflang={l.code}>{l.label}</choiceLink></mesh-each>
+      </nav>
+    </mesh-if>
+    <nav class="themes" label={ui.colourTheme}>
+      <toggle class="theme-option" label={ui.themeSystemLabel} pressed={theme == "system" ? "true" : "false"} on.click={setTheme("system")}>{ui.themeSystem}</toggle>
+      <toggle class="theme-option" label={ui.themeLightLabel} pressed={theme == "light" ? "true" : "false"} on.click={setTheme("light")}>{ui.themeLight}</toggle>
+      <toggle class="theme-option" label={ui.themeDarkLabel} pressed={theme == "dark" ? "true" : "false"} on.click={setTheme("dark")}>{ui.themeDark}</toggle>
     </nav>
   </header>
   <mesh-slot name="search" />
@@ -15,5 +30,5 @@
     <mesh-slot />
     <mesh-slot name="toc" />
   </div>
-  <footer>The features verifier: a documentation site on the development branches</footer>
+  <footer>{footer}</footer>
 </shell>

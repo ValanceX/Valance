@@ -5,8 +5,9 @@ import { Effect, Layer } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it, vi } from "vitest";
 
-import { Clipboard, Index, Storage } from "../app/capabilities.js";
+import { Clipboard, Index, Pages, Storage } from "../app/capabilities.js";
 import type { SearchIndex } from "../model/search.js";
+import { followLanguage } from "../web/language.js";
 import { afterNavigation } from "../web/navigation.js";
 import { browserPlatform } from "../web/platform.js";
 import { activeAnchor, watchHeadings } from "../web/scrollspy.js";
@@ -78,7 +79,7 @@ describe("the browser's platform", () => {
     expect(found._tag === "Available" && (() => { found.implementation.set("k", "v"); return true; })()).toBe(true);
   });
 
-  const index: SearchIndex = { entries: [{ id: "a#", href: "/a", title: "A", section: "", heading: "", text: "alpha" }] };
+  const index: SearchIndex = { entries: [{ id: "a#", locale: "en", version: "", href: "/a", title: "A", section: "", heading: "", text: "alpha" }] };
 
   it("loads the index from where the build put it, once, and checks what arrives", async () => {
     const { win } = page();
@@ -113,6 +114,22 @@ describe("the browser's platform", () => {
     body = index;
     expect(await found.implementation.load()).toEqual(index);
     expect(asks).toBe(2);
+  });
+
+  it("fetches a page's content from beside its document: the file for a page at the root is index.json, not a protocol-relative address", async () => {
+    const { win } = page();
+    const asked: Array<string> = [];
+
+    win.fetch = (async (url: string) => { asked.push(url); return { ok: true, status: 200, json: async () => ({ id: "home" }) }; }) as unknown as typeof win.fetch;
+
+    const found = await resolve(platformOf(win, {}), Pages);
+
+    if (found._tag === "Available") {
+      await found.implementation.load("/").catch(() => undefined);                       // the content is not a page, so decoding refuses it; the address is what is checked
+      await found.implementation.load("/docs/guides/state").catch(() => undefined);
+    }
+
+    expect(asked).toEqual(["/index.json", "/docs/guides/state/index.json"]);
   });
 
   it("a server that answers with an error is a failure, and a build with no index says so", async () => {
@@ -243,5 +260,44 @@ describe("the heading the reader is at", () => {
     win.document.querySelector("#app")!.append(win.document.createElement("p"));
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(seen).toEqual(["", "one"]);
+  });
+});
+
+describe("the language of the document", () => {
+  const shell = (win: Page, lang: string): Element => {
+    const element = win.document.createElement("div");
+
+    element.className = "shell";
+    element.setAttribute("lang", lang);
+    win.document.querySelector("#app")!.replaceChildren(element);
+
+    return element;
+  };
+
+  it("is the language of the page drawn, at the start and when the page changes language in place or is replaced", async () => {
+    const { win } = page("");
+    const container = win.document.querySelector("#app")!;
+    const first = shell(win, "fr");
+    const stop = followLanguage(win, container);
+
+    expect(win.document.documentElement.lang).toBe("fr");
+    first.setAttribute("lang", "en");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(win.document.documentElement.lang).toBe("en");
+    shell(win, "fr");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(win.document.documentElement.lang).toBe("fr");
+    stop();
+    shell(win, "en");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(win.document.documentElement.lang).toBe("fr");                               // stopped: it follows no more
+  });
+
+  it("leaves the document alone when the page says no language", () => {
+    const { win } = page("");
+
+    win.document.documentElement.lang = "de";
+    followLanguage(win, win.document.querySelector("#app")!);
+    expect(win.document.documentElement.lang).toBe("de");
   });
 });

@@ -1,0 +1,5 @@
+<div class="post-meta">
+  <time class="post-date" datetime={post.iso}>{post.date}</time>
+  <mesh-if when={post.hasAuthor}><span class="post-author">{post.byline}</span></mesh-if>
+  <mesh-if when={post.hasTags}><list class="tags"><mesh-each items={post.tags} as="t" key={t.id}><item><navLink class="tag" href={t.href} current="false">{t.label}</navLink></item></mesh-each></list></mesh-if>
+</div>

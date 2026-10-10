@@ -1,0 +1,61 @@
+{
+  "name": "Handbook",
+  "footer": "A handbook in two versions and two languages, drawn by the same kit as everything else.",
+  "defaultLocale": "en",
+  "locales": [
+    {
+      "code": "en",
+      "name": "English"
+    },
+    {
+      "code": "fr",
+      "name": "Français",
+      "ui": {
+        "menu": "Menu",
+        "navigation": "Navigation",
+        "documentation": "Documentation",
+        "search": "Rechercher",
+        "searchLabel": "Rechercher dans le site",
+        "colourTheme": "Thème de couleurs",
+        "themeSystem": "Auto",
+        "themeSystemLabel": "Suivre le thème du système",
+        "themeLight": "Clair",
+        "themeLightLabel": "Utiliser le thème clair",
+        "themeDark": "Sombre",
+        "themeDarkLabel": "Utiliser le thème sombre",
+        "onThisPage": "Sur cette page",
+        "previousAndNext": "Page précédente et suivante",
+        "linkToSection": "Lien vers cette section",
+        "copy": "Copier",
+        "copied": "Copié",
+        "failed": "Échec",
+        "alternatives": "Variantes",
+        "searching": "Recherche…",
+        "searchUnavailable": "La recherche n’est pas disponible pour le moment.",
+        "noResults": "Aucun résultat pour « {query} ».",
+        "oneResult": "1 résultat",
+        "results": "{count} résultats",
+        "couldNotLoad": "Cette page n’a pas pu être chargée",
+        "connectionDropped": "La connexion a peut-être été interrompue. ",
+        "tryAgain": "Réessayer",
+        "notFound": "Introuvable",
+        "noSuchPage": "Cette page n’existe pas.",
+        "language": "Langue",
+        "version": "Version"
+      }
+    }
+  ],
+  "collections": [
+    {
+      "name": "docs",
+      "dir": "docs",
+      "path": "/docs",
+      "layout": "doc",
+      "versions": [{ "code": "v2", "label": "v2" }, { "code": "v1", "label": "v1" }],
+      "sections": [
+        { "title": "Start", "titles": { "fr": "Démarrer" }, "pages": ["introduction", "install"] },
+        { "title": "More", "titles": { "fr": "Plus" }, "pages": ["upgrading"] }
+      ]
+    }
+  ]
+}

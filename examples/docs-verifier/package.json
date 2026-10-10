@@ -13,6 +13,7 @@
     "build:content": "pnpm build:server && node dist/server/tooling/build-content.js",
     "build:program": "node dist/server/web/build-program.js",
     "build:page": "vite build -c vite.page.config.ts && node scripts/finish-build.mjs",
+    "build:all": "node scripts/build-all.mjs",
     "build:site": "node dist/server/web/export-main.js",
     "build": "pnpm build:content && pnpm build:program && pnpm build:page && pnpm build:site",
     "start": "node dist/server/web/serve-main.js",

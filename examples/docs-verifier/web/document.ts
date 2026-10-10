@@ -19,8 +19,11 @@ import type { Built } from "./built.js";
 import { compilePage } from "./compile.js";
 import { plugins } from "./plugins.js";
 
+/** The name of the site being built: `SITE` in the environment, `docs` by default. */
+export const siteName = (): string => process.env["SITE"] ?? "docs";
+
 /** The site `pnpm build:content` wrote. */
-export const readGeneratedSite = (root = process.cwd()): Site => JSON.parse(readFileSync(join(root, "generated", "site.json"), "utf8")) as Site;
+export const readGeneratedSite = (name = siteName(), root = process.cwd()): Site => JSON.parse(readFileSync(join(root, "generated", name, "site.json"), "utf8")) as Site;
 
 // Programs are data and do not change while the process runs: compile once. (A failure is reported when a document is first asked for, not as an unhandled rejection at import.)
 const program = compilePage();
@@ -42,5 +45,5 @@ export const renderDocument = async (site: Site, url: string, built: Built): Pro
   const served = await Effect.runPromise(renderToHtml(application(compiled, map), { plugins: plugins(map, built), state }));
   const boot = JSON.stringify({ map, state, built }).replaceAll("<", "\\u003c");
 
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${renderHead(served.head)}</head><body><div id="app">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`;
+  return `<!doctype html><html lang="${state.content.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${renderHead(served.head)}</head><body><div id="app">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`;
 };

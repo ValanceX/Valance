@@ -1,0 +1,5 @@
+<div class="hero">
+  <h1 id="top"><runs spans={b.spans} /></h1>
+  <para class="lead"><runs spans={b.lead} /></para>
+  <div class="actions"><mesh-each items={b.actions} as="a" key={a.id}><navLink class={a.cls} href={a.href} current="false">{a.label}</navLink></mesh-each></div>
+</div>

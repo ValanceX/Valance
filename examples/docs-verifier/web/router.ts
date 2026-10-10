@@ -8,4 +8,4 @@ import type { SiteMap } from "../model/site.js";
 
 import { afterNavigation } from "./navigation.js";
 
-export const router = (map: SiteMap): Plugin<AppState> => ({ name: "docs-router", routes: { ...routes(map), onNavigated: afterNavigation } });
+export const router = (map: SiteMap): Plugin<AppState> => ({ name: "site-router", routes: { ...routes(map), onNavigated: afterNavigation } });

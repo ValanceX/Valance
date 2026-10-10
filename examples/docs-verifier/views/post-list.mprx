@@ -1,0 +1,10 @@
+<list class="posts">
+  <mesh-each items={b.posts} as="p" key={p.id}>
+    <item>
+      <time class="post-date" datetime={p.iso}>{p.date}</time>
+      <navLink class="post-title" href={p.href} current="false">{p.title}</navLink>
+      <para class="post-summary">{p.summary}</para>
+      <mesh-if when={p.hasTags}><list class="tags"><mesh-each items={p.tags} as="t" key={t.id}><item><navLink class="tag" href={t.href} current="false">{t.label}</navLink></item></mesh-each></list></mesh-if>
+    </item>
+  </mesh-each>
+</list>

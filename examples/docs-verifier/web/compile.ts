@@ -11,9 +11,9 @@ import { kit } from "./kit.js";
 
 const view = (name: string): string => readFileSync(new URL(`../views/${name}`, import.meta.url), "utf8");
 
-export const derivedManifest = (): string => JSON.stringify(manifest({ primitives: {}, plugins: [kit()], scopes: { page: PageScope }, commands: (state) => commands(state, { name: "", base: "/", url: "", pages: [] }) }));
+export const derivedManifest = (): string => JSON.stringify(manifest({ primitives: {}, plugins: [kit()], scopes: { page: PageScope }, commands: (state) => commands(state, { name: "", base: "/", url: "", header: {}, footer: "", defaultLocale: "en", locales: [], versions: [], ui: {}, roots: [], feeds: [], pages: [] }) }));
 
-const COMPONENTS = ["page", "layout", "block", "heading", "callout", "code-block", "code-tabs", "tokens", "token", "list-block", "list-items", "table-block", "runs", "inline"] as const;
+const COMPONENTS = ["page", "layout", "block", "heading", "callout", "code-block", "code-tabs", "tokens", "token", "list-block", "list-items", "table-block", "post-meta", "hero-block", "cards-block", "post-list", "runs", "inline"] as const;
 
 export const compilePage = async () => {
   const result = await compileProgram({

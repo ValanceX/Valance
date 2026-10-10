@@ -10,13 +10,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { routes } from "../app/routes.js";
 import { Page, mapOf } from "../model/site.js";
 import type { Site } from "../model/site.js";
+import { siteDir } from "./sites.js";
 import { readSite } from "../tooling/content.js";
 import type { Built } from "../web/built.js";
 import { renderDocument } from "../web/document.js";
 import { exportSite } from "../web/export.js";
 import { serveSsr, serveStatic } from "../web/serve.js";
 
-const content = fileURLToPath(new URL("../content", import.meta.url));
+const content = siteDir("docs");
 const files = (dir: string): ReadonlyArray<string> => readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()).sort();
 const read = (dir: string, name: string): string => readFileSync(join(dir, name), "utf8");
 const built = (base: string): Built => ({ base, script: `${base}assets/page.js`, style: `${base}assets/page.css`, search: `${base}assets/search.json` });
@@ -52,8 +53,8 @@ describe("the files a site is", () => {
     const html = read(out, "docs/guides/state/index.html");
     const boot = JSON.parse(/<script id="valance-boot" type="application\/json">([\s\S]*?)<\/script>/.exec(html)![1]!.replaceAll("\\u003c", "<")) as { map: unknown; state: { page: string; content: { id: string } }; built: unknown; program?: unknown };
 
-    expect(boot.state.page).toBe("guides-state");
-    expect(boot.state.content.id).toBe("guides-state");
+    expect(boot.state.page).toBe("docs-guides-state");
+    expect(boot.state.content.id).toBe("docs-guides-state");
     expect(boot.map).toEqual(mapOf({ ...site, url: "https://example.com" }));
     expect(boot.program).toBeUndefined();
     expect(html).not.toContain("is turned away with a refusal");                           // another page's words (the errors page) are in no document but theirs

@@ -2,10 +2,14 @@
 //
 //   blocks    headings (# to ###, each with an anchor), paragraphs, bullet and numbered lists (one level of nesting), fenced code (with `title="..."`, or `file=snippets/...` to include a
 //             checked example), consecutive `tab="..." group="..."` fences as one code group, tables, an image on a line of its own, and callouts (`> [!NOTE] Title`)
+//   containers  `::: hero` (a headline, a lead, a list of links as actions) and `::: cards` (a list of `[Title](href) a few words`), closed by `:::`
 //   inline    **strong**, *emphasis* or _emphasis_, `code`, [links](href)
 //
 // Anything else is an error that names the file and the line, not something quietly drawn as text: a build that accepts what it cannot draw teaches authors the wrong thing.
 import type { Align, Block, CodeTab, Outline, Span, Tone } from "../model/site.js";
+import type { Cards, Hero } from "../model/site.js";
+
+import { slug } from "../model/slug.js";
 
 import { highlight } from "./highlight.js";
 
@@ -40,7 +44,7 @@ const TONES: Readonly<Record<string, Tone>> = { NOTE: "note", TIP: "tip", WARNIN
 /** Languages whose examples are real code: they must be included from `snippets/`, where the project compiles them, not typed inline where nothing checks them. */
 const CHECKED = new Set(["ts", "typescript", "tsx", "js", "javascript", "mjs"]);
 
-export const slug = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+export { slug } from "../model/slug.js";
 
 /** The text of spans, without marks: what a heading's anchor and an outline entry are made from. */
 export const plainText = (spans: ReadonlyArray<Span>): string => spans.map((span) => span.text).join("");
@@ -81,6 +85,66 @@ const alignOf = (cell: string): Align => cell.startsWith(":") && cell.endsWith("
 
 const LIST_ITEM = /^(\s*)([-*]|\d+\.)\s+(.*\S)\s*$/;
 
+/** The first link of an item and what follows it: a card's title and its few words, an action's label. */
+const linkAndRest = (spans: ReadonlyArray<Span>): { readonly link: Extract<Span, { kind: "link" }>; readonly rest: ReadonlyArray<Span> } | undefined => {
+  const [first, ...rest] = spans;
+
+  if (first === undefined || first.kind !== "link") { return undefined; }
+
+  const [head, ...tail] = rest;
+  // What separates a title from its words (a dash, a colon) is not part of the words.
+  const words = head !== undefined && head.kind === "text" ? [{ ...head, text: head.text.replace(/^[\s\u2014\u2013:-]+/, "") }, ...tail].filter((span) => span.text !== "") : rest;
+
+  return { link: first, rest: words };
+};
+
+/** A `:::` container as the block it is, from the blocks inside it. */
+const containerBlock = (kind: string, id: string, inner: ReadonlyArray<Block>, fail: (message: string) => never): Block => {
+  if (kind === "cards") {
+    const [list, ...extra] = inner;
+
+    if (list === undefined || list.kind !== "list" || extra.length > 0) { return fail("a ::: cards container holds one list, and each item is [Title](href) and a few words"); }
+
+    return {
+      id,
+      kind: "cards",
+      cards: list.items.map((item) => {
+        const found = linkAndRest(item.spans);
+
+        if (found === undefined) { return fail(`a card starts with a link: [Title](href) and a few words (this one is "${plainText(item.spans)}")`); }
+
+        return { id: item.id, title: found.link.text, href: found.link.href, spans: found.rest };
+      }),
+    } satisfies Cards;
+  }
+
+  if (kind === "hero") {
+    const title = inner.find((block) => block.kind === "heading" && block.level === 1);
+    const lead = inner.find((block) => block.kind === "paragraph");
+    const actions = inner.find((block) => block.kind === "list");
+
+    if (title === undefined || title.kind !== "heading") { return fail("a ::: hero container starts with a # headline"); }
+
+    return {
+      id,
+      kind: "hero",
+      title: title.spans,
+      lead: lead?.kind === "paragraph" ? lead.spans : [],
+      actions: actions?.kind === "list"
+        ? actions.items.map((item) => {
+          const found = linkAndRest(item.spans);
+
+          if (found === undefined) { return fail(`an action is a link: [Label](href) (this one is "${plainText(item.spans)}")`); }
+
+          return { id: item.id, label: found.link.text, href: found.link.href };
+        })
+        : [],
+    } satisfies Hero;
+  }
+
+  return fail(`unknown container ::: ${kind}; the kinds are ::: hero and ::: cards`);
+};
+
 export const parseMarkdown = (source: string, pageId: string, from: Source): Parsed => {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: Array<Block> = [];
@@ -88,7 +152,7 @@ export const parseMarkdown = (source: string, pageId: string, from: Source): Par
   const anchors = new Set<string>();
   const fail = (at: number, message: string): never => { throw new ContentError(from.file, at + 1 + from.offset, message); };
   const idFor = (): string => `${pageId}:${blocks.length}`;
-  const startsBlock = (line: string): boolean => /^(#{1,6}\s|```|>|\s*([-*]|\d+\.)\s|!\[)/.test(line);
+  const startsBlock = (line: string): boolean => /^(#{1,6}\s|```|:::|>|\s*([-*]|\d+\.)\s|!\[)/.test(line);
 
   /** A fenced block starting at `at`: its info string, its text, and the index of its closing fence. */
   const fence = (at: number): { readonly lang: string; readonly attributes: Readonly<Record<string, string>>; readonly text: string; readonly end: number } => {
@@ -123,6 +187,22 @@ export const parseMarkdown = (source: string, pageId: string, from: Source): Par
     if (line.trim() === "") { continue; }
 
     const id = idFor();
+
+    const container = /^:::\s*(\w+)\s*$/.exec(line);
+
+    if (container !== null) {
+      let end = at + 1;
+
+      while (end < lines.length && !/^:::\s*$/.test(lines[end]!)) { end += 1; }
+
+      if (end >= lines.length) { fail(at, `a ::: ${container[1]} container is opened and never closed`); }
+
+      const inner = parseMarkdown(lines.slice(at + 1, end).join("\n"), `${id}~`, { ...from, offset: from.offset + at + 1 });
+
+      blocks.push(containerBlock(container[1]!, id, inner.blocks, (message) => fail(at, message)));
+      at = end;
+      continue;
+    }
 
     if (/^```/.test(line)) {
       const first = fence(at);

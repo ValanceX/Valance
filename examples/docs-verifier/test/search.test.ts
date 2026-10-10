@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { search, wordsOf } from "../app/search.js";
 import type { SearchIndex } from "../model/search.js";
 import type { Site } from "../model/site.js";
+import { siteDir } from "./sites.js";
 import { readSite } from "../tooling/content.js";
 import { buildSearchIndex } from "../tooling/search.js";
 
@@ -12,13 +13,13 @@ let site: Site;
 let index: SearchIndex;
 
 beforeAll(() => {
-  site = readSite(fileURLToPath(new URL("../content", import.meta.url)));
+  site = readSite(siteDir("docs"));
   index = buildSearchIndex(site);
 });
 
 describe("the index", () => {
   it("has an entry for the start of each page and for each section under a heading, linking to the section", () => {
-    const state = index.entries.filter((entry) => entry.id.startsWith("guides-state#"));
+    const state = index.entries.filter((entry) => entry.id.startsWith("docs-guides-state#"));
 
     expect(state.map((entry) => [entry.href, entry.heading])).toEqual([
       ["/docs/guides/state", ""],
@@ -33,10 +34,10 @@ describe("the index", () => {
   it("holds the words of every kind of block, code included, and none of the marks", () => {
     const text = (id: string) => index.entries.find((entry) => entry.id === id)!.text;
 
-    expect(text("guides-state#commands")).toContain("Pure command(state)(schema, handler)");                       // a table
-    expect(text("guides-state#a-command-that-waits")).toContain("encodeURIComponent");                           // code
-    expect(text("guides-state#rules")).toContain("A view only reads it.");                                       // a nested list
-    expect(text("guides-state#rules")).not.toContain("**");
+    expect(text("docs-guides-state#commands")).toContain("Pure command(state)(schema, handler)");                       // a table
+    expect(text("docs-guides-state#a-command-that-waits")).toContain("encodeURIComponent");                           // code
+    expect(text("docs-guides-state#rules")).toContain("A view only reads it.");                                       // a nested list
+    expect(text("docs-guides-state#rules")).not.toContain("**");
     expect(index.entries.every((entry) => entry.text !== "")).toBe(true);
   });
 

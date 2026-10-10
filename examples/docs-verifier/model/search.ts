@@ -4,6 +4,9 @@ import { Schema } from "effect";
 
 export const SearchEntry = Schema.Struct({
   id: Schema.String,
+  /** The language and version of the page it is in: a search finds pages in the reader's own. */
+  locale: Schema.String,
+  version: Schema.String,
   /** Where the entry is: the page's path, and the section's `#anchor` when it is not the page's start. */
   href: Schema.String,
   /** The page's title, and the section's heading (empty for the start of the page). */

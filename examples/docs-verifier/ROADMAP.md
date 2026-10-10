@@ -85,7 +85,11 @@ Plan as written:
 - SSR-readiness kept honest: no module-level mutable state, fresh platform per render, no `node:*` under `app/`. A parity test renders a route as `static` and as `server` and compares the HTML byte for byte.
 - **Exit:** deployable to any static host; payload and render budgets hold on a generated 500-page site.
 
-### F. Composability proof
+### F. Composability proof: **done**
+
+Delivered: the kit builds four sites from `sites/` (documentation, a blog with an index, tags and an Atom feed, a landing page with a hero and cards, and a handbook in two versions and two languages), each only data (`site.json`, markdown, examples, an optional theme of custom properties), checked by `test/sites.test.ts` (every site held to the same rules; the kit names no site; a site holds no code); layouts (`doc`, `post`, `landing`, `list`) and new blocks (`hero`, `cards`, `postlist`); collections, versions (newest unprefixed, canonical to the newest) and languages (under `/fr`, translated interface words, `hreflang`, a switcher for each, links resolved to the reader's language and version); the document's `lang` follows the page; search is of the reader's language and version; Valance's `LinkTag` gained `hreflang` and `title`. 205 unit tests, 36 Chromium tests (all four sites), 20 principle probes, 9 budget tests. Friction F28–F30.
+
+Plan as written:
 
 - Build three sites from the same kit and plugins: a docs site, a blog, a landing page; add versioned docs and a localized route variant.
 - **Exit:** all three build with no verifier-specific code in the kit. This is the acceptance test for "like Effect's, and more" (principle 18).

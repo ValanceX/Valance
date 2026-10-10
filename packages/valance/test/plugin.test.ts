@@ -111,6 +111,16 @@ describe("the head", () => {
     expect(renderHead({})).toBe("");
   });
 
+  it("a link may say what language it points to and what it is called: an alternate in another language, a feed", () => {
+    expect(renderHead({ links: [{ rel: "alternate", hreflang: "fr", href: "/fr/a" }, { rel: "alternate", type: "application/atom+xml", title: "Notes", href: "/feed.xml" }] })).toBe(
+      `<link rel="alternate" href="/fr/a" hreflang="fr" ${HEAD_MARK}><link rel="alternate" href="/feed.xml" type="application/atom+xml" title="Notes" ${HEAD_MARK}>`
+    );
+  });
+
+  it("the same address in two languages is two alternates, not one", () => {
+    expect(mergeHeads([{ links: [{ rel: "alternate", hreflang: "en", href: "/" }, { rel: "alternate", hreflang: "fr", href: "/" }] }]).links).toHaveLength(2);
+  });
+
   it.each(["javascript:alert(1)", "  JaVaScRiPt:alert(1)", "java\tscript:alert(1)", "vbscript:x", "data:text/html,<script>1</script>"])("refuses a link whose href carries script: %s", (href) => {
     try { renderHead({ links: [{ rel: "stylesheet", href }] }); } catch (error) { expect(isValanceError(error) && error.code === "invalid-head").toBe(true); return; }
 

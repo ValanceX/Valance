@@ -1,5 +1,5 @@
 <div class="tabs">
-  <tablist class="tab-list" role="tablist" label="Alternatives">
+  <tablist class="tab-list" role="tablist" label={label}>
     <mesh-each items={tabs} as="t" key={t.id}>
       <tab class="tab" role="tab" selected={t.selected} on.click={choose(t.key)}>{t.label}</tab>
     </mesh-each>

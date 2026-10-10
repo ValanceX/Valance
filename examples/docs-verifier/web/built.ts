@@ -7,6 +7,8 @@ export interface Built {
   readonly script: string;
   /** The stylesheet. Absent: the site is unstyled (a test, or a build that has none). */
   readonly style?: string;
+  /** The site's own stylesheet, after the kit's: it changes custom properties and nothing the kit decides. Absent: the kit's look. */
+  readonly theme?: string;
   /** The search index, a JSON file named by its content. Absent: search says it is unavailable. */
   readonly search?: string;
 }

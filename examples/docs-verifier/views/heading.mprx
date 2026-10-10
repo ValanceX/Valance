@@ -1,7 +1,7 @@
 <mesh-fragment>
   <mesh-switch>
     <mesh-case when={level == 1}><h1 id={anchor}><runs spans={spans} /></h1></mesh-case>
-    <mesh-case when={level == 2}><h2 id={anchor}><runs spans={spans} /><anchorLink class="anchor" href={hash} label="Link to this section">#</anchorLink></h2></mesh-case>
-    <mesh-default><h3 id={anchor}><runs spans={spans} /><anchorLink class="anchor" href={hash} label="Link to this section">#</anchorLink></h3></mesh-default>
+    <mesh-case when={level == 2}><h2 id={anchor}><runs spans={spans} /><anchorLink class="anchor" href={hash} label={linkLabel}>#</anchorLink></h2></mesh-case>
+    <mesh-default><h3 id={anchor}><runs spans={spans} /><anchorLink class="anchor" href={hash} label={linkLabel}>#</anchorLink></h3></mesh-default>
   </mesh-switch>
 </mesh-fragment>

@@ -7,8 +7,9 @@ import type { AppState } from "../app/state.js";
 import type { Built } from "./built.js";
 import { primitives } from "./primitives.js";
 
-export const kit = (built: Pick<Built, "style"> = {}): Plugin<AppState> => ({
-  name: "docs-kit",
+export const kit = (built: Pick<Built, "style" | "theme"> = {}): Plugin<AppState> => ({
+  name: "site-kit",
   primitives,
-  ...(built.style === undefined ? {} : { head: () => ({ links: [{ rel: "stylesheet", href: built.style! }] }) }),
+  // The kit's stylesheet, then the site's own over it.
+  ...(built.style === undefined ? {} : { head: () => ({ links: [{ rel: "stylesheet", href: built.style! }, ...(built.theme === undefined ? [] : [{ rel: "stylesheet", href: built.theme }])] }) }),
 });

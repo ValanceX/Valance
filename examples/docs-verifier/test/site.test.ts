@@ -17,6 +17,7 @@ import type { Built } from "../web/built.js";
 import { readGeneratedSite, renderDocument } from "../web/document.js";
 import { plugins } from "../web/plugins.js";
 import { fakePlatform, type Fakes } from "./support.js";
+import { siteDir } from "./sites.js";
 import { readSite } from "../tooling/content.js";
 import { fileURLToPath } from "node:url";
 import type { Site, SiteMap } from "../model/site.js";
@@ -28,7 +29,7 @@ let map: SiteMap;
 const built: Built = { base: "/", script: "/assets/page.js", style: "/assets/page.css" };
 const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
-beforeAll(() => { site = readSite(here("../content")); map = mapOf(site); });
+beforeAll(() => { site = readSite(siteDir("docs")); map = mapOf(site); });
 
 it("a page is rendered on the server through the layout's slots: navigation, headings, a callout and a code block", async () => {
   const html = await renderDocument(site, "/docs/guides/getting-started", built);
@@ -81,10 +82,10 @@ it("an unknown page is the application's own Not found, not an error, and it nam
 it("the URL and the title are the application's functions of its state", () => {
   const { urlOf, stateOf, titleOf, stateFor } = routes(map);
 
-  expect(urlOf({ ...initial, page: "guides-state" })).toBe("/docs/guides/state");
-  expect(stateOf(new URL("http://x/docs/reference/api"))).toEqual({ id: "reference-api" });
-  expect(titleOf({ ...initial, page: "reference-api" })).toBe("API · Valance");
-  expect(stateFor("/").page).toBe("introduction");
+  expect(urlOf({ ...initial, page: "docs-guides-state" })).toBe("/docs/guides/state");
+  expect(stateOf(new URL("http://x/docs/reference/api"))).toEqual({ id: "docs-reference-api" });
+  expect(titleOf({ ...initial, page: "docs-reference-api" })).toBe("API · Valance");
+  expect(stateFor("/").page).toBe("docs-introduction");
 });
 
 it("the route table says what a build and a server need: the navigate command, every page's path, and what is known", () => {
@@ -101,10 +102,10 @@ it("the site's plugins are the kit, the router and the head, each a value with i
   const list = plugins(map, built);
   const composed = compose<AppState>({}, list);
 
-  expect(list.map((plugin) => plugin.name)).toEqual(["docs-kit", "docs-router", "docs-seo"]);
+  expect(list.map((plugin) => plugin.name)).toEqual(["site-kit", "site-router", "site-seo"]);
   expect(composed.routes?.navigate).toBe("go");
   expect(Object.keys(composed.primitives)).toContain("navLink");
-  expect(composed.head?.({ ...initial, page: "guides-state" }).links).toEqual([{ rel: "stylesheet", href: "/assets/page.css" }, { rel: "canonical", href: "/docs/guides/state" }]);
+  expect(composed.head?.({ ...initial, page: "docs-guides-state" }).links).toEqual([{ rel: "stylesheet", href: "/assets/page.css" }, { rel: "canonical", href: "/docs/guides/state" }]);
 });
 
 /** The state on page `id`, as a server would start it: the page and its content. */
@@ -116,7 +117,7 @@ const platformOfSite = (fakes: Fakes = {}) => fakePlatform({ clipboard: async ()
 const withApplication = async <A>(body: (handle: Valance.ApplicationHandle<AppState, never>, state: () => AppState) => Promise<A>, platform: Nexus.Application.Platform = platformOfSite().platform): Promise<A> => {
   const program = await compilePage();
   const scope = Effect.runSync(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application(program, map), { platform, state: stateOn("introduction") }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
+  const handle = await Effect.runPromise(Valance.start(application(program, map), { platform, state: stateOn("docs-introduction") }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
 
   try {
     return await body(handle, () => Effect.runSync(handle.state as never) as AppState);
@@ -128,14 +129,14 @@ const invoke = (handle: Valance.ApplicationHandle<AppState, never>, key: string,
 
 it("the copy button's composite event travels code-block → block → page to the copyCode command, and the page then says Copied", async () => {
   await withApplication(async (handle, state) => {
-    await invoke(handle, "app/go", "guides-getting-started");
-    expect(state().page).toBe("guides-getting-started");
+    await invoke(handle, "app/go", "docs-guides-getting-started");
+    expect(state().page).toBe("docs-guides-getting-started");
 
-    const code = site.pages.find((page) => page.id === "guides-getting-started")!.blocks.find((block) => block.kind === "code")!;
+    const code = site.pages.find((page) => page.id === "docs-guides-getting-started")!.blocks.find((block) => block.kind === "code")!;
 
     await invoke(handle, "app/copyCode", code.id);
     expect(state().copied).toBe(code.id);
-    await invoke(handle, "app/go", "guides-state");
+    await invoke(handle, "app/go", "docs-guides-state");
     expect(state().copied).toBe("");                                                    // moving on clears it
   });
 });
@@ -148,7 +149,7 @@ it("the menu opens and closes by its command, and moving to a page closes it", a
     await invoke(handle, "app/toggleMenu");
     expect(state().menu).toBe(false);
     await invoke(handle, "app/toggleMenu");
-    await invoke(handle, "app/go", "guides-state");
+    await invoke(handle, "app/go", "docs-guides-state");
     expect(state().menu).toBe(false);
   });
 });
@@ -169,8 +170,8 @@ it("the theme is chosen by its command; a name that is not a theme is refused an
 it("the page shows Copied for the copied block", async () => {
   const { renderToHtml } = await import("@valancex/valance/web/server");
   const program = await compilePage();
-  const code = site.pages.find((page) => page.id === "guides-getting-started")!.blocks.find((block) => block.kind === "code")!;
-  const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("guides-getting-started"), copied: code.id } }));
+  const code = site.pages.find((page) => page.id === "docs-guides-getting-started")!.blocks.find((block) => block.kind === "code")!;
+  const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("docs-guides-getting-started"), copied: code.id } }));
   const labels = [...html.matchAll(/<button[^>]*class="copy"[^>]*>([^<]*)<\/button>/g)].map((match) => match[1]);
 
   expect(labels.filter((label) => label === "Copied")).toHaveLength(1);                  // only the block that was copied says so
@@ -193,7 +194,7 @@ it("the navigation is grouped as the content groups it, and marks the current pa
 it("the theme and the menu are attributes of the shell, for the stylesheet to read, and the theme buttons say which is pressed", async () => {
   const { renderToHtml } = await import("@valancex/valance/web/server");
   const program = await compilePage();
-  const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("introduction"), theme: "dark", menu: true } }));
+  const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("docs-introduction"), theme: "dark", menu: true } }));
 
   expect(html).toMatch(/<div[^>]*class="shell"[^>]*data-theme="dark"[^>]*data-menu="true"|<div[^>]*data-menu="true"[^>]*data-theme="dark"[^>]*class="shell"|<div(?=[^>]*class="shell")(?=[^>]*data-theme="dark")(?=[^>]*data-menu="true")[^>]*>/);
   expect(html).toMatch(/aria-label="Use the dark theme"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*aria-label="Use the dark theme"/);
@@ -270,7 +271,7 @@ it("every class a template writes has a rule in the stylesheet, and no rule is f
   // The classes the templates write, and those the scope puts in `cls` (the token kinds and the outline's levels).
   const written = new Set([
     ...views.matchAll(/class="([^"]+)"/g),
-  ].flatMap((match) => match[1]!.split(/\s+/)).concat([...TokenKind.literals.filter((kind) => kind !== "plain").map((kind) => `tok-${kind}`), "toc-link", "toc-level-2", "toc-level-3"]));
+  ].flatMap((match) => match[1]!.split(/\s+/)).concat([...TokenKind.literals.filter((kind) => kind !== "plain").map((kind) => `tok-${kind}`), "toc-link", "toc-level-2", "toc-level-3", "action", "action-primary", "action-secondary"]));
   const styled = new Set([...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\.([a-z][a-z0-9-]*)/g)].map((match) => match[1]!));
 
   expect([...written].filter((name) => !styled.has(name))).toEqual([]);
