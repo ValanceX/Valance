@@ -26,7 +26,7 @@ my-docs/
   dist/                   the site
 ```
 
-Minimal example: `examples/docs-app` (and a one-file project: `valance.json` + `content/index.md`, which `check` and `build` accept; it is a test).
+Minimal example: `examples/docs-app` (and a one-file project: `valance.json` + `content/index.md`, which `check` and `build` accept; built by hand, not covered by a test).
 
 ## 3. Commands
 
