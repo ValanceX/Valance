@@ -13,7 +13,11 @@ export type ValanceErrorCode =
   /** A render names a view the definition doesn't have. A mistake in the definition. */
   | "unknown-view"
   /** A target reported an interaction before anything was drawn. A mistake in the target. */
-  | "target-not-drawn";
+  | "target-not-drawn"
+  /** Two parties declared the same thing that can be declared only once (a tag, the URL policy). A mistake in the composition. */
+  | "plugin-conflict"
+  /** A head tag carries a value the head refuses (a script-bearing URL). A mistake in the data. */
+  | "invalid-head";
 
 /**
  * The defect VALANCE dies with for misuse and for work refused because the application is closing. It is a defect, never a typed
@@ -29,7 +33,7 @@ export class ValanceError extends Error {
   }
 }
 
-const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>(["admission-closed", "application-ended", "not-an-application", "bare-command-binding", "unknown-view", "target-not-drawn"]);
+const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>(["admission-closed", "application-ended", "not-an-application", "bare-command-binding", "unknown-view", "target-not-drawn", "plugin-conflict", "invalid-head"]);
 
 /** Whether `value` is a `ValanceError`, by its shape and not its class, so it works across two installed copies of the package. */
 export const isValanceError = (value: unknown): value is ValanceError =>

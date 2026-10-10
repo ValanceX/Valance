@@ -23,6 +23,8 @@ import type * as Nexus from "@valancex/nexus";
 import { Schema, SchemaAST as AST } from "effect";
 
 import { payloadKindOf } from "./web-payload.js";
+import { compose } from "./web-plugin.js";
+import type { Plugin } from "./web-plugin.js";
 
 export class ManifestError extends Error {
   readonly _tag = "ManifestError";
@@ -58,6 +60,8 @@ export interface ManifestOptions {
   readonly scopes: Readonly<Record<string, Schema.Schema<any, any, never>>>;
   /** The application's `commands`: the very function `define` takes. It is called once, with a state that fails if the table reads it while being built. */
   readonly commands: (state: Nexus.State.StateHandle<any>) => Readonly<Record<string, unknown>>;
+  /** Plugins whose tags are part of the application's vocabulary: their `primitives` join `primitives`, composed as `compose` in `./web/plugin` says (a tag is declared once). */
+  readonly plugins?: ReadonlyArray<Plugin<any>>;
 }
 
 // ---- Schema → MESH type -------------------------------------------------------------------------------------------------------------------------------------------
@@ -199,7 +203,8 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
 const noState = new Proxy({}, { get: (_target, property) => { throw new ManifestError("commands", `the table read state.${String(property)} while it was being built; a table is built without reading state (commands read it when they RUN)`); } }) as Nexus.State.StateHandle<any>;
 
 /** The manifest of an application, derived from its Web primitives table, its views' scope Schemas and its command table. Pass it to `compileProgram` as JSON. */
-export const manifest = (options: ManifestOptions): Manifest => {
+export const manifest = (given: ManifestOptions): Manifest => {
+  const options = { ...given, primitives: compose<unknown>({ primitives: given.primitives }, given.plugins ?? []).primitives };
   const views = new Set(Object.keys(options.scopes));
   const commands = commandsOf(options.commands(noState), views);
 

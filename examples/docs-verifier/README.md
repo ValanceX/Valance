@@ -8,6 +8,8 @@ record where composing it is awkward (`FINDINGS.md`).
 When the features are mature enough, this grows into the polished docs site.
 After that, a more complex specialised app takes over as the verifier.
 
+See `ROADMAP.md` for where this is going (a complete, styled, statically generated documentation site) and `EXTERNALS.md` for the pieces that are deliberately outside VALANCE and plug in through its seams.
+
 ## Layers
 
 ```

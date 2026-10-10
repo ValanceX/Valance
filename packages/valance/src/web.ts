@@ -11,12 +11,15 @@ import { attribute, controlled, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
+import { applyHead, compose } from "./web-plugin.js";
+import type { HeadTags, Navigation, Plugin } from "./web-plugin.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, controlled, property, textProperty } from "@valancex/port-web";
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
+export type { Delivery, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";
 
 /**
  * A link: an `<a>` whose one prop, `href`, is the destination. It declares no event: with `history` and a `container` (which `run` supplies), a click on it is the
@@ -63,6 +66,20 @@ export interface HistoryOptions<S> {
    * already on (a `#fragment`), and a click something else already handled (`defaultPrevented`). Absent: links are ordinary anchors. `run` passes its own container.
    */
   readonly container?: Element;
+  /**
+   * What the document's head says for a state: the title, the metas and the links (a stylesheet, a canonical URL). It is kept in step like `titleOf`, set for the first state and for
+   * every later one, and the server writes the result of this same function for the state it rendered (`renderToHtml`'s `head`, then `renderHead`). It replaces only the elements
+   * it wrote before (marked `data-valance-head`); an element it did not write is never touched. A title here wins over `titleOf`. A head the head refuses (a link whose href
+   * carries script) is logged and leaves the document as it was. Absent: the head is left alone.
+   */
+  readonly head?: (state: S) => HeadTags;
+  /**
+   * Called after a navigation is accounted for, with how it happened and the destination as the browser has it, `#fragment` included. This is where scroll and focus policy
+   * belongs (scroll to the fragment, move focus to the main region): VALANCE decides neither, except that a link click to a place without a fragment starts at the top, as it
+   * always did. It runs after the URL is written (a link click) or after the navigate command finished (Back and Forward), and not at all for a link click that leads to the
+   * state already shown. A defect in it is logged and ends nothing. Absent: nothing is called.
+   */
+  readonly onNavigated?: (navigation: Navigation) => void;
 }
 
 /**
@@ -128,6 +145,13 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     // A link click whose destination starts at the top is waiting for its URL to be written: the browser records the position of the entry being left WHEN the URL is pushed, so the
     // reset must come after the push, never before it, or Back would restore the top.
     let top = false;
+    // The destination of the link click that is waiting for its URL to be written, so `onNavigated` can be told once the write has happened.
+    let arrived: URL | undefined;
+    // `onNavigated` is the plugin's or the application's: a defect in it is logged and ends nothing, like every other function it supplies.
+    const announce = (navigation: Navigation): Effect.Effect<void> =>
+      options.onNavigated === undefined
+        ? Effect.void
+        : Effect.try(() => { options.onNavigated?.(navigation); }).pipe(Effect.catchAllCause((cause) => Effect.logError("navigation hook failed", cause)));
 
     const follower = yield* Stream.runForEach(
       Stream.merge(
@@ -135,27 +159,48 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         Stream.map(Stream.fromQueue(popped), (href) => ({ _tag: "popstate" as const, href }))
       ),
       (event) => (event._tag === "state"
-        ? Effect.sync(() => {
-          const url = options.urlOf(event.state);
+        ? Effect.gen(function* () {
+          // The URL first. The link click this write answers (if any) is taken here, once, so it is announced once.
+          const landed = yield* Effect.sync(() => {
+            const url = options.urlOf(event.state);
 
-          if (last === undefined) {
-            last = url;
-          } else if (url !== last) {
-            last = url;
-            win.history.pushState(null, "", url);
+            if (last === undefined) {
+              last = url;
+            } else if (url !== last) {
+              last = url;
+              win.history.pushState(null, "", url);
 
-            if (top) {
-              top = false;
+              if (top) {
+                top = false;
 
-              if (win.scrollY !== 0 || win.scrollX !== 0) {
-                win.scrollTo(0, 0);
+                if (win.scrollY !== 0 || win.scrollX !== 0) {
+                  win.scrollTo(0, 0);
+                }
               }
-            }
-          }
 
-          // After the URL, so a title function that throws cannot keep the URL from following the state.
-          if (options.titleOf !== undefined) {
-            win.document.title = options.titleOf(event.state);
+              const destination = arrived;
+
+              arrived = undefined;
+
+              return destination;
+            }
+
+            return undefined;
+          });
+
+          // After the URL, so a title or head function that throws cannot keep the URL from following the state. The head wins over the title.
+          yield* Effect.sync(() => {
+            if (options.titleOf !== undefined) {
+              win.document.title = options.titleOf(event.state);
+            }
+
+            if (options.head !== undefined) {
+              applyHead(win.document, options.head(event.state));
+            }
+          }).pipe(Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause)));
+
+          if (landed !== undefined) {
+            yield* announce({ kind: "link", url: landed });
           }
         })
         : Effect.gen(function* () {
@@ -165,6 +210,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
           );
           // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
           last = options.urlOf(yield* running.state);
+          yield* announce({ kind: "popstate", url: new URL(event.href) });
         })
       ).pipe(
         // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
@@ -190,12 +236,13 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       // A link click is a page change, and a page change starts at the top, as a native link does (taking the click took that with it). The follower does it, after it writes the URL.
       // Back and Forward are not this: the browser restores their position itself. A destination with a #fragment is the application's own to scroll to.
       top = destination.hash === "";
+      arrived = destination;
 
       Effect.runFork(running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(
         Effect.flatMap(() => running.state),
         // The command is done. If the state's URL is the one already written, no push is coming (or it already happened): nothing is waiting for the top any more.
-        Effect.flatMap((state) => Effect.sync(() => { if (options.urlOf(state) === last) { top = false; } })),
-        Effect.catchAllCause((cause) => Effect.sync(() => { top = false; }).pipe(Effect.zipRight(Effect.logError("link navigation failed", cause)))),
+        Effect.flatMap((state) => Effect.sync(() => { if (options.urlOf(state) === last) { top = false; arrived = undefined; } })),
+        Effect.catchAllCause((cause) => Effect.sync(() => { top = false; arrived = undefined; }).pipe(Effect.zipRight(Effect.logError("link navigation failed", cause)))),
         Effect.forkIn(scope)
       ));
     };
@@ -212,8 +259,8 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
 export interface RunOptions<S> extends StartOptions<S> {
   /** The element the application is presented in. */
   readonly container: Element;
-  /** The application's Web realization table (the same one the server rendered with, when it did). */
-  readonly primitives: WebPrimitives;
+  /** The application's Web realization table (the same one the server rendered with, when it did). Absent: only the tags its plugins add. */
+  readonly primitives?: WebPrimitives;
   /**
    * Explicit, and never inferred from what the container holds. `"mount"` creates the presentation: whatever the container held is replaced.
    * `"hydrate"` adopts server-rendered markup in the container with the client's own render, and reports whether it did in `Host.mounted.hydration`.
@@ -221,6 +268,12 @@ export interface RunOptions<S> extends StartOptions<S> {
   readonly present: "mount" | "hydrate";
   /** The application's own URL policy, handed to `history` unread. Absent: the URL is not kept in step. */
   readonly history?: HistoryOptions<S>;
+  /**
+   * Plugins, composed with the application's own declarations by `compose` (see `./web/plugin` for the rules: a tag and the URL policy are declared once, platforms merge in order,
+   * heads merge with the application's first). Absent: none, and the run is exactly what it was. A plugin that declares `routes` is the URL policy; `history` and `routes` together
+   * are a `plugin-conflict`.
+   */
+  readonly plugins?: ReadonlyArray<Plugin<S>>;
 }
 
 /** One application running on one page: the core's handle, the presentation, and the one operation the host adds. */
@@ -250,13 +303,28 @@ export interface Host<S, E> {
  */
 export const run = async <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: RunOptions<S>): Promise<Host<S, E>> => {
   const scope = await Effect.runPromise(Scope.make());
+  // Composed before anything is acquired: a conflict is a mistake in the composition and fails the call, with nothing started.
+  const composed = compose<S>({ primitives: options.primitives, platform: options.platform, routes: options.history !== undefined, head: options.history?.head }, options.plugins ?? []);
+  const view = options.container.ownerDocument.defaultView;
+  const policy: HistoryOptions<S> | undefined = options.history !== undefined
+    ? (composed.head === undefined ? options.history : { ...options.history, head: composed.head })
+    : composed.routes === undefined || view === null
+      ? undefined
+      : {
+        window: view,
+        urlOf: composed.routes.urlOf,
+        stateOf: composed.routes.stateOf,
+        navigate: composed.routes.navigate,
+        ...(composed.routes.onNavigated === undefined ? {} : { onNavigated: composed.routes.onNavigated }),
+        ...(composed.head === undefined ? {} : { head: composed.head })
+      };
   const startup = Effect.gen(function* () {
-    const handle = yield* start(app, options);
-    const web = target({ container: options.container, primitives: options.primitives });
+    const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
+    const web = target({ container: options.container, primitives: composed.primitives });
     const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web) : yield* mount(handle, web);
 
-    if (options.history !== undefined) {
-      yield* history(handle, { container: options.container, ...options.history });
+    if (policy !== undefined) {
+      yield* history(handle, { container: options.container, ...policy });
     }
 
     return { handle, mounted };

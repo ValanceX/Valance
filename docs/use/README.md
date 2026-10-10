@@ -37,6 +37,20 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 | `WebPrimitives`, `attribute`, `booleanAttribute`, `property`, `textProperty` | The table that says which page element each building block becomes. Target configuration, not part of the application. | [§6](../V1_CONTRACT.md#6-mounts) |
 | `RunOptions`, `Host<S, E>`, `HistoryOptions<S>` | Types only. `RunOptions` extends `StartOptions` with `container`, `primitives`, `present` and an optional `history`; `Host` is what `run` resolves to (`handle`, `mounted`, `stop`); `HistoryOptions` is `history`'s options without the handle. | [§16](../V1_CONTRACT.md#16-the-browser-host-webrun), [§8](../V1_CONTRACT.md#8-history) |
 
+## Plugins: `@valancex/valance/web/plugin`
+
+*Unreleased (0.8).*
+
+| Name | What it is | Rules |
+|---|---|---|
+| `Plugin<S>` | A value with a `name` and any of `primitives`, `platform`, `routes`, `head`. Passed as `plugins` to `Web.run`, `renderToHtml` or `manifest`; nothing registers on import. | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+| `RouteTable<S>`, `Navigation`, `Delivery` | The URL policy as one value (`urlOf`, `stateOf`, `navigate`, `known`, `paths`, `delivery?`, `onNavigated?`); what `onNavigated` is told; `"static"` (default) or `"server"`. | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+| `HeadTags`, `MetaTag`, `LinkTag` | What the document's head says for a state. Types only. | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+| `renderHead(head)` | The head as escaped HTML, each meta and link marked `data-valance-head`. Refuses a link whose href carries script (`invalid-head`). | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+| `applyHead(document, head)` | Sets the title and replaces the elements VALANCE wrote; touches no other. What `Web.history` calls. | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+| `deliveryOf(routes, pathname)`, `staticPaths(routes)` | How a path is delivered; the paths a static export renders. | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+| `compose(own, plugins)`, `mergePlatforms`, `mergeHeads` | The composition rules, exposed for a tool that composes outside `run` (an exporter). A tag and the URL policy are declared once (`plugin-conflict`); platforms and heads merge in order. | [§19](../V1_CONTRACT.md#19-plugins-and-the-documents-head) |
+
 ## Build time: `@valancex/valance/web/build`
 
 | Name | What it is | Rules |
@@ -48,8 +62,8 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 
 | Name | What it is | Rules |
 |---|---|---|
-| `renderToHtml(app, { primitives, state?, platform? })` | Renders the current view once as HTML, and returns the state read after it. Start-time work begins and is interrupted when the render ends. | [§17](../V1_CONTRACT.md#17-server-rendering-rendertohtml) |
-| `Served<S>` | Types only. What `renderToHtml` returns: the HTML and the state read after it. | |
+| `renderToHtml(app, { primitives?, state?, platform?, head?, plugins? })` | Renders the current view once as HTML, and returns the state read after it. Start-time work begins and is interrupted when the render ends. | [§17](../V1_CONTRACT.md#17-server-rendering-rendertohtml) |
+| `Served<S>` | Types only. What `renderToHtml` returns: the HTML, the state read after it, and (0.8) the `head` for that state. | |
 
 ## Build time: `@valancex/mesh-compiler`
 
