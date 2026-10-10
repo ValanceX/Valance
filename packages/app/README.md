@@ -106,6 +106,16 @@ export default defineApp({
 
 A mistake leaves the last good build serving and appears in the terminal and as an overlay in the page, as `file:line:column code: message`. Fixing it reloads the page. There is no hot swap of the compiled templates yet: a reload is the correct, reliable update, and the browser keeps its address.
 
+## Editor support
+
+`valance` writes `.valance/manifest.json` (what a template may use, your own components included) and `.valance/editor.json` (which file is which component), so an editor can run MESH's language server on your project without configuration. Add the server to the project, in the version of your MESH:
+
+```console
+$ pnpm add -D @valancex/mesh-lsp
+```
+
+The VS Code extension in [`editors/vscode`](../../editors/vscode) (not published yet) starts it, highlights `.mprx`, and shows `valance check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/guides/editor-setup.md)).
+
 ## Diagnostics
 
 Every mistake the tools can attribute to a file has one shape: `{ file, line, column, code, message }`. `valance check --json` prints them for editors and CI; codes are stable (`link-broken`, `md-html`, `front-unknown`, `config-unknown`, `template-unused`, `entry-export`, and the MESH compiler's own for templates).

@@ -1,7 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+
+// A MESH checkout beside this repository, or MESH_DIR.
+const mesh = process.env["MESH_DIR"] ?? join(__dirname, "../../../../Mesh");
 
 import { forTheCheck, parse, place } from "../src/diagnostics";
 import { readProject, templateOf } from "../src/project";
@@ -57,6 +60,14 @@ describe("shipped schemas", () => {
   it("are the ones @valancex/app owns", () => {
     for (const name of ["valance.schema.json", "valance.web.schema.json"]) {
       expect(readFileSync(join(__dirname, "..", "schemas", name), "utf8")).toBe(readFileSync(join(__dirname, "../../../packages/app/schemas", name), "utf8"));
+    }
+  });
+});
+
+describe("the grammar copy", () => {
+  it.skipIf(!existsSync(join(mesh, "editors/vscode/syntaxes/mprx.tmLanguage.json")))("is MESH's grammar, byte for byte (run `pnpm sync-grammar` to update)", () => {
+    for (const [from, to] of [["editors/vscode/syntaxes/mprx.tmLanguage.json", "syntaxes/mprx.tmLanguage.json"], ["editors/vscode/language-configuration.json", "language-configuration.json"]] as const) {
+      expect(readFileSync(join(__dirname, "..", to), "utf8")).toBe(readFileSync(join(mesh, from), "utf8"));
     }
   });
 });

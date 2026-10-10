@@ -1,7 +1,7 @@
 {
   "name": "valance-vscode",
   "displayName": "VALANCE",
-  "description": "MPRX highlighting, diagnostics, hover and completion for VALANCE applications. A feasibility spike: not published.",
+  "description": "VALANCE for VS Code: wires mesh-lsp and `valance check` diagnostics into a project. A feasibility spike: not published.",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -74,7 +74,10 @@
     "prepare": "node scripts/copy-schemas.mjs",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.typecheck.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sync-grammar": "node scripts/sync-grammar.mjs",
+    "build:host": "tsc -p tsconfig.host.json",
+    "test:host": "pnpm build && pnpm build:host && node dist-host/run.js"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -82,7 +85,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.90.0",
-    "@valancex/mesh-lsp": "0.10.0",
+    "@vscode/test-electron": "^2.4.1",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0",
     "vscode-oniguruma": "^2.0.1",

@@ -45,3 +45,9 @@ Branch `claude/fervent-ptolemy-gbtc8u`. Newest entries at the bottom of each pha
 - Decision: the extension is a spike in `editors/vscode`, its own pnpm root (like `docs-verifier`), outside the workspace and CI. It reads only `.valance/editor.json`, so Valance's conventions are not copied into the editor. Rejected: re-implementing diagnostics in the extension (the server is the compiler's own); a Valance-specific language server now (the gap is columns/unsaved buffers for Markdown, not worth a server yet); bundling native binaries in the VSIX (the project's `@valancex/mesh-lsp` keeps server and compiler versions together).
 - Code: `packages/app` (enriched `manifest.json`, new `editor.json`, one test); `editors/vscode` (new, 15 tests).
 - Not done / unproven: VS Code host never run (download host unreachable from the sandbox).
+
+## Editor integration: decisions and CI (second follow-up)
+- Decisions (rationale and precedent table in `EDITOR-FEASIBILITY.md`): the MPRX grammar lives in **MESH** (`editors/vscode`, with a corpus test and its own CI job), by the Svelte/Vue/Astro/Angular pattern of keeping the grammar with the language's tooling and tests; `@valancex/mesh-lsp` is a **project dev dependency** (Angular pattern); the marketplace publisher is **deferred**.
+- Added: `vscode` CI job in `.github/workflows/ci.yml` (VS Code 1.90.0 and stable, `xvfb-run`), `editors/vscode/host/{run,suite}.ts` (8 cases in a real host), `sync-grammar` plus a drift test, `@valancex/mesh-lsp` in `examples/docs-app`.
+- Verified here: the editor's unit/e2e tests (16), the host code compiles, the launcher's setup runs against a scratch workspace, the real server starts through the pnpm shim.
+- **Not verified: the host suite itself.** VS Code could not be downloaded in the authoring sandbox. The CI job's first run is that verification; if it is red, fix `host/suite.ts` or the extension, not the expectations.

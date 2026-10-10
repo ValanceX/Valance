@@ -13,7 +13,8 @@ import { connect } from "./lsp-client";
 
 const valance = resolve(__dirname, "../../../packages/app/bin/valance.js");
 const app = resolve(__dirname, "../../../examples/docs-app");
-const server = resolve(__dirname, "../node_modules/@valancex/mesh-lsp/dist/cli.js");
+// The project's own server, as the extension finds it: a dev dependency of the application (examples/docs-app), not of the extension.
+const server = resolve(app, "node_modules/@valancex/mesh-lsp/dist/cli.js");
 
 let client: Client;
 let layout: string;
