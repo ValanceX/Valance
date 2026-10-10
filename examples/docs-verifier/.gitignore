@@ -1,7 +1,7 @@
 node_modules
 dist
-generated
-principles/evidence
+.valance
+tests/principles/evidence
 .packs
 .work
 .visual

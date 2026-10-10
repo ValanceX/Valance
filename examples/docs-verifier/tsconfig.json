@@ -18,22 +18,16 @@
     "noEmit": true
   },
   "include": [
-    "model",
-    "tooling",
-    "app",
-    "web",
-    "test",
-    "smoke",
-    "principles",
+    "src",
+    "build",
+    "tests",
     "scripts",
-    "vite.page.config.ts",
+    "sites",
+    "vite.config.ts",
     "vitest.config.ts",
     "vitest.smoke.config.ts",
     "vitest.principles.config.ts",
-    "budget",
     "vitest.budget.config.ts",
-    "sites",
-    "visual",
     "vitest.visual.config.ts"
   ]
 }

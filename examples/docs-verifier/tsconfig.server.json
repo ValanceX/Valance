@@ -2,16 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
-    "outDir": "dist/server",
+    "outDir": ".valance/tools",
     "rootDir": "."
   },
   "include": [
-    "model",
-    "tooling",
-    "app",
-    "web"
+    "src",
+    "build"
   ],
   "exclude": [
-    "web/page.ts"
+    "src/main.ts"
   ]
 }
