@@ -4,7 +4,7 @@
 //   body         receives the decoded value; commits only through the state it was given; a commit is authoritative whatever happens to the command afterwards
 //   failure      typed failure, defect and interruption stay distinct in `invoke`'s Exit; none is an application lifecycle event (the application keeps admitting, other commands and
 //                consumers are unaffected except through a commit that actually happened); a command never waits for or implies presentation; zero consumers is fine
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -48,7 +48,7 @@ const world = async (only?: string) => {
     const ops: Array<string> = [];
     const scope = await run(Scope.make());
 
-    await run(Valance.mount(handle, ((report) => { const port = Web.target({ container: page.container, primitives })(report); return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); } }; }) as Valance.TargetFactory<WebPort>).pipe(Scope.extend(scope)));
+    await run(Valance.mount(handle, ((report) => { const port = Web.target({ container: page.container, primitives })(report); return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); } }; }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)));
 
     return { ops, label: () => page.container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
   };

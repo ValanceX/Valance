@@ -4,7 +4,7 @@
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import * as Nexus from "@valancex/nexus";
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import { userEvent } from "@vitest/browser/context";
@@ -65,7 +65,7 @@ const boot = async () => {
 
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: main, primitives })(report);
 
     return {

@@ -1,6 +1,6 @@
 // Stage 40: the event-exit ledger (`Mounted.dispatched` / `settled`) in the one case Stage 39 made possible: the mount closes while its admitted click
 // command is still pending in the application; the command exits later. Real Chromium, real PORT target, independent mount, existing public surface only.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -50,7 +50,7 @@ const setup = async (outcome: "commit" | "fail") => {
   const root = document.createElement("main");
 
   document.body.append(root);
-  const target: Valance.TargetFactory<WebPort> = (report) => Web.target({ container: root, primitives })(report);
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => Web.target({ container: root, primitives })(report);
   const mounted = (await run(Valance.mount(handle as never, target).pipe(Scope.extend(mountScope)))) as Valance.Mounted<never>;
 
   return {

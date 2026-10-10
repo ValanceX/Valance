@@ -5,7 +5,7 @@
 //       and the application's state outlives both. Nothing in the application names PORT or an operation.
 //   N2  an event reported on a drawn render is dispatched against THAT render even if a navigation has already
 //       committed, before the target has drawn the new view (FINDINGS Stage 2, "navigation vs. in-flight events").
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -19,7 +19,7 @@ import { load, until } from "./helpers.js";
 type Operation = "draw" | "update";
 
 /** The Web target, recording each PORT operation Valance asks for. PORT's own behavior is untouched. */
-const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<WebPort> => (report) => {
+const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container, primitives })(report);
 
   return {

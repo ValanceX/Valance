@@ -1,6 +1,6 @@
 // Shared by lifecycle-races.test.ts and handle-after-close.test.ts: a real jsdom window with real history, an application (a counter, a path, a navigate command and gated
 // commands reached from a real click or from `invoke`), and helpers to start it and to mount and attach history in Scopes of their own.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -88,7 +88,7 @@ export const world = async () => {
     counter += 1;
     win.document.body.append(container);
     const scope = await run(Scope.make());
-    const target: Valance.TargetFactory<WebPort> = (report) => {
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       const port = Web.target({ container, primitives })(report);
 
       return { draw: (t) => { port.draw(t); ops.push(`draw ${text()}`); }, update: (t) => { port.update(t); ops.push(`update ${text()}`); }, hydrate: (t) => port.hydrate(t), unmount: () => { ops.push("unmount"); if (options.unmountThrows?.() === true) { throw new Error("unmount failed"); } port.unmount(); } };

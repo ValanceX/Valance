@@ -6,7 +6,7 @@
 //   close      the mount's close releases ITS bookkeeping (settled on a closed mount returns at once); the admitted command continues as the application's (C25) and its exit
 //              still reaches the ledger; nothing is presented through the closed mount. A `settled` already waiting keeps waiting for the dispatches it had captured.
 //   inert      an inert mount keeps its last good render FOR EVENTS (C31): an event on it dispatches, commits, and is recorded and covered like any other
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
@@ -43,7 +43,7 @@ const boot = async () => {
   const mountOn = async () => {
     const page = load("");
     const ops: Array<string> = [];
-    const target: Valance.TargetFactory<WebPort> = (report) => { const port = Web.target({ container: page.container, primitives })(report); return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } }; };
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => { const port = Web.target({ container: page.container, primitives })(report); return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } }; };
     const scope = await Effect.runPromise(Scope.make());
     const mounted = await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.extend(scope)));
     return { page, ops, scope, mounted, click: (id: string) => page.click(page.container.querySelectorAll("div")[ids.indexOf(id as never)]!.querySelector("button")!), ledger: () => mounted.dispatched.map(show), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };

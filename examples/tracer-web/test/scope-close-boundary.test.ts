@@ -47,7 +47,7 @@ describe("a mount's Scope.close", () => {
       const app = await w.startApp();
       const container = w.win.document.createElement("main");
       const ops: Array<string> = [];
-      const target: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+      const target: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
         const port = Web.target({ container, primitives })(report);
 
         return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
@@ -75,7 +75,7 @@ describe("a mount's Scope.close", () => {
     const container = w.win.document.createElement("main");
     const ops: Array<string> = [];
     const scope = await run(Scope.make());
-    const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>> & { hydrate: (tree: never) => unknown }> = (report) => {
+    const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }> & { hydrate: (tree: never) => unknown }> = (report) => {
       const port = Web.target({ container, primitives })(report);
       const close = () => { void Effect.runPromise(Scope.close(scope, Exit.void)); };
 

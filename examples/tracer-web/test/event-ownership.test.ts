@@ -1,7 +1,7 @@
 // Stage 36 probes, adopted in Stage 39: who owns a click-initiated command once it is admitted. Decision (docs/FINDINGS.md, Stage 39): the
 // APPLICATION. Closing the dispatching mount ends its follower and target; the command goes on, commits, and is rendered by the mounts that remain.
 // (Stage 36 ran these same probes against both models; the mount-owned expectations are recorded there, no longer here.)
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -91,7 +91,7 @@ const boot = async () => {
   const mountOn = async (name: string, options: { readonly failDraw?: boolean } = {}) => {
     const page = load("");
     const label = () => (page.container.querySelector("span")?.textContent ?? "").replace(/^\d+ items: /, "");
-    const target: Valance.TargetFactory<WebPort> = (report) => {
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       const port = Web.target({ container: page.container, primitives })(report);
 
       return {

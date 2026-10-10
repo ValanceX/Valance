@@ -1,6 +1,6 @@
 // Tracer: what happens when application state changes faster than rendering can realize it? The render is gated, not timed.
-// The one async step of presenting a state is MESH's `render` (an awaited promise); the target call after it is synchronous. This file wraps ONLY that
-// call (test-only, `vi.mock`) so a test can hold a render open, commit meanwhile, and release in an adversarial order. Nothing under src/ or packages/ changed.
+// The one async step of presenting a state is MESH's `render` (the first) or `update` (every later one of the view), an awaited promise; the target call after it is synchronous. This file wraps ONLY those
+// calls (test-only, `vi.mock`) so a test can hold a render open, commit meanwhile, and release in an adversarial order. Nothing under src/ or packages/ changed.
 //   questions: does a later render overlap, cancel or wait for an earlier one? can an older render present after a newer one? who owns the pending render?
 //   what keeps keyed identity when an intermediate state is skipped? does a pending render ever touch application state?
 import { Effect, Exit, Scope } from "effect";
@@ -15,21 +15,24 @@ const gates = vi.hoisted(() => {
 
 vi.mock("@valancex/mesh-runtime", async (importOriginal) => {
   const real = await importOriginal<typeof import("@valancex/mesh-runtime")>();
+  // The first presentation of a view is MESH's `render`; every later one is MESH's `update` of the render before it. Both are the one async step, and both are gated the same way.
+  const gated = async <T>(snapshot: Record<string, unknown>, work: () => Promise<T>): Promise<T> => {
+    const title = String((snapshot as { title?: string }).title);
+    const held = gates.holds.get(title)?.shift();
+
+    gates.log.push(`start ${title}`);
+    if (held !== undefined) { await held; }
+    const result = await work();
+
+    gates.log.push(`done ${title}`);
+
+    return result;
+  };
 
   return {
     ...real,
-    render: async (input: Parameters<typeof real.render>[0]) => {
-      const title = String((input.snapshot as { title?: string }).title);
-      const held = gates.holds.get(title)?.shift();
-
-      gates.log.push(`start ${title}`);
-      if (held !== undefined) { await held; }
-      const result = await real.render(input);
-
-      gates.log.push(`done ${title}`);
-
-      return result;
-    },
+    render: (input: Parameters<typeof real.render>[0]) => gated(input.snapshot, () => real.render(input)),
+    update: (previous: Parameters<typeof real.update>[0], snapshot: Parameters<typeof real.update>[1]) => gated(snapshot, () => real.update(previous, snapshot)),
   };
 });
 

@@ -37,7 +37,7 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
   - **D** is the set of `component/command` keys MESH reports as declared by the program of **every** view, whether or not that view is current, whether or not the declaring branch is currently rendered (an inactive conditional branch, a repeated body, a composite's own template all count). VALANCE asks MESH (`declaredEvents`); it reads no program. A key declared more than once is one requirement. No reachability is analysed.
   - **B** is the own keys of the table `commands(state)` returned. It is the application's: keys MESH never declares (`app/...` entries, history's navigate key) are permitted. Only `D ⊆ B` is checked, never `B ⊆ D`.
   - The checks run after `commands(state)` has returned, in this order: the programs' MESH diagnostics (the first view, in the definition's order, that has any fails `start` with them, and `D ⊆ B` is then not evaluated, because D is not complete), then conformance. A conformance failure lists **every** declaration whose key is absent: the view, the declaring component, the event, the command, the key `component/command`, and MESH's span in that component's template source (it names no file), in the order of the definition's views and then MESH's order.
-  - `start` asks MESH for the declared events, so in a browser the MESH runtime must have been initialized (`init`) **before** `start`; an uninitialized runtime is a defect from `start`, not a typed failure. (In Node it initializes itself.)
+  - `start` asks MESH for the declared events, so MESH's runtime must be able to load its module before `start`. With MESH 0.10 it loads its packaged module itself on first use, in a browser too; `init(wasmUrl)` is how a page chooses the URL (a bundler that moves the module, or a development server that prebundles the runtime, needs it: the runtime's error says so). A runtime that cannot load is a defect from `start` (a `MeshUsageError` with the code `module-unavailable`), not a typed failure.
   - It states **only that the key is present**. It does not state that a NEXUS command exists, that the entry runs any particular command, that the event's arguments fit it, or that running it succeeds: none of that is checked or promised.
 
 ## 3. State and commands
@@ -72,7 +72,7 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 ## 5. Views and presentation
 
 - `view(state)` returns the name of the current view; `views` maps names to `{ program, scope }`. `scope(state)` produces the values the MESH program renders. The view is a function of state: the application, not the presentation, decides it.
-- **Continuity is decided by view name alone.** A presentation of the same view as the one the mount has drawn is an `update`; a presentation of a different view is a `draw`. VALANCE never compares render trees, so two different views that render identical output are still a `draw`, and a same-view change of any structure (a conditional appearing, keyed items added, removed or reordered) is an `update`.
+- **Continuity is decided by view name alone.** A presentation of the same view as the one the mount has drawn is an update; a presentation of a different view is a `draw`. An update reaches the target as MESH's `patches` for it (`patch`) when the target has `patch`, so only what changed is drawn, and as `update` with the whole tree when it has not: VALANCE gets the patches from MESH's `update` of the render before, and never compares render trees itself, so two different views that render identical output are still a `draw`, and a same-view change of any structure (a conditional appearing, keyed items added, removed or reordered) is an `update`.
 - Which nodes an `update` keeps, creates or removes is MESH's identity and PORT's realization; VALANCE promises nothing about it.
 - **Every state that reaches a mount is presented as `update` or `draw`.** There is no render-equality or no-op optimization: a state change outside the render, or an equal-valued new state, still reaches the target. The one state a mount does not present again is the very state object it last read.
 
@@ -140,7 +140,7 @@ One Scope never closes another. The caller may put them in one Scope or in sever
 1. Admission closes synchronously. Every later `invoke`, mount event or popstate is refused with a defect (`VALANCE: admission is closed (draining)`, then `NEXUS: the runtime has begun terminating`). An unknown key is still the typed `UnmappedCommand`.
 
    **Telling a refusal from a bug.** Each of these defects has a stable identity, not just text. VALANCE's own are a `ValanceError` with a `code` (`admission-closed`, `application-ended`, `not-an-application`, and for definition and target mistakes `bare-command-binding`, `unknown-view`, `target-not-drawn`); NEXUS's are a `Runtime.Refusal` with its own `code`. `isRefusal(defect)` is true for work turned away because the application or runtime is closing, ended, or was never started (`admission-closed`, `application-ended`, `not-an-application`, and any NEXUS refusal); it is false for a bug. Read the defect from the `Cause` (`Cause.dieOption`). Messages are unchanged and are for people. A typed failure carries `_tag`; a dying error carries `code`.
-2. Admitted commands are interrupted and awaited one at a time (how they interleave inside the drain is not specified, only that every commit precedes the close's resolution). A command that is uninterruptible keeps the close waiting for its actual exit; if it commits meanwhile, the commit stands, though its caller still sees `Interrupted`. The state, not the caller's exit, is the record of what committed.
+2. Admitted commands are first given `shutdown.grace` (a `start` option, `0` by default, `Duration.infinity` to wait for all) to finish on their own; those still running are then interrupted and awaited one at a time (how they interleave inside the drain is not specified, only that every commit precedes the close's resolution). A command that is uninterruptible keeps the close waiting for its actual exit; if it commits meanwhile, the commit stands, though its caller still sees `Interrupted`. The state, not the caller's exit, is the record of what committed.
 3. The runtime terminates and platform resources are released, once.
 4. **No commit happens after `Scope.close` resolves**, and `handle.state` stays readable as the last committed state. The state stream ends and never resumes.
 
@@ -212,18 +212,18 @@ Each package has one role. A strict package manager (pnpm) resolves only what th
 | Package | Range | Role | Declare it as |
 |---|---|---|---|
 | `@valancex/valance` | the release you target | this package | dependency |
-| `@valancex/nexus` | `^0.10.3` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
-| `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders MESH programs at run time | dependency |
-| `@valancex/port-web` | `^0.3.0` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
+| `@valancex/nexus` | `^0.12.0` | **application-level**: command definitions, state handles and capabilities are written against it (`Command.define`, `Mesh.bind`, `State.StateHandle`, `Capability`), and its types appear in `define`'s signature | dependency (the same range `@valancex/valance` uses, so exactly one copy is shared) |
+| `@valancex/mesh-runtime` | `^0.10.0` | peer: renders MESH programs at run time | dependency |
+| `@valancex/port-web` | `^0.4.0` | optional peer: needed for `@valancex/valance/web` and `@valancex/valance/web/server`, not for the core entry | dependency, when you use the Web entries |
 | `effect` | `^3.10.0` | peer: the effect system the API is written in | dependency |
-| `@valancex/mesh-compiler` | `^0.9.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
+| `@valancex/mesh-compiler` | `^0.10.0` | **build time only**: compiles MPRX sources to the `program` each view takes (`compileProgram`, [§15](#15-building-a-view-description)); nothing imports it at run time | devDependency |
 
 ```console
-$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
-$ pnpm add -D @valancex/mesh-compiler@^0.9.0
+$ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.10.0 @valancex/port-web@^0.4.0 effect@^3.10.0
+$ pnpm add -D @valancex/mesh-compiler@^0.10.0
 ```
 
-`@valancex/nexus` 0.10.3 takes the MESH runtime as a peer dependency, so the runtime you install is the only one: with an earlier NEXUS (a hard `^0.8.0` dependency), an application on MESH 0.9 gets a second, uninitialized runtime in the browser. `@valancex/mesh-runtime` is listed for both lines this release was run against (0.8 and 0.9; a 0.x caret admits one minor).
+`@valancex/nexus` 0.10.3 and later take the MESH runtime as a peer dependency, so the runtime you install is the only one: with an earlier NEXUS (a hard `^0.8.0` dependency), an application on MESH 0.9 gets a second, uninitialized runtime in the browser. `@valancex/mesh-runtime` is listed for both lines this release was run against (0.8 and 0.9; a 0.x caret admits one minor).
 
 Give the ranges explicitly, as above: an unversioned `pnpm add effect` resolves to a newer major than the peer range allows.
 

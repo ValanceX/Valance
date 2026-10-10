@@ -1,7 +1,7 @@
 // Stage 38: whose lifetime is a mount's? One real mount in Chromium (real PORT web target, real clicks), placed in its OWN Scope, independent
 // of the application's. The sequence: application alive -> mount alive -> close one mount (application stays usable, a new mount draws the
 // current state) -> close the application -> observe the surviving mount -> try events/commands -> finally close the mount's own Scope.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -36,7 +36,7 @@ describe("mount lifetime, in Chromium, with independent Scopes", () => {
       const scopeA = await run(Scope.make());
       const scopeB = await run(Scope.make());
       const handle = await run(Valance.start(application(catalog), { state }).pipe(Scope.extend(appScope)));
-      const target = (root: Element): Valance.TargetFactory<WebPort> => (report) => Web.target({ container: root, primitives })(report);
+      const target = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => Web.target({ container: root, primitives })(report);
 
       // 1. application alive, mount A alive: a real click reaches the application and the page follows.
       const mountedA = await run(Valance.mount(handle, target(rootA)).pipe(Scope.extend(scopeA)));

@@ -24,7 +24,7 @@ import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { Cause, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export type { ValanceErrorCode } from "./errors.js";
@@ -272,6 +272,11 @@ export interface StartOptions<S> {
   readonly platform?: Nexus.Application.Platform;
   /** Overrides the definition's initial state: the client's, from what the server embedded. */
   readonly state?: S;
+  /**
+   * How the application ends. `grace` is how long closing the application's Scope waits for the commands it admitted (and the work NEXUS tracks) to finish on their own, after new
+   * commands are refused, before it interrupts what is left and waits for each to exit. The default, `0`, interrupts at once. `Duration.infinity` waits for every command.
+   */
+  readonly shutdown?: Nexus.Runtime.ShutdownOptions;
 }
 
 /**
@@ -307,19 +312,30 @@ export interface ApplicationHandle<S, E> {
 export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<ApplicationHandle<S, E>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
-    const nexus = yield* Nexus.Application.start(definition, options.platform === undefined ? undefined : { platform: options.platform });
+    const nexus = yield* Nexus.Application.start(definition, options.platform === undefined && options.shutdown === undefined ? undefined : { ...(options.platform === undefined ? {} : { platform: options.platform }), ...(options.shutdown === undefined ? {} : { shutdown: options.shutdown }) });
 
     // Command lifetime: a command admitted through `inApplication` stays owned by the application until it exits. When the
-    // application's Scope closes, VALANCE closes admission and interrupts and awaits every admitted command BEFORE NEXUS
-    // terminates and the platform releases its resources. This finalizer is added right after `Application.start` registered
+    // application's Scope closes, VALANCE closes admission, waits up to `shutdown.grace` for the admitted commands to finish, then interrupts and awaits
+    // every one that is left, BEFORE NEXUS terminates and the platform releases its resources. This finalizer is added right after `Application.start` registered
     // NEXUS's own; Scope finalizers run in reverse order, so it runs first. It owns commands only, not daemons or escaped fibers.
     const admitted = new Set<Fiber.RuntimeFiber<unknown, unknown>>();
     let admissionClosed = false;
 
+    const grace = Duration.decode(options.shutdown?.grace ?? 0);
+
     yield* Effect.addFinalizer(() => Effect.suspend(() => {
       admissionClosed = true;                                                  // closes synchronously, before anything below can run
 
-      return Effect.forEach([...admitted], (command) => Fiber.interrupt(command), { discard: true });   // interrupts, and awaits each ACTUAL exit
+      const commands = [...admitted];
+      // The wait is a fiber of its own, interruptible, so the grace can end it although a finalizer is not: the Scope's close awaits it.
+      const waited = Effect.interruptible(Effect.ignore(Effect.timeout(Effect.forEach(commands, (command) => Fiber.await(command), { discard: true }), grace)));
+
+      // No grace is no wait at all (not even a turn): a command admitted in the step the close began is interrupted before it runs.
+      return commands.length === 0
+        ? Effect.void
+        : (Duration.isZero(grace) ? Effect.void : Effect.flatMap(Effect.forkDaemon(waited), Fiber.await)).pipe(
+          Effect.andThen(Effect.forEach(commands, (command) => Fiber.interrupt(command), { discard: true }))   // interrupts what is left, and awaits each ACTUAL exit
+        );
     }));
     const state = yield* Nexus.Application.createState(nexus, app.state.schema, options.state ?? app.state.initial);
     const given = app.commands(state);
@@ -394,6 +410,16 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       return Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render.pipe(Effect.map((render) => ({ view, render })));
     };
 
+    // The render of `value` after `previous`: the same view is MESH's update of the previous render (the new render and the patches that turn the one into the other), anything else
+    // is rendered afresh. The previous render is the last one this stream produced, so what `update` is given is always the render the target was last given.
+    const advance = (previous: Viewed | undefined, value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> => {
+      const view = app.view(value);
+
+      return previous === undefined || previous.view !== view
+        ? renderOf(value)
+        : Nexus.Mesh.update(previous.render, app.views[view].scope(value) as Record<string, unknown>).pipe(Effect.map(({ render, patches }): Viewed => ({ view, render, patches })));
+    };
+
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
     // `runFork`: the handle holds none of them, so joining it imports nothing into the caller). The caller's
     // interruption interrupts the event; results, typed failures and defects pass through unchanged.
@@ -423,7 +449,7 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
       // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
       // `state.get` is read after the wake, so what is rendered is never older than the element that woke it; the first element is still the first draw.
-      values: Stream.mapEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), renderOf),
+      values: Stream.mapAccumEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), undefined as Viewed | undefined, (previous, value) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed]))),
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
 
@@ -463,10 +489,14 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
 /** Reports what the user did: PORT's handler identifier and payload. */
 export type Report = (handler: string, payload?: BoundaryValue) => void;
 
-/** PORT's contract as the composer uses it. `draw`/`update` carry program continuity, which only the composer knows. */
+/**
+ * PORT's contract as the composer uses it. `draw`/`update` carry program continuity, which only the composer knows. A PORT that can apply MESH's patches in place also has `patch`: the
+ * composer then gives it the patches of each later render of the same view, and `update` only when there are none (a target without `patch` is always given `update`).
+ */
 export interface Target {
   draw(tree: RenderTree): void;
   update(tree: RenderTree): void;
+  patch?(patches: Nexus.Mesh.RenderPatches): unknown;
   unmount(): void;
 }
 
@@ -546,7 +576,11 @@ const connect = <S, E, T extends Target, A>(
     const follower = yield* Stream.runForEach(running.values, (viewed) => Effect.suspend(() => {
       if (drawn.current !== undefined) {
         if (drawn.current.view === viewed.view) {
-          target.update(viewed.render.tree);
+          if (viewed.patches !== undefined && target.patch !== undefined) {
+            target.patch(viewed.patches);
+          } else {
+            target.update(viewed.render.tree);
+          }
         } else {
           target.draw(viewed.render.tree);
         }

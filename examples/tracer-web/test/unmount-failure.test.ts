@@ -85,7 +85,7 @@ describe("unmount throws in other situations", () => {
     const container = new JSDOM("<!doctype html><body></body>").window.document.createElement("main");
     const ops: Array<string> = [];
 
-    const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+    const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
       const port = Web.target({ container, primitives })(report);
 
       return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); }, hydrate: (t) => port.hydrate(t), unmount: () => { ops.push("unmount"); throw new Error("unmount failed"); } };

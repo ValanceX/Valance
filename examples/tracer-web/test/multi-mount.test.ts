@@ -2,7 +2,7 @@
 // `connect`: follower, target, pending dispatches) over the one handle returned by `Valance.start` in the application's Scope.
 // No store, no synchronisation, no new API: this only observes which lifetime owns what. Events come from real clicks in each mount's
 // own page, or from `invoke`. One MESH intent `home/open(id)` carries every behavior, selected by the clicked row's id.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -90,7 +90,7 @@ const boot = async () => {
   const mountOn = async (name: string, options: { readonly failDraw?: boolean } = {}) => {
     const page = load("");
     const label = () => (page.container.querySelector("span")?.textContent ?? "").replace(/^\d+ items: /, "");
-    const target: Valance.TargetFactory<WebPort> = (report) => {
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       const port = Web.target({ container: page.container, primitives })(report);
 
       return {

@@ -5,7 +5,7 @@
 // Observed here, not designed: application state after the failure, the other mounts, a fresh mount, and closing the failed mount's Scope.
 // Two ways to get there, because they are different owners: a state whose MESH render is invalid (every mount renders the same state, so every
 // mount ends), and a PORT target that fails in ONE mount (only that mount ends).
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -27,7 +27,7 @@ describe("a mount that stopped following", () => {
     try {
       const [appScope, scopeA, scopeB, scopeC] = await Promise.all([Scope.make(), Scope.make(), Scope.make(), Scope.make()].map(run));
       const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
-      const factory = (root: Element): Valance.TargetFactory<WebPort> => Web.target({ container: root, primitives });
+      const factory = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => Web.target({ container: root, primitives });
       const mountedA = await run(Valance.mount(handle, factory(rootA)).pipe(Scope.extend(scopeA!)));
       const mountedB = await run(Valance.mount(handle, factory(rootB)).pipe(Scope.extend(scopeB!)));
 
@@ -88,7 +88,7 @@ describe("a mount that stopped following", () => {
       const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
       let failing = false;
       // A target that fails to realize an update: PORT's failure, in this mount alone. A wrapper over the public `TargetFactory`; PORT is otherwise real.
-      const flaky = (root: Element): Valance.TargetFactory<WebPort> => (report) => {
+      const flaky = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
         const port = Web.target({ container: root, primitives })(report);
 
         return { draw: (tree) => { port.draw(tree); }, update: (tree) => { if (failing) { throw new Error("the target could not realize the update"); } port.update(tree); }, hydrate: (tree) => port.hydrate(tree), unmount: () => { port.unmount(); } };

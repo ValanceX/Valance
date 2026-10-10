@@ -1,6 +1,6 @@
 // Shared by burst.browser.test.ts and backlog.browser.test.ts: an application with views A (notfound program) and B (details program) over one state
 // `{ view, n }`, and a recording target over the real Web target. `after` runs once per PORT operation, so a test can make presentation take real time.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -51,7 +51,7 @@ export const app = (timeline: Array<string>) => {
 export const label = (root: Element): string | null | undefined => root.querySelector("section")?.getAttribute("aria-label");
 
 /** The Web target, recording each PORT operation Valance asks for together with what the DOM shows right after it. */
-export const recording = (root: Element, log: Array<string>, timeline: Array<string>, mount: number, after: () => void = () => undefined): Valance.TargetFactory<WebPort> => (report) => {
+export const recording = (root: Element, log: Array<string>, timeline: Array<string>, mount: number, after: () => void = () => undefined): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
   const port = Web.target({ container: root, primitives })(report);
 
   return {

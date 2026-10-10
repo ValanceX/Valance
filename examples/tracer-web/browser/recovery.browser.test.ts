@@ -1,6 +1,6 @@
 // Stage 10: deliberate recovery after a mount went inert (C31), in real Chromium, public API only. The host closes the failed mount's Scope and
 // mounts afresh against the SAME application handle: nothing in Valance retries, remounts or repairs; nothing in the application changes.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -14,7 +14,7 @@ import { primitives } from "../src/catalog/web.js";
 
 beforeAll(async () => { await init(wasmUrl); });
 
-const healthy = (root: Element): Valance.TargetFactory<WebPort> => Web.target({ container: root, primitives });
+const healthy = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => Web.target({ container: root, primitives });
 
 it("a shared invalid state: the mount goes inert; a mount cannot start while the state is invalid; after an ordinary repair command, close → mount again renders the current state and follows", async () => {
   const [root] = roots();
@@ -94,7 +94,7 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
 
     // PORT-local: B's target fails to realize an update; only B ends. The host replaces B's target (same application, same container), A never notices.
     let failing = true;
-    const flaky = (root: Element): Valance.TargetFactory<WebPort> => (report) => {
+    const flaky = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
       const port = Web.target({ container: root, primitives })(report);
 
       return { draw: (tree) => { port.draw(tree); }, update: (tree) => { if (failing) { throw new Error("the target could not realize the update"); } port.update(tree); }, hydrate: (tree) => port.hydrate(tree), unmount: () => { port.unmount(); } };

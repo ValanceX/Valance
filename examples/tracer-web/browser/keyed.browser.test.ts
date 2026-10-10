@@ -2,7 +2,7 @@
 // The question is identity: when keyed items move, does the existing DOM node move with its key, or is it recreated by position? An input per item makes it observable (element identity, typed value, focus).
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import { userEvent } from "@vitest/browser/context";
@@ -49,7 +49,7 @@ const boot = async () => {
 
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: main, primitives })(report);
 
     return {

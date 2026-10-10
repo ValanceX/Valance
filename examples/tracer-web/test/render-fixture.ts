@@ -47,7 +47,7 @@ export const rig = async () => {
 
     container.innerHTML = kind === "hydrate" ? served.html : "";
     doc.body.append(container);
-    const factory: Valance.TargetFactory<ReturnType<ReturnType<typeof Web.target>>> = (report) => {
+    const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
       const port = Web.target({ container, primitives })(report);
 
       return {

@@ -39,8 +39,8 @@ Build a counter and run it in your browser in about five minutes.
 ```console
 $ mkdir my-app && cd my-app
 $ pnpm init && pnpm pkg set type=module
-$ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
-$ pnpm add -D @valancex/mesh-compiler@^0.9.0 vite typescript
+$ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.10.0 @valancex/port-web@^0.4.0 effect@^3.10.0
+$ pnpm add -D @valancex/mesh-compiler@^0.10.0 vite typescript
 ```
 
 ### 2. Describe the screen

@@ -1,6 +1,6 @@
 // Stage 39: who ends an ADMITTED click command? (Decision: the application.) Real Chromium, real PORT web target, real clicks, one independent mount (its own Scope), one
 // command held pending on a gate the test owns. Two experiments, each ending exactly one of the two lifetimes while the other stays open.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
@@ -59,7 +59,7 @@ const setup = async () => {
 
     document.body.append(root);
     const scope = await run(Scope.make());
-    const target: Valance.TargetFactory<WebPort> = (report) => {
+    const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
       const port = Web.target({ container: root, primitives })(report);
 
       return { draw: (tree) => { port.draw(tree); }, update: (tree) => { port.update(tree); }, hydrate: (tree) => port.hydrate(tree), unmount: () => { port.unmount(); events.push(`${name} unmounted`); } };

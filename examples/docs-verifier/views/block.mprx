@@ -1,0 +1,11 @@
+<mesh-fragment>
+  <mesh-switch>
+    <mesh-case when={kind == "heading" && level == 1}><h1><runs spans={spans} /></h1></mesh-case>
+    <mesh-case when={kind == "heading" && level == 2}><h2><runs spans={spans} /></h2></mesh-case>
+    <mesh-case when={kind == "heading"}><h3><runs spans={spans} /></h3></mesh-case>
+    <mesh-case when={kind == "item"}><para>• <runs spans={spans} /></para></mesh-case>
+    <mesh-case when={kind == "callout"}><callout tone={tone}><runs spans={spans} /></callout></mesh-case>
+    <mesh-case when={kind == "code"}><code-block code={text} lang={lang} blockId={blockId} copyLabel={copyLabel} on.copy={copy($event)} /></mesh-case>
+    <mesh-default><para><runs spans={spans} /></para></mesh-default>
+  </mesh-switch>
+</mesh-fragment>

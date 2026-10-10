@@ -5,26 +5,27 @@ Build an interactive application whose state lives in one place, whose screen is
 **Documentation:** [Learn](https://github.com/ValanceX/Valance/blob/main/docs/learn/README.md) (start here) · [Use](https://github.com/ValanceX/Valance/blob/main/docs/use/README.md) (API reference and the contract) · [Understand](https://github.com/ValanceX/Valance/blob/main/docs/understand/README.md) (architecture and evidence).
 
 ```ts
-import * as Valance from "@valancex/valance";           // define, command, entry, start, mount, hydrate (+ ApplicationHandle, Mounted, TargetFactory)
+import * as Valance from "@valancex/valance";           // define, command, entry, start, mount, hydrate, isRefusal (+ ApplicationHandle, Mounted, TargetFactory)
 import * as Web from "@valancex/valance/web";           // Web.run, Web.target, Web.history   (needs @valancex/port-web)
 import { renderToHtml } from "@valancex/valance/web/server";
+import { manifest } from "@valancex/valance/web/build";   // build time: derives the MESH manifest from your primitives, scopes and commands
 ```
 
 - **Install** (a strict package manager resolves only what you declare, so declare the application-level and build-time packages yourself):
 
   ```console
-  $ pnpm add @valancex/valance @valancex/nexus@^0.10.3 @valancex/mesh-runtime@^0.9.0 @valancex/port-web@^0.3.0 effect@^3.10.0
-  $ pnpm add -D @valancex/mesh-compiler@^0.9.0
+  $ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.10.0 @valancex/port-web@^0.4.0 effect@^3.10.0
+  $ pnpm add -D @valancex/mesh-compiler@^0.10.0
   ```
 
   | Package | Range | Role |
   |---|---|---|
   | `@valancex/valance` | the release you target | this package |
-  | `@valancex/nexus` | `^0.10.3` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
-  | `@valancex/mesh-runtime` | `^0.8.0 \|\| ^0.9.0` | peer: renders programs at run time (the one runtime: NEXUS 0.10.3 shares it) |
-  | `@valancex/port-web` | `^0.3.0` | optional peer: needed for `./web` and `./web/server` |
+  | `@valancex/nexus` | `^0.12.0` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
+  | `@valancex/mesh-runtime` | `^0.10.0` | peer: renders and updates programs at run time (the one runtime: NEXUS 0.12 shares it) |
+  | `@valancex/port-web` | `^0.4.0` | optional peer: needed for `./web` and `./web/server` |
   | `effect` | `^3.10.0` | peer |
-  | `@valancex/mesh-compiler` | `^0.9.0` | **build time only** (devDependency): compiles MPRX to the `program` each view takes (`compileProgram`) |
+  | `@valancex/mesh-compiler` | `^0.10.0` | **build time only** (devDependency): compiles MPRX to the `program` each view takes (`compileProgram`) |
 
 - **Async work and startup:** a command can wait; once admitted it belongs to the application, and closing the application cancels it. Loading and failure are ordinary state; `command(state).waiting` writes a Promise-shaped one without NEXUS or Effect (added in 0.5.0). The optional `start` field of `define` names a command the application runs once when it starts (added in 0.4.0). See [Async work](https://github.com/ValanceX/Valance/blob/main/docs/learn/async-work.md) and [Startup work](https://github.com/ValanceX/Valance/blob/main/docs/learn/startup-work.md).
 - **Lifetimes:** the application, each mount and each history live in separate, caller-owned `Scope`s; closing one never closes another. Closing the application's `Scope` ends commits (state stays readable); mounts then end inert.

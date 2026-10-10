@@ -1,0 +1,6 @@
+<shell>
+  <header>{site}</header>
+  <mesh-slot name="nav" />
+  <mesh-slot />
+  <footer>The features verifier: a documentation site on the development branches</footer>
+</shell>

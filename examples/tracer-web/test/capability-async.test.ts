@@ -1,7 +1,7 @@
 // Stage 20: the Stage 19 capability, made asynchronous. Same ownership, same platform mechanism, same command boundary, same
 // render path; the capability's operation is now an Effect that can suspend, be completed by the test, and be interrupted.
 // No timing: the test waits on signals the controllable implementation raises, and completes operations by hand.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -193,7 +193,7 @@ const controllable = (options: { readonly useAfterRelease?: "fail" | "die"; read
 const mounted = () => {
   const page = load("");
   const operations: Array<string> = [];
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return { draw: (tree) => { operations.push("draw"); port.draw(tree); }, update: (tree) => { operations.push("update"); port.update(tree); }, hydrate: (tree) => port.hydrate(tree), unmount: () => { port.unmount(); } };
@@ -1839,31 +1839,27 @@ describe("the VALANCE command-lifetime contract", () => {
 });
 
 // Stage 30: the one other way an application can end, `Application.shutdown(running.nexus)`. It is NEXUS's, reachable only through the
-// `./internal` composition face (the public handle has no shutdown; no VALANCE source or example calls it). Characterised, not guarded:
-// it starts NEXUS termination without VALANCE's drain, so the command-lifetime contract (triggered by the caller's Scope closing) does not
-// apply to it. The caller's Scope close that necessarily follows still drains.
+// `./internal` composition face (the public handle has no shutdown; no VALANCE source or example calls it). It starts NEXUS termination without VALANCE's drain, so the
+// command-lifetime contract (triggered by the caller's Scope closing) does not apply to it. Since NEXUS 0.12 the substrate settles the work it tracks itself: it interrupts
+// the admitted command, and awaits its exit, before anything is released (0.11 released the resource under the command). The caller's Scope close that follows is harmless.
 describe("early end through the substrate (outside the VALANCE model)", () => {
-  it("Application.shutdown(running.nexus) does not pass through the VALANCE drain; the Scope close that follows does", async () => {
+  it("Application.shutdown(running.nexus) does not pass through the VALANCE drain, but NEXUS interrupts the in-flight command before it releases anything", async () => {
     const { w, handle, closeScope } = await boot();
     const invoked = Effect.runFork(handle.invoke("app/drainLookup", [{ value: "A" }]));
 
     await Effect.runPromise(w.started("A"));
     w.events.push("shutdown requested");
-    const shutdown = Effect.runFork(Nexus.Application.shutdown(runningOf(handle).nexus));
+    await Effect.runPromise(Nexus.Application.shutdown(runningOf(handle).nexus));
 
-    await Effect.runPromise(w.draining);                                          // the resource's own drain waits for the in-flight call: NEXUS began, VALANCE did not interrupt
-    expect(w.events).not.toContain("lookup interrupted A");                       // not drained: the command is still running
+    expect(w.events).toContain("lookup interrupted A");                             // NEXUS settled the command it tracks: interrupted, and its exit awaited
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");
     expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))))).toBe("died: NEXUS: the runtime has begun terminating");   // NEXUS's refusal, not VALANCE's
-
-    await Effect.runPromise(w.complete("A"));                                     // only the command's own completion lets the substrate path finish
-    await Effect.runPromise(Fiber.join(shutdown));
-    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("succeeded");
-    expect(w.events).not.toContain("resource used after release A");              // safe here only because this fixture's resource drains itself (Stage 23)
+    expect(w.events).not.toContain("resource used after release A");
 
     await Effect.runPromise(Fiber.join(closeScope()));                            // the Scope's own close afterwards finds nothing left and is harmless
   });
 
-  it("and without a self-draining resource, that path releases the resource under the admitted command (the pre-contract Stage 22 behavior): the contract is not claimed for it", async () => {
+  it("and the resource need not drain itself: the command is gone before the resource is released (0.11 released it under the command)", async () => {
     const app = applicationWithAsyncCatalog(await compilePrograms());
     const w = controllable({ useAfterRelease: "fail" });
     const scope = await Effect.runPromise(Scope.make());
@@ -1871,11 +1867,11 @@ describe("early end through the substrate (outside the VALANCE model)", () => {
     const invoked = Effect.runFork(handle.invoke("app/lookupAsync", [{ value: "A" }]));
 
     await Effect.runPromise(w.started("A"));
-    await Effect.runPromise(Nexus.Application.shutdown(runningOf(handle).nexus));  // returns without waiting for, or interrupting, the command
+    await Effect.runPromise(Nexus.Application.shutdown(runningOf(handle).nexus));  // interrupts the command, awaits its exit, then releases
     await Effect.runPromise(w.complete("A"));
 
-    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe('failed (typed) {"_tag":"LookupError","id":"A"}');
-    expect(w.events).toContain("resource used after release A");
+    expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");
+    expect(w.events).not.toContain("resource used after release A");
     await Effect.runPromise(Scope.close(scope, Exit.void));                       // harmless afterwards
   });
 });

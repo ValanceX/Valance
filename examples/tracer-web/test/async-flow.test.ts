@@ -2,7 +2,7 @@
 // test controls, then commit into ordinary application state. Every step lands in ONE ordered trace: the commands' own steps, the
 // `State.values` emissions (the internal composition face, read on purpose), and the render/update the target receives.
 // Nothing is timed: completion is a gate the test opens; where something must NOT happen, a bounded run of cooperative yields stands in.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -110,7 +110,7 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
 
   const page = load("");
   const label = () => page.container.querySelector("section")?.getAttribute("aria-label") ?? "";
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return {

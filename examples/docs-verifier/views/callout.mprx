@@ -1,0 +1,4 @@
+<aside>
+  <strong>{tone}</strong>
+  <mesh-slot />
+</aside>

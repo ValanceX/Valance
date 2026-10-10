@@ -2,7 +2,7 @@
 // A tiny application defined here (views A and B, a mutation in each, one application-owned capability with an observable
 // identity) over the real stack: MESH compiler and runtime, NEXUS, Valance, PORT Web (jsdom). PORT is not faked: the
 // target only records the operation Valance asks for, then calls PORT.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";

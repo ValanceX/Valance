@@ -2,7 +2,7 @@
 // event, `connect` dispatches it through MESH (`running.dispatch` -> `inApplication` -> the command), and nothing awaits it from
 // application code. The only places its exit can go are the ones the existing model has: `Mounted.dispatched`, the trace, and state.
 // One MESH command intent (`home/open(id)`) is bound to every behavior under test, selected by the id of the row that was clicked.
-import type { WebPort } from "@valancex/port-web";
+import type { HydrationResult } from "@valancex/port-web";
 
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
@@ -91,7 +91,7 @@ const boot = async () => {
 
   const page = load("");
   const label = () => (page.container.querySelector("span")?.textContent ?? "").replace(/^\d+ items: /, "");
-  const target: Valance.TargetFactory<WebPort> = (report) => {
+  const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return {
