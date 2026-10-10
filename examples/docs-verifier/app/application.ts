@@ -1,18 +1,18 @@
 // The application: state, one view with a scope, and its commands. It names no target (no DOM, no Web) and reads no file: the site arrives as data, the compiled programs as an
 // argument, and the platform's abilities (the clipboard, a store, the search index) as capabilities it asks for by name (./capabilities.ts), so the same application runs on the
 // server, in the browser and under a test.
-import * as Nexus from "@valancex/nexus";
-import * as Valance from "@valancex/valance";
-import { Effect, Option, Schema } from "effect";
-
 import type { Page, SiteMap } from "../model/site.js";
 
+import { Effect, Option, Schema } from "effect";
 import { Clipboard, Index, Pages, Storage } from "./capabilities.js";
-import { missing } from "./content.js";
-import { isNotFound } from "./variants.js";
-import { search } from "./search.js";
-import { pageScope } from "./scope.js";
 import { AppState, initial, Theme } from "./state.js";
+import { isNotFound } from "./variants.js";
+import { pageScope } from "./scope.js";
+import { missing } from "./content.js";
+import { search } from "./search.js";
+
+import * as Nexus from "@valancex/nexus";
+import * as Valance from "@valancex/valance";
 
 /** The text a copy button copies: a code block's, or the alternative of a code group that the button belongs to, on the page shown. */
 export const copyTextOf = (page: Page, id: string): string | undefined => {

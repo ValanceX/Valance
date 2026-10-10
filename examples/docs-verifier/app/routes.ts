@@ -1,5 +1,5 @@
 // URLs are the application's, not the framework's: a function from state to a URL, and from a URL to the fact `go` takes. No router.
-import type { Site } from "../model/site.js";
+import type { SiteMap } from "../model/site.js";
 import type { AppState } from "./state.js";
 
 import { initial } from "./state.js";

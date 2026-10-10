@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@valancex/valance':
-        specifier: 0.7.0
-        version: 0.7.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)
+        specifier: 0.8.0
+        version: 0.8.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.1(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)
     devDependencies:
       '@types/jsdom':
         specifier: ^21.1.7
@@ -18,6 +18,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      '@types/pngjs':
+        specifier: ^6.0.5
+        version: 6.0.5
       '@valancex/mesh-compiler':
         specifier: 0.10.0
         version: 0.10.0
@@ -25,20 +28,29 @@ importers:
         specifier: 0.10.0
         version: 0.10.0
       '@valancex/nexus':
-        specifier: 0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.10.0)
+        specifier: 0.12.2
+        version: 0.12.2(@valancex/mesh-runtime@0.10.0)
       '@valancex/port-web':
-        specifier: 0.4.0
-        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
+        specifier: 0.4.1
+        version: 0.4.1(@valancex/mesh-runtime@0.10.0)
+      axe-core:
+        specifier: ^4.10.0
+        version: 4.14.0
       effect:
         specifier: ^3.10.0
         version: 3.22.2
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0
+      pixelmatch:
+        specifier: ^7.1.0
+        version: 7.2.0
       playwright:
         specifier: 1.56.1
         version: 1.56.1
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -404,6 +416,9 @@ packages:
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
+  '@types/pngjs@6.0.5':
+    resolution: {integrity: sha512-0k5eKfrA83JOZPppLtS2C7OUtyNAl2wKNxfyYl9Q5g9lPkgBl/9hNyAu6HuEH2J4XmIv2znEpkDd0SaZVxW6iQ==}
+
   '@types/tough-cookie@4.0.5':
     resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
 
@@ -421,14 +436,20 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.10.0
 
-  '@valancex/port-web@0.4.0':
-    resolution: {integrity: sha512-pqKRZZPjEHmcBXGAncWxfUItHlqo0mQtm+olwHv3aDD0Dpx5uKyqYKW/xpaSgybHT0ADiLFzAHysV7roELOxRw==}
+  '@valancex/nexus@0.12.2':
+    resolution: {integrity: sha512-sbPRmPxyxydfSg9slSERSQSclRSpg0oqyS07OVIt+GfUZw2rNT1Cd2j53AS4KWY8e4A2woYG18xbDNwbygkSwA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@valancex/mesh-runtime': ^0.10.0
+
+  '@valancex/port-web@0.4.1':
+    resolution: {integrity: sha512-JVwK/lg44XhAfc8WNhY2nFxjmDcmIL8d/qSuQW0I/josXgRMY6QXyvErb3crUrf/o7qCaowy2Em9XkVQ0K0VEA==}
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0
 
-  '@valancex/valance@0.7.0':
-    resolution: {integrity: sha512-48b5DP6qZymyiXPBuxSV3w/hXv7f5gerOe3cG3iP8xXbWM2RwCDj8lkgreZDGpn2S+iLCVKitFzQptRhI0y22w==}
+  '@valancex/valance@0.8.0':
+    resolution: {integrity: sha512-G4kdpLUFEPZBwO8zilLw2o0k7pOMHZZ1BmgTJaF1EU2iBk6Hqj+MZEO0dmtwsTaGZBM7Mmr9BP6ke+Gjj4oN0g==}
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.10.0
@@ -474,6 +495,10 @@ packages:
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
+
+  axe-core@4.14.0:
+    resolution: {integrity: sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==}
+    engines: {node: '>=4'}
 
   cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
@@ -624,6 +649,10 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
+  pixelmatch@7.2.0:
+    resolution: {integrity: sha512-xhcb4yHu9sM/G7foGzoLtXYcC0zHEaOXXjRKhGup0fw78Nf2Tkiapv4EQyMzrbcmQPsllAI7DbFY2UT7PlI9Pg==}
+    hasBin: true
+
   playwright-core@1.56.1:
     resolution: {integrity: sha512-hutraynyn31F+Bifme+Ps9Vq59hKuUCz7H1kDOcBs+2oGguKkWTU50bBWrtz34OUWmIwpBTWDxaRPXrIXkgvmQ==}
     engines: {node: '>=18'}
@@ -633,6 +662,10 @@ packages:
     resolution: {integrity: sha512-aFi5B0WovBHTEvpM3DzXTUaeN6eN0qWnTkKx4NQaH4Wvcmc153PdaY2UBdSYKaGYw+UyWXSVyxDUg5DoPEttjw==}
     engines: {node: '>=18'}
     hasBin: true
+
+  pngjs@7.0.0:
+    resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
+    engines: {node: '>=14.19.0'}
 
   postcss@8.5.29:
     resolution: {integrity: sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==}
@@ -1051,6 +1084,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/pngjs@6.0.5':
+    dependencies:
+      '@types/node': 22.20.5
+
   '@types/tough-cookie@4.0.5': {}
 
   '@valancex/mesh-compiler@0.10.0': {}
@@ -1062,17 +1099,22 @@ snapshots:
       '@valancex/mesh-runtime': 0.10.0
       effect: 3.22.2
 
-  '@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0)':
+  '@valancex/nexus@0.12.2(@valancex/mesh-runtime@0.10.0)':
+    dependencies:
+      '@valancex/mesh-runtime': 0.10.0
+      effect: 3.22.2
+
+  '@valancex/port-web@0.4.1(@valancex/mesh-runtime@0.10.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.10.0
 
-  '@valancex/valance@0.7.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)':
+  '@valancex/valance@0.8.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.1(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)':
     dependencies:
       '@valancex/mesh-runtime': 0.10.0
       '@valancex/nexus': 0.12.0(@valancex/mesh-runtime@0.10.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': 0.4.0(@valancex/mesh-runtime@0.10.0)
+      '@valancex/port-web': 0.4.1(@valancex/mesh-runtime@0.10.0)
 
   '@vitest/expect@3.2.7':
     dependencies:
@@ -1119,6 +1161,8 @@ snapshots:
   agent-base@7.1.4: {}
 
   assertion-error@2.0.1: {}
+
+  axe-core@4.14.0: {}
 
   cac@6.7.14: {}
 
@@ -1287,6 +1331,10 @@ snapshots:
 
   picomatch@4.0.7: {}
 
+  pixelmatch@7.2.0:
+    dependencies:
+      pngjs: 7.0.0
+
   playwright-core@1.56.1: {}
 
   playwright@1.56.1:
@@ -1294,6 +1342,8 @@ snapshots:
       playwright-core: 1.56.1
     optionalDependencies:
       fsevents: 2.3.2
+
+  pngjs@7.0.0: {}
 
   postcss@8.5.29:
     dependencies:
