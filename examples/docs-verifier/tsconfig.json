@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["model", "tooling", "app", "web", "test", "smoke", "scripts", "vite.page.config.ts", "vitest.config.ts", "vitest.smoke.config.ts"]
+  "include": ["model", "tooling", "app", "web", "test", "smoke", "principles", "scripts", "vite.page.config.ts", "vitest.config.ts", "vitest.smoke.config.ts", "vitest.principles.config.ts"]
 }

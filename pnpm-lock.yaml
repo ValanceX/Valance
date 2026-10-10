@@ -16,23 +16,23 @@ importers:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.9.0)(@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.9.0
-        version: 0.9.0
+        specifier: ^0.10.0
+        version: 0.10.0
       '@valancex/mesh-runtime':
-        specifier: ^0.9.0
-        version: 0.9.0
+        specifier: ^0.10.0
+        version: 0.10.0
       '@valancex/nexus':
         specifier: ^0.10.3
-        version: 0.10.3(@valancex/mesh-runtime@0.9.0)
+        version: 0.10.3(@valancex/mesh-runtime@0.10.0)
       '@valancex/port-web':
-        specifier: ^0.3.0
-        version: 0.3.0(@valancex/mesh-runtime@0.9.0)
+        specifier: ^0.4.0
+        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -499,16 +499,8 @@ packages:
     resolution: {integrity: sha512-YzFqUlyZxZZAWQOIqD1iHnxPD560Rad/onQB9ckO8pO1ZrVECPVDwjNDY4F6raER9ixPUS0CChX4TfHm49U6mg==}
     engines: {node: '>=22'}
 
-  '@valancex/mesh-compiler@0.9.0':
-    resolution: {integrity: sha512-4SaFJgSwfCWSeeSlV0BTHfxdB+TFgEdIn1yegOtUDut0mVk65VdLp9gFurvAJlM2+LSvrL50OP3hLSrj+bFAbg==}
-    engines: {node: '>=22'}
-
   '@valancex/mesh-runtime@0.10.0':
     resolution: {integrity: sha512-1VdLN2EhVjCufFz927Mf9C1I7v/GczRivvfWskQjn9vUgMLBR7LRm3m/wmixghZVQkvD7zVCrbVSMLVjlSOG6g==}
-    engines: {node: '>=22'}
-
-  '@valancex/mesh-runtime@0.9.0':
-    resolution: {integrity: sha512-w540OVud5qJAjoIx1FK8YfRgH7SncR79J136KUN/O6NczkCDsHSooLzjCPcV8REpcJGSEBq1AwVYMT1GkqlCkg==}
     engines: {node: '>=22'}
 
   '@valancex/nexus@0.10.3':
@@ -522,12 +514,6 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.10.0
-
-  '@valancex/port-web@0.3.0':
-    resolution: {integrity: sha512-p+Aqm9vMbJ40p5hrnOgANHqR0htpn8cvPWY8NcP+wuTmW2RA9XVXTe1oL0Og/OJ91iPSikdTuBjyiPLI/F0/HA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0
 
   '@valancex/port-web@0.4.0':
     resolution: {integrity: sha512-pqKRZZPjEHmcBXGAncWxfUItHlqo0mQtm+olwHv3aDD0Dpx5uKyqYKW/xpaSgybHT0ADiLFzAHysV7roELOxRw==}
@@ -1251,15 +1237,11 @@ snapshots:
 
   '@valancex/mesh-compiler@0.10.0': {}
 
-  '@valancex/mesh-compiler@0.9.0': {}
-
   '@valancex/mesh-runtime@0.10.0': {}
 
-  '@valancex/mesh-runtime@0.9.0': {}
-
-  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.9.0)':
+  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.10.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.9.0
+      '@valancex/mesh-runtime': 0.10.0
       effect: 3.22.2
 
   '@valancex/nexus@0.12.0(@valancex/mesh-runtime@0.10.0)':
@@ -1267,21 +1249,17 @@ snapshots:
       '@valancex/mesh-runtime': 0.10.0
       effect: 3.22.2
 
-  '@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0)':
-    dependencies:
-      '@valancex/mesh-runtime': 0.9.0
-
   '@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.10.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.9.0)(@valancex/port-web@0.3.0(@valancex/mesh-runtime@0.9.0))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)':
     dependencies:
-      '@valancex/mesh-runtime': 0.9.0
-      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.9.0)
+      '@valancex/mesh-runtime': 0.10.0
+      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.10.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': 0.3.0(@valancex/mesh-runtime@0.9.0)
+      '@valancex/port-web': 0.4.0(@valancex/mesh-runtime@0.10.0)
 
   '@vitest/browser@3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)':
     dependencies:
