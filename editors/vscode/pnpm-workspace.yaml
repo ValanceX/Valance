@@ -1,0 +1,4 @@
+# This directory is its own root: the extension is a spike (docs/application-model/EDITOR.md) and is not part of the Valance workspace or its CI until the owner decides to ship it.
+packages: []
+allowBuilds:
+  esbuild: false

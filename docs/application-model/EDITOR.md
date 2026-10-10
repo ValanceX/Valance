@@ -1,5 +1,7 @@
 # Phase 5: editor foundation and diagnostics contract
 
+> Followed by [`EDITOR-FEASIBILITY.md`](EDITOR-FEASIBILITY.md): the language server and a VS Code spike were built on this foundation. The 'Direction (not built)' items below 1 and 2 are now answered there.
+
 Scope: make the public model *analyzable* by future editor tooling. No language server, extension or highlighter was built.
 
 ## What exists now (implemented and tested)
@@ -9,7 +11,7 @@ Scope: make the public model *analyzable* by future editor tooling. No language 
 | Source-aware diagnostics | One shape `{ file, line, column, code, message }` (1-based; `0` = unknown) for config, front matter, Markdown, links, images, templates, `src/main.ts`. `valance check --json` prints the array; exit code 1 when non-empty. Codes are stable strings. | `src/diagnostics.ts`, `src/check.ts`; `test/cli.test.ts` |
 | Template diagnostics | The MESH compiler's own `{code, path, span}` mapped to the authored file (`src/layout.mprx:2:20 unknown-reference …`), suggestions appended ("did you mean …?") | `src/compile.ts`; `test/pipeline.test.ts` |
 | Configuration validation | JSON Schemas for `valance.json` and `valance.web.json` in `schemas/`, referenced through `$schema`; the tools' validator accepts the same keys (a test pins the schemas' property lists) | `schemas/*.json`, `src/config.ts` |
-| What a template may use | `.valance/manifest.json`: every tag with its props, every event, every command with parameters, the layout's scope names and types (derived, never written). Regenerated on each change. An editor can offer completion for tags/props/scope names from it without running MESH | `src/generate.ts` |
+| What a template may use | `.valance/manifest.json`: every tag with its props, every event, every command with parameters, the layout's scope names and types, **and the contracts the compiler inferred for the author's own components** (the program's model). Regenerated on each change. `.valance/editor.json` says where it is and which file is which component. The real `mesh-lsp` was driven with exactly these (see `EDITOR-FEASIBILITY.md`) | `src/generate.ts` |
 | Content and route validation | Pages, addresses, navigation order, outline anchors are in `.valance/content.json`; links/images/fragments are validated at build and in `check` | `src/content.ts` |
 | Live feedback | `valance dev` shows the same diagnostics in the terminal and as an overlay; the last good build keeps serving | `src/dev.ts` |
 

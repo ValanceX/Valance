@@ -39,3 +39,9 @@ Branch `claude/fervent-ptolemy-gbtc8u`. Newest entries at the bottom of each pha
 
 ## Phase 6 — regression, documentation, decision (done)
 - [`REPORT.md`](REPORT.md): final report (what the cycle proved, structure, commands, status, API changes, validation, decisions, blockers). Run from a fresh clone of the pushed commit.
+
+## Editor integration feasibility (follow-up cycle)
+- Evidence: [`EDITOR-FEASIBILITY.md`](EDITOR-FEASIBILITY.md). Verdict: feasible; the template language server and a Tree-sitter grammar already exist upstream, so the new work is a TextMate grammar and a thin extension.
+- Decision: the extension is a spike in `editors/vscode`, its own pnpm root (like `docs-verifier`), outside the workspace and CI. It reads only `.valance/editor.json`, so Valance's conventions are not copied into the editor. Rejected: re-implementing diagnostics in the extension (the server is the compiler's own); a Valance-specific language server now (the gap is columns/unsaved buffers for Markdown, not worth a server yet); bundling native binaries in the VSIX (the project's `@valancex/mesh-lsp` keeps server and compiler versions together).
+- Code: `packages/app` (enriched `manifest.json`, new `editor.json`, one test); `editors/vscode` (new, 15 tests).
+- Not done / unproven: VS Code host never run (download host unreachable from the sandbox).

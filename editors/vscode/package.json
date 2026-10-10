@@ -1,0 +1,91 @@
+{
+  "name": "valance-vscode",
+  "displayName": "VALANCE",
+  "description": "MPRX highlighting, diagnostics, hover and completion for VALANCE applications. A feasibility spike: not published.",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "publisher": "valancex",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:valance.json"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mprx",
+        "aliases": [
+          "MPRX"
+        ],
+        "extensions": [
+          ".mprx"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mprx",
+        "scopeName": "source.mprx",
+        "path": "./syntaxes/mprx.tmLanguage.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "valance.json",
+        "url": "./schemas/valance.schema.json"
+      },
+      {
+        "fileMatch": "valance.web.json",
+        "url": "./schemas/valance.web.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "VALANCE",
+      "properties": {
+        "valance.meshLsp.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the mesh-lsp executable. Empty: the one installed in the project (node_modules/.bin/mesh-lsp)."
+        },
+        "valance.check.onType": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also run `valance check` after every change to a Markdown or template file, not only on save."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "valance.check",
+        "title": "VALANCE: Check the project"
+      }
+    ]
+  },
+  "scripts": {
+    "prepare": "node scripts/copy-schemas.mjs",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@valancex/mesh-lsp": "0.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.1.0"
+  }
+}

@@ -2,7 +2,8 @@
 //
 //   content.json    the content model (from content/)
 //   program.json    the compiled templates (from src/*.mprx and the built-in views)
-//   manifest.json   every tag, prop, scope name and command a template may use (for editors; nothing reads it back)
+//   manifest.json   every tag, prop, scope name and command a template may use, inferred components included (for editors; nothing reads it back)
+//   editor.json     where the manifest is and which file is which component (for editors)
 //   client.ts       the browser entry: imports the above, the author's `src/main.ts` and every stylesheet under src/
 //   server.ts       the server entry: renders a pathname to a document
 //
@@ -15,7 +16,7 @@ import { compileViews, SOURCE_DIR } from "./compile.js";
 import { readContent } from "./content.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
-import { ENTRY_FILE, ensureGeneratedDir, generated, writeIfChanged } from "./project.js";
+import { ENTRY_FILE, ensureGeneratedDir, GENERATED_DIR, generated, writeIfChanged } from "./project.js";
 
 const stylesheets = (root: string): ReadonlyArray<string> =>
   existsSync(join(root, SOURCE_DIR)) ? readdirSync(join(root, SOURCE_DIR), { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".css")).sort().map((file) => `${SOURCE_DIR}/${file}`) : [];
@@ -63,6 +64,8 @@ export const generateProgram = async (root: string, author: DefinedApp | undefin
 
   writeIfChanged(generated(root, "program.json"), `${JSON.stringify(compiled.program)}\n`);
   writeIfChanged(generated(root, "manifest.json"), `${JSON.stringify(compiled.manifest, null, 2)}\n`);
+  // The one file an editor reads to know the project: where the manifest is, and which file is the template of which component. The conventions stay here, not copied into every editor.
+  writeIfChanged(generated(root, "editor.json"), `${JSON.stringify({ version: 1, model: `${GENERATED_DIR}/manifest.json`, components: compiled.files }, null, 2)}\n`);
 
   return compiled.components;
 };

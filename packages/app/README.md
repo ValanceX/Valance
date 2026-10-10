@@ -37,7 +37,7 @@ That is a complete application. It uses a built-in layout. Everything below is h
 | `src/*.mprx` | Your components, each named by its file (`src/callout.mprx` is `<callout>`). A file named like a built-in (`runs`, `block`, `heading`…) replaces it. | you |
 | `src/**/*.css` | Styles. Every stylesheet is loaded. | you |
 | `src/main.ts` | Optional. `defineApp`: state of your own and the commands that change it. | you |
-| `.valance/` | Generated: content, compiled templates, the entries, a manifest for editors. Git-ignored by a `.gitignore` inside it. | the tools |
+| `.valance/` | Generated: content, compiled templates, the entries, and for editors `manifest.json` (what a template may use) and `editor.json` (which file is which component). Git-ignored by a `.gitignore` inside it. | the tools |
 | `dist/` | The built site. | the tools |
 
 Settings are validated, unknown keys are errors, and editors can use the JSON Schemas in `schemas/` (`"$schema": "./node_modules/@valancex/app/schemas/valance.schema.json"`).

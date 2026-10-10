@@ -90,8 +90,14 @@ export const manifestOf = (author: DefinedApp | undefined) => manifest({
 
 export interface Compiled {
   readonly program: Valance.Program;
-  /** The derived manifest: every tag, prop, scope name and command a template may use. For editors. */
-  readonly manifest: ReturnType<typeof manifestOf>;
+  /**
+   * What a template may use: every tag, prop, event, scope name and command, **with the contracts the compiler inferred for the author's own components** (a component's props are the
+   * arguments its uses pass). This is the program's own model. The manifest derived before compiling declares only the tags and the layout, so an editor checking one file against it
+   * would call every component of the author's "unknown". For editors.
+   */
+  readonly manifest: unknown;
+  /** Each template the program was built from, by source path, for the editor: `src/theme-toggle.mprx` → `theme-toggle`. Built-in templates are not listed (they are not in the project). */
+  readonly files: Readonly<Record<string, string>>;
   readonly components: ReadonlyArray<string>;
 }
 
@@ -121,7 +127,15 @@ export const compileViews = async (root: string, author: DefinedApp | undefined)
 
   if (orphans.length > 0) { throw new AppError(orphans); }
 
-  return { program: result.program as unknown as Valance.Program, manifest: model, components: used.map((template) => template.component) };
+  const program = result.program as unknown as Valance.Program;
+  const enriched = (program as unknown as { readonly model: unknown }).model;
+
+  return {
+    program,
+    manifest: typeof enriched === "string" ? JSON.parse(enriched) : enriched,
+    files: Object.fromEntries(used.filter((template) => !template.builtIn).map((template) => [template.path, template.component])),
+    components: used.map((template) => template.component),
+  };
 };
 
 const relocate = (each: Diagnostic, root: string): Diagnostic => ({ ...each, file: each.file.startsWith(root) ? relative(root, each.file) : each.file });

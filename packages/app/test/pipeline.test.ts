@@ -72,7 +72,7 @@ describe("valance build", () => {
     expect(existsSync(join(root, "dist/.vite"))).toBe(false);
     expect(readdirSync(join(root, "dist/assets")).some((file) => file.endsWith(".wasm"))).toBe(true);
     expect(readdirSync(root).sort()).toEqual([".valance", "content", "dist", "node_modules", "public", "valance.json"]);
-    expect(readdirSync(join(root, ".valance")).filter((name) => name !== "cache").sort()).toEqual([".gitignore", "client.ts", "content.json", "manifest.json", "program.json", "server.ts"]);
+    expect(readdirSync(join(root, ".valance")).filter((name) => name !== "cache").sort()).toEqual([".gitignore", "client.ts", "content.json", "editor.json", "manifest.json", "program.json", "server.ts"]);
     expect(readFileSync(join(root, ".valance/.gitignore"), "utf8")).toContain("*");
   });
 
@@ -127,5 +127,19 @@ describe("a mistake in src/main.ts itself", () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatch(/^src\/main\.ts:\d+ entry-load$/);
+  });
+});
+
+describe("what an editor reads", () => {
+  it("manifest.json declares the author's own components, with the props their uses pass; editor.json maps files to components", async () => {
+    const root = project({ ...BASIC, "src/main.ts": 'import { defineApp, Schema } from "@valancex/app";\nexport default defineApp({ state: { schema: Schema.Struct({ n: Schema.Number }), initial: { n: 0 } } });\n', "src/layout.mprx": '<shell class="x" theme="light"><badge count={n} /></shell>', "src/badge.mprx": '<span class="b">{count}</span>' });
+
+    await build(root);
+
+    const manifest = JSON.parse(readFileSync(join(root, ".valance/manifest.json"), "utf8")) as { components: Record<string, { props: Record<string, { required: boolean }>; scope: Record<string, unknown> }> };
+
+    expect(manifest.components["badge"]!.props).toMatchObject({ count: { required: true } });
+    expect(Object.keys(manifest.components["layout"]!.scope)).toContain("n");
+    expect(JSON.parse(readFileSync(join(root, ".valance/editor.json"), "utf8"))).toEqual({ version: 1, model: ".valance/manifest.json", components: { "src/layout.mprx": "layout", "src/badge.mprx": "badge" } });
   });
 });
