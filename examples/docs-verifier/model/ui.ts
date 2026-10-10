@@ -1,6 +1,7 @@
 // The words the interface speaks: every label, status and message the kit draws, in English, with a key each. A site in another language gives the keys it changes (`ui` in
 // `site.json`, by language), and the rest stay English. Pure data; nothing here draws anything.
 export const defaultUi = {
+  skipToContent: "Skip to content",
   menu: "Menu",
   navigation: "Navigation",
   documentation: "Documentation",
@@ -8,11 +9,11 @@ export const defaultUi = {
   searchLabel: "Search the site",
   colourTheme: "Colour theme",
   themeSystem: "Auto",
-  themeSystemLabel: "Follow the system theme",
+  themeSystemLabel: "Auto: follow the system theme",
   themeLight: "Light",
-  themeLightLabel: "Use the light theme",
+  themeLightLabel: "Light theme",
   themeDark: "Dark",
-  themeDarkLabel: "Use the dark theme",
+  themeDarkLabel: "Dark theme",
   onThisPage: "On this page",
   previousAndNext: "Previous and next page",
   linkToSection: "Link to this section",
@@ -34,6 +35,7 @@ export const defaultUi = {
   version: "Version",
   tags: "Tags",
   allTags: "All tags",
+  tagsIntro: "Every tag, and how many posts use it.",
   taggedWith: "Posts tagged “{tag}”",
   postsCount: "{count} posts",
   postedOn: "Posted",

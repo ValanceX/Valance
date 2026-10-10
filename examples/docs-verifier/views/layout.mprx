@@ -1,6 +1,7 @@
 <shell class="shell" theme={theme} menu={menu} layout={layout} lang={lang}>
+  <navLink class="skip" href="#content" current="false">{ui.skipToContent}</navLink>
   <header class="bar">
-    <mesh-if when={showNav}><toggle class="menu-button" label={ui.navigation} pressed={menu} on.click={toggleMenu()}>{ui.menu}</toggle></mesh-if>
+    <mesh-if when={showNav}><toggle class="menu-button" label={ui.menu} pressed={menu} on.click={toggleMenu()}>{ui.menu}</toggle></mesh-if>
     <navLink class="brand" href={home} current="false">{site}</navLink>
     <mesh-if when={hasHeader}>
       <nav class="header-links" label={ui.navigation}>

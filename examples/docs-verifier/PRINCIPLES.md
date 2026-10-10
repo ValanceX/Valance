@@ -45,3 +45,30 @@ Seventeen probes hold. **Three defects are confirmed**, plus observations. Nothi
 ## Not covered here
 
 §12 cost beyond the existing tripwires, §17 server/client divergence beyond hydration, and the README snippets of Nexus and Valance compiled as code were not probed in this pass.
+
+## The site, held to the same principles (phase G)
+
+The probes above judge the packages. These judge what was built **with** them: the kit and four sites (`sites/`), by the representative tasks of §18.1 (`principles/tasks.test.ts`, evidence in `principles/evidence/tasks.json`) and by gates run on every site built with the production command.
+
+| §18.1 task | Probe | Result |
+|---|---|---|
+| A common task, defaults | A site from a five-line `site.json` and one markdown file | Held. A complete static site: document, content file, 404, `robots.txt`, styled and described with no setting. |
+| Ordinary customization | A header, footer, base, published address and theme | Held. Each changes only what it names; the base is applied to every address, including the header's, without being written; the theme comes after the kit's stylesheet. |
+| Composition with another capability | A plugin of the author's own joined to the kit's | Held. Its head merges with the kit's; a clash names both owners (`the tag "navLink" is declared by the plugin "site-kit" and by the plugin "mine"`). |
+| A realistic failure and its diagnosis | Seven mistakes an author makes | Held. Every one says the file, the line when there is one, what is wrong and what to do (`a broken link`, `a heading deeper than ###`, `an inline ts example is not checked ... put it in snippets/`, `a date that is not a day`, `a fence never closed`). |
+| A lifecycle boundary | Closing the application while a page is on its way | Held. The fetch is interrupted and the late answer commits nothing. |
+| A compatibility scenario | The same content under another base and address; the 0.7-style entry points with no plugins | Held. A rebuild changes every address and not the content; `renderToHtml` and `Web.run` with `primitives` and `history` given by the application behave as before. |
+
+**Gates** (every site, built with the production command, in real Chromium):
+
+| Gate | What | Result |
+|---|---|---|
+| Accessibility | axe-core on every page of the four sites, light and dark, 1280 and 390 wide, plus search open, the menu open and a code group changed | **0 violations** after the fixes below. |
+| Keyboard | A skip link first, the content it skips to, the order of the header's controls, a focus ring on every stop, focus on the content after a link | Held. |
+| Layout | Six widths from 320 to 1920: nothing scrolls sideways or hangs off the screen, targets are at least 24 by 24, the bar's parts do not overlap | Held. |
+| Visual regression | Screenshots of each site's first page at a phone, a tablet and a desktop width, both themes, against the last run (`pnpm test:visual`; baselines are per machine) | Held; an accent colour change is caught. |
+| Search engines and previews | Title and description sizes, Open Graph and card tags, canonical and `hreflang` addresses, JSON-LD by page kind, sitemap, `robots.txt`, `noindex` on the 404 | Held. |
+
+**Found and fixed by the gates** (none was visible in the tests that came before): callout, copy-button and link-colour contrast below 4.5:1; theme buttons whose accessible name did not contain their visible text; callouts as `<aside>` landmarks repeated without names; scrollable code and tables not reachable by keyboard; the search results outside any landmark; no skip link; a page at the site's root fetching `//index.json`.
+
+**Open on the site** (recorded in `FINDINGS.md`): ARIA tabs without arrow-key movement (every tab is a tab stop, which works but is not the pattern; PORT has no key event realization, F31), and the stored theme applied after hydration (F22).

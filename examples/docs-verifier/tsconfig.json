@@ -32,6 +32,8 @@
     "vitest.principles.config.ts",
     "budget",
     "vitest.budget.config.ts",
-    "sites"
+    "sites",
+    "visual",
+    "vitest.visual.config.ts"
   ]
 }

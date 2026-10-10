@@ -36,8 +36,8 @@ it("a page is rendered on the server through the layout's slots: navigation, hea
 
   expect(html).toMatch(/<a [^>]*href="\/docs\/guides\/state"/);
   expect(html).toMatch(/<h1[^>]*>Getting Started<\/h1>/);                              // the text is the heading's own: runs are fragments, which make no node
-  expect(html).toMatch(/<aside[^>]*data-tone="tip"[^>]*><strong[^>]*>TIP<\/strong>/);   // the callout composite, with its title placed by its own and its text by its slot
-  expect(html).toMatch(/<figure[^>]*>(<div class="code-title">[^<]*<\/div>)?<pre><code>[\s\S]*?<span class="tok-keyword">import<\/span>/);   // the code-block composite, highlighted
+  expect(html).toMatch(/<div[^>]*class="callout"[^>]*data-tone="tip"[^>]*role="note"[^>]*><strong[^>]*>TIP<\/strong>/);   // the callout composite, with its title placed by its own and its text by its slot
+  expect(html).toMatch(/<figure[^>]*>(<div class="code-title">[^<]*<\/div>)?<pre tabindex="0"><code>[\s\S]*?<span class="tok-keyword">import<\/span>/);   // the code-block composite, highlighted
   expect(html).toMatch(/<button[^>]*>Copy<\/button>/);
   expect(html).toContain("The features verifier");                                      // the layout's own footer, around the slots
   expect(html).toMatch(/id="valance-boot"/);
@@ -197,8 +197,8 @@ it("the theme and the menu are attributes of the shell, for the stylesheet to re
   const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("docs-introduction"), theme: "dark", menu: true } }));
 
   expect(html).toMatch(/<div[^>]*class="shell"[^>]*data-theme="dark"[^>]*data-menu="true"|<div[^>]*data-menu="true"[^>]*data-theme="dark"[^>]*class="shell"|<div(?=[^>]*class="shell")(?=[^>]*data-theme="dark")(?=[^>]*data-menu="true")[^>]*>/);
-  expect(html).toMatch(/aria-label="Use the dark theme"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*aria-label="Use the dark theme"/);
-  expect(html).toMatch(/aria-label="Use the light theme"[^>]*aria-pressed="false"|aria-pressed="false"[^>]*aria-label="Use the light theme"/);
+  expect(html).toMatch(/aria-label="Dark theme"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*aria-label="Dark theme"/);
+  expect(html).toMatch(/aria-label="Light theme"[^>]*aria-pressed="false"|aria-pressed="false"[^>]*aria-label="Light theme"/);
 });
 
 it("the generated site is the content's site (pnpm build:content ran)", () => {
@@ -233,7 +233,7 @@ it("lists, tables and code groups are drawn as the elements they are", async () 
 
   expect(state).toMatch(/<ul class="list"><li>A <strong>pure<\/strong> command returns the next state\.<\/li>/);
   expect(state).toMatch(/<li>Nothing else writes state\.<ul class="sublist"><li>A view only reads it\.<\/li><li>A mount only draws it\.<\/li><\/ul><\/li>/);
-  expect(state).toMatch(/<div class="table-wrap"><table class="table"><thead><tr><th data-align="left" scope="col">Kind<\/th>/);
+  expect(state).toMatch(/<div class="table-wrap"[^>]*><table class="table"><thead><tr><th data-align="left" scope="col">Kind<\/th>/);
   expect(state).toMatch(/<td data-align="right">Loading, then an answer or a failure<\/td>/);
   expect(start).toMatch(/<div [^>]*role="tablist"/);
   expect(start.match(/role="tab"/g)).toHaveLength(3);
@@ -253,7 +253,7 @@ it("makes no node that a template did not write: no wrapper elements around runs
   const tags = new Set([...app.matchAll(/<([a-z0-9]+)[\s>]/g)].map((match) => match[1]));
 
   // Every element is one a template names (the primitives table), and nothing the framework added.
-  const written = new Set(["a", "aside", "button", "code", "div", "em", "figure", "footer", "h1", "h2", "h3", "header", "input", "li", "main", "nav", "ol", "p", "pre", "section", "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul"]);
+  const written = new Set(["a", "button", "code", "div", "em", "figure", "footer", "h1", "h2", "h3", "header", "input", "li", "main", "nav", "ol", "p", "pre", "section", "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul"]);
 
   expect([...tags].filter((tag) => !written.has(tag!))).toEqual([]);
   // A `span` is a token of code and nothing else: text and marks are never wrapped.

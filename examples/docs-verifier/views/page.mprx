@@ -1,8 +1,8 @@
 <layout site={site} home={home} theme={theme} menu={menu} query={query} layout={layout} lang={lang} ui={ui} showNav={showNav} hasHeader={hasHeader} header={header} footer={footer} hasLocales={hasLocales} locales={locales} hasVersions={hasVersions} versions={versions} on.toggleMenu={toggleMenu()} on.setTheme={setTheme($event)} on.search={search($event)}>
-  <mesh-fill slot="search"><mesh-if when={searching}><div class="results">
+  <mesh-fill slot="search"><mesh-if when={searching}><panel class="results" role="region" label={ui.search}>
     <live class="results-status" role="status" live="polite">{status}</live>
     <list class="hits"><mesh-each items={hits} as="h" key={h.id}><item><navLink class="hit" href={h.href} current="false"><span class="hit-title">{h.title}</span><span class="hit-where">{h.where}</span><span class="hit-excerpt">{h.excerpt}</span></navLink></item></mesh-each></list>
-  </div></mesh-if></mesh-fill>
+  </panel></mesh-if></mesh-fill>
   <mesh-fill slot="nav"><mesh-if when={showNav}><nav class="sidebar" label={ui.documentation}>
     <mesh-each items={sections} as="s" key={s.id}>
       <section>
@@ -19,7 +19,7 @@
     <para class="toc-title">{ui.onThisPage}</para>
     <list class="toc-list"><mesh-each items={toc} as="h" key={h.id}><item><navLink class={h.cls} href={h.href} current={h.current}>{h.label}</navLink></item></mesh-each></list>
   </nav></mesh-if></mesh-fill>
-  <main tabindex="-1" busy={loading} status={contentStatus}>
+  <main id="content" tabindex="-1" busy={loading} status={contentStatus}>
     <mesh-if when={post.show}><post-meta post={post} /></mesh-if>
     <mesh-each items={blocks} as="b" key={b.id}>
       <block b={b} on.copy={copyCode($event)} on.choose={selectTab($event)} />

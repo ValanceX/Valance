@@ -52,7 +52,7 @@ for (const [name, spec] of Object.entries(files)) {
 manifest.pnpm = { ...manifest.pnpm, overrides: { ...manifest.pnpm?.overrides, ...files } };
 writeFileSync(join(work, "package.json"), JSON.stringify(manifest, null, 2));
 
-const stamp = Object.values(files).map((spec) => { const file = spec.slice("file:".length); return `${file}:${statSync(file).size}:${statSync(file).mtimeMs}`; }).join("\n");
+const stamp = `${JSON.stringify([manifest.dependencies, manifest.devDependencies])}\n${Object.values(files).map((spec) => { const file = spec.slice("file:".length); return `${file}:${statSync(file).size}:${statSync(file).mtimeMs}`; }).join("\n")}`;
 const stampFile = join(work, ".packs-stamp");
 const run = (script) => {
   try {

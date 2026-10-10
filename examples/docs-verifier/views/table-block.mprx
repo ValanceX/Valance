@@ -1,4 +1,4 @@
-<div class="table-wrap">
+<scroller class="table-wrap" tabindex="0">
   <table class="table">
     <thead>
       <tr><mesh-each items={head} as="c" key={c.id}><th align={c.align} scope="col"><runs spans={c.spans} /></th></mesh-each></tr>
@@ -9,4 +9,4 @@
       </mesh-each>
     </tbody>
   </table>
-</div>
+</scroller>

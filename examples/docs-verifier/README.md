@@ -83,6 +83,8 @@ pnpm test:smoke    # Chromium: hydrate, navigate, Back, theme, small screen, com
 pnpm start         # serve dist/site as a static host does
 pnpm start:ssr     # the same site rendered per request (opt-in)
 pnpm test:budget   # a generated 500-page site: document, content file and export costs
+pnpm test:visual   # screenshots of each site against the last run (baselines are per machine; UPDATE_VISUAL=1 to take them again)
+pnpm test:smoke    # includes the accessibility (axe) and layout gates on all four sites
 ```
 
 ## What it verifies

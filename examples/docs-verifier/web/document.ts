@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { application } from "../app/application.js";
 import { contentOf } from "../app/content.js";
 import { routes } from "../app/routes.js";
+import { structuredData } from "../app/structured.js";
 import type { AppState } from "../app/state.js";
 import type { Site } from "../model/site.js";
 import { mapOf } from "../model/site.js";
@@ -44,6 +45,8 @@ export const renderDocument = async (site: Site, url: string, built: Built): Pro
   const state = stateOf(site, url);
   const served = await Effect.runPromise(renderToHtml(application(compiled, map), { plugins: plugins(map, built), state }));
   const boot = JSON.stringify({ map, state, built }).replaceAll("<", "\\u003c");
+  const data = structuredData(map, state);
+  const structured = data === undefined ? "" : `<script type="application/ld+json">${JSON.stringify(data).replaceAll("<", "\\u003c")}</script>`;
 
-  return `<!doctype html><html lang="${state.content.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${renderHead(served.head)}</head><body><div id="app">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`;
+  return `<!doctype html><html lang="${state.content.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${renderHead(served.head)}${structured}</head><body><div id="app">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`;
 };

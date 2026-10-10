@@ -19,7 +19,8 @@
     "start": "node dist/server/web/serve-main.js",
     "start:ssr": "node dist/server/web/serve-main.js --ssr",
     "test:budget": "vitest run -c vitest.budget.config.ts",
-    "test:principles": "vitest run -c vitest.principles.config.ts"
+    "test:principles": "vitest run -c vitest.principles.config.ts",
+    "test:visual": "vitest run -c vitest.visual.config.ts"
   },
   "dependencies": {
     "@valancex/valance": "0.8.0"
@@ -36,6 +37,10 @@
     "vite": "7.3.6",
     "vitest": "^3.2.0",
     "jsdom": "^26.0.0",
-    "@types/jsdom": "^21.1.7"
+    "@types/jsdom": "^21.1.7",
+    "axe-core": "^4.10.0",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
+    "@types/pngjs": "^6.0.5"
   }
 }

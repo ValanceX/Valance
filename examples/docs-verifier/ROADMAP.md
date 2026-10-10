@@ -94,7 +94,13 @@ Plan as written:
 - Build three sites from the same kit and plugins: a docs site, a blog, a landing page; add versioned docs and a localized route variant.
 - **Exit:** all three build with no verifier-specific code in the kit. This is the acceptance test for "like Effect's, and more" (principle 18).
 
-### G. Quality gates and graduation
+### G. Quality gates and graduation: **done** (graduation: ready, not extracted)
+
+Delivered: axe-core on every page of the four sites (light and dark, 1280 and 390 wide) and on the page in use (search open, menu open, an alternative chosen); keyboard tests; layout checks at six widths; visual regression with per-machine baselines (`pnpm test:visual`); title, description, Open Graph, card, canonical, `hreflang`, JSON-LD, sitemap and `robots.txt` checks; the §18.1 consumer tasks run against the kit (`principles/tasks.test.ts`) and the report extended (`PRINCIPLES.md`); a skip link; real fixes for what the gates found; `GRADUATION.md` and `test/graduation.test.ts` pinning what each external would take with it. 234 unit tests, 79 Chromium tests (smoke, accessibility, layout), 26 principle probes, 9 budget tests, 36 visual. Friction F31–F33.
+
+**Graduation is not done on purpose**: extraction creates packages to name, publish and own, which is the owner's decision (`GRADUATION.md`, "What is decided"). The order and the blockers are written down and tested.
+
+Plan as written:
 
 - Accessibility (axe, keyboard, landmarks, contrast), SEO tags and structured data, visual regression across viewports; the principle probes run against the site, not just the packages.
 - Graduate X1, X2, X3, X6, X7 into packages in the order the sites need them; VALANCE re-exports each as its own optional subpath; stability tiers and release notes for each. X4 (dev server) and X5 (SSR adapter) follow when inspected.

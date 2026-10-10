@@ -19,7 +19,11 @@ export const seo = (map: SiteMap): Plugin<AppState> => {
         meta: [
           { name: "description", content: descriptionOf(state) },
           { property: "og:title", content: titleOf(state) },
-          { property: "og:type", content: "article" },
+          { property: "og:type", content: state.content.layout === "doc" || state.content.layout === "post" ? "article" : "website" },
+          { property: "og:site_name", content: map.name },
+          ...(canonical === undefined ? [] : [{ property: "og:url", content: canonical }]),
+          { property: "og:locale", content: state.content.locale },
+          { name: "twitter:card", content: "summary" },
           // A page that is not there is not for a search engine to keep.
           ...(canonical === undefined ? [{ name: "robots", content: "noindex" }] : []),
         ],

@@ -78,7 +78,8 @@ describe.each(SITES)("%s: the rules every site is held to", (name) => {
   it("every address a document links to inside the site leads to a file of the site, a fragment to a heading on it", () => {
     const { site, dir, files } = of(name);
     const targets = new Set(files);
-    const anchors = new Map(site.pages.map((page) => [page.path, new Set(page.blocks.flatMap((block) => block.kind === "heading" ? [block.anchor] : []))] as const));
+    // What a fragment can lead to: any element with that id in the document it reaches (a heading, the content a skip link jumps to).
+    const idsOf = (path: string): ReadonlySet<string> => new Set([...read(dir, path === "/" ? "index.html" : `${path.slice(1)}/index.html`).matchAll(/\bid="([^"]+)"/g)].map((found) => found[1]!));
     const broken: Array<string> = [];
 
     for (const page of site.pages) {
@@ -95,7 +96,7 @@ describe.each(SITES)("%s: the rules every site is held to", (name) => {
         const file = resolved === "/" ? "index.html" : `${resolved.slice(1)}/index.html`;
 
         if (!targets.has(file)) { broken.push(`${page.path}: ${href} leads to no document`); }
-        else if (fragment !== undefined && fragment !== "" && !(anchors.get(resolved) ?? new Set([fragment])).has(fragment)) { broken.push(`${page.path}: ${href} leads to no heading`); }
+        else if (fragment !== undefined && fragment !== "" && !idsOf(resolved).has(fragment)) { broken.push(`${page.path}: ${href} leads to nothing with that id`); }
       }
     }
 
@@ -347,7 +348,7 @@ describe("the handbook: versions and languages", () => {
     expect(html).toContain("<title>Installation · Handbook</title>");
     expect(html).toMatch(/aria-label="Rechercher dans le site"/);
     expect(html).toContain('placeholder="Rechercher"');
-    expect(html).toMatch(/aria-label="Utiliser le thème sombre"/);
+    expect(html).toMatch(/aria-label="Thème sombre"/);
     expect(html).toContain(">Démarrer<");
     expect(html).toContain("Une seule commande installe tout.");
     expect(html).toContain(">Copier<");
@@ -457,5 +458,83 @@ describe("the documentation site is a site like the others", () => {
 
     expect(new Set(site.pages.map((page) => page.collection))).toEqual(new Set(["docs"]));
     expect(site.roots).toEqual([{ path: "/", page: "docs-introduction" }, { path: "/docs", page: "docs-introduction" }]);
+  });
+});
+
+// ---- what a search engine and a link preview see ---------------------------------------------------------------------------------------------------------------------------------
+
+describe.each(SITES)("%s: search engines and link previews", (name) => {
+  const documents = () => of(name).site.pages.map((page) => ({ page, html: read(of(name).dir, page.path === "/" ? "index.html" : `${page.path.slice(1)}/index.html`) }));
+  const metaOf = (html: string, key: "name" | "property", value: string): string | undefined => new RegExp(`<meta ${key}="${value}" content="([^"]*)"`).exec(html)?.[1];
+
+  it("every page has a title and description of a size a result can show, and a preview: type, name, address, language, card", () => {
+    for (const { page, html } of documents()) {
+      const title = /<title>([^<]*)<\/title>/.exec(html)![1]!;
+      const description = metaOf(html, "name", "description")!;
+
+      expect(title.length, page.path).toBeLessThanOrEqual(70);
+      expect(description.length, page.path).toBeGreaterThanOrEqual(10);
+      expect(description.length, page.path).toBeLessThanOrEqual(300);
+      expect(metaOf(html, "property", "og:title"), page.path).toBe(title);
+      expect(metaOf(html, "property", "og:site_name"), page.path).toBe(of(name).site.name);
+      expect(metaOf(html, "property", "og:url"), page.path).toBe(`https://example.com${/<link rel="canonical" href="https:\/\/example\.com([^"]*)"/.exec(html)![1]}`);
+      expect(metaOf(html, "property", "og:locale"), page.path).toBe(page.locale);
+      expect(metaOf(html, "property", "og:type"), page.path).toBe(page.layout === "doc" || page.layout === "post" ? "article" : "website");
+      expect(metaOf(html, "name", "twitter:card"), page.path).toBe("summary");
+      expect(html, page.path).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
+      expect(html.includes('name="robots"'), page.path).toBe(false);
+    }
+  });
+
+  it("every page of a published site says what it is as structured data, with an address that is its canonical one", () => {
+    for (const { page, html } of documents()) {
+      const found = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html);
+
+      expect(found, page.path).not.toBeNull();
+
+      const data = JSON.parse(found![1]!.replaceAll("\\u003c", "<")) as Record<string, unknown>;
+      const canonical = /<link rel="canonical" href="([^"]*)"/.exec(html)![1];
+
+      expect(data["@context"], page.path).toBe("https://schema.org");
+      expect(data["@type"], page.path).toBe({ doc: "TechArticle", post: "BlogPosting", list: "CollectionPage", landing: "WebPage" }[page.layout]);
+      expect(data["url"], page.path).toBe(canonical);
+      expect(data["inLanguage"], page.path).toBe(page.locale);
+      expect(data["headline"], page.path).toBe(page.title);
+      expect((data["isPartOf"] as { name: string }).name, page.path).toBe(of(name).site.name);
+    }
+  });
+
+  it("a post says when it was written, by whom, and about what", () => {
+    for (const { page, html } of documents().filter(({ page: candidate }) => candidate.layout === "post")) {
+      const data = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1]!) as Record<string, unknown>;
+
+      expect(data["datePublished"], page.path).toBe(page.date);
+      expect((data["author"] as { name: string }).name, page.path).toBe(page.author);
+      expect(data["keywords"], page.path).toBe(page.tags.join(", "));
+    }
+  });
+
+  it("a page that is not there says nothing as data, and a site that is not published says none", async () => {
+    expect(read(of(name).dir, "404.html")).not.toContain("ld+json");
+
+    const { site } = of(name);
+
+    expect(await renderDocument({ ...site, url: "" }, site.pages[0]!.path, built(name))).not.toContain("ld+json");
+  });
+
+  it("the sitemap and robots.txt are for the whole site, and robots.txt points at the sitemap", () => {
+    expect(read(of(name).dir, "robots.txt")).toBe("User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml\n");
+    expect(read(of(name).dir, "sitemap.xml")).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
+  });
+
+  it("is deterministic and its documents are valid enough to read: balanced, one doctype, no leftover template syntax", () => {
+    for (const { page, html } of documents()) {
+      const app = /<div id="app">([\s\S]*)<\/div><script id="valance-boot"/.exec(html)![1]!;
+
+      expect(html.startsWith("<!doctype html>"), page.path).toBe(true);
+      expect((html.match(/<main[ >]/g) ?? []).length, page.path).toBe(1);
+      // Prose and chrome, not the examples: code may say `undefined` and braces.
+      expect(app.replace(/<pre[\s\S]*?<\/pre>/g, "").replace(/<code[\s\S]*?<\/code>/g, ""), page.path).not.toMatch(/\{[a-z][\w.]*\}|undefined|\[object Object\]|NaN/);
+    }
   });
 });

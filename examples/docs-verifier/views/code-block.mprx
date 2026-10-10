@@ -1,5 +1,5 @@
 <figure>
   <mesh-if when={title != ""}><div class="code-title">{title}</div></mesh-if>
-  <pre><code><tokens tokens={tokens} /></code></pre>
+  <pre tabindex="0"><code><tokens tokens={tokens} /></code></pre>
   <button class="copy" on.click={copy(blockId)}>{copyLabel}</button>
 </figure>

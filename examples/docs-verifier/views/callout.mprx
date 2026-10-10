@@ -1,4 +1,4 @@
-<aside tone={tone}>
+<note class="callout" role="note" tone={tone}>
   <strong>{title}</strong>
   <mesh-slot />
-</aside>
+</note>

@@ -197,7 +197,7 @@ const listPages = (variant: Variant, members: ReadonlyArray<Page>, ui: Ui): Read
 
   return [
     index,
-    generated(variant, `${root}/tags`, `${collection.name}/tags`, ui.allTags, ui.allTags, (id) => [cards(id)], ui),
+    generated(variant, `${root}/tags`, `${collection.name}/tags`, ui.allTags, ui.tagsIntro, (id) => [cards(id)], ui),
     ...tags.map((tag) => generated(variant, `${root}/tags/${slugTag(tag)}`, `${collection.name}/tags/${slugTag(tag)}`, say(ui.taggedWith, { tag }), say(ui.taggedWith, { tag }), (id) => [postsOf(members.filter((post) => post.tags.includes(tag)), id)], ui)),
   ];
 };

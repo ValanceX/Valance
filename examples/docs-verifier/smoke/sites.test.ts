@@ -1,23 +1,23 @@
 // The other sites of the kit, BUILT with the production command and driven in real Chromium: a blog, a landing page, a handbook in two versions and two languages. The kit is the same;
 // what differs is each site's directory, and these tests check that each one is a working site, then what it is for.
-import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { build } from "./build.js";
 import { serveStatic } from "../web/serve.js";
 
 let browser: Browser;
 const served: Record<string, Awaited<ReturnType<typeof serveStatic>>> = {};
 
-const build = async (site: string): Promise<void> => {
-  execFileSync("pnpm", ["run", "build"], { cwd: process.cwd(), stdio: "pipe", env: { ...process.env, SITE: site } });
+const serve = async (site: string): Promise<void> => {
+  build(site);
   served[site] = await serveStatic(join(process.cwd(), "dist", site));
 };
 
 beforeAll(async () => {
-  for (const site of ["blog", "landing", "handbook"]) { await build(site); }
+  for (const site of ["blog", "landing", "handbook"]) { await serve(site); }
 
   browser = await chromium.launch();
 }, 600_000);
@@ -55,7 +55,7 @@ describe.each(["blog", "landing", "handbook"])("%s: a site like the others", (si
 
     expect(await page.evaluate(() => getComputedStyle(document.querySelector(".shell")!).display)).toBe("flex");
     expect(await accent(page)).toBe({ blog: "#b4441c", landing: "#0f766e", handbook: "#5b3df5" }[site]);           // the site's theme over the kit's; the handbook has none
-    await page.getByRole("button", { name: /dark theme|sombre/ }).click();
+    await page.getByRole("button", { name: /dark theme|thème sombre/i }).click();
     await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "dark");
     expect(await accent(page)).not.toBe({ blog: "#b4441c", landing: "#0f766e", handbook: "#5b3df5" }[site]);        // the dark palette is the site's too
     expect(failures).toEqual([]);
@@ -141,7 +141,7 @@ describe("the handbook", () => {
     await page.getByRole("heading", { name: "Installation", level: 1 }).waitFor();
     expect(await page.locator("html").getAttribute("lang")).toBe("fr");
     expect(await page.getByRole("searchbox").getAttribute("placeholder")).toBe("Rechercher");
-    expect(await page.getByRole("button", { name: "Utiliser le thème sombre" }).count()).toBe(1);
+    expect(await page.getByRole("button", { name: "Thème sombre" }).count()).toBe(1);
     expect(await page.getByRole("navigation", { name: "Documentation" }).getByRole("link").allInnerTexts()).toEqual(["Introduction", "Installation"]);
     expect(await page.title()).toBe("Installation · Handbook");
 

@@ -18,6 +18,8 @@ Names are provisional. Stability of every external's contract is **Provisional**
 | X6 | Site kit | The documentation composites (`layout`, `callout`, `code-block`, tabs, TOC, search box) as `.mprx`, with the primitive table they need | `Plugin.primitives`; the templates are read by the compile step (not by VALANCE, which compiles nothing) | `views/`, `styles/`, `web/primitives.ts`, `web/kit.ts` | Deferred as a package. Four layouts and eleven block kinds; the same kit builds four different sites (phase F). |
 | X7 | Web platform | Capabilities the site needs from the browser: clipboard, storage, fetch | `Plugin.platform` (merged in order, `mergePlatforms`) and NEXUS `Capability` | none | Deferred (phase D). |
 
+What it would take to turn each stand-in into a package, in what order, and what is not decided: `GRADUATION.md`.
+
 ## Rules for every external
 
 1. **A plugin is a value.** Nothing registers on import; a plugin does nothing until it is passed in `plugins`. It has no view, state, command or lifecycle.

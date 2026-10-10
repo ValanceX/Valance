@@ -10,12 +10,13 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { readGeneratedSite } from "../web/document.js";
 import { exportSite } from "../web/export.js";
 import { builtAssets, serveSsr, serveStatic } from "../web/serve.js";
+import { build } from "./build.js";
 
 let served: Awaited<ReturnType<typeof serveStatic>>;
 let browser: Browser;
 
 beforeAll(async () => {
-  execFileSync("pnpm", ["run", "build"], { cwd: process.cwd(), stdio: "pipe", env: { ...process.env, SITE: "docs" } });
+  build("docs");
   served = await serveStatic(join(process.cwd(), "dist", "docs"));
   browser = await chromium.launch();
 });
@@ -109,7 +110,7 @@ it("hydrates, navigates by links, keeps the title and the head, Back restores, a
   await page.waitForFunction(() => document.querySelector('link[rel="canonical"]')?.getAttribute("href") === "/docs/guides/state");
   expect(await page.locator('meta[name="description"]').getAttribute("content")).toContain("State is one value");
   expect(await page.locator('link[rel="stylesheet"]').count()).toBe(1);                   // the head the client keeps still links the style the server linked
-  expect(await page.locator("[data-valance-head]").count()).toBe(5);                      // 3 metas, the canonical link and the stylesheet: replaced, never accumulated
+  expect(await page.locator("[data-valance-head]").count()).toBe(9);                      // 7 metas (description and the preview's), the canonical link and the stylesheet: replaced, never accumulated
   expect(await sameAsServer(page, "/docs/guides/state")).toBe(true);                      // patched in place, the page is what a fresh render of the state draws
   expect(await page.getByRole("link", { name: "State", exact: true }).first().getAttribute("aria-current")).toBe("page");
 
@@ -212,23 +213,23 @@ it("switches theme by its buttons: the shell says which, the colours change, and
   expect(await page.locator(".shell").getAttribute("data-theme")).toBe("system");
   const system = await background();
 
-  await page.getByRole("button", { name: "Use the dark theme" }).click();
+  await page.getByRole("button", { name: "Dark theme" }).click();
   await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "dark");
   const dark = await background();
 
   expect(dark).not.toBe(system);
-  expect(await page.getByRole("button", { name: "Use the dark theme" }).getAttribute("aria-pressed")).toBe("true");
-  expect(await page.getByRole("button", { name: "Use the light theme" }).getAttribute("aria-pressed")).toBe("false");
+  expect(await page.getByRole("button", { name: "Dark theme" }).getAttribute("aria-pressed")).toBe("true");
+  expect(await page.getByRole("button", { name: "Light theme" }).getAttribute("aria-pressed")).toBe("false");
 
   await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "State", exact: true }).click();
   await page.waitForFunction(() => location.pathname === "/docs/guides/state");
   expect(await background()).toBe(dark);
 
-  await page.getByRole("button", { name: "Use the light theme" }).click();
+  await page.getByRole("button", { name: "Light theme" }).click();
   await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "light");
   expect(await background()).toBe(system);                                                // light is what the system gave, in a light scheme
 
-  await page.getByRole("button", { name: "Follow the system theme" }).click();
+  await page.getByRole("button", { name: "Auto: follow the system theme" }).click();
   await page.emulateMedia({ colorScheme: "dark" });
   await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "system");
   expect(await background()).toBe(dark);                                                  // system follows the reader's setting
@@ -239,12 +240,12 @@ it("on a small screen the navigation is behind the menu button, which opens it, 
   const sidebar = () => page.evaluate(() => getComputedStyle(document.querySelector(".sidebar")!).display);
 
   expect(await sidebar()).toBe("none");
-  expect(await page.getByRole("button", { name: "Navigation" }).getAttribute("aria-pressed")).toBe("false");
+  expect(await page.getByRole("button", { name: "Menu" }).getAttribute("aria-pressed")).toBe("false");
 
-  await page.getByRole("button", { name: "Navigation" }).click();
+  await page.getByRole("button", { name: "Menu" }).click();
   await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-menu") === "true");
   expect(await sidebar()).toBe("block");
-  expect(await page.getByRole("button", { name: "Navigation" }).getAttribute("aria-pressed")).toBe("true");
+  expect(await page.getByRole("button", { name: "Menu" }).getAttribute("aria-pressed")).toBe("true");
 
   await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Getting Started", exact: true }).click();
   await page.waitForFunction(() => location.pathname === "/docs/guides/getting-started");
@@ -331,7 +332,7 @@ it("remembers the theme and the code group's tab for the next visit, and takes t
 
   await page.goto(`${served.origin}/docs/guides/getting-started`);
   await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
-  await page.getByRole("button", { name: "Use the dark theme" }).click();
+  await page.getByRole("button", { name: "Dark theme" }).click();
   await page.getByRole("tab", { name: "yarn", exact: true }).click();
   await page.waitForFunction(() => localStorage.getItem("kit.theme") === "dark" && localStorage.getItem("kit.tabs") === '{"pkg":"yarn"}');
 
@@ -351,7 +352,7 @@ it("a page whose store is blocked still works, and the choice lasts as long as t
   await page.addInitScript(() => { Object.defineProperty(window, "localStorage", { get: () => { throw new DOMException("blocked", "SecurityError"); } }); });
   await page.goto(`${served.origin}/docs/introduction`);
   await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
-  await page.getByRole("button", { name: "Use the dark theme" }).click();
+  await page.getByRole("button", { name: "Dark theme" }).click();
   await page.waitForFunction(() => document.querySelector(".shell")?.getAttribute("data-theme") === "dark");
   expect(failures).toEqual([]);
   await context.close();
