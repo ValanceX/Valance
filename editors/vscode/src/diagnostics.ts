@@ -30,8 +30,16 @@ export const place = (each: ValanceDiagnostic): Placed => ({
   message: each.message,
 });
 
-/** Template diagnostics are the language server's, with hover and quick fixes; reporting them twice would double every squiggle. */
-export const forTheCheck = (all: ReadonlyArray<ValanceDiagnostic>): ReadonlyArray<ValanceDiagnostic> => all.filter((each) => !each.file.endsWith(".mprx"));
+/**
+ * Template diagnostics are the language server's, with hover and quick fixes: reporting them twice would double every squiggle. But the server only checks a file it was told is a component. For a
+ * template it was not told about (not compiled yet, never used) the check is the only voice, so its diagnostics stay. `covered` is the files the server was told about.
+ */
+export const forTheCheck = (all: ReadonlyArray<ValanceDiagnostic>, covered: ReadonlySet<string> = new Set()): ReadonlyArray<ValanceDiagnostic> => all.filter((each) => !each.file.endsWith(".mprx") || !covered.has(each.file));
+
+/** The note put on a template the language server does not know, so the editor says what its log says. */
+export const UNMAPPED = "valance-unmapped";
+export const unmappedMessage = (file: string): string =>
+  `${file} is not part of the compiled project, so hover, completion and type checks are off for it. Either nothing uses it yet (\`vlx check\` says so) or the project has not been rebuilt since you added it: run \`vlx check\` or \`vlx dev\`.`;
 
 export const parse = (stdout: string): ReadonlyArray<ValanceDiagnostic> => {
   const value = JSON.parse(stdout) as unknown;

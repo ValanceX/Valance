@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { forTheCheck, place, run } from "../src/diagnostics";
-import { readProject } from "../src/project";
+import { forWorkspace, readProject } from "../src/project";
 import type { Client } from "./lsp-client";
 import { connect } from "./lsp-client";
 
@@ -96,5 +96,57 @@ describe("what the server cannot see", () => {
     const found = forTheCheck(await run(root, valance)).map(place);
 
     expect(found).toEqual([expect.objectContaining({ file: "content/index.md", startLine: 6, code: "link-broken", endColumn: -1 })]);
+  });
+});
+
+describe("a project inside a larger workspace (the window opened on a folder above it)", () => {
+  it("is understood by the real server only when the paths are written from the workspace", async () => {
+    const parent = mkdtempSync(join(tmpdir(), "valance-vscode-parent-"));
+
+    mkdirSync(join(parent, "apps"), { recursive: true });
+    symlinkSync(app, join(parent, "apps", "docs"), "dir");
+
+    const project = readProject(app);
+
+    if (project.kind !== "ready") { throw new Error("the example is not ready"); }
+
+    const broken = layout.replace("{site}", "{sitee}");
+    const ask = async (settings: unknown, file: string): Promise<ReadonlyArray<string>> => {
+      const inner = await connect(process.execPath, parent, settings, [server]);
+
+      inner.open(file, "mprx", broken);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const codes = (inner.diagnostics.get(inner.uri(file)) ?? []).map((each) => each.code);
+
+      await inner.stop();
+
+      return codes;
+    };
+
+    // Written as the project sees them: the server cannot find the file, so it checks without a model and says nothing about the misspelt name.
+    expect(await ask(project.settings, "apps/docs/src/layout.mprx")).toEqual([]);
+    // Written from the workspace: the same file now gets the project's diagnostics.
+    expect(await ask(forWorkspace(parent, join(parent, "apps", "docs"), project.settings), "apps/docs/src/layout.mprx")).toEqual(["unknown-reference"]);
+  });
+});
+
+describe("a project that changes while the server runs", () => {
+  it("is picked up through didChangeConfiguration: a file the server did not know becomes one it checks", async () => {
+    const project = readProject(app);
+
+    if (project.kind !== "ready") { throw new Error("the example is not ready"); }
+
+    const inner = await connect(process.execPath, app, { model: project.settings.model, components: {} }, [server]);
+    const broken = layout.replace("{site}", "{sitee}");
+
+    inner.open("src/layout.mprx", "mprx", broken);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(inner.diagnostics.get(inner.uri("src/layout.mprx"))).toEqual([]);                  // not mapped to a component: checked without a model, so nothing to say
+
+    inner.configure(project.settings);
+    await inner.until(() => (inner.diagnostics.get(inner.uri("src/layout.mprx"))?.length ?? 0) > 0);
+    expect(inner.diagnostics.get(inner.uri("src/layout.mprx"))!.map((each) => each.code)).toEqual(["unknown-reference"]);
+    await inner.stop();
   });
 });

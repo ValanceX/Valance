@@ -38,7 +38,7 @@ The spike is [`editors/vscode`](../../editors/vscode) (private, outside the work
 | G2 | No semantic tokens from `mesh-lsp` | Low: highlighting is lexical (TextMate), so an unknown tag looks like a known one; the diagnostic still marks it | Upstream request to MESH if wanted |
 | G3 | Two highlighters to keep in step (Tree-sitter queries and the TextMate grammar) | Low-medium. **Decided:** the grammar lives in MESH (`editors/vscode`), tested there against MESH's own files with VS Code's engine (32 valid files must close, 60 failing fixtures must still tokenize); CI job added in MESH | Keep both tested on the same corpus |
 | G4 | Content diagnostics: line but no column, only for saved files, ~0.75 s | Low | Acceptable for a first release. As-you-type needs `check` to accept unsaved buffers (an in-process API), later |
-| G5 | The server supports **one** workspace root; the extension uses the first folder | Medium for monorepos (e.g. opening this repository's root instead of `examples/docs-app`) | Document; later, one client per `valance.json` folder |
+| G5 | The server supports **one** workspace root | Medium. **Partly addressed:** the extension now finds the project in the opened folder or up to three levels below it, and writes the server's paths from the workspace (verified against the real server: written from the project, the server silently checks nothing). One project per window; several projects in one window pick one (the one holding the active file) | One client per `valance.json` folder, later |
 | G6 | Built-in templates (`views/*.mprx` in the package) are not mapped, so opening one gets no diagnostics | Low | Intended: they are not the author's. A copy in `src/` is mapped normally |
 | G7 | A brand-new component is "unknown" until the next successful compile updates the manifest | Low, transient | `vlx dev` recompiles on save; the server reloads the manifest when it changes. **Not measured** here |
 | G8 | Distributing the native server | **Decided:** a dev dependency of the *project* (`@valancex/mesh-lsp`, as `examples/docs-app` now has), so the server and the project's MESH compiler stay in the same version; `valance.meshLsp.path` overrides. Not an optional peer of `@valancex/cli`: it would put a native binary in every install, including builds | Documented in `packages/cli/README.md` |
@@ -96,3 +96,17 @@ $ cd editors/vscode && pnpm install && pnpm test      # 16 tests: grammar (VS Co
 $ pnpm typecheck                                      # extension code against @types/vscode and vscode-languageclient
 ```
 The host suite needs a display and network: `xvfb-run -a pnpm test:host` (`VSCODE_VERSION` picks the version). `e2e.test.ts` runs `vlx check` in `examples/docs-app` first, so build the workspace (`pnpm build` at the root) before running it.
+
+## Found by trying it (first human use)
+
+The first person to run the extension saw syntax colours but no hover and no diagnostics, and nothing said why. The server was running; its log said `layout.mprx has no component in "mesh.components", so it's checked without a model`. Causes and fixes:
+
+| Cause | Fix |
+|---|---|
+| The extension read `.valance/editor.json` once at start. The project had been started with the built-in layout (no components), then the author added their own `src/layout.mprx`; `vlx dev` updated `editor.json`, the running server never heard | The extension watches `.valance/editor.json` and tells the running server through `workspace/didChangeConfiguration` (proved at the protocol level against the real server; a host case covers it in VS Code) |
+| Every failure went only to a hidden output channel | A status bar item and a once-per-kind warning with the reason and the fix; commands *VALANCE: Show details* and *Restart the language server* |
+| A template the server does not know produces no diagnostic of its own | An editor note on the file ("not part of the compiled project…"); and `vlx check`'s own diagnostics for such a file are shown, since the server is silent on it |
+| Opening a folder above the project found nothing, silently | Project discovery up to three levels, and server paths written from the workspace |
+| Windows could not spawn the `.cmd` shim | The server is started with a shell on Windows (untested there) |
+
+Lesson for the host suite: it only opened the project directly with a freshly generated `editor.json`, the one setup in which every one of these worked. It now also runs with the window opened above the project and exercises a stale mapping.

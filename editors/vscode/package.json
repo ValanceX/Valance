@@ -16,7 +16,8 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "workspaceContains:valance.json"
+    "onLanguage:mprx",
+    "workspaceContains:**/valance.json"
   ],
   "contributes": {
     "languages": [
@@ -67,6 +68,14 @@
       {
         "command": "valance.check",
         "title": "VALANCE: Check the project"
+      },
+      {
+        "command": "valance.restart",
+        "title": "VALANCE: Restart the language server"
+      },
+      {
+        "command": "valance.showOutput",
+        "title": "VALANCE: Show details"
       }
     ]
   },

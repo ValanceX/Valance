@@ -2,11 +2,20 @@
 // features to answer. No test framework: a case throws, and `run` reports every failure at once.
 import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 const EXTENSION = "valancex.valance-vscode";
+/** What the extension exposes (src/extension.ts `Api`). */
+interface Api { readonly status: () => string; readonly known: () => ReadonlyArray<string>; readonly project: () => string | undefined }
+
+const scenario = process.env["VALANCE_HOST_SCENARIO"] ?? "project";
 const root = (): string => vscode.workspace.workspaceFolders![0]!.uri.fsPath;
-const uri = (file: string): vscode.Uri => vscode.Uri.file(join(root(), file));
+/** The project: the window's folder, or (in the `parent` scenario) the folder two levels down that holds the valance.json. */
+const project = (): string => scenario === "parent" ? join(root(), "apps", "docs") : root();
+const uri = (file: string): vscode.Uri => vscode.Uri.file(join(project(), file));
+const api = (): Api => vscode.extensions.getExtension<Api>(EXTENSION)!.exports;
 
 /** Polls until `probe` answers (not `undefined`/`false`), or fails saying what it was waiting for. */
 const waitFor = async <T>(what: string, probe: () => T | undefined | false | Promise<T | undefined | false>, ms = 30_000): Promise<T> => {
@@ -51,6 +60,8 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     assert.ok(extension, `${EXTENSION} is not installed in the host`);
     await extension.activate();
     assert.ok(extension.isActive);
+    await waitFor(`the status to be ready (it is ${api().status()})`, () => api().status() === "ready");
+    assert.equal(api().project(), project());
   }],
 
   ["a .mprx file is the mprx language", async () => {
@@ -126,6 +137,47 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     await waitFor("the valance diagnostics to clear", () => vscode.languages.getDiagnostics(document.uri).filter((each) => each.source === "valance").length === 0, 60_000);
   }],
 
+  ["a template the project does not know is marked, and the mark goes away once it is part of the project (a stale mapping is refreshed without a reload)", async () => {
+    const badge = join(project(), "src", "badge.mprx");
+    const layoutFile = join(project(), "src", "layout.mprx");
+
+    writeFileSync(badge, '<span class="badge">{label}</span>\n');
+
+    try {
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(badge));
+
+      await vscode.window.showTextDocument(document);
+
+      const note = await waitFor("the note on a template the server does not know", () => vscode.languages.getDiagnostics(document.uri).find((each) => codeOf(each) === "valance-unmapped"));
+
+      assert.match(note.message, /vlx check/);
+
+      // Use it in the layout and save: the check rebuilds the project, `.valance/editor.json` changes, and the running server is told.
+      const { document: layoutDocument, editor, original } = await open("src/layout.mprx");
+
+      await replaceAll(editor, original.replace('<header class="bar">', '<header class="bar">\n    <badge label={site} />'));
+      await layoutDocument.save();
+      await waitFor("the project to know the new template", () => api().known().includes("src/badge.mprx"), 60_000);
+      await waitFor("the note to go away", () => vscode.languages.getDiagnostics(document.uri).every((each) => codeOf(each) !== "valance-unmapped"));
+
+      // And the server now checks it: hover on the new tag in the layout answers with its contract.
+      const hovers = await waitFor("a hover on the new component", async () => {
+        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Hover>>("vscode.executeHoverProvider", layoutDocument.uri, positionOf(layoutDocument, "<badge", 2));
+
+        return found.length > 0 ? found : undefined;
+      }, 60_000);
+
+      assert.match(hoverText(hovers), /component badge/);
+    } finally {
+      const { document, editor, original } = await open("src/layout.mprx");
+
+      await replaceAll(editor, original.replace(/\n    <badge label=\{site\} \/>/, ""));
+      await document.save();
+      if (existsSync(badge)) { unlinkSync(badge); }
+      execFileSync(join(project(), "node_modules", ".bin", "vlx"), ["check"], { cwd: project() });
+    }
+  }],
+
   ["valance.json is validated against the schema the extension contributes", async () => {
     const { document, editor, original } = await open("valance.json");
 
@@ -138,11 +190,17 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
   }],
 ];
 
+/** In a window opened above the project the editor features must work the same; the content and config cases need the project's own files at the root. */
+const IN_PARENT = ["the extension activates", "a .mprx file is the mprx language", "a template mistake is a diagnostic at its place, and it clears when fixed", "hover on a component shows its contract", "go to definition of a component opens its template, not the generated manifest"];
+const chosen = scenario === "parent" ? cases.filter(([name]) => IN_PARENT.includes(name)) : cases;
+
 /** The entry VS Code calls: runs every case, then fails with all the failures. */
 export const run = async (): Promise<void> => {
   const failures: Array<string> = [];
 
-  for (const [name, work] of cases) {
+  console.log(`  scenario ${scenario}: ${chosen.length} cases`);
+
+  for (const [name, work] of chosen) {
     try {
       await work();
       console.log(`  ok   ${name}`);
@@ -152,5 +210,5 @@ export const run = async (): Promise<void> => {
     }
   }
 
-  if (failures.length > 0) { throw new Error(`${failures.length} of ${cases.length} host cases failed:\n${failures.join("\n")}`); }
+  if (failures.length > 0) { throw new Error(`${failures.length} of ${chosen.length} host cases failed:\n${failures.join("\n")}`); }
 };

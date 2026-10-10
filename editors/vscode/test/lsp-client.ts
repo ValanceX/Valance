@@ -10,6 +10,7 @@ export interface Client {
   readonly request: (method: string, params: unknown) => Promise<{ result?: any }>;
   readonly open: (file: string, languageId: string, text: string) => void;
   readonly change: (file: string, version: number, text: string) => void;
+  readonly configure: (settings: unknown) => void;
   readonly uri: (file: string) => string;
   readonly until: (condition: () => boolean, ms?: number) => Promise<void>;
   readonly stop: () => Promise<void>;
@@ -65,6 +66,7 @@ export const connect = async (bin: string, root: string, settings: unknown, args
     request,
     open: (file, languageId, text) => { notify("textDocument/didOpen", { textDocument: { uri: uri(file), languageId, version: 1, text } }); },
     change: (file, version, text) => { notify("textDocument/didChange", { textDocument: { uri: uri(file), version }, contentChanges: [{ text }] }); },
+    configure: (settings) => { notify("workspace/didChangeConfiguration", { settings: { mesh: settings } }); },
     uri,
     until: async (condition, ms = 5000) => { const end = Date.now() + ms; while (!condition()) { if (Date.now() > end) { throw new Error("timed out waiting for the server"); } await new Promise((resolve) => setTimeout(resolve, 25)); } },
     stop: async () => { await request("shutdown", null); notify("exit", null); },

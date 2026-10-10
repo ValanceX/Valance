@@ -56,3 +56,8 @@ Branch `claude/fervent-ptolemy-gbtc8u`. Newest entries at the bottom of each pha
 - The package directory is `packages/cli`, the npm name `@valancex/cli`, the command `vlx` (after `npx`, `bunx`). `valance.json`, `valance.web.json`, `.valance/` and the product name are unchanged. The core is untouched.
 - Names inside the tooling follow: log prefixes are `vlx:`, the extension runs `node_modules/.bin/vlx`, the author-definition brand is `Symbol.for("valancex.cli")`. Historical entries above keep their words but the replaced names were updated mechanically.
 - Verified: build, typecheck 0 errors, `packages/cli` 43 tests, docs-app 14 browser checks, extension 16 tests and host compile, and the walkthrough in [`TRY-IT.md`](TRY-IT.md) executed from a fresh clone.
+
+## First human use of the VS Code extension: no hover
+- Cause and fixes in `EDITOR-FEASIBILITY.md` ("Found by trying it"): the extension read `editor.json` once; a project that started on the built-in layout then gained its own never reached the running server, and every failure was invisible.
+- Changes: `editors/vscode/src/extension.ts` (project discovery, watch + live settings, status bar, warnings, restart/details commands, unmapped-template note, Windows shell), `project.ts` (`findProjects`, `forWorkspace`, `explain`), `diagnostics.ts` (`forTheCheck` keeps the check's voice for templates the server does not know). Tests: 22 unit/e2e (including the real server with workspace-relative paths and live reconfiguration); host suite now two scenarios (`project`, `parent`) and a stale-mapping case.
+- Not verified until CI runs: the new host cases.

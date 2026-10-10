@@ -119,7 +119,23 @@ In that window, open a `.mprx` file and check:
 | Add `[x](/nowhere)` to a Markdown page and **save** | an error on that line (these come from `vlx check`, on save) |
 | Misspell a key in `valance.json` | a schema warning |
 
-If nothing happens: *View → Output → VALANCE* says why (most often "no `.valance/editor.json`": run `npx vlx check`, then reload the window; or "mesh-lsp not found": install it as above).
+The extension never fails silently. Look at the **status bar** (bottom left):
+
+| You see | It means | Do |
+|---|---|---|
+| `$(check) VALANCE` | the language server is running for the project | nothing |
+| `$(warning) VALANCE` | something is wrong; hover it or click it for the reason (a warning message also appears once) | do what it says |
+
+The reasons, and the fix for each:
+
+| Message starts | Fix |
+|---|---|
+| "No valance.json was found in this folder or the folders below it" | open the project's folder (or a folder that contains it, up to three levels) |
+| "The project has not been built yet" | run `npx vlx check` (or `vlx dev`) in the project. The window notices by itself; no reload |
+| "The template language server was not found at …" | `npm install -D @valancex/mesh-lsp@0.10.0` in the project, then *VALANCE: Restart the language server* from the command palette |
+| "The template language server did not start: …" | the rest of the message is the cause; *VALANCE: Show details* has the server's log |
+
+A **blue "… is not part of the compiled project" note on line 1 of a `.mprx` file** means the server was not told this file is a component, so hover, completion and type errors are off for that file. Either nothing uses the component yet (`npx vlx check` says `template-unused`), or you added it and have not rebuilt (`vlx dev` rebuilds on save; or run `vlx check`). The note goes away by itself once the project knows the file.
 
 ## If something goes wrong
 
