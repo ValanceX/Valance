@@ -41,6 +41,9 @@ const positionOf = (document: vscode.TextDocument, needle: string, shift = 0): v
 
 const text = (value: unknown): string => JSON.stringify(value);
 
+/** The words of a hover. Its contents are `MarkdownString`s (or plain strings, or `{ language, value }`): objects whose text is `.value`, which `JSON.stringify` does not see. */
+const hoverText = (hovers: ReadonlyArray<vscode.Hover>): string => hovers.flatMap((each) => each.contents).map((each) => typeof each === "string" ? each : each.value).join("\n");
+
 const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
   ["the extension activates", async () => {
     const extension = vscode.extensions.getExtension(EXTENSION);
@@ -79,8 +82,8 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       return result.length > 0 ? result : undefined;
     });
 
-    assert.match(text(found.map((each) => each.contents)), /component theme-toggle/);
-    assert.match(text(found.map((each) => each.contents)), /theme: string/);
+    assert.match(hoverText(found), /component theme-toggle/);
+    assert.match(hoverText(found), /theme: string/);
   }],
 
   ["go to definition of a component opens its template, not the generated manifest", async () => {
