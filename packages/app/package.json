@@ -1,0 +1,61 @@
+{
+  "name": "@valancex/app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The VALANCE application model and its commands (`valance dev`, `valance build`, `valance check`): content, layout, components and styles in, a website out. Provisional name; unpublished.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "valance": "./bin/valance.js"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "views",
+    "schemas"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@valancex/mesh-compiler": "^0.10.0",
+    "@valancex/mesh-runtime": "^0.10.0",
+    "@valancex/port-web": "^0.4.0",
+    "@valancex/valance": "workspace:*",
+    "effect": "^3.10.0",
+    "vite": "7.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright": "1.56.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

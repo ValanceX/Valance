@@ -1,0 +1,3 @@
+<mesh-fragment>
+  <mesh-each items={spans} as="s" key={s.id}><inline kind={s.kind} text={s.text} href={s.href} /></mesh-each>
+</mesh-fragment>

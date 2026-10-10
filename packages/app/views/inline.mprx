@@ -1,0 +1,9 @@
+<mesh-fragment>
+  <mesh-switch>
+    <mesh-case when={kind == "strong"}><strong>{text}</strong></mesh-case>
+    <mesh-case when={kind == "emphasis"}><em>{text}</em></mesh-case>
+    <mesh-case when={kind == "code"}><code>{text}</code></mesh-case>
+    <mesh-case when={kind == "link"}><a href={href}>{text}</a></mesh-case>
+    <mesh-default><mesh-fragment>{text}</mesh-fragment></mesh-default>
+  </mesh-switch>
+</mesh-fragment>

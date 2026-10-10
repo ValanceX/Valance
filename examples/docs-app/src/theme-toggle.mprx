@@ -1,0 +1,1 @@
+<button class="theme-toggle" pressed={theme == "dark" ? "true" : "false"} on.click={toggle()}>{theme == "dark" ? "Light" : "Dark"}</button>

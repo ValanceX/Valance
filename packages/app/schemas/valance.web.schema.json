@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schemas/valance.web.schema.json",
+  "title": "valance.web.json",
+  "description": "Settings for the web target: where the built site is served.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1, "description": "The version of this file's format." },
+    "base": { "type": "string", "pattern": "^/([\\w.~-]+/)*$", "default": "/", "description": "The path the site is served under: \"/\" or \"/docs/\". Every address the build writes is under it." },
+    "url": { "type": "string", "pattern": "^https?://.*[^/]$", "description": "Where the site is published, without a trailing slash. With it, pages get canonical links and the build writes sitemap.xml." }
+  }
+}

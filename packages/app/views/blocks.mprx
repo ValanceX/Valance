@@ -1,0 +1,3 @@
+<mesh-fragment>
+  <mesh-each items={items} as="b" key={b.id}><block b={b} /></mesh-each>
+</mesh-fragment>

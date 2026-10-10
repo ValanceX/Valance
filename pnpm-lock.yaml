@@ -12,6 +12,25 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  examples/docs-app:
+    dependencies:
+      '@valancex/app':
+        specifier: workspace:*
+        version: link:../../packages/app
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      playwright:
+        specifier: 1.56.1
+        version: 1.56.1
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+
   examples/docs-site:
     dependencies:
       '@valancex/valance':
@@ -91,6 +110,40 @@ importers:
       vite:
         specifier: 7.3.6
         version: 7.3.6(@types/node@22.20.5)
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+
+  packages/app:
+    dependencies:
+      '@valancex/mesh-compiler':
+        specifier: ^0.10.0
+        version: 0.10.0
+      '@valancex/mesh-runtime':
+        specifier: ^0.10.0
+        version: 0.10.0
+      '@valancex/port-web':
+        specifier: ^0.4.0
+        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
+      '@valancex/valance':
+        specifier: workspace:*
+        version: link:../valance
+      effect:
+        specifier: ^3.10.0
+        version: 3.22.2
+      vite:
+        specifier: 7.3.6
+        version: 7.3.6(@types/node@22.20.5)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      playwright:
+        specifier: 1.56.1
+        version: 1.56.1
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)

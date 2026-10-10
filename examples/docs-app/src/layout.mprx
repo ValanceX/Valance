@@ -1,0 +1,27 @@
+<shell class="layout" theme={theme}>
+  <header class="bar">
+    <link class="brand" href={home} current="false">{site}</link>
+    <theme-toggle theme={theme} on.toggle={toggleTheme()} />
+  </header>
+  <div class="frame">
+    <nav class="sidebar" label="Pages">
+      <mesh-each items={sections} as="s" key={s.id}>
+        <section>
+          <mesh-if when={s.title != ""}><para class="nav-title">{s.title}</para></mesh-if>
+          <list class="nav-list">
+            <mesh-each items={s.items} as="n" key={n.id}>
+              <item><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></item>
+            </mesh-each>
+          </list>
+        </section>
+      </mesh-each>
+    </nav>
+    <main id="content" tabindex="-1">
+      <blocks items={blocks} />
+      <nav class="pager" label="Previous and next page">
+        <mesh-if when={prev.href != ""}><link class="pager-link" href={prev.href} current="false">{prev.label}</link></mesh-if>
+        <mesh-if when={next.href != ""}><link class="pager-link" href={next.href} current="false">{next.label}</link></mesh-if>
+      </nav>
+    </main>
+  </div>
+</shell>

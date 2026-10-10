@@ -1,0 +1,10 @@
+<mesh-fragment>
+  <mesh-switch>
+    <mesh-case when={b.kind == "heading"}><heading level={b.level} anchor={b.anchor} spans={b.spans} /></mesh-case>
+    <mesh-case when={b.kind == "list"}><list-block ordered={b.ordered} items={b.items} /></mesh-case>
+    <mesh-case when={b.kind == "code"}><pre class="code" tabindex="0"><code>{b.text}</code></pre></mesh-case>
+    <mesh-case when={b.kind == "quote"}><quote class="quote"><runs spans={b.spans} /></quote></mesh-case>
+    <mesh-case when={b.kind == "image"}><image class="picture" src={b.src} alt={b.alt} loading="lazy" /></mesh-case>
+    <mesh-default><para class="prose"><runs spans={b.spans} /></para></mesh-default>
+  </mesh-switch>
+</mesh-fragment>
