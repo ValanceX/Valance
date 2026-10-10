@@ -1,10 +1,7 @@
 // URLs are the application's, not the framework's: a function from state to a URL, and from a URL to the fact `go` takes. No router.
-//
-// A page's own path (`/docs/guides/state`, `/fr/docs/guides/state`, `/v1/docs/guides/state`) is what the content says; the URL is that path under the site's `base`
-// (`/docs-site/docs/guides/state` when the site is served from `/docs-site/`). Nothing else in the application knows the base.
-import type { SiteMap } from "../model/site.js";
-
+import type { Site } from "../model/site.js";
 import type { AppState } from "./state.js";
+
 import { initial } from "./state.js";
 import { homeOf, isNotFound, latestOf, notFoundId, translationsOf } from "./variants.js";
 

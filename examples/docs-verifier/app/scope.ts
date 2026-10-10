@@ -1,17 +1,9 @@
 // What the page view reads: a function of the state and the site. The view is a template (../views/page.mprx); this is the only place that decides what it is given.
-//
-// The site's blocks are a union of kinds (../model/site.ts); a MESH scope is flat, so each block is projected to one record that has every field a template may read, empty for the
-// kinds that have no use for it. `BlockView` is the one declaration of that shape, and `view` the one function that fills it.
-import { Schema } from "effect";
-
-import type { Block, SiteMap, Span, Token } from "../model/site.js";
-import { slug } from "../model/slug.js";
-import type { Ui } from "../model/ui.js";
-import { dateIn, defaultUi, say, uiFor } from "../model/ui.js";
-
-import { hrefOf } from "./routes.js";
+import type { Block, Page, Site } from "../model/site.js";
 import type { AppState } from "./state.js";
-import { localesFor, versionsFor } from "./variants.js";
+
+import { NOT_FOUND } from "./routes.js";
+import { Schema } from "effect";
 
 const Link = Schema.Struct({ href: Schema.String, label: Schema.String });
 const NavItem = Schema.Struct({ id: Schema.String, href: Schema.String, label: Schema.String, current: Schema.String });
