@@ -7,3 +7,7 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@valancex/nexus@0.10.3'
   - '@valancex/port-web@0.3.0'
+  - '@valancex/nexus@0.12.0'
+  - '@valancex/port-web@0.4.0'
+  - '@valancex/mesh-runtime@0.10.0'
+  - '@valancex/mesh-compiler@0.10.0'
