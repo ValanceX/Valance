@@ -9,18 +9,14 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:smoke": "vitest run -c vitest.smoke.config.ts",
-    "build:server": "tsc -p tsconfig.server.json && node scripts/copy-views.mjs",
-    "build:content": "pnpm build:server && node dist/server/tooling/build-content.js",
-    "build:program": "node dist/server/web/build-program.js",
-    "build:page": "vite build -c vite.page.config.ts && node scripts/finish-build.mjs",
-    "build:all": "node scripts/build-all.mjs",
-    "build:site": "node dist/server/web/export-main.js",
-    "build": "pnpm build:content && pnpm build:program && pnpm build:page && pnpm build:site",
-    "start": "node dist/server/web/serve-main.js",
-    "start:ssr": "node dist/server/web/serve-main.js --ssr",
     "test:budget": "vitest run -c vitest.budget.config.ts",
     "test:principles": "vitest run -c vitest.principles.config.ts",
-    "test:visual": "vitest run -c vitest.visual.config.ts"
+    "test:visual": "vitest run -c vitest.visual.config.ts",
+    "build": "pnpm build:tools && node .valance/tools/build/cli/prepare.js && vite build && node .valance/tools/build/cli/site.js",
+    "build:all": "node scripts/build-all.mjs",
+    "build:tools": "tsc -p tsconfig.server.json",
+    "start": "node .valance/tools/build/cli/serve.js",
+    "start:ssr": "node .valance/tools/build/cli/serve.js --ssr"
   },
   "dependencies": {
     "@valancex/valance": "0.8.0"

@@ -35,10 +35,10 @@ mkdirSync(work, { recursive: true });
 
 // The sources, fresh each time; what the work directory built or installed stays.
 for (const entry of readdirSync(".")) {
-  if (/^(node_modules|dist|generated|\.work|\.packs|pnpm-lock\.yaml)$/.test(entry)) { continue; }
+  if (/^(node_modules|dist|\.valance|\.work|\.packs|pnpm-lock\.yaml)$/.test(entry)) { continue; }
 
   rmSync(join(work, entry), { recursive: true, force: true });
-  cpSync(entry, join(work, entry), { recursive: true, filter: (source) => !/(^|\/)(node_modules|dist|generated|\.work|\.packs|evidence)(\/|$)/.test(source) });
+  cpSync(entry, join(work, entry), { recursive: true, filter: (source) => !/(^|\/)(node_modules|dist|\.valance|\.work|\.packs|evidence)(\/|$)/.test(source) });
 }
 
 const manifest = JSON.parse(readFileSync("package.json", "utf8"));
