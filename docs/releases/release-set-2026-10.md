@@ -1,5 +1,7 @@
 # Release set: MESH 0.10.0, PORT 0.4.0, NEXUS 0.12.0, VALANCE 0.7.0
 
+> **Patch set (2026-10-10, prepared):** `@valancex/port-web` 0.4.1, `@valancex/nexus` 0.12.1 and `@valancex/valance` 0.7.1 are independent of each other's code; publish Port and Nexus first (Valance's CI needs nothing new, its peer ranges already admit them), then Valance. MESH has no release in this set.
+
 Prepared 2026-10-10. Nothing is tagged or published. The four releases depend on each other, so they go out **in this order**, and each later one needs a step after the one before it is on the registry.
 
 | # | Repository | Version | Tag | Notes file | Lockfile on the prepared branch |

@@ -5,6 +5,17 @@ Method (§18): a consumer's tasks, written from the public packages only. `pnpm 
 A confirmed defect is a probe marked `it.fails`: the suite is green while it is open, and goes red the moment it is fixed, so the marker is then removed.
 The docs are referential: where a doc and the behaviour disagree, the behaviour is what was judged.
 
+## Status after the follow-up (prepared, nothing tagged or published)
+
+| # | Fix | Where | Release |
+|---|-----|-------|---------|
+| P1 | URL attributes refuse `javascript:`/`vbscript:` (and a navigable `data:`) as `unrealizable-value`, in draw, update, hydrate, `patch` and server HTML; 17 new tests | Port | `@valancex/port-web` 0.4.1 |
+| P2 | The doc comment now states the logging; the **behavior is unchanged**: the whole cause is logged unredacted, which `stability.md` has listed as Stable since 0.6.0. Changing a stable surface is a minor release's decision (an opt-in or identity-only log), so the probe stays an open `it.fails`. | Valance | `@valancex/valance` 0.7.1 (doc only) |
+| P3 | README gains an install line and a stability section | Mesh `main` | rides the next MESH release (no code change warrants a lockstep 0.10.1) |
+| O1 | `./package.json` exported | Nexus | `@valancex/nexus` 0.12.1 |
+
+The P1 and O1 probes flip from `it.fails` to `it` once this verifier runs against the published 0.4.1 and 0.12.1; P3 once MESH next releases.
+
 ## Result
 
 Seventeen probes hold. **Three defects are confirmed**, plus observations. Nothing found blocks the released set; two of the three are security-relevant defaults.

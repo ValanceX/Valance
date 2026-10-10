@@ -84,7 +84,8 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
   /**
    * The key of a command-table entry (an exact `"component/name"` key, or a bare command name, which means `"app/name"`) that `start` runs, once, with no arguments, as the application's own command: admitted before `start` returns, owned
    * by the application's registry like any admitted command (closing the Scope interrupts and awaits it before NEXUS terminates), with no caller. Its exit is
-   * not reported anywhere: work that can fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
+   * returned nowhere (no caller, no mount ledger), and a failure it does not catch is logged with `Effect.logError("start-time work failed", cause)`, the whole cause and unredacted, so keep secrets out of
+   * the errors it lets escape: work that can fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
    */
   readonly start?: string;
 }
