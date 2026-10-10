@@ -25,7 +25,7 @@ web/       compile, SSR, browser, dev  may import app, model, Valance, Mesh, Por
 
 ## Setup
 
-The verifier tests prepared, unpublished versions (MESH 0.10, PORT Web 0.4, NEXUS 0.12, VALANCE 0.7). Until they are on the registry, run it against their packs, which is also how a set of releases is validated before it is published:
+The verifier runs on the released versions (MESH 0.10, PORT Web 0.4, NEXUS 0.12, VALANCE 0.7) from the registry. To verify a set that is prepared but not yet published, run it against packs, which is also how a set of releases is validated before it is published:
 
 ```
 # in each of Mesh/packages/mesh-compiler, Mesh/packages/mesh-runtime, Port/packages/port-web, Nexus, Valance/packages/valance

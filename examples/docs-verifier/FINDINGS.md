@@ -8,7 +8,7 @@ Principle: the user writes the application, never system config (JSON, TS or JS)
 | F2 | `mesh-slot` had to be declared in the manifest by hand. | Gap | **Fixed (Mesh dev).** Reserved tags (`mesh-slot`, `mesh-fill`, `mesh-switch`, `mesh-case`, `mesh-default`, `mesh-if`, `mesh-each`) are declared by the toolchain when a template uses them. |
 | F3 | Inline marks (strong, code, link) cost a wrapper element per run. | Gap (the principle: MESH makes no node a template did not write) | **Fixed (Mesh dev).** `mesh-fragment`: `runs` and `inline` are fragments, so a heading's text and marks are its own children, and a block is no `section`. The page holds only elements the templates name, which `test/site.test.ts` checks. |
 | F4 | Lists are flattened to `item` blocks. | Partly a gap. A fixed-depth list is expressible (`mesh-each` inside `mesh-each`). Arbitrary nesting is not: composites cannot recurse. | Open: bounded recursion. |
-| F5 | Valance 0.6.0 redraws the whole tree on every change. | Gap | **Fixed (Valance 0.7 prepared).** A later render of a view is MESH's `update` of the previous one, applied with PORT's `patch`; the smoke test compares the patched page with the server's HTML for the same URL. |
+| F5 | Valance 0.6.0 redraws the whole tree on every change. | Gap | **Fixed (Valance 0.7, released).** A later render of a view is MESH's `update` of the previous one, applied with PORT's `patch`; the smoke test compares the patched page with the server's HTML for the same URL. |
 | F6 | Kind dispatch needed seven sibling `mesh-if`s. | Gap | **Fixed (Mesh dev).** `block.mprx` is one `mesh-switch`. |
 | F7 | One unnamed slot per template. | Gap | **Fixed (Mesh dev).** `layout.mprx` has a `nav` slot and the default; `page.mprx` fills `nav`. |
 | F8 | Copy-to-clipboard needs a platform capability. | Open | Port capability design. |
@@ -41,14 +41,14 @@ Learned while probing F3: `mesh-if` already takes a second element child as its 
 
 Still to build: bounded recursion (F4).
 
-## Found by validating the prepared set (the packs, in a clean project and in this repository)
+## Found by validating the set before release (the packs, in a clean project and in this repository)
 
 | # | Finding | Status |
 |---|---------|--------|
 | V1 | `WebPort` gained members (`patch`, `inspect`, `[Symbol.dispose]`), so code that implements the interface stops typechecking; VALANCE's own tracer had about thirty wrappers typed `TargetFactory<WebPort>`. | Named in the PORT 0.4 and VALANCE 0.7 notes; the tracer is typed as the contract it needs. |
 | V2 | Tripwires that pinned the old model (every commit renders in full; `Web.run` without `init()` rejects) failed, as they should. | Updated: they count and gate `update` as well as `render`, and the uninitialized-runtime test now expects the new message and code. |
 | V3 | A stale Vite dependency cache after swapping packages made three real-page browser tests fail once. | Environment, not a defect; delete `node_modules/.vite`. |
-| V4 | NEXUS's lockfile test needs the lockfile to name the installed runtime, which can only be written once MESH 0.10 is published. | Open until the set is published, in order. |
+| V4 | NEXUS's lockfile test needs the lockfile to name the installed runtime, which can only be written once MESH 0.10 is published. | Resolved: the set was published in order and the lockfile refreshed. |
 | V5 | MESH's two browser test files hang here unless `MESH_CHROMIUM=/opt/pw-browsers/chromium` is set; with it they pass (1 and 5 tests). | Environment. |
 | V6 | Text runs on either side of a conditional or repeat that chose nothing were two runs, not one (the tree's runs are maximal, so the server's single text node could not be matched on the client). | Fixed in MESH: runs are merged whatever made them adjacent. |
 | V7 | The substrate route `Application.shutdown(running.nexus)` used to release a resource under an admitted command; the tracer pinned that as characterised behavior. | NEXUS 0.12 interrupts the command first; the two tripwires now pin that. |
