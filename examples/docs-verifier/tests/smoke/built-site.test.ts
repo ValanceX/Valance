@@ -1,4 +1,4 @@
-// The BUILT site, end to end, on the development branches of MESH and PORT: `pnpm build` (content, vite, tsc), the server (web/serve.ts) over node:http, and real Chromium. The page is
+// The BUILT site, end to end, on the development branches of MESH and PORT: `pnpm build` (content, vite, tsc), the server (build/serve.ts) over node:http, and real Chromium. The page is
 // server rendered through the layout's slot, takes over without a second document load, navigates by links, keeps the title in step, Back restores, and the copy button's composite
 // event travels code-block → block → page to a command, whose state the page then shows.
 import { execFileSync } from "node:child_process";
@@ -43,7 +43,7 @@ it("links one hashed stylesheet in the head before the page, serves it as CSS a 
   const html = await (await fetch(`${served.origin}/docs/guides/state`)).text();
   const href = /<link rel="stylesheet" href="([^"]+)"/.exec(html)?.[1];
 
-  expect(href).toMatch(/^\/assets\/page-[\w-]+\.css$/);
+  expect(href).toMatch(/^\/assets\/main-[\w-]+\.css$/);
   expect(html.indexOf('rel="stylesheet"')).toBeLessThan(html.indexOf('<div id="app">'));
   expect(html).not.toContain("<style>");
 

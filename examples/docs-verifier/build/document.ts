@@ -24,7 +24,7 @@ import { plugins } from "../src/web/plugins/index.js";
 /** The name of the site being built: `SITE` in the environment, `docs` by default. */
 export const siteName = (): string => process.env["SITE"] ?? "docs";
 
-/** The site `pnpm build:content` wrote. */
+/** The site `pnpm build` wrote. */
 export const readGeneratedSite = (name = siteName(), root = process.cwd()): Site => JSON.parse(readFileSync(join(root, generatedSite(name)), "utf8")) as Site;
 
 // Programs are data and do not change while the process runs: compile once. (A failure is reported when a document is first asked for, not as an unhandled rejection at import.)

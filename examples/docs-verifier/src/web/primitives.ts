@@ -1,5 +1,5 @@
 // Where the application is drawn: which element each tag becomes, and which attributes its props are. Target configuration, not part of the application, and the one declaration of
-// the primitive tags: MESH's manifest is derived from it (./compile.ts). The composite components (layout, block, callout, code-block) are templates, not elements, and are not here.
+// the primitive tags: MESH's manifest is derived from it (build/views.ts). The composite components (layout, block, callout, code-block) are templates, not elements, and are not here.
 //
 // Styling hooks are attributes the templates write: a `class` for a part with a role of its own, a `data-*` for a variant (`data-theme`, `data-menu`, `data-tone`), an `aria-*` where
 // the state is also an accessibility fact (`aria-current`, `aria-pressed`, `aria-label`). The stylesheet (../styles/site.css) is written against those and the elements.

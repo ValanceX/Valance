@@ -1,4 +1,4 @@
-// The shape of the site's content: what the build step (../tooling) produces and the application (../app) consumes. Pure data and its Schemas; nothing here reads a file,
+// The shape of the site's content: what the build step (../../build/content) produces and the application (../app) consumes. Pure data and its Schemas; nothing here reads a file,
 // names a framework or draws anything. A block is one of a closed set of kinds, each with exactly the fields it has: no field is there "for the other kinds".
 import { Schema } from "effect";
 

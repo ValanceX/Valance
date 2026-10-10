@@ -25,7 +25,7 @@ const TYPES: Record<string, string> = {
   ".xml": "application/xml", ".txt": "text/plain; charset=utf-8", ".svg": "image/svg+xml",
 };
 
-/** The URLs of the built page script, the stylesheet it imports and the search index, from what `vite build` and `scripts/finish-build.mjs` wrote. Every one is under `base`. */
+/** The URLs of the built page script, the stylesheet it imports and the search index, from what `vite build` and `./assets.ts` wrote. Every one is under `base`. */
 export const builtAssets = async (dir: string, base = "/"): Promise<Built> => {
   const manifest = JSON.parse(await readFile(join(dir, ".vite", "manifest.json"), "utf8")) as Record<string, { readonly file: string; readonly isEntry?: boolean; readonly css?: ReadonlyArray<string> }>;
   const entry = Object.values(manifest).find((chunk) => chunk.isEntry === true);

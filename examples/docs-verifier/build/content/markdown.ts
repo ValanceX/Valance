@@ -1,4 +1,4 @@
-// Build time, in Node: the small markdown this site is written in, as a list of typed blocks (../model/site.ts) and the outline of the page's headings.
+// Build time, in Node: the small markdown this site is written in, as a list of typed blocks (../../src/model/site.ts) and the outline of the page's headings.
 //
 //   blocks    headings (# to ###, each with an anchor), paragraphs, bullet and numbered lists (one level of nesting), fenced code (with `title="..."`, or `file=snippets/...` to include a
 //             checked example), consecutive `tab="..." group="..."` fences as one code group, tables, an image on a line of its own, and callouts (`> [!NOTE] Title`)

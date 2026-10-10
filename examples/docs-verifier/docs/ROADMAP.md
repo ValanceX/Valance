@@ -1,5 +1,7 @@
 # Roadmap: from features verifier to a complete documentation site
 
+> The file paths in this record are as they were when each phase was done. Where the directories went since is in `STRUCTURE.md` (Phase E).
+
 Goal: a complete, styled documentation site with full routing and style loading, and enough capability that developers can compose sites **like Effect's and more** (docs, blog, landing, versioned and localized docs) from the same parts.
 
 Decisions (from the project owner):

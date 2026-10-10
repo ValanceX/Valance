@@ -1,4 +1,4 @@
-// Build time, in Node: MPRX → a program, with the MESH compiler. The manifest MESH checks the templates against is the one Valance derives (the tags of the kit plugin, ./kit.ts, the
+// Build time, in Node: MPRX → a program, with the MESH compiler. The manifest MESH checks the templates against is the one Valance derives (the tags of the kit plugin, ../src/web/plugins/kit.ts, the
 // page view's scope Schema, the command table). The composites (layout, block, ...) are not declared anywhere: the compiler infers each one's contract from the templates.
 import { manifest } from "@valancex/valance/web/build";
 import { compileProgram } from "@valancex/mesh-compiler";
@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename } from "node:path";
 
 import { commands } from "../src/app/application.js";
-import { PageScope } from "../src/app/scope.js";
+import { PageScope } from "../src/app/scope/index.js";
 
 import { VIEWS } from "./paths.js";
 import { kit } from "../src/web/plugins/kit.js";

@@ -149,4 +149,104 @@ Not created, with the reason: `layouts/` (A: one shell), `routes/` (one function
 
 **Recommendation: B**, because F-4, F-6 and A2's `web/` finding are structural and A leaves them. B's cost is mechanical and verifiable. It pins nothing new in the framework. What B does *not* solve is P3.2: the four stages remain; see the blockers below.
 
-(The tracer bullet, the changes, and the validation follow in the sections below as they are done.)
+
+## Phase D: tracer bullet
+
+The slice was built before the bulk of the move (P7.7): `.valance/` for generated output, `src/main.ts` as the entry, `src/views/content/`, templates discovered from the directory, the content and program stages as one `prepare`. Then these tasks were done on the docs site, for real, from a clean `.valance/` and `dist/`:
+
+| # | Task | Result |
+|---|---|---|
+| 1 | Add a documentation page | One markdown file and one entry in `sites/docs/site.json`. `pnpm build`, 12 s: the page, its `index.json`, its sidebar link and its pager link exist. **Pass.** |
+| 2 | Select or apply a layout | `layout: landing` in the page's front matter is accepted and changes the page's layout. There is no layout *file* to select: a layout is a name from a closed set, handled inside `layout.mprx`/`page.mprx` and the stylesheet. **Pass; confirms there is no `layouts/` concept to give a directory.** |
+| 3 | Render a reusable component | A new `src/views/content/<name>.mprx`, used from `page.mprx`, compiled with **no list edited** (the baseline needed an edit to `web/compile.ts`). A template nothing uses is refused by the compiler (`manifest-missing-component`): correct, and worth knowing. **Pass.** |
+| 4 | Navigate between pages | The new page is in the sidebar and the pager of its neighbours (built HTML). In the browser, in-place navigation and Back are covered by the smoke suite (79 pass). **Pass.** |
+| 5 | Apply styling | A rule added to `src/styles/site.css` is in the built stylesheet. **Pass.** |
+| 6 | Run the development workflow | **Blocker.** There is no development server and no watcher; the workflow is `pnpm build`, `pnpm start`, reload. `pnpm start` served the new page (200, with the component's markup). |
+| 7 | Build for the target | `pnpm build` from clean: 12 s (16 s before). `dist/docs` holds only the site; the generated files are in `.valance/`. **Pass.** |
+
+The probe changes were reverted.
+
+## Phase E: changes
+
+Every move is a `git mv`, so history follows. Imports were rewritten by a script and checked by `tsc`, not by hand.
+
+| Before | After | Why |
+|---|---|---|
+| `app/ model/ views/ styles/` | `src/app, src/model, src/views, src/styles` | one root for the kit |
+| `web/page.ts` | `src/main.ts` | the entry is where a reader looks (P2.3) |
+| `web/{primitives,platform,navigation,scrollspy,language,built}.ts` | `src/web/` | the web target |
+| `web/{kit,router,seo,plugins}.ts` | `src/web/plugins/` | the three plugins and the list of them |
+| `views/*.mprx` (17 flat) | `src/views/{layout,page}.mprx` + `src/views/content/` (15) | the shell and what is drawn inside a page |
+| `web/{document,export,serve}.ts`, `web/compile.ts` | `build/` (`views.ts` for compile) | Node, build time |
+| `tooling/*` | `build/content/` (`content.ts` → `site.ts`) | a site's directory → data |
+| `web/{build-program,export-main,serve-main}.ts`, `tooling/build-content.ts` | `build/cli/{prepare,site,serve}.ts` | the commands `package.json` runs; the content and program stages are one |
+| `scripts/finish-build.mjs` | `build/assets.ts` | a module the exporter calls, not a stage |
+| `scripts/copy-views.mjs`, `COMPONENTS` list | removed | templates are read from `src/views`; the compiled tools no longer need the views beside them |
+| (new) | `build/paths.ts` | every generated path in one place (several files each spelled them) |
+| `app/scope.ts` (652 lines) | `src/app/scope/{contract,blocks,navigation,index}.ts` | the declaration, the block projection, where the reader can go, and the assembly change independently |
+| `generated/`, `dist/server` | `.valance/` (`program.json`, `<site>/site.json`, `<site>/search.json`, `tools/`) | generated, never edited (P6.5); `dist/<site>` is the deliverable only |
+| `vite.page.config.ts` | `vite.config.ts` | Vite's own name, so `vite build` needs no `-c` |
+| `test/ smoke/ principles/ budget/ visual/` | `tests/{unit,smoke,principles,budget,visual}/` | the root shows source, not five suites |
+| `ROADMAP FINDINGS PRINCIPLES GRADUATION EXTERNALS` | `docs/` (with this file) | the root keeps `README.md` |
+| `test/boundaries.test.ts` | `tests/unit/boundaries.test.ts`, rewritten | enforces the layers of the layout that exists; also checks that `src` never imports `build` |
+| `package.json` scripts | `build`, `build:all`, `build:tools`, `start`, `start:ssr`, tests | the `build:*` stage scripts became one `build` that runs them (plus `build:tools` and `build:all`) |
+
+Not done, with the reason:
+
+- **`valance.json` / `valance.web.json`**: nothing in Valance reads them (`grep` of `packages/valance`); a project-local file read only by this project's scripts would be an invented API (P6.7).
+- **`public/`**: no static asset exists and nothing copies one (F-7); an empty directory would claim a capability.
+- **`layouts/`, `routes/`, `components/`**: see Phase C.
+- **Splitting `styles/site.css`**: it is already sectioned and has one owner; no friction was recorded (P4.4).
+- **Splitting `build/content/site.ts` or `markdown.ts`**: no friction recorded (P4.5).
+- **Colocating tests with their subjects**: moving 25 test files would change no behaviour (P4.1 is SHOULD); they are grouped by kind instead.
+
+Behaviour is unchanged where it was not meant to change. Built from the commit before this work and from this one, **every HTML, JSON, XML and text file of the docs site is identical** (only the entry's file name differs: `page-…` → `main-…`), the stylesheet is byte-identical, and the compiled MESH program is byte-identical across the `scope.ts` split. The script bundle differs by 131 bytes (module paths).
+
+## Phase F: validation
+
+| Suite | Result |
+|---|---|
+| `pnpm typecheck` | clean |
+| `pnpm test` (unit) | 235 pass (baseline: 3 failed in place, see F-1) |
+| `pnpm test:principles` | 26 pass |
+| `pnpm test:smoke` (Chromium: hydration, navigation, Back, a11y, layout, four sites) | 79 pass (one assertion pinned the entry's old file name; updated) |
+| `pnpm test:budget` | 9 pass |
+| Old vs new site | identical (above) |
+| Not run | `test:visual` (per-machine baselines, none to compare against here); `scripts/with-local-packs.mjs` (updated for the new directory names, not exercised: the packages are released) |
+
+## Acceptance
+
+| Criterion | Where it is met |
+|---|---|
+| The entry point is obvious | `src/main.ts` (browser); `build/cli/` (build commands); README "Where things are" |
+| Authored content is distinguishable from behaviour | `sites/<n>/` is data; `src/` is the kit; `tests/unit/boundaries.test.ts` enforces it |
+| Layouts and components have clear ownership | `src/views/layout.mprx`, `page.mprx`, `src/views/content/` |
+| Routes and navigation can be located | URLs: `src/app/routes.ts`; what the reader can go to: `src/app/scope/navigation.ts`; what is in it: `site.json` |
+| Styling has a predictable owner | `src/styles/site.css`; per site `theme.css` |
+| Generated output is separated | `.valance/`, `dist/<site>/` |
+| Normal development needs no manual stages | **Partly.** `pnpm build` is one command; the stages are still four. See below |
+| No abstraction exists only for the tree | `build/paths.ts` and `build/assets.ts` each replace repeated or scripted code; no `layouts/`, `routes/`, `public/` or config file was invented |
+| The site keeps its behaviour | identical output; 79 + 26 + 9 + 235 tests |
+| A working tracer bullet supports it | Phase D |
+| API limitations identified | below |
+| Easier to navigate for common changes | the root is 19 entries without generated output (31); a page, a theme, a template, a style and an entry each have a named place (README). **Not improved:** adding a block kind still touches nine files |
+
+## Remaining work
+
+**Public API (Valance):**
+- No build or dev command that owns the stages (`valance build`, `valance dev`), so the four stages (compile tools, prepare, `vite build`, site) remain and `pnpm build` is a chain of them. This is `docs/EXTERNALS.md` X2 and X3; it is the reason P3.2 is only partly met.
+- No project configuration file that Valance reads, so `valance.json` / `valance.web.json` cannot exist yet; `site.json` carries both project and web-deploy settings (`base`, `url`).
+- No static-asset convention (`public/`): a site cannot ship an image or a favicon (F-7).
+- No watch mode or development server.
+
+**Internal implementation:**
+- Adding a block kind touches nine files; a block kind's model, syntax, projection, template and style are five declarations of one concept. A generated or declared per-kind table would reduce it; that is a design change, not a move.
+- `BlockView` is one flat record with every field of every kind, because a MESH scope is flat.
+- The page script is 690 kB (the MESH runtime and the compiled views); code-splitting is not done.
+
+**Developer tooling:**
+- `tests/smoke/build.ts` hard-codes the directories that decide whether a build is stale (updated to `src`, `build`, `sites`, `scripts`, config).
+- `scripts/with-local-packs.mjs` copies the project's directories by name exclusion; it was updated, not run.
+
+**Documentation:**
+- `docs/ROADMAP.md` and `docs/FINDINGS.md` are records: their file paths are those of the time they were written. Where the old directories went is in the table above.

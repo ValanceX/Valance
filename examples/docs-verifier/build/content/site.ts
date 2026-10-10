@@ -1,4 +1,4 @@
-// Build time, in Node: a site's directory (`site.json`, its `content/` and its `snippets/`) becomes the site's data (../model/site.ts). Nothing here knows the application or how a
+// Build time, in Node: a site's directory (`site.json`, its `content/` and its `snippets/`) becomes the site's data (../../src/model/site.ts). Nothing here knows the application or how a
 // page is drawn. A mistake in the content (a page that does not exist, a heading with no title, an example that is not there, a link to nowhere) fails the build, with the file and
 // the line.
 //

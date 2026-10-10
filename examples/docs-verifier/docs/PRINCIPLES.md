@@ -48,7 +48,7 @@ Seventeen probes hold. **Three defects are confirmed**, plus observations. Nothi
 
 ## The site, held to the same principles (phase G)
 
-The probes above judge the packages. These judge what was built **with** them: the kit and four sites (`sites/`), by the representative tasks of §18.1 (`principles/tasks.test.ts`, evidence in `principles/evidence/tasks.json`) and by gates run on every site built with the production command.
+The probes above judge the packages. These judge what was built **with** them: the kit and four sites (`sites/`), by the representative tasks of §18.1 (`tests/principles/tasks.test.ts`, evidence in `principles/evidence/tasks.json`) and by gates run on every site built with the production command.
 
 | §18.1 task | Probe | Result |
 |---|---|---|

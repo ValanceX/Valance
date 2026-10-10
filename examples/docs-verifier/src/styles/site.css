@@ -1,4 +1,4 @@
-/* The stylesheet of the documentation site. It is written against the elements the templates use and the attributes they write (views/, web/primitives.ts):
+/* The stylesheet of the documentation site. It is written against the elements the templates use and the attributes they write (src/views/, src/web/primitives.ts):
    `class` for a part with a role, `data-theme`, `data-menu` and `data-tone` for variants, `aria-current` and `aria-pressed` for state. No code here. */
 
 :root {

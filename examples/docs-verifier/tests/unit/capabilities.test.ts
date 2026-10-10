@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { application } from "../../src/app/application.js";
 import type { AppState } from "../../src/app/state.js";
-import { pageScope } from "../../src/app/scope.js";
+import { pageScope } from "../../src/app/scope/index.js";
 import type { SearchIndex } from "../../src/model/search.js";
 import type { Site, SiteMap } from "../../src/model/site.js";
 import { mapOf } from "../../src/model/site.js";

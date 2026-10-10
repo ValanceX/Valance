@@ -1,5 +1,5 @@
 // What the browser does after the application has moved the reader to another page, which the application does not decide: where the page starts, and where focus is. The router
-// plugin hands this to Valance's `onNavigated` (../web/router.ts); it runs only in a browser, after the URL is written.
+// plugin hands this to Valance's `onNavigated` (./plugins/router.ts); it runs only in a browser, after the URL is written.
 //
 //   a link to a place on another page   the address keeps the `#fragment` (the application's URL has none), and the place is scrolled to once it is drawn
 //   a link to a page                    focus moves to the content, so a keyboard or screen reader user starts where the page does (a link click ends in a page that is not focused)

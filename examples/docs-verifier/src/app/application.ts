@@ -7,7 +7,7 @@ import { Effect, Option, Schema } from "effect";
 import { Clipboard, Index, Pages, Storage } from "./capabilities.js";
 import { AppState, initial, Theme } from "./state.js";
 import { isNotFound } from "./variants.js";
-import { pageScope } from "./scope.js";
+import { pageScope } from "./scope/index.js";
 import { missing } from "./content.js";
 import { search } from "./search.js";
 
@@ -37,7 +37,7 @@ const remember = (key: string, value: string) => Nexus.Capability.resolve(Storag
   Effect.catchAllDefect(() => Effect.void),
 );
 
-/** The commands, a function of the state handle and the site's map, so the build can read their names and inputs without one (../web/compile.ts reads them with an empty map). */
+/** The commands, a function of the state handle and the site's map, so the build can read their names and inputs without one (build/views.ts reads them with an empty map). */
 export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => {
   const command = Valance.command(state);
 

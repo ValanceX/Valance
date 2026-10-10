@@ -7,7 +7,7 @@ import { JSDOM } from "jsdom";
 import { fileURLToPath } from "node:url";
 import { beforeAll, expect, it } from "vitest";
 
-import { pageScope } from "../../src/app/scope.js";
+import { pageScope } from "../../src/app/scope/index.js";
 import { initial } from "../../src/app/state.js";
 import type { AppState } from "../../src/app/state.js";
 import type { Site } from "../../src/model/site.js";

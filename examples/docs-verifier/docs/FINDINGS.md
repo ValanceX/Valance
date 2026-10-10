@@ -1,5 +1,7 @@
 # Findings (friction log) and decisions
 
+> The file paths in these findings are as they were when each was written. Where the directories went since is in `STRUCTURE.md` (Phase E).
+
 Principle: the user writes the application, never system config (JSON, TS or JS) unless a custom config or plugin is genuinely needed. Resources are spent only on what changed.
 
 | # | Finding | Verdict | Status |
