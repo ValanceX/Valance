@@ -24,7 +24,7 @@ import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { Cause, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export type { ValanceErrorCode } from "./errors.js";
@@ -272,6 +272,11 @@ export interface StartOptions<S> {
   readonly platform?: Nexus.Application.Platform;
   /** Overrides the definition's initial state: the client's, from what the server embedded. */
   readonly state?: S;
+  /**
+   * How the application ends. `grace` is how long closing the application's Scope waits for the commands it admitted (and the work NEXUS tracks) to finish on their own, after new
+   * commands are refused, before it interrupts what is left and waits for each to exit. The default, `0`, interrupts at once. `Duration.infinity` waits for every command.
+   */
+  readonly shutdown?: Nexus.Runtime.ShutdownOptions;
 }
 
 /**
@@ -307,19 +312,29 @@ export interface ApplicationHandle<S, E> {
 export const start = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: StartOptions<S> = {}): Effect.Effect<ApplicationHandle<S, E>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
-    const nexus = yield* Nexus.Application.start(definition, options.platform === undefined ? undefined : { platform: options.platform });
+    const nexus = yield* Nexus.Application.start(definition, options.platform === undefined && options.shutdown === undefined ? undefined : { ...(options.platform === undefined ? {} : { platform: options.platform }), ...(options.shutdown === undefined ? {} : { shutdown: options.shutdown }) });
 
     // Command lifetime: a command admitted through `inApplication` stays owned by the application until it exits. When the
-    // application's Scope closes, VALANCE closes admission and interrupts and awaits every admitted command BEFORE NEXUS
-    // terminates and the platform releases its resources. This finalizer is added right after `Application.start` registered
+    // application's Scope closes, VALANCE closes admission, waits up to `shutdown.grace` for the admitted commands to finish, then interrupts and awaits
+    // every one that is left, BEFORE NEXUS terminates and the platform releases its resources. This finalizer is added right after `Application.start` registered
     // NEXUS's own; Scope finalizers run in reverse order, so it runs first. It owns commands only, not daemons or escaped fibers.
     const admitted = new Set<Fiber.RuntimeFiber<unknown, unknown>>();
     let admissionClosed = false;
 
+    const grace = Duration.decode(options.shutdown?.grace ?? 0);
+
     yield* Effect.addFinalizer(() => Effect.suspend(() => {
       admissionClosed = true;                                                  // closes synchronously, before anything below can run
 
-      return Effect.forEach([...admitted], (command) => Fiber.interrupt(command), { discard: true });   // interrupts, and awaits each ACTUAL exit
+      const commands = [...admitted];
+      // The wait is a fiber of its own, interruptible, so the grace can end it although a finalizer is not: the Scope's close awaits it.
+      const waited = Effect.interruptible(Effect.ignore(Effect.timeout(Effect.forEach(commands, (command) => Fiber.await(command), { discard: true }), grace)));
+
+      return commands.length === 0
+        ? Effect.void
+        : Effect.flatMap(Effect.forkDaemon(waited), Fiber.await).pipe(
+          Effect.andThen(Effect.forEach(commands, (command) => Fiber.interrupt(command), { discard: true }))   // interrupts what is left, and awaits each ACTUAL exit
+        );
     }));
     const state = yield* Nexus.Application.createState(nexus, app.state.schema, options.state ?? app.state.initial);
     const given = app.commands(state);
