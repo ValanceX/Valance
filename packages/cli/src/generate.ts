@@ -4,19 +4,21 @@
 //   program.json    the compiled templates (from src/*.mprx and the built-in views)
 //   manifest.json   every tag, prop, scope name and command a template may use, inferred components included (for editors; nothing reads it back)
 //   editor.json     where the manifest is and which file is which component (for editors)
+//   wiring.json     where every name a template uses comes from, and what uses it, at both ends (for the editor: definitions and CodeLens)
 //   client.ts       the browser entry: imports the above, the author's `src/main.ts` and every stylesheet under src/
 //   server.ts       the server entry: renders a pathname to a document
 //
 // The two entries are real files, not virtual modules, so an author can read exactly what runs.
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 
 import type { Config } from "./config.js";
-import { compileViews, SOURCE_DIR } from "./compile.js";
+import { compileViews, PACKAGE_DIR, SOURCE_DIR } from "./compile.js";
 import { readContent } from "./content.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { ENTRY_FILE, ensureGeneratedDir, GENERATED_DIR, generated, writeIfChanged } from "./project.js";
+import { buildWiring } from "./wiring.js";
 
 const stylesheets = (root: string): ReadonlyArray<string> =>
   existsSync(join(root, SOURCE_DIR)) ? readdirSync(join(root, SOURCE_DIR), { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".css")).sort().map((file) => `${SOURCE_DIR}/${file}`) : [];
@@ -65,7 +67,13 @@ export const generateProgram = async (root: string, author: DefinedApp | undefin
   writeIfChanged(generated(root, "program.json"), `${JSON.stringify(compiled.program)}\n`);
   writeIfChanged(generated(root, "manifest.json"), `${JSON.stringify(compiled.manifest, null, 2)}\n`);
   // The one file an editor reads to know the project: where the manifest is, and which file is the template of which component. The conventions stay here, not copied into every editor.
-  writeIfChanged(generated(root, "editor.json"), `${JSON.stringify({ version: 1, model: `${GENERATED_DIR}/manifest.json`, components: compiled.files }, null, 2)}\n`);
+  writeIfChanged(generated(root, "editor.json"), `${JSON.stringify({ version: 1, model: `${GENERATED_DIR}/manifest.json`, components: compiled.files, wiring: `${GENERATED_DIR}/wiring.json` }, null, 2)}\n`);
+
+  // Where every name came from and what uses it, at both ends, for the editor. The framework's own names point into the README that ships with the package.
+  const readme = join(PACKAGE_DIR, "README.md");
+  const docs = existsSync(readme) ? { file: relative(root, readme).split(sep).join("/"), lines: readFileSync(readme, "utf8").split("\n") } : undefined;
+
+  writeIfChanged(generated(root, "wiring.json"), `${JSON.stringify(buildWiring(root, author, compiled, docs), null, 2)}\n`);
 
   return compiled.components;
 };

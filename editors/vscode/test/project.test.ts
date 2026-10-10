@@ -107,3 +107,95 @@ describe("finding the project, and writing paths from the workspace", () => {
     expect(explain({ kind: "no-server", path: "/x/mesh-lsp" })).toMatch(/\/x\/mesh-lsp.*mesh-lsp@0\.10\.0/);
   });
 });
+
+describe("wiring: both ends of each connection", () => {
+  const P = (file: string, line: number, column = 1) => ({ file, line, column });
+  const wiring = {
+    version: 1 as const,
+    definitions: { "components/layout/scope/theme": P("src/main.ts", 6, 31), "components/theme-toggle": P("src/theme-toggle.mprx", 1), "components/theme-toggle/props/theme": P("src/theme-toggle.mprx", 1, 40), "components/theme-toggle/events/toggle": P("src/theme-toggle.mprx", 1, 62) },
+    bindings: { "components/theme-toggle/props/theme": [P("src/layout.mprx", 4, 16)], "components/theme-toggle/events/toggle": [P("src/layout.mprx", 4, 30)], "components/theme-toggle/commands/toggle": [P("src/layout.mprx", 4, 30)] },
+    uses: [
+      { at: P("src/layout.mprx", 4, 3), tag: "theme-toggle", target: P("src/theme-toggle.mprx", 1), props: [{ name: "theme", from: "{theme}", at: P("src/layout.mprx", 4, 16) }], events: [{ name: "toggle", to: "toggleTheme()", at: P("src/layout.mprx", 4, 30) }] },
+      { at: P("../../packages/cli/views/block.mprx", 3), tag: "heading", target: P("../../packages/cli/views/heading.mprx", 1), props: [], events: [] },
+    ],
+    components: [{
+      name: "theme-toggle",
+      file: "src/theme-toggle.mprx",
+      props: [{ name: "theme", at: P("src/theme-toggle.mprx", 1, 40), passedBy: [{ at: P("src/layout.mprx", 4, 16), from: "{theme}" }] }],
+      events: [{ name: "toggle", at: P("src/theme-toggle.mprx", 1, 62), handledBy: [{ at: P("src/layout.mprx", 4, 30), to: "toggleTheme()" }] }],
+    }],
+    state: [{ name: "theme", source: P("src/main.ts", 6, 31), readBy: [P("src/layout.mprx", 1), P("src/layout.mprx", 4)] }],
+    commands: [{ name: "toggleTheme", source: P("src/main.ts", 10, 5), runBy: [] }],
+  };
+
+  const MANIFEST = JSON.stringify({ components: { layout: { scope: { theme: { kind: "string" } }, commands: { go: { parameters: [{ name: "id", type: { kind: "string" } }] } } }, "theme-toggle": { props: { theme: { type: { kind: "string" }, required: true } }, events: { toggle: {} } } } }, null, 2);
+  const lineOf = (needle: string, nth = 0): number => MANIFEST.split("\n").map((text, at) => [text, at] as const).filter(([text]) => text.includes(needle))[nth]![1];
+
+  it("reads the path of a manifest key from its indentation, through objects and arrays", async () => {
+    const { manifestPath } = await import("../src/wiring");
+
+    expect(manifestPath(MANIFEST, lineOf('"theme": {', 0))).toEqual(["components", "layout", "scope", "theme"]);
+    expect(manifestPath(MANIFEST, lineOf('"theme": {', 1))).toEqual(["components", "theme-toggle", "props", "theme"]);
+    expect(manifestPath(MANIFEST, lineOf('"parameters"'))).toEqual(["components", "layout", "commands", "go", "parameters"]);
+    expect(manifestPath(MANIFEST, 0)).toBeUndefined();                     // the opening brace is not a key
+  });
+
+  it("Go to Definition is one place: where the name is declared, whichever file the click is in", async () => {
+    const { authoredPlace } = await import("../src/wiring");
+
+    expect(authoredPlace(wiring, MANIFEST, lineOf('"theme": {', 1))).toEqual(P("src/theme-toggle.mprx", 1, 40));
+    expect(authoredPlace(wiring, MANIFEST, lineOf('"toggle": {}'))).toEqual(P("src/theme-toggle.mprx", 1, 62));
+    expect(authoredPlace(wiring, MANIFEST, lineOf('"theme": {', 0))).toEqual(P("src/main.ts", 6, 31));
+    expect(authoredPlace(wiring, MANIFEST, lineOf('"go": {'))).toBeUndefined();
+    expect(authoredPlace(undefined, MANIFEST, lineOf('"theme": {', 0))).toBeUndefined();
+  });
+
+  it("Find References is every place the name is used: all handlers of an event, all callers of a prop, all reads of a state field, all runs of a command, all uses of a component", async () => {
+    const { referencesOf } = await import("../src/wiring");
+    const many = {
+      ...wiring,
+      bindings: { ...wiring.bindings, "components/theme-toggle/events/toggle": [P("src/layout.mprx", 4, 30), P("src/footer.mprx", 2, 8), P("src/layout.mprx", 9, 30)] },
+      commands: [{ name: "toggleTheme", source: P("src/main.ts", 10, 5), runBy: [P("src/layout.mprx", 4), P("src/footer.mprx", 2)] }],
+      uses: [...wiring.uses, { at: P("src/footer.mprx", 2, 3), tag: "theme-toggle", target: P("src/theme-toggle.mprx", 1), props: [], events: [] }],
+    };
+
+    expect(referencesOf(many, MANIFEST, lineOf('"toggle": {}'))).toHaveLength(3);                       // one component, three handlers: a list, not a jump
+    expect(referencesOf(many, MANIFEST, lineOf('"theme": {', 1))).toEqual([P("src/layout.mprx", 4, 16)]);
+    expect(referencesOf(many, MANIFEST, lineOf('"theme": {', 0))).toEqual([P("src/layout.mprx", 1), P("src/layout.mprx", 4)]);
+    expect(referencesOf(many, MANIFEST, lineOf('"theme-toggle": {'))).toEqual([P("src/layout.mprx", 4, 3), P("src/footer.mprx", 2, 3)]);
+    expect(referencesOf(many, MANIFEST, lineOf('"go": {'))).toEqual([]);
+    expect(referencesOf(undefined, MANIFEST, lineOf('"toggle": {}'))).toEqual([]);
+  });
+
+  it("puts the other end beside each end: above a use, above a prop and an event inside the component, above state and commands", async () => {
+    const { lensesFor } = await import("../src/wiring");
+
+    expect(lensesFor(wiring, "src/layout.mprx")).toEqual([{ line: 3, title: "→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()", targets: [wiring.uses[0]!.target] }]);
+    expect(lensesFor(wiring, "src/theme-toggle.mprx").map((lens) => [lens.line, lens.title])).toEqual([
+      [0, "used in layout.mprx:4"],
+      [0, "prop theme · passed from layout.mprx:4 as {theme}"],
+      [0, "event toggle · handled in layout.mprx:4 ⇒ toggleTheme()"],
+    ]);
+    expect(lensesFor(wiring, "src/main.ts").map((lens) => [lens.line, lens.title])).toEqual([[5, "state · read in layout.mprx:1, layout.mprx:4"], [9, "command · not run by any template"]]);
+    expect(lensesFor(wiring, "src/other.mprx")).toEqual([]);
+  });
+
+  it("says plainly when nothing connects to a prop or an event", async () => {
+    const { lensesFor } = await import("../src/wiring");
+    const lonely = { ...wiring, components: [{ ...wiring.components[0]!, props: [{ ...wiring.components[0]!.props[0]!, passedBy: [] }], events: [{ ...wiring.components[0]!.events[0]!, handledBy: [] }] }] };
+
+    expect(lensesFor(lonely, "src/theme-toggle.mprx").map((lens) => lens.title)).toContain("prop theme · not passed by any template");
+    expect(lensesFor(lonely, "src/theme-toggle.mprx").map((lens) => lens.title)).toContain("event toggle · not handled by any template");
+  });
+
+  it("reads wiring.json when it is there, and nothing when it is missing, old or broken", async () => {
+    const { readWiring } = await import("../src/wiring");
+    const root = dir({ ".valance/wiring.json": JSON.stringify(wiring), ".valance/old.json": '{ "version": 9 }', ".valance/broken.json": "{ nope" });
+
+    expect(readWiring(root, ".valance/wiring.json")?.uses).toHaveLength(2);
+    expect(readWiring(root, ".valance/old.json")).toBeUndefined();
+    expect(readWiring(root, ".valance/broken.json")).toBeUndefined();
+    expect(readWiring(root, ".valance/none.json")).toBeUndefined();
+    expect(readWiring(root, undefined)).toBeUndefined();
+  });
+});

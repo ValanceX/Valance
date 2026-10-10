@@ -106,6 +106,55 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     assert.ok(!targets.some((target) => target.endsWith("manifest.json")), `definitions: ${text(targets)}`);
   }],
 
+  ["ctrl+click goes to the one declaration; the many places a name is used are its references (an event may be handled in many places, a handler bound to many events)", async () => {
+    const at = async (command: "vscode.executeDefinitionProvider" | "vscode.executeReferenceProvider", file: string, needle: string, shift: number): Promise<ReadonlyArray<string>> => {
+      const { document } = await open(file);
+      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>(command, document.uri, positionOf(document, needle, shift));
+
+      return found.map((each) => { const target = "targetUri" in each ? each.targetUri : each.uri; const range = "targetRange" in each ? each.targetRange : each.range; return `${target.fsPath.split(/[\\/]/).slice(-2).join("/")}:${range.start.line + 1}`; });
+    };
+    const { document: layout } = await open("src/layout.mprx");
+    const callLine = layout.getText().split("\n").findIndex((line) => line.includes("<theme-toggle")) + 1;
+
+    // Definition: one declaration. In the layout the event goes to the component that raises it, the command and the state to main.ts.
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/theme-toggle.mprx:")), "on.toggle -> the component");
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "toggleTheme", 2)).some((target) => target.startsWith("src/main.ts:")), "toggleTheme -> main.ts");
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{theme}", 2)).some((target) => target.startsWith("src/main.ts:")), "{theme} -> main.ts");
+
+    // Inside the component the event it raises IS its declaration: ctrl+click stays, and VS Code then shows the references.
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).every((target) => target.startsWith("src/theme-toggle.mprx:")), "toggle() -> itself");
+
+    // References: every use, as a list.
+    assert.ok((await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "toggle()", 1)).includes(`src/layout.mprx:${callLine}`), "references of the event: the handler in the layout");
+    assert.ok((await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "{theme ==", 2)).includes(`src/layout.mprx:${callLine}`), "references of the prop: where it is passed");
+    assert.ok((await at("vscode.executeReferenceProvider", "src/layout.mprx", "toggleTheme", 2)).includes(`src/layout.mprx:${callLine}`), "references of the command: where it runs");
+
+    // The framework's own names go to its documentation, not to the generated manifest.
+    const site = await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{site}", 2);
+
+    assert.ok(site.some((target) => target.startsWith("cli/README.md:")), `{site} -> ${text(site)}`);
+    assert.ok(!site.some((target) => target.includes("manifest.json")));
+  }],
+
+  ["CodeLens puts the other end of each connection beside this one", async () => {
+    const titlesOf = async (file: string): Promise<string> => {
+      const { document } = await open(file);
+      const lenses = await waitFor(`code lenses in ${file}`, async () => {
+        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.CodeLens>>("vscode.executeCodeLensProvider", document.uri);
+
+        return found.length > 0 ? found : undefined;
+      });
+
+      return lenses.map((lens) => lens.command?.title ?? "").join("\n");
+    };
+
+    assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+theme ← \{theme\}\s+·\s+on toggle ⇒ toggleTheme\(\)/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · passed from layout\.mprx:\d+ as \{theme\}/);
+    assert.match(await titlesOf("src/main.ts"), /command · run in layout\.mprx:\d+/);
+    assert.match(await titlesOf("src/main.ts"), /state · read in layout\.mprx/);
+  }],
+
   ["completion after < offers the project's components", async () => {
     const { document, editor, original } = await open("src/layout.mprx");
     const line = original.split("\n").findIndex((each) => each.includes("<header"));

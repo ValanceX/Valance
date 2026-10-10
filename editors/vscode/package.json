@@ -61,6 +61,11 @@
           "type": "boolean",
           "default": false,
           "description": "Also run `vlx check` after every change to a Markdown or template file, not only on save."
+        },
+        "valance.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show, above each prop, event, component use, state field and command, where the other end of the connection is."
         }
       }
     },

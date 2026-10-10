@@ -110,3 +110,21 @@ The first person to run the extension saw syntax colours but no hover and no dia
 | Windows could not spawn the `.cmd` shim | The server is started with a shell on Windows (untested there) |
 
 Lesson for the host suite: it only opened the project directly with a freshly generated `editor.json`, the one setup in which every one of these worked. It now also runs with the window opened above the project and exercises a stale mapping.
+
+## Navigation: definition is one place, references are many
+
+Second human finding: ctrl+click on any bound name (the component, the state, the command, the prop, the event) landed in the generated `manifest.json`. The cause is structural: the language server only knows the manifest, because that is all MESH has; it has no idea the names came from `main.ts`, a template, or the framework. Only `vlx` knows that, so it records it (`.valance/wiring.json`) and the extension translates the server's answer.
+
+The design, after a correct objection (a handler can be bound to many events, a component used in many places, so "jump to the call site" has no right answer):
+
+| Gesture | Means | Answer |
+|---|---|---|
+| **Go to Definition** (ctrl+click) | the one place a name is declared | `main.ts` for your state and commands; the template for a component, and where it first reads a prop or raises an event; the framework's README for names it provides. Never a choice among several |
+| **Find All References** (Shift+F12; VS Code also shows it when you ctrl+click something already at its declaration) | every place it is used | every `on.x=` that handles an event, every attribute that passes a prop, every place the layout reads a state field or runs a command, every use of a component |
+| **CodeLens** | the other end, without clicking | above a use: `→ theme-toggle.mprx · theme ← {theme} · on toggle ⇒ toggleTheme()`; inside a component: `prop theme · passed from layout.mprx:4 as {theme}`, `event toggle · handled in layout.mprx:4 ⇒ toggleTheme()`; above state and commands: `state · read in …`, `command · run in …`. One target opens, several are listed; `valance.codeLens` switches them off |
+
+The data is the one thing the tooling must supply and nothing else can: `wiring.json` has `definitions` (declaration places), `bindings` and the per-component and per-use lists (both ends, every one). It is regenerated with the project, in the generated directory, and not committed.
+
+Considered and dropped: a generated readable map (`wiring.md`, a `vlx wiring` command). The author asked for the connection at the token, not a document; the framework's names point to the README that already explains them.
+
+Limits: main.ts positions come from a text search for `name:` (it falls back to the top of the file), not a TypeScript parse; there is no references provider inside `main.ts` itself (TypeScript's own does not know templates), the lens above each state field and command stands in for it; and the lenses and references are verified against the real server and in a real VS Code only for the example project.

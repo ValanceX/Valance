@@ -115,6 +115,11 @@ In that window, open a `.mprx` file and check:
 | Change `{site}` to `{sitee}` | a red squiggle: `unknown reference "sitee"`; the light bulb offers `Replace with "site"`; fix and it clears |
 | Hover `theme-toggle` in a tag | its props and events |
 | Ctrl/Cmd-click `theme-toggle` | opens `src/theme-toggle.mprx` |
+| Ctrl/Cmd-click `toggleTheme` or `{theme}` in the layout | opens `src/main.ts` at the command or the state field |
+| Ctrl/Cmd-click `on.toggle` in the layout | goes to where the component raises `toggle()` |
+| Ctrl/Cmd-click `toggle()` inside `theme-toggle.mprx` | stays put (that *is* its declaration) and VS Code shows the **references**: every place that handles the event. Same for a prop, and **Shift+F12** works on any name |
+| Look above `<theme-toggle …>` in the layout, above `on.click` in `theme-toggle.mprx`, above `theme` and `toggleTheme` in `main.ts` | a line of text at each end saying where the other end is (`→ theme-toggle.mprx · theme ← {theme} · on toggle ⇒ toggleTheme()`, `event toggle · handled in layout.mprx:4 ⇒ toggleTheme()`, `state · read in layout.mprx:1, 4`). Click it: one place opens, several are shown as a list |
+| Ctrl/Cmd-click `site` (a name the framework gives the layout) | opens the framework's README at the row that explains it |
 | Type `<` on a new line | completion lists the project's components |
 | Add `[x](/nowhere)` to a Markdown page and **save** | an error on that line (these come from `vlx check`, on save) |
 | Misspell a key in `valance.json` | a schema warning |

@@ -5,7 +5,7 @@ import { compileProgram } from "@valancex/mesh-compiler";
 import type * as Valance from "@valancex/valance";
 import { manifest } from "@valancex/valance/web/build";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { commandTable, scopeSchema } from "./app.js";
@@ -19,6 +19,8 @@ export const SOURCE_DIR = "src";
 export const ROOT = "layout";
 
 const BUILT_IN = fileURLToPath(new URL("../views/", import.meta.url));
+/** The package directory: where its README, which documents the framework's own names, is. */
+export const PACKAGE_DIR = fileURLToPath(new URL("../", import.meta.url));
 
 interface Template {
   readonly component: string;
@@ -99,6 +101,8 @@ export interface Compiled {
   /** Each template the program was built from, by source path, for the editor: `src/theme-toggle.mprx` → `theme-toggle`. Built-in templates are not listed (they are not in the project). */
   readonly files: Readonly<Record<string, string>>;
   readonly components: ReadonlyArray<string>;
+  /** Every template the program was built from, with its source text and its file relative to the project (a built-in's is under the package, so it may start with `..`). */
+  readonly templates: ReadonlyArray<{ readonly component: string; readonly file: string; readonly source: string; readonly builtIn: boolean }>;
 }
 
 /** Compiles the application's templates. Fails with every diagnostic, each pointing into the file it is about. */
@@ -135,6 +139,7 @@ export const compileViews = async (root: string, author: DefinedApp | undefined)
     manifest: typeof enriched === "string" ? JSON.parse(enriched) : enriched,
     files: Object.fromEntries(used.filter((template) => !template.builtIn).map((template) => [template.path, template.component])),
     components: used.map((template) => template.component),
+    templates: used.map((template) => ({ component: template.component, file: template.builtIn ? relative(root, join(BUILT_IN, `${template.component}.mprx`)).split(sep).join("/") : template.path, source: template.source, builtIn: template.builtIn })),
   };
 };
 

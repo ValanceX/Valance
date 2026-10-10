@@ -9,6 +9,8 @@ export interface EditorFile {
   readonly model: string;
   /** Source path (relative to the project, `/` separated) → the component whose template it is. */
   readonly components: Readonly<Record<string, string>>;
+  /** Where every name came from and what uses it (`wiring.json`), relative to the project. Absent in a project built by an older `vlx`. */
+  readonly wiring?: string;
 }
 
 /** What `mesh-lsp` takes as its `"mesh"` settings. */
@@ -18,7 +20,7 @@ export interface LspSettings {
 }
 
 export type Readiness =
-  | { readonly kind: "ready"; readonly settings: LspSettings }
+  | { readonly kind: "ready"; readonly settings: LspSettings; readonly wiring?: string }
   /** `valance.json` is there but nothing has been generated yet: run `vlx dev`, `build` or `check` once. */
   | { readonly kind: "not-generated" }
   | { readonly kind: "not-a-project" };
@@ -35,7 +37,7 @@ export const readProject = (root: string): Readiness => {
 
   if (parsed.version !== 1 || typeof parsed.model !== "string" || typeof parsed.components !== "object" || parsed.components === null) { return { kind: "not-generated" }; }
 
-  return { kind: "ready", settings: { model: parsed.model, components: parsed.components } };
+  return { kind: "ready", settings: { model: parsed.model, components: parsed.components }, ...(typeof parsed.wiring === "string" ? { wiring: parsed.wiring } : {}) };
 };
 
 /** The template file that defines `<tag>`: the author's `src/<tag>.mprx` if the project has one. */

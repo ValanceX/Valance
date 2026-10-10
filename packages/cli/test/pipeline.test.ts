@@ -72,7 +72,7 @@ describe("vlx build", () => {
     expect(existsSync(join(root, "dist/.vite"))).toBe(false);
     expect(readdirSync(join(root, "dist/assets")).some((file) => file.endsWith(".wasm"))).toBe(true);
     expect(readdirSync(root).sort()).toEqual([".valance", "content", "dist", "node_modules", "public", "valance.json"]);
-    expect(readdirSync(join(root, ".valance")).filter((name) => name !== "cache").sort()).toEqual([".gitignore", "client.ts", "content.json", "editor.json", "manifest.json", "program.json", "server.ts"]);
+    expect(readdirSync(join(root, ".valance")).filter((name) => name !== "cache").sort()).toEqual([".gitignore", "client.ts", "content.json", "editor.json", "manifest.json", "program.json", "server.ts", "wiring.json"]);
     expect(readFileSync(join(root, ".valance/.gitignore"), "utf8")).toContain("*");
   });
 
@@ -140,6 +140,6 @@ describe("what an editor reads", () => {
 
     expect(manifest.components["badge"]!.props).toMatchObject({ count: { required: true } });
     expect(Object.keys(manifest.components["layout"]!.scope)).toContain("n");
-    expect(JSON.parse(readFileSync(join(root, ".valance/editor.json"), "utf8"))).toEqual({ version: 1, model: ".valance/manifest.json", components: { "src/layout.mprx": "layout", "src/badge.mprx": "badge" } });
+    expect(JSON.parse(readFileSync(join(root, ".valance/editor.json"), "utf8"))).toEqual({ version: 1, model: ".valance/manifest.json", components: { "src/layout.mprx": "layout", "src/badge.mprx": "badge" }, wiring: ".valance/wiring.json" });
   });
 });

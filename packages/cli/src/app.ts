@@ -44,6 +44,12 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
   if ("go" in (author?.commands?.(Valance.command({} as never) as never) ?? {})) { throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name'); }
 };
 
+/** The names `src/main.ts` adds: state fields (readable in the layout) and commands (runnable from it). */
+export const ownNames = (author: DefinedApp | undefined): { readonly state: ReadonlyArray<string>; readonly commands: ReadonlyArray<string> } => ({
+  state: authorFields(author),
+  commands: Object.keys(author?.commands?.(Valance.command({} as never) as never) ?? {}),
+});
+
 /** The scope schema a layout is compiled against: the framework's names and the author's state fields. */
 export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> =>
   author?.state === undefined ? FrameScope : (Schema.extend(FrameScope, author.state.schema) as unknown as Schema.Schema<any, any, never>);

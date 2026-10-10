@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { forTheCheck, place, run } from "../src/diagnostics";
 import { forWorkspace, readProject } from "../src/project";
+import { authoredPlace, lensesFor, readWiring, referencesOf } from "../src/wiring";
 import type { Client } from "./lsp-client";
 import { connect } from "./lsp-client";
 
@@ -148,5 +149,84 @@ describe("a project that changes while the server runs", () => {
     await inner.until(() => (inner.diagnostics.get(inner.uri("src/layout.mprx"))?.length ?? 0) > 0);
     expect(inner.diagnostics.get(inner.uri("src/layout.mprx"))!.map((each) => each.code)).toEqual(["unknown-reference"]);
     await inner.stop();
+  });
+});
+
+describe("ctrl+click: from the generated manifest to the files the author wrote, from either end of a connection", () => {
+  // The real server's real answer for each kind of name, translated with the real wiring.json that `vlx check` wrote. The server alone answers every one with manifest.json.
+  const ask = async (file: string, line: string, needle: string, shift: number): Promise<{ readonly manifest: string; readonly line: number } | undefined> => {
+    const text = readFileSync(join(app, file), "utf8").split("\n");
+    const at = text.findIndex((each) => each.includes(line));
+    const project = readProject(app);
+
+    if (project.kind !== "ready") { throw new Error("not ready"); }
+
+    client.open(file, "mprx", readFileSync(join(app, file), "utf8"));
+
+    const answer = await client.request("textDocument/definition", { textDocument: { uri: client.uri(file) }, position: { line: at, character: text[at]!.indexOf(needle) + shift } });
+    const location = ([] as Array<{ uri: string; range: { start: { line: number } } }>).concat(answer.result ?? [])[0];
+
+    return location === undefined || !location.uri.endsWith("/.valance/manifest.json") ? undefined : { manifest: readFileSync(join(app, ".valance/manifest.json"), "utf8"), line: location.range.start.line };
+  };
+
+  /** Go to Definition: the one place. */
+  const where = async (file: string, line: string, needle: string, shift: number): Promise<string> => {
+    const answered = await ask(file, line, needle, shift);
+    const project = readProject(app);
+    const place = answered === undefined || project.kind !== "ready" ? undefined : authoredPlace(readWiring(app, project.wiring), answered.manifest, answered.line);
+
+    return place === undefined ? "(no record)" : `${place.file}:${place.line}`;
+  };
+
+  /** Find All References: every use. */
+  const uses = async (file: string, line: string, needle: string, shift: number): Promise<ReadonlyArray<string>> => {
+    const answered = await ask(file, line, needle, shift);
+    const project = readProject(app);
+
+    return answered === undefined || project.kind !== "ready" ? [] : referencesOf(readWiring(app, project.wiring), answered.manifest, answered.line).map((place) => `${place.file}:${place.line}`);
+  };
+
+  it("goes in from the layout: the tag, the event and the prop to the component, the state and the command to main.ts", async () => {
+    const wiring = readWiring(app, ".valance/wiring.json")!;
+    const state = wiring.state.find((each) => each.name === "theme")!.source;
+    const command = wiring.commands.find((each) => each.name === "toggleTheme")!.source;
+
+    expect(await where("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toBe("src/theme-toggle.mprx:1");
+    expect(await where("src/layout.mprx", "<theme-toggle", "on.toggle", 4)).toBe("src/theme-toggle.mprx:1");
+    expect(await where("src/layout.mprx", "<theme-toggle", " theme=", 2)).toBe("src/theme-toggle.mprx:1");
+    expect(await where("src/layout.mprx", "<theme-toggle", "{theme}", 2)).toBe(`src/main.ts:${state.line}`);
+    expect(await where("src/layout.mprx", "<theme-toggle", "toggleTheme", 2)).toBe(`src/main.ts:${command.line}`);
+  });
+
+  it("is the same declaration from inside the component (where VS Code then shows the references), and the many uses are references, not a jump", async () => {
+    const layoutLine = readFileSync(join(app, "src/layout.mprx"), "utf8").split("\n").findIndex((each) => each.includes("<theme-toggle")) + 1;
+
+    expect(await where("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toBe("src/theme-toggle.mprx:1");
+    expect(await uses("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every handler of the event
+    expect(await uses("src/theme-toggle.mprx", "on.click", "{theme ==", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every place the prop is passed
+    expect(await uses("src/layout.mprx", "<theme-toggle", "toggleTheme", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every place the command runs
+    expect(await uses("src/layout.mprx", "<theme-toggle", "{theme}", 2)).toEqual([`src/layout.mprx:1`, `src/layout.mprx:${layoutLine}`]);   // every place the state is read
+    expect(await uses("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);       // every use of the component
+  });
+
+  it("sends the framework's names and the elements to the README that explains them, and a built-in to its template", async () => {
+    const readme = readFileSync(join(__dirname, "../../../packages/cli/README.md"), "utf8").split("\n");
+    const site = await where("src/layout.mprx", "{site}", "{site}", 2);
+    const header = await where("src/layout.mprx", "<header", "<header", 2);
+    const blocks = await where("src/layout.mprx", "<blocks", "<blocks", 2);
+
+    expect(site).toMatch(/README\.md:\d+$/);
+    expect(readme[Number(site.split(":")[1]) - 1]).toMatch(/^\| `site`, `home`/);
+    expect(readme[Number(header.split(":")[1]) - 1]).toMatch(/^Tags you may use:/);
+    expect(blocks).toMatch(/views\/blocks\.mprx:1$/);
+  });
+
+  it("puts the other end beside each end", () => {
+    const wiring = readWiring(app, ".valance/wiring.json")!;
+    const titles = (file: string): ReadonlyArray<string> => lensesFor(wiring, file).map((lens) => lens.title);
+
+    expect(titles("src/layout.mprx")).toEqual(["→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()", "→ blocks.mprx  ·  items ← {blocks}"]);
+    expect(titles("src/theme-toggle.mprx")).toEqual(["used in layout.mprx:4", "prop theme · passed from layout.mprx:4 as {theme}", "event toggle · handled in layout.mprx:4 ⇒ toggleTheme()"]);
+    expect(titles("src/main.ts")).toEqual(["state · read in layout.mprx:1, layout.mprx:4", "command · run in layout.mprx:4"]);
   });
 });
