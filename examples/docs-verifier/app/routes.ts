@@ -29,6 +29,6 @@ export const routes = (site: Site) => {
     /** The page's own URL, the one a search engine should keep when the same page is reached by another (`/`). */
     canonicalOf: ({ page }: AppState): string | undefined => byId.get(page)?.path,
     /** A one-line description of the page, for a search result and a link preview. */
-    descriptionOf: ({ page }: AppState): string => { const found = byId.get(page); return found === undefined ? site.name : `${found.title}: ${site.name} documentation`; },
+    descriptionOf: ({ page }: AppState): string => byId.get(page)?.description ?? site.name,
   };
 };

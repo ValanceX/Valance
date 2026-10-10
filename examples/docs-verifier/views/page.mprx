@@ -11,9 +11,13 @@
       </section>
     </mesh-each>
   </nav></mesh-fill>
+  <mesh-fill slot="toc"><mesh-if when={hasToc}><nav class="toc" label="On this page">
+    <para class="toc-title">On this page</para>
+    <list class="toc-list"><mesh-each items={toc} as="h" key={h.id}><item><navLink class={h.cls} href={h.href} current="false">{h.label}</navLink></item></mesh-each></list>
+  </nav></mesh-if></mesh-fill>
   <main>
     <mesh-each items={blocks} as="b" key={b.id}>
-      <block kind={b.kind} text={b.text} spans={b.spans} level={b.level} lang={b.lang} tone={b.tone} blockId={b.id} copyLabel={b.copyLabel} on.copy={copyCode($event)} />
+      <block b={b} on.copy={copyCode($event)} on.choose={selectTab($event)} />
     </mesh-each>
     <nav class="pager" label="Previous and next page">
       <mesh-if when={prev.href != ""}><navLink class="pager-link" href={prev.href} current="false">{prev.label}</navLink></mesh-if>

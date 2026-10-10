@@ -1,4 +1,4 @@
-// The application: state, one view with a scope, and four commands. It names no target (no DOM, no Web) and reads no file: the site arrives as data and the compiled programs as an
+// The application: state, one view with a scope, and five commands. It names no target (no DOM, no Web) and reads no file: the site arrives as data and the compiled programs as an
 // argument, so the same application runs on the server, in the browser and under a test.
 import * as Valance from "@valancex/valance";
 import { Schema } from "effect";
@@ -19,6 +19,12 @@ export const commands = (state: Valance.StateHandle<AppState>) => {
     copyCode: command(Schema.Struct({ blockId: Schema.String }), ({ blockId }, current) => ({ ...current, copied: blockId })),
     /** Open or close the navigation on a small screen. */
     toggleMenu: command(Schema.Struct({}), (_input, current) => ({ ...current, menu: !current.menu })),
+    /** Choose a tab of a code group. `tab` is `<group>|<label>`; anything else changes nothing. */
+    selectTab: command(Schema.Struct({ tab: Schema.String }), ({ tab }, current) => {
+      const at = tab.indexOf("|");
+
+      return at <= 0 ? current : { ...current, tabs: { ...current.tabs, [tab.slice(0, at)]: tab.slice(at + 1) } };
+    }),
     /** Choose the colour theme. */
     setTheme: command(Schema.Struct({ theme: Theme }), ({ theme }, current) => ({ ...current, theme })),
   };

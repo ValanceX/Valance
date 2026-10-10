@@ -1,0 +1,12 @@
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr><mesh-each items={head} as="c" key={c.id}><th align={c.align} scope="col"><runs spans={c.spans} /></th></mesh-each></tr>
+    </thead>
+    <tbody>
+      <mesh-each items={rows} as="r" key={r.id}>
+        <tr><mesh-each items={r.cells} as="c" key={c.id}><td align={c.align}><runs spans={c.spans} /></td></mesh-each></tr>
+      </mesh-each>
+    </tbody>
+  </table>
+</div>

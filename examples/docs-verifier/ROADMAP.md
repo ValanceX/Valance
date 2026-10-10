@@ -51,7 +51,11 @@ Plan as written:
 - Structured nav (`{ sections: [{ title, items: [{ href, label, active }] }] }`) replaces the baked-in `"› "` and `"Guides: "`. Tokens, light/dark theme (state + `data-theme`), responsive layout, mobile menu in state, real `ul`/`li`.
 - **Exit:** the verifier has no private wiring; the stand-ins pass the contract tests; the smoke test asserts the stylesheet loads, dark mode switches, the menu works, and hydration equals the server HTML.
 
-### C. Content model and kit
+### C. Content model and kit: **done**
+
+Delivered: the model is a closed union (`model/site.ts`, no sentinels) and `BlockView` is the one projection to a scope; markdown with typed blocks, anchors and an outline, emphasis, bullet and numbered lists (one nesting level), tables, images, callouts with titles, code with titles, code groups (`tab=`/`group=`), and `file=` includes from `snippets/`, which `tsc` compiles with the project, so every TypeScript example is checked against the packages (an inline `ts` fence is a build error); build-time highlighting into tokens; build-time link check (pages and fragments); errors that name the file and the line; page descriptions; an "On this page" outline; tabs with a remembered choice (state, not the DOM). 68 unit tests, 9 Chromium tests. Friction F17–F19.
+
+Plan as written:
 
 - Discriminated `Block`/`Span` union (no empty-string sentinels); `PageScope` derived from the model; not-found a union member.
 - Markdown: tables, images, ordered lists, emphasis, heading ids, richer front matter, callout/code titles. Build-time highlighting into token spans. Nested lists need **Mesh bounded recursion (F4)**.

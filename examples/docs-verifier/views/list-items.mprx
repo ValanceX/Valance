@@ -1,0 +1,10 @@
+<mesh-fragment>
+  <mesh-each items={items} as="i" key={i.id}>
+    <item>
+      <runs spans={i.spans} />
+      <mesh-if when={i.nested}>
+        <list class="sublist"><mesh-each items={i.children} as="c" key={c.id}><item><runs spans={c.spans} /></item></mesh-each></list>
+      </mesh-if>
+    </item>
+  </mesh-each>
+</mesh-fragment>

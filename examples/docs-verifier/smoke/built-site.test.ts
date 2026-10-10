@@ -57,12 +57,16 @@ const sameAsServer = async (page: import("playwright").Page, path: string): Prom
   const document = await (await fetch(`${served.origin}${path}`)).text();
   const server = /<div id="app">([\s\S]*)<\/div><script id="valance-boot"/.exec(document)?.[1] ?? "";
 
+  // Node by node, not text by text: the server writes a tag's attributes in sorted order and a node the client draws gets them in the order of its props, which is the same node.
   return page.evaluate((html) => {
     const parsed = window.document.createElement("div");
 
     parsed.innerHTML = html;
 
-    return parsed.innerHTML === window.document.querySelector("#app")!.innerHTML;
+    const drawn = [...window.document.querySelector("#app")!.childNodes];
+    const written = [...parsed.childNodes];
+
+    return drawn.length === written.length && written.every((node, at) => node.isEqualNode(drawn[at]!));
   }, server);
 };
 
@@ -87,9 +91,10 @@ it("hydrates, navigates by links, keeps the title and the head, Back restores, a
   expect(await page.title()).toBe("Getting Started · Valance");
 
   // the composite event, through real DOM events after hydration
-  expect(await page.getByRole("button", { name: "Copy" }).count()).toBe(1);
-  await page.getByRole("button", { name: "Copy" }).click();
-  await page.getByRole("button", { name: "Copied" }).waitFor();
+  expect(await page.getByRole("button", { name: "Copy", exact: true }).count()).toBe(4);   // the install alternatives, and three examples
+  await page.getByRole("button", { name: "Copy", exact: true }).first().click();
+  await page.getByRole("button", { name: "Copied", exact: true }).waitFor();
+  expect(await page.getByRole("button", { name: "Copied", exact: true }).count()).toBe(1);
 
   // a plain click on a link is navigation inside the page: no new document, the URL, the title and the head follow, and the copied mark is cleared by `go`
   await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "State", exact: true }).click();
@@ -97,7 +102,7 @@ it("hydrates, navigates by links, keeps the title and the head, Back restores, a
   expect(await page.title()).toBe("State · Valance");
   expect(await page.getByRole("heading", { name: "State", exact: true }).count()).toBe(1);
   await page.waitForFunction(() => document.querySelector('link[rel="canonical"]')?.getAttribute("href") === "/docs/guides/state");
-  expect(await page.locator('meta[name="description"]').getAttribute("content")).toBe("State: Valance documentation");
+  expect(await page.locator('meta[name="description"]').getAttribute("content")).toContain("State is one value");
   expect(await page.locator('link[rel="stylesheet"]').count()).toBe(1);                   // the head the client keeps still links the style the server linked
   expect(await page.locator("[data-valance-head]").count()).toBe(5);                      // 3 metas, the canonical link and the stylesheet: replaced, never accumulated
   expect(await sameAsServer(page, "/docs/guides/state")).toBe(true);                      // patched in place, the page is what a fresh render of the state draws
@@ -107,11 +112,67 @@ it("hydrates, navigates by links, keeps the title and the head, Back restores, a
   await page.waitForFunction(() => location.pathname === "/docs/guides/getting-started");
   expect(await page.title()).toBe("Getting Started · Valance");
   expect(await page.locator('link[rel="canonical"]').getAttribute("href")).toBe("/docs/guides/getting-started");
-  expect(await page.getByRole("button", { name: "Copy", exact: true }).count()).toBe(1);   // back on the page, the mark is gone
+  expect(await page.getByRole("button", { name: "Copied", exact: true }).count()).toBe(0);   // back on the page, the mark is gone
+  expect(await page.getByRole("button", { name: "Copy", exact: true }).count()).toBe(4);
   expect(await sameAsServer(page, "/docs/guides/getting-started")).toBe(true);
 
   expect(failures).toEqual([]);
   expect(documents).toEqual([]);                                                          // no document was loaded after the first: everything after was in place
+});
+
+it("headings link to themselves, the table of contents scrolls to them, and the address keeps the fragment", async () => {
+  const { page, failures } = await ready(browser, "/docs/guides/state", { width: 1280, height: 700 });
+
+  await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: "Ending" }).click();
+  await page.waitForFunction(() => location.hash === "#ending");
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => { const top = document.getElementById("ending")!.getBoundingClientRect().top; return top >= 56 && top < innerHeight; })).toBe(true);   // the heading is in view, below the sticky bar
+  expect(new URL(page.url()).pathname).toBe("/docs/guides/state");                                                                     // the same document: a fragment is not a navigation
+
+  await page.getByRole("link", { name: "Link to this section" }).first().focus();
+  expect(await page.getByRole("link", { name: "Link to this section" }).first().evaluate((link) => getComputedStyle(link).opacity)).toBe("1");   // a link that appears on hover appears on focus too
+  expect(failures).toEqual([]);
+});
+
+it("a code group shows one alternative, the choice is remembered across pages, and the copy button follows the alternative", async () => {
+  const { page, failures } = await ready(browser, "/docs/guides/getting-started");
+  const shown = () => page.locator('[role="tabpanel"]').innerText();
+
+  expect(await shown()).toContain("npm install");
+  expect(await page.getByRole("tab", { name: "npm", exact: true }).getAttribute("aria-selected")).toBe("true");
+
+  await page.getByRole("tab", { name: "pnpm", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[role="tabpanel"]')?.textContent?.includes("pnpm add") === true);
+  expect(await page.getByRole("tab", { name: "pnpm", exact: true }).getAttribute("aria-selected")).toBe("true");
+  expect(await page.getByRole("tab", { name: "npm", exact: true }).getAttribute("aria-selected")).toBe("false");
+  expect(await page.locator('[role="tabpanel"]').count()).toBe(1);
+
+  await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "State", exact: true }).click();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/state");
+  await page.goBack();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/getting-started");
+  expect(await page.getByRole("tab", { name: "pnpm", exact: true }).getAttribute("aria-selected")).toBe("true");   // the choice is state, so it survives moving on and back
+
+  await page.locator('[role="tabpanel"]').getByRole("button", { name: "Copy" }).click();
+  await page.locator('[role="tabpanel"]').getByRole("button", { name: "Copied" }).waitFor();
+  await page.getByRole("tab", { name: "yarn", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[role="tabpanel"]')?.textContent?.includes("yarn add") === true);
+  expect(await page.locator('[role="tabpanel"]').getByRole("button", { name: "Copy", exact: true }).count()).toBe(1);   // the copied mark belonged to the pnpm alternative
+  expect(failures).toEqual([]);
+});
+
+it("code is highlighted by the stylesheet: tokens have their own colours, and tables and lists are drawn", async () => {
+  const { page } = await ready(browser, "/docs/guides/state", { width: 1280, height: 800 });
+  const colours = await page.evaluate(() => {
+    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).color;
+
+    return { keyword: colour("pre .tok-keyword"), string: colour("pre .tok-string"), plain: colour("pre") };
+  });
+
+  expect(new Set([colours.keyword, colours.string, colours.plain]).size).toBe(3);
+  expect(await page.locator("table.table thead th").count()).toBe(4);
+  expect(await page.locator("ul.list > li").count()).toBeGreaterThan(2);
+  expect(await page.locator("ul.sublist > li").count()).toBe(2);
 });
 
 it("is styled: the stylesheet applies, with the layout the stylesheet describes", async () => {
@@ -128,11 +189,12 @@ it("is styled: the stylesheet applies, with the layout the stylesheet describes"
       font: css(".shell", "font-family"),
       h1: css("main h1", "font-size"),
       columns: css(".frame", "grid-template-columns").split(" ").length,
+      toc: css(".toc", "display"),
     };
   });
 
   expect(style.sheets).toBeGreaterThan(0);
-  expect(style).toMatchObject({ shell: "flex", bar: "sticky", sidebar: "block", menuButton: "none", h1: "36px", columns: 2 });
+  expect(style).toMatchObject({ shell: "flex", bar: "sticky", sidebar: "block", menuButton: "none", h1: "36px", columns: 3, toc: "block" });
   expect(style.font).toContain("system-ui");
   expect(failures).toEqual([]);
 });

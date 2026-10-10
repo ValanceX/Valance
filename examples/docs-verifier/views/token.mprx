@@ -1,0 +1,6 @@
+<mesh-fragment>
+  <mesh-switch>
+    <mesh-case when={kind == "plain"}><mesh-fragment>{text}</mesh-fragment></mesh-case>
+    <mesh-default><span class={cls}>{text}</span></mesh-default>
+  </mesh-switch>
+</mesh-fragment>

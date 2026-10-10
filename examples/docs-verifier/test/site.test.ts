@@ -3,7 +3,7 @@
 import type { BoundaryValue } from "@valancex/mesh-runtime";
 import * as Valance from "@valancex/valance";
 import { Effect, Exit, Scope } from "effect";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { beforeAll, expect, it } from "vitest";
 
 import { application } from "../app/application.js";
@@ -17,6 +17,7 @@ import { plugins } from "../web/plugins.js";
 import { readSite } from "../tooling/content.js";
 import { fileURLToPath } from "node:url";
 import type { Site } from "../model/site.js";
+import { TokenKind } from "../model/site.js";
 
 let site: Site;
 
@@ -30,8 +31,8 @@ it("a page is rendered on the server through the layout's slots: navigation, hea
 
   expect(html).toMatch(/<a [^>]*href="\/docs\/guides\/state"/);
   expect(html).toMatch(/<h1[^>]*>Getting Started<\/h1>/);                              // the text is the heading's own: runs are fragments, which make no node
-  expect(html).toMatch(/<aside[^>]*data-tone="tip"[^>]*><strong[^>]*>tip<\/strong>/);   // the callout composite, with its text placed by its slot and its tone as a variant
-  expect(html).toMatch(/<figure[^>]*><pre[^>]*>import \* as Valance/);                 // the code-block composite
+  expect(html).toMatch(/<aside[^>]*data-tone="tip"[^>]*><strong[^>]*>TIP<\/strong>/);   // the callout composite, with its title placed by its own and its text by its slot
+  expect(html).toMatch(/<figure[^>]*>(<div class="code-title">[^<]*<\/div>)?<pre><code>[\s\S]*?<span class="tok-keyword">import<\/span>/);   // the code-block composite, highlighted
   expect(html).toMatch(/<button[^>]*>Copy<\/button>/);
   expect(html).toContain("The features verifier");                                      // the layout's own footer, around the slots
   expect(html).toMatch(/id="valance-boot"/);
@@ -42,7 +43,7 @@ it("the head is the plugins': a title, a description, a canonical URL and the st
   const head = /<head>([\s\S]*)<\/head>/.exec(html)![1]!;
 
   expect(head).toContain("<title>State · Valance</title>");
-  expect(head).toContain('<meta name="description" content="State: Valance documentation" data-valance-head>');
+  expect(head).toContain('<meta name="description" content="State is one value, and commands are the only way to change it. A command can be pure, or it can wait." data-valance-head>');
   expect(head).toContain('<meta property="og:title" content="State · Valance" data-valance-head>');
   expect(head).toContain('<link rel="canonical" href="/docs/guides/state" data-valance-head>');
   expect(head).toContain('<link rel="stylesheet" href="/assets/page.css" data-valance-head>');
@@ -86,7 +87,7 @@ it("the route table says what a build and a server need: the navigate command, e
   const table = routes(site);
 
   expect(table.navigate).toBe("go");
-  expect(table.paths()).toEqual(["/docs/introduction", "/docs/guides/getting-started", "/docs/guides/state", "/docs/reference/api"]);
+  expect(table.paths()).toEqual(["/docs/introduction", "/docs/guides/getting-started", "/docs/guides/state", "/docs/guides/views", "/docs/guides/plugins", "/docs/reference/api", "/docs/reference/errors"]);
   expect(table.paths().every((path) => table.known(path))).toBe(true);
   expect(table.known("/")).toBe(true);                                                  // an alias of the first page
 });
@@ -160,9 +161,10 @@ it("the page shows Copied for the copied block", async () => {
   const program = await compilePage();
   const code = site.pages.find((page) => page.id === "guides-getting-started")!.blocks.find((block) => block.kind === "code")!;
   const { html } = await Effect.runPromise(renderToHtml(application(program, site), { plugins: plugins(site), state: { ...initial, page: "guides-getting-started", copied: code.id } }));
+  const labels = [...html.matchAll(/<button[^>]*class="copy"[^>]*>([^<]*)<\/button>/g)].map((match) => match[1]);
 
-  expect(html).toMatch(/<button[^>]*>Copied<\/button>/);
-  expect(html).not.toMatch(/<button[^>]*>Copy<\/button>/);
+  expect(labels.filter((label) => label === "Copied")).toHaveLength(1);                  // only the block that was copied says so
+  expect(labels.filter((label) => label === "Copy").length).toBeGreaterThan(0);
 });
 
 it("the navigation is grouped as the content groups it, and marks the current page, and only it, with aria-current", async () => {
@@ -173,7 +175,7 @@ it("the navigation is grouped as the content groups it, and marks the current pa
   expect(sidebar.match(/<section>/g)).toHaveLength(3);
   expect(sidebar).toMatch(/class="nav-title"[^>]*>Guides</);
   expect(sidebar).toMatch(/class="nav-title"[^>]*>Reference</);
-  expect(links).toHaveLength(4);
+  expect(links).toHaveLength(7);
   expect(links.filter((link) => link.includes('aria-current="page"'))).toHaveLength(1);
   expect(links.find((link) => link.includes('aria-current="page"'))).toContain('href="/docs/guides/state"');
 });
@@ -192,12 +194,46 @@ it("the generated site is the content's site (pnpm build:content ran)", () => {
   expect(readGeneratedSite()).toEqual(site);
 });
 
-it("inline marks (strong, code, link) are runs the views draw", async () => {
-  const html = await renderDocument(site, "/docs/introduction", built);
+it("inline marks (strong, emphasis, code, link) are runs the views draw", async () => {
+  const intro = await renderDocument(site, "/docs/introduction", built);
+  const views = await renderDocument(site, "/docs/guides/views", built);
 
-  expect(html).toMatch(/<strong[^>]*>one value<\/strong>/);
-  expect(html).toMatch(/<code[^>]*>Valance\.command<\/code>/);
-  expect(html).toMatch(/<a [^>]*href="\/docs\/guides\/getting-started"[^>]*>getting-started guide<\/a>/);
+  expect(intro).toMatch(/<strong[^>]*>one value<\/strong>/);
+  expect(intro).toMatch(/<em[^>]*>plugins<\/em>/);
+  expect(intro).toMatch(/<a [^>]*href="\/docs\/guides\/getting-started"[^>]*>getting-started guide<\/a>/);
+  expect(views).toMatch(/<code[^>]*>increment\(\)<\/code>/);
+});
+
+it("headings carry their anchor and a link to it; the page's outline is the table of contents", async () => {
+  const html = await renderDocument(site, "/docs/guides/state", built);
+
+  expect(html).toMatch(/<h2 id="commands">Commands<a [^>]*aria-label="Link to this section"[^>]*href="#commands"[^>]*>#<\/a><\/h2>/);
+  expect(html).toMatch(/<h1 id="state">State<\/h1>/);
+
+  const toc = /<nav[^>]*class="toc"[^>]*>([\s\S]*?)<\/nav>/.exec(html)![1]!;
+
+  expect([...toc.matchAll(/href="#([^"]+)"[^>]*>([^<]+)</g)].map((match) => [match[1], match[2]])).toEqual([["rules", "Rules"], ["commands", "Commands"], ["a-command-that-waits", "A command that waits"], ["ending", "Ending"]]);
+  expect(await renderDocument(site, "/docs/nowhere", built)).not.toContain('class="toc"');            // a page with no headings has no "On this page"
+});
+
+it("lists, tables and code groups are drawn as the elements they are", async () => {
+  const state = await renderDocument(site, "/docs/guides/state", built);
+  const start = await renderDocument(site, "/docs/guides/getting-started", built);
+
+  expect(state).toMatch(/<ul class="list"><li>A <strong>pure<\/strong> command returns the next state\.<\/li>/);
+  expect(state).toMatch(/<li>Nothing else writes state\.<ul class="sublist"><li>A view only reads it\.<\/li><li>A mount only draws it\.<\/li><\/ul><\/li>/);
+  expect(state).toMatch(/<div class="table-wrap"><table class="table"><thead><tr><th data-align="left" scope="col">Kind<\/th>/);
+  expect(state).toMatch(/<td data-align="right">Loading, then an answer or a failure<\/td>/);
+  expect(start).toMatch(/<div [^>]*role="tablist"/);
+  expect(start.match(/role="tab"/g)).toHaveLength(3);
+  expect(start.match(/aria-selected="true"/g)).toHaveLength(1);
+  expect(start.match(/role="tabpanel"/g)).toHaveLength(1);                                              // only the chosen alternative is drawn
+  const drawn = /<div id="app">([\s\S]*)<\/div><script id="valance-boot"/.exec(start)![1]!;   // the page, not the payload that carries every page
+
+  const text = drawn.replace(/<[^>]+>/g, "");                                                         // code is tokens: its text is what remains without them
+
+  expect(text).toContain("npm install @valancex/valance");
+  expect(text).not.toContain("yarn add @valancex/valance");
 });
 
 it("makes no node that a template did not write: no wrapper elements around runs, blocks or text", async () => {
@@ -206,21 +242,25 @@ it("makes no node that a template did not write: no wrapper elements around runs
   const tags = new Set([...app.matchAll(/<([a-z0-9]+)[\s>]/g)].map((match) => match[1]));
 
   // Every element is one a template names (the primitives table), and nothing the framework added.
-  const written = new Set(["a", "aside", "button", "code", "div", "figure", "footer", "h1", "h2", "h3", "header", "li", "main", "nav", "p", "pre", "section", "strong", "ul"]);
+  const written = new Set(["a", "aside", "button", "code", "div", "em", "figure", "footer", "h1", "h2", "h3", "header", "li", "main", "nav", "ol", "p", "pre", "section", "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul"]);
 
   expect([...tags].filter((tag) => !written.has(tag!))).toEqual([]);
-  expect(tags.has("span")).toBe(false);
+  // A `span` is a token of code and nothing else: text and marks are never wrapped.
+  expect([...app.matchAll(/<span([^>]*)>/g)].filter((match) => !/class="tok-[a-z]+"/.test(match[1]!))).toEqual([]);
   // A paragraph holds its text and marks directly: `<p>` is followed by text or a mark, never by another container.
   expect(app).not.toMatch(/<p[^>]*><(span|div|p)/);
 });
 
 // ---- the stylesheet covers what the templates write ------------------------------------------------------------------------------------------------------------------------------
 
-const views = ["page", "layout", "block", "callout", "code-block", "runs", "inline"].map((name) => readFileSync(here(`../views/${name}.mprx`), "utf8")).join("\n");
+const views = readdirSync(here("../views")).filter((name) => name.endsWith(".mprx")).map((name) => name.replace(".mprx", "")).map((name) => readFileSync(here(`../views/${name}.mprx`), "utf8")).join("\n");
 const css = readFileSync(here("../styles/site.css"), "utf8");
 
 it("every class a template writes has a rule in the stylesheet, and no rule is for a class nothing writes", () => {
-  const written = new Set([...views.matchAll(/class="([^"]+)"/g)].flatMap((match) => match[1]!.split(/\s+/)));
+  // The classes the templates write, and those the scope puts in `cls` (the token kinds and the outline's levels).
+  const written = new Set([
+    ...views.matchAll(/class="([^"]+)"/g),
+  ].flatMap((match) => match[1]!.split(/\s+/)).concat([...TokenKind.literals.filter((kind) => kind !== "plain").map((kind) => `tok-${kind}`), "toc-link", "toc-level-2", "toc-level-3"]));
   const styled = new Set([...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\.([a-z][a-z0-9-]*)/g)].map((match) => match[1]!));
 
   expect([...written].filter((name) => !styled.has(name))).toEqual([]);

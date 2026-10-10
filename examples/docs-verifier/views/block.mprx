@@ -1,11 +1,12 @@
 <mesh-fragment>
   <mesh-switch>
-    <mesh-case when={kind == "heading" && level == 1}><h1><runs spans={spans} /></h1></mesh-case>
-    <mesh-case when={kind == "heading" && level == 2}><h2><runs spans={spans} /></h2></mesh-case>
-    <mesh-case when={kind == "heading"}><h3><runs spans={spans} /></h3></mesh-case>
-    <mesh-case when={kind == "item"}><para class="bullet"><runs spans={spans} /></para></mesh-case>
-    <mesh-case when={kind == "callout"}><callout tone={tone}><runs spans={spans} /></callout></mesh-case>
-    <mesh-case when={kind == "code"}><code-block code={text} lang={lang} blockId={blockId} copyLabel={copyLabel} on.copy={copy($event)} /></mesh-case>
-    <mesh-default><para class="prose"><runs spans={spans} /></para></mesh-default>
+    <mesh-case when={b.kind == "heading"}><heading level={b.level} anchor={b.anchor} hash={b.hash} spans={b.spans} /></mesh-case>
+    <mesh-case when={b.kind == "callout"}><callout tone={b.tone} title={b.title}><runs spans={b.spans} /></callout></mesh-case>
+    <mesh-case when={b.kind == "code"}><code-block title={b.title} tokens={b.tokens} blockId={b.id} copyLabel={b.copyLabel} on.copy={copy($event)} /></mesh-case>
+    <mesh-case when={b.kind == "codegroup"}><code-tabs tabs={b.tabs} panels={b.panels} on.copy={copy($event)} on.choose={choose($event)} /></mesh-case>
+    <mesh-case when={b.kind == "list"}><list-block ordered={b.ordered} items={b.items} /></mesh-case>
+    <mesh-case when={b.kind == "table"}><table-block head={b.head} rows={b.rows} /></mesh-case>
+    <mesh-case when={b.kind == "image"}><image class="picture" src={b.src} alt={b.alt} loading="lazy" /></mesh-case>
+    <mesh-default><para class="prose"><runs spans={b.spans} /></para></mesh-default>
   </mesh-switch>
 </mesh-fragment>

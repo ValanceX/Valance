@@ -1,10 +1,15 @@
 {
   "compilerOptions": {
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -12,5 +17,19 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["model", "tooling", "app", "web", "test", "smoke", "principles", "scripts", "vite.page.config.ts", "vitest.config.ts", "vitest.smoke.config.ts", "vitest.principles.config.ts"]
+  "include": [
+    "model",
+    "tooling",
+    "app",
+    "web",
+    "test",
+    "smoke",
+    "principles",
+    "snippets",
+    "scripts",
+    "vite.page.config.ts",
+    "vitest.config.ts",
+    "vitest.smoke.config.ts",
+    "vitest.principles.config.ts"
+  ]
 }

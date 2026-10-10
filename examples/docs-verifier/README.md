@@ -14,6 +14,7 @@ See `ROADMAP.md` for where this is going (a complete, styled, statically generat
 
 ```
 content/   markdown + nav.json         data only, no code
+snippets/  the examples the content    TypeScript, compiled with the project (tsc); included by `file=`
 model/     Block, Page, Site schemas   imports effect only
 tooling/   markdown -> generated site  imports model, node:*
 app/       state, routes, scope,       imports effect, @valancex/valance core, model
@@ -55,6 +56,7 @@ pnpm start         # serve the built site
 - A named slot (`layout`'s `nav`, filled by `page`) beside the default slot, and `mesh-switch` choosing a block's kind.
 - SSR + hydration + history navigation (`Web.run`, `renderToHtml`).
 - Valance 0.8's seams: the tags, the URL policy and the document head are three plugins; the document writes no title and no style of its own, and the browser keeps the same head in step (`docs/V1_CONTRACT.md` §19).
+- The content model: a closed union of block kinds; markdown with anchors, tables, lists, callouts, code with titles and groups, build-time highlighting, and examples that are compiled; a build that fails, with file and line, on a broken link or an example that is not there.
 - Style loading: one hashed stylesheet built from `styles/`, linked in the head before the page is drawn, with light, dark and system themes, a small-screen menu and `aria-*` state, checked in real Chromium.
 - The `update` + Port `patch` path and the `diff` + `updateChanges` path against a
   fresh draw at every step, directly (unit) and through VALANCE 0.7, which now draws only what

@@ -1,6 +1,7 @@
 // The layers, and what each may depend on. A file that reaches upward or sideways fails here, so the structure in README.md is enforced and not just described.
 //
 //   content/   data: markdown and nav.json. No code.
+//   snippets/  the examples the content shows: TypeScript, compiled with the project. Depend on the published packages only.
 //   model/     the shape of the site's data (Schemas). Depends on `effect` only.
 //   tooling/   build time: content → generated/site.json. Depends on model/ and Node.
 //   app/       the Valance application. Depends on model/, `effect` and the Valance core. Names no target, no DOM, no file, no tooling.
@@ -62,8 +63,13 @@ describe("the layers", () => {
     expect(outside("web", allowed)).toEqual([]);
   });
 
+  it("snippets/ show what a consumer writes: the published packages and each other, never this project's own layers", () => {
+    expect(code("snippets").length).toBeGreaterThan(0);
+    expect(outside("snippets", (specifier) => /^(effect|@valancex\/.+)$/.test(specifier))).toEqual([]);
+  });
+
   it("nothing reaches into a layer through a deep package path", () => {
-    for (const dir of ["model", "tooling", "app", "web"]) {
+    for (const dir of ["model", "tooling", "app", "web", "snippets"]) {
       for (const file of code(dir)) {
         expect(imports(file).filter(({ specifier }) => /^@valancex\/[^/]+\/(dist|src)\b/.test(specifier)), file).toEqual([]);
       }

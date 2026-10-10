@@ -32,8 +32,10 @@ const target = () => {
 const states: ReadonlyArray<AppState> = [
   initial,
   { ...initial, page: "guides-getting-started" },
-  { ...initial, page: "guides-getting-started", copied: "guides-getting-started:2" },
-  { ...initial, page: "guides-getting-started", copied: "guides-getting-started:2", theme: "dark" },
+  { ...initial, page: "guides-getting-started", copied: "guides-getting-started:6" },
+  { ...initial, page: "guides-getting-started", copied: "guides-getting-started:6", theme: "dark", tabs: { pkg: "pnpm" } },
+  { ...initial, page: "guides-state" },
+  { ...initial, page: "guides-plugins", tabs: { pkg: "yarn" } },
   { ...initial, page: "guides-state", menu: true },
   { ...initial, page: "reference-api", theme: "light" },
   { ...initial, page: "nowhere" },
@@ -119,7 +121,10 @@ it("an event on the patched DOM still reaches the command through the composite 
 
   expect(result.diagnostics).toBeUndefined();
   expect(result.intent!.command).toMatchObject({ name: "copyCode" });
-  expect(result.intent!.arguments).toEqual([{ value: "guides-getting-started:2" }]);
+  const first_ = site.pages.find((page) => page.id === state.page)!.blocks.find((block) => block.kind === "code" || block.kind === "codegroup")!;
+
+  // the first copy button in the page: a lone code block's own id, or the first alternative of a code group
+  expect(result.intent!.arguments).toEqual([{ value: first_.kind === "codegroup" ? first_.tabs[0]!.id : first_.id }]);
   first.release();
   next.release();
 });

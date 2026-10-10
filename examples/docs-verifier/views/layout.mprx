@@ -11,6 +11,7 @@
   <div class="frame">
     <mesh-slot name="nav" />
     <mesh-slot />
+    <mesh-slot name="toc" />
   </div>
   <footer>The features verifier: a documentation site on the development branches</footer>
 </shell>

@@ -13,7 +13,7 @@ const view = (name: string): string => readFileSync(new URL(`../views/${name}`, 
 
 export const derivedManifest = (): string => JSON.stringify(manifest({ primitives: {}, plugins: [kit()], scopes: { page: PageScope }, commands }));
 
-const COMPONENTS = ["page", "layout", "block", "callout", "code-block", "runs", "inline"] as const;
+const COMPONENTS = ["page", "layout", "block", "heading", "callout", "code-block", "code-tabs", "tokens", "token", "list-block", "list-items", "table-block", "runs", "inline"] as const;
 
 export const compilePage = async () => {
   const result = await compileProgram({
@@ -23,7 +23,13 @@ export const compilePage = async () => {
   });
 
   if (result.program === undefined) {
-    throw new Error(`the views don't compile: ${JSON.stringify({ assembly: result.assembly, components: result.components }, null, 2)}`);
+    // Each diagnostic with the template it is in, its code, and what it says: the place to fix, not a document to read.
+    const found = [
+      ...(result.components ?? []).flatMap((entry) => (entry.diagnostics?.diagnostics ?? []).map((diagnostic) => `views/${entry.component}.mprx: ${diagnostic.code}: ${diagnostic.message}`)),
+      ...((result.assembly as { diagnostics?: ReadonlyArray<{ code: string; message: string }> } | undefined)?.diagnostics ?? []).map((diagnostic) => `assembly: ${diagnostic.code}: ${diagnostic.message}`),
+    ];
+
+    throw new Error(`the views don't compile:\n  ${found.length > 0 ? found.join("\n  ") : JSON.stringify({ assembly: result.assembly, components: result.components })}`);
   }
 
   return result.program;
