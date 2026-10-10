@@ -1,56 +1,75 @@
-// Runs the verifier against packed, unpublished versions of the five packages: the way to verify a set of releases that are prepared but not yet on the registry.
+// Runs the verifier against packed, unpublished versions of the @valancex packages: the way to verify a set that is prepared but not yet on the registry.
 //
-//   node scripts/with-local-packs.mjs <directory holding the .tgz packs> [--smoke]
+//   node scripts/with-local-packs.mjs [packs] [--smoke] [--only a,b,c] [--fresh]
 //
-// Each repository's `npm pack` produces a pack (`valancex-<name>-<version>.tgz`); this copies the verifier to a temporary directory, points every @valancex dependency at its pack
-// (overrides included, so the transitive ones too and only one copy of each resolves), installs, builds and runs the tests (and, with --smoke, the Chromium smoke tests).
-// Nothing in this directory is changed.
+//   packs     the directory holding the .tgz packs (default ./.packs, made by scripts/build-packs.sh). A package with a pack is taken from it, overrides included so only one
+//             copy of each resolves; a package without one stays at the version in package.json (the registry).
+//   --smoke   also run the Chromium smoke tests.
+//   --only    run just these package scripts, in order (default: typecheck,build,test).
+//   --fresh   start from an empty work directory.
+//
+// The work is a copy in ./.work, kept between runs: the sources are re-copied each time, and the install happens only when a pack changed. Nothing else here is touched.
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const [, , packsArg, ...flags] = process.argv;
+const args = process.argv.slice(2);
+const flag = (name) => args.includes(name);
+const only = args.includes("--only") ? args[args.indexOf("--only") + 1].split(",") : undefined;
+const packs = resolve(args.find((arg, at) => !arg.startsWith("--") && args[at - 1] !== "--only") ?? ".packs");
+const work = resolve(".work");
 
-if (packsArg === undefined) {
-  console.error("usage: node scripts/with-local-packs.mjs <directory holding the .tgz packs> [--smoke]");
-  process.exit(2);
-}
+if (flag("--fresh")) { rmSync(work, { recursive: true, force: true }); }
 
-const packs = resolve(packsArg);
-const names = ["valance", "nexus", "mesh-runtime", "mesh-compiler", "port-web"];
-const files = Object.fromEntries(names.map((name) => {
-  const found = readdirSync(packs).filter((file) => file.startsWith(`valancex-${name}-`) && file.endsWith(".tgz"));
+const found = existsSync(packs) ? readdirSync(packs).filter((file) => /^valancex-.*\.tgz$/.test(file)) : [];
+const files = Object.fromEntries(["valance", "nexus", "mesh-runtime", "mesh-compiler", "port-web"].flatMap((name) => {
+  const mine = found.filter((file) => file.startsWith(`valancex-${name}-`));
 
-  if (found.length !== 1) {
-    throw new Error(`expected exactly one pack for ${name} in ${packs}, found ${found.length}`);
-  }
+  if (mine.length > 1) { throw new Error(`more than one pack for ${name} in ${packs}: ${mine.join(", ")}`); }
 
-  return [`@valancex/${name}`, `file:${join(packs, found[0])}`];
+  return mine.length === 1 ? [[`@valancex/${name}`, `file:${join(packs, mine[0])}`]] : [];
 }));
-const work = mkdtempSync(join(tmpdir(), "docs-verifier-"));
 
-cpSync(process.cwd(), work, { recursive: true, filter: (source) => !/(^|\/)(node_modules|dist|generated)(\/|$)/.test(source) });
+console.log(`packs: ${Object.keys(files).join(", ") || "none (everything from the registry)"}`);
+mkdirSync(work, { recursive: true });
 
-const manifest = JSON.parse(readFileSync(join(work, "package.json"), "utf8"));
+// The sources, fresh each time; what the work directory built or installed stays.
+for (const entry of readdirSync(".")) {
+  if (/^(node_modules|dist|generated|\.work|\.packs|pnpm-lock\.yaml)$/.test(entry)) { continue; }
 
-manifest.dependencies = { "@valancex/valance": files["@valancex/valance"] };
-
-for (const name of ["nexus", "mesh-runtime", "mesh-compiler", "port-web"]) {
-  manifest.devDependencies[`@valancex/${name}`] = files[`@valancex/${name}`];
+  rmSync(join(work, entry), { recursive: true, force: true });
+  cpSync(entry, join(work, entry), { recursive: true, filter: (source) => !/(^|\/)(node_modules|dist|generated|\.work|\.packs|evidence)(\/|$)/.test(source) });
 }
 
-manifest.pnpm = { overrides: files };
+const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+
+for (const [name, spec] of Object.entries(files)) {
+  const section = manifest.dependencies?.[name] === undefined ? "devDependencies" : "dependencies";
+
+  manifest[section][name] = spec;
+}
+
+manifest.pnpm = { ...manifest.pnpm, overrides: { ...manifest.pnpm?.overrides, ...files } };
 writeFileSync(join(work, "package.json"), JSON.stringify(manifest, null, 2));
 
-const run = (command, args) => execFileSync(command, args, { cwd: work, stdio: "inherit" });
+const stamp = `${JSON.stringify([manifest.dependencies, manifest.devDependencies])}\n${Object.values(files).map((spec) => { const file = spec.slice("file:".length); return `${file}:${statSync(file).size}:${statSync(file).mtimeMs}`; }).join("\n")}`;
+const stampFile = join(work, ".packs-stamp");
+const run = (script) => {
+  try {
+    execFileSync("pnpm", ["run", script], { cwd: work, stdio: "inherit" });
+  } catch {
+    console.error(`\n\`pnpm run ${script}\` failed in ${work}`);
+    process.exit(1);
+  }
+};
 
-console.log(`running in ${work}`);
-run("pnpm", ["install", "--ignore-scripts"]);
-run("pnpm", ["run", "typecheck"]);
-run("pnpm", ["run", "build"]);
-run("pnpm", ["run", "test"]);
-
-if (flags.includes("--smoke")) {
-  run("pnpm", ["run", "test:smoke"]);
+if (!existsSync(join(work, "node_modules")) || !existsSync(stampFile) || readFileSync(stampFile, "utf8") !== stamp) {
+  rmSync(join(work, "node_modules", "@valancex"), { recursive: true, force: true });
+  rmSync(join(work, "pnpm-lock.yaml"), { force: true });
+  execFileSync("pnpm", ["install", "--ignore-scripts", "--force"], { cwd: work, stdio: "inherit" });
+  writeFileSync(stampFile, stamp);
 }
+
+for (const script of only ?? ["typecheck", "build", "test"]) { run(script); }
+
+if (flag("--smoke")) { run("test:smoke"); }

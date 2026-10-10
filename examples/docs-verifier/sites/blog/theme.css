@@ -1,0 +1,5 @@
+/* The blog's own look: a serif face and a warm accent over the kit's. A theme changes custom properties; it decides nothing the kit decides. */
+:root { --font-sans: ui-serif, Georgia, "Times New Roman", serif; --content-width: 40rem; --radius: 0.25rem; }
+.shell, .shell[data-theme="light"] { --accent: #b4441c; --accent-fg: #ffffff; --bg-subtle: #faf6f1; }
+.shell[data-theme="dark"] { --accent: #f0a27a; --accent-fg: #1a110c; }
+@media (prefers-color-scheme: dark) { .shell[data-theme="system"] { --accent: #f0a27a; --accent-fg: #1a110c; } }

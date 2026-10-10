@@ -1,7 +1,7 @@
 // §11 security and trust: the defaults a consumer gets without thinking about it. Untrusted data must stay data (text stays text, a URL cannot run code), and a secret a failure carries
 // must not be written to a log by the library on the consumer's behalf.
 import * as Web from "@valancex/valance/web";
-import { createWebPort } from "@valancex/port-web";
+import { createWebPort, WebRealizationError } from "@valancex/port-web";
 import * as Valance from "@valancex/valance";
 import { Effect, Exit, Scope } from "effect";
 import { JSDOM } from "jsdom";
@@ -36,12 +36,20 @@ it("text from data is text: markup in a value is shown, never parsed", () => {
   expect(container.textContent).toContain("<script>");
 });
 
-it.fails("a link whose destination is data: a javascript: URL is not left live (§11 secure defaults)", () => {
-  const container = draw("link", { href: "javascript:alert(1)" }, [{ type: "text", key: "t", text: "x" }]);
-  const href = container.querySelector("a")?.getAttribute("href") ?? null;
+it("a link whose destination is data: a javascript: URL is refused, not left live (§11 secure defaults; PORT Web 0.4.1)", () => {
+  let refusal: unknown;
 
-  seen.record("link.javascriptUrl", { href, html: container.innerHTML });
-  expect(href === null || !/^\s*javascript:/i.test(href)).toBe(true);
+  try {
+    draw("link", { href: "javascript:alert(1)" }, [{ type: "text", key: "t", text: "x" }]);
+  } catch (error) {
+    refusal = error;
+  }
+
+  seen.record("link.javascriptUrl", { refused: refusal instanceof WebRealizationError ? refusal.code : String(refusal) });
+  expect(refusal).toBeInstanceOf(WebRealizationError);
+  expect((refusal as WebRealizationError).code).toBe("unrealizable-value");
+  // an ordinary destination is untouched
+  expect(draw("link", { href: "/docs/guides/state" }, [{ type: "text", key: "t", text: "x" }]).querySelector("a")?.getAttribute("href")).toBe("/docs/guides/state");
 });
 
 it("a secret in a command's failure is returned to the caller and is not written to the console by Valance", async () => {

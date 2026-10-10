@@ -1,0 +1,3 @@
+<mesh-fragment>
+  <mesh-each items={tokens} as="t" key={t.id}><token kind={t.kind} cls={t.cls} text={t.text} /></mesh-each>
+</mesh-fragment>

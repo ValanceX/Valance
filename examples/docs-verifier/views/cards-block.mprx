@@ -1,0 +1,5 @@
+<list class="cards">
+  <mesh-each items={b.cards} as="c" key={c.id}>
+    <item><navLink class="card-title" href={c.href} current="false">{c.title}</navLink><para class="card-text"><runs spans={c.spans} /></para></item>
+  </mesh-each>
+</list>

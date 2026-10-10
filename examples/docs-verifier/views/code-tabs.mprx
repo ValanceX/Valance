@@ -1,0 +1,10 @@
+<div class="tabs">
+  <tablist class="tab-list" role="tablist" label={label}>
+    <mesh-each items={tabs} as="t" key={t.id}>
+      <tab class="tab" role="tab" selected={t.selected} on.click={choose(t.key)}>{t.label}</tab>
+    </mesh-each>
+  </tablist>
+  <mesh-each items={panels} as="t" key={t.id}>
+    <tabpanel class="tab-panel" role="tabpanel"><code-block title="" tokens={t.tokens} blockId={t.id} copyLabel={t.copyLabel} on.copy={copy($event)} /></tabpanel>
+  </mesh-each>
+</div>

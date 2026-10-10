@@ -1,10 +1,12 @@
 // The layers, and what each may depend on. A file that reaches upward or sideways fails here, so the structure in README.md is enforced and not just described.
 //
 //   content/   data: markdown and nav.json. No code.
+//   snippets/  the examples the content shows: TypeScript, compiled with the project. Depend on the published packages only.
 //   model/     the shape of the site's data (Schemas). Depends on `effect` only.
 //   tooling/   build time: content → generated/site.json. Depends on model/ and Node.
-//   app/       the Valance application. Depends on model/, `effect` and the Valance core. Names no target, no DOM, no file, no tooling.
+//   app/       the Valance application. Depends on model/, `effect`, the Valance core and NEXUS (its capabilities are NEXUS's). Names no target, no DOM, no file, no tooling.
 //   views/     MPRX templates. No code.
+//   styles/    the stylesheet. No code; the browser entry (web/page.ts) imports it, and the build turns it into one hashed file.
 //   web/       the target: primitives, compile, server, browser. Depends on app/, model/, Valance, MESH, PORT and Node. Not on tooling/.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -30,9 +32,11 @@ const outside = (dir: string, allowed: (specifier: string, layer: string | undef
   code(dir).flatMap((file) => imports(file).filter(({ specifier, layer }) => layer !== dir && !allowed(specifier, layer)).map(({ specifier }) => `${file} imports ${specifier}`));
 
 describe("the layers", () => {
-  it("content/ and views/ hold no code", () => {
+  it("content/, views/ and styles/ hold no code", () => {
     expect(code("content")).toEqual([]);
     expect(code("views")).toEqual([]);
+    expect(code("styles")).toEqual([]);
+    expect(files("styles").filter((name) => !name.endsWith(".css"))).toEqual([]);
     expect(files("views").filter((name) => !/\.(mprx|json)$/.test(name))).toEqual([]);
   });
 
@@ -45,7 +49,7 @@ describe("the layers", () => {
   });
 
   it("app/ depends on model/, effect and the Valance core, and names no target", () => {
-    expect(outside("app", (specifier, layer) => specifier === "effect" || specifier === "@valancex/valance" || layer === "model")).toEqual([]);
+    expect(outside("app", (specifier, layer) => specifier === "effect" || specifier === "@valancex/valance" || specifier === "@valancex/nexus" || layer === "model")).toEqual([]);
 
     for (const file of code("app")) {
       expect(withoutComments(readFileSync(join(root, file), "utf8")), file).not.toMatch(/\b(document|window|HTMLElement|localStorage)\b|node:/);
@@ -54,13 +58,25 @@ describe("the layers", () => {
 
   it("web/ depends on the application and the target libraries, never on tooling/", () => {
     const allowed = (specifier: string, layer: string | undefined): boolean =>
-      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build)?)?|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model";
+      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build|\/plugin)?)?|nexus|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model" || layer === "styles" || specifier.endsWith("/generated/program.json?raw");
 
     expect(outside("web", allowed)).toEqual([]);
   });
 
+  it("app/ and web/ keep no module-level mutable state (the same code serves any number of renders and requests): only const at the top", () => {
+    for (const file of [...code("app"), ...code("web")].filter((name) => !name.endsWith("page.ts") && !name.endsWith("-main.ts"))) {
+      // A top-level `let` or `var` (a line that starts at the margin).
+      expect(withoutComments(readFileSync(join(root, file), "utf8")).split("\n").filter((line) => /^(let|var)\s/.test(line)), file).toEqual([]);
+    }
+  });
+
+  it("snippets/ show what a consumer writes: the published packages and each other, never this project's own layers", () => {
+    expect(code("snippets").length).toBeGreaterThan(0);
+    expect(outside("snippets", (specifier) => /^(effect|@valancex\/.+)$/.test(specifier))).toEqual([]);
+  });
+
   it("nothing reaches into a layer through a deep package path", () => {
-    for (const dir of ["model", "tooling", "app", "web"]) {
+    for (const dir of ["model", "tooling", "app", "web", "snippets"]) {
       for (const file of code(dir)) {
         expect(imports(file).filter(({ specifier }) => /^@valancex\/[^/]+\/(dist|src)\b/.test(specifier)), file).toEqual([]);
       }

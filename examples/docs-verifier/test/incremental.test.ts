@@ -11,6 +11,9 @@ import { pageScope } from "../app/scope.js";
 import { initial } from "../app/state.js";
 import type { AppState } from "../app/state.js";
 import type { Site } from "../model/site.js";
+import { mapOf } from "../model/site.js";
+import { contentOf } from "../app/content.js";
+import { siteDir } from "./sites.js";
 import { readSite } from "../tooling/content.js";
 import { compilePage } from "../web/compile.js";
 import { primitives } from "../web/primitives.js";
@@ -19,24 +22,31 @@ let site: Site;
 let program: Awaited<ReturnType<typeof compilePage>>;
 
 beforeAll(() => {
-  site = readSite(fileURLToPath(new URL("../content", import.meta.url)));
+  site = readSite(siteDir("docs"));
 });
 
-const scopeOf = (state: AppState): Record<string, unknown> => pageScope(site, state) as unknown as Record<string, unknown>;
+const scopeOf = (state: AppState): Record<string, unknown> => pageScope(mapOf(site), state) as unknown as Record<string, unknown>;
 const target = () => {
   const { window } = new JSDOM('<!doctype html><main id="app"></main>');
   const container = window.document.querySelector("#app")!;
 
   return { container, port: createWebPort({ container, primitives, report: () => {} }) };
 };
-const states: ReadonlyArray<AppState> = [
-  initial,
-  { page: "guides-getting-started", copied: "" },
-  { page: "guides-getting-started", copied: "guides-getting-started:2" },
-  { page: "guides-state", copied: "" },
-  { page: "reference-api", copied: "" },
-  { page: "nowhere", copied: "" },
-  initial,
+/** The state on page `id` as a server starts it (the page and its content), with what else the reader has done. */
+const on = (page: string, extra: Partial<AppState> = {}): AppState => ({ ...initial, page, content: contentOf(site, page), ...extra });
+const states = (): ReadonlyArray<AppState> => [
+  on("docs-introduction"),
+  on("docs-guides-getting-started"),
+  on("docs-guides-getting-started", { copied: "docs-guides-getting-started:6" }),
+  on("docs-guides-getting-started", { copied: "docs-guides-getting-started:6", theme: "dark", tabs: { pkg: "pnpm" } }),
+  on("docs-guides-state"),
+  on("docs-guides-plugins", { tabs: { pkg: "yarn" } }),
+  on("docs-guides-state", { menu: true }),
+  on("docs-reference-api", { theme: "light" }),
+  on("docs-guides-state", { status: "loading", page: "docs-guides-views" }),                      // on its way: the page before, marked busy
+  on("docs-guides-views", { status: "failed" }),                                             // could not be had: the page says so and offers to try again
+  on("nowhere"),
+  on("docs-introduction"),
 ];
 
 it("a walk through the site, applied as patches (update), gives the DOM a fresh draw gives, at every step", async () => {
@@ -46,7 +56,7 @@ it("a walk through the site, applied as patches (update), gives the DOM a fresh 
   let current: Render | undefined;
   let applied = 0;
 
-  for (const state of states) {
+  for (const state of states()) {
     if (current === undefined) {
       const first = await render(input(state));
 
@@ -77,12 +87,12 @@ it("the same walk through the changes form (diff → updateChanges) gives the sa
   program ??= await compilePage();
   const input = (state: AppState) => ({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(state) });
   const patched = target();
-  let previous = scopeOf(states[0]!);
-  let current: Render = (await render(input(states[0]!))).render!;
+  let previous = scopeOf(states()[0]!);
+  let current: Render = (await render(input(states()[0]!))).render!;
 
   patched.port.draw(current.tree);
 
-  for (const state of states.slice(1)) {
+  for (const state of states().slice(1)) {
     const snapshot = scopeOf(state);
     const next = await updateChanges(current, { base: current.version, changes: diff(previous, snapshot) }, { verify: snapshot });
 
@@ -104,10 +114,13 @@ it("the same walk through the changes form (diff → updateChanges) gives the sa
 it("an event on the patched DOM still reaches the command through the composite chain", async () => {
   program ??= await compilePage();
   const { dispatch } = await import("@valancex/mesh-runtime");
-  const state: AppState = { page: "guides-getting-started", copied: "" };
-  const first = (await render({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(initial) })).render!;
+  const state: AppState = on("docs-guides-getting-started");
+  const first = (await render({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(on("docs-introduction")) })).render!;
   const next = (await update(first, scopeOf(state))).render!;
-  const button = JSON.stringify(next.tree).match(/"events":\{"click":"([^"]+)"\}/)?.[1];
+  // The copy button's handler: the first click handler in the page is the menu's (the header comes first), so find the button that is the code block's.
+  type Node = { readonly component?: string; readonly props?: Readonly<Record<string, unknown>>; readonly events?: Readonly<Record<string, string>>; readonly children?: ReadonlyArray<Node> };
+  const find = (node: Node): string | undefined => node.component === "button" && node.props?.["class"] === "copy" ? node.events?.["click"] : node.children?.map(find).find((id) => id !== undefined);
+  const button = find((next.tree as unknown as { root: Node }).root);
 
   expect(button).toBeDefined();
 
@@ -115,7 +128,10 @@ it("an event on the patched DOM still reaches the command through the composite 
 
   expect(result.diagnostics).toBeUndefined();
   expect(result.intent!.command).toMatchObject({ name: "copyCode" });
-  expect(result.intent!.arguments).toEqual([{ value: "guides-getting-started:2" }]);
+  const first_ = site.pages.find((page) => page.id === state.page)!.blocks.find((block) => block.kind === "code" || block.kind === "codegroup")!;
+
+  // the first copy button in the page: a lone code block's own id, or the first alternative of a code group
+  expect(result.intent!.arguments).toEqual([{ value: first_.kind === "codegroup" ? first_.tabs[0]!.id : first_.id }]);
   first.release();
   next.release();
 });

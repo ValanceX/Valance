@@ -1,8 +1,0 @@
-{
-  "site": "Valance",
-  "sections": [
-    { "title": "", "pages": ["introduction"] },
-    { "title": "Guides", "pages": ["guides/getting-started", "guides/state"] },
-    { "title": "Reference", "pages": ["reference/api"] }
-  ]
-}

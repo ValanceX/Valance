@@ -1,4 +1,5 @@
 <figure>
-  <pre>{code}</pre>
-  <button on.click={copy(blockId)}>{copyLabel}</button>
+  <mesh-if when={title != ""}><div class="code-title">{title}</div></mesh-if>
+  <pre tabindex="0"><code><tokens tokens={tokens} /></code></pre>
+  <button class="copy" on.click={copy(blockId)}>{copyLabel}</button>
 </figure>

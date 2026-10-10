@@ -1,0 +1,17 @@
+{
+  "name": "Valance",
+  "footer": "The features verifier: a documentation site on the development branches",
+  "collections": [
+    {
+      "name": "docs",
+      "dir": "docs",
+      "path": "/docs",
+      "layout": "doc",
+      "sections": [
+        { "title": "", "pages": ["introduction"] },
+        { "title": "Guides", "pages": ["guides/getting-started", "guides/state", "guides/views", "guides/plugins"] },
+        { "title": "Reference", "pages": ["reference/api", "reference/errors"] }
+      ]
+    }
+  ]
+}

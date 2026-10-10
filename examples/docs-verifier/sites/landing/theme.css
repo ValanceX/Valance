@@ -1,0 +1,5 @@
+/* The landing page's own look: a cooler accent and a roomier measure over the kit's. */
+:root { --radius: 0.75rem; --content-width: 44rem; }
+.shell, .shell[data-theme="light"] { --accent: #0f766e; --accent-fg: #ffffff; --bg-subtle: #f0f9f8; }
+.shell[data-theme="dark"] { --accent: #5eead4; --accent-fg: #042f2e; }
+@media (prefers-color-scheme: dark) { .shell[data-theme="system"] { --accent: #5eead4; --accent-fg: #042f2e; } }

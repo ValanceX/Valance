@@ -1,0 +1,19 @@
+{
+  "name": "Field Notes",
+  "url": "https://notes.example.com",
+  "footer": "Notes from building with Valance. Written in markdown, drawn by the same kit as the documentation.",
+  "header": [
+    { "label": "Posts", "href": "/blog" },
+    { "label": "Tags", "href": "/blog/tags" }
+  ],
+  "collections": [
+    {
+      "name": "posts",
+      "dir": "posts",
+      "path": "/blog",
+      "layout": "post",
+      "list": { "title": "Field Notes", "description": "Notes from building with Valance.", "tags": true },
+      "feed": true
+    }
+  ]
+}

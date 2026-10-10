@@ -2,3 +2,6 @@ node_modules
 dist
 generated
 principles/evidence
+.packs
+.work
+.visual
