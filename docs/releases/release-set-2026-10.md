@@ -38,10 +38,11 @@ Every repository's `release.yml` publishes on a pushed `v*` tag, with provenance
 ## 4. VALANCE 0.7.0
 
 1. `pnpm install` at the repository root to refresh `pnpm-lock.yaml` (VALANCE's dependency on NEXUS `^0.12.0`, its dev and peer ranges, and the two workspace examples). The `minimumReleaseAgeExclude` list in `pnpm-workspace.yaml` already names the new versions; remove them once they are older than the minimum age.
-2. `examples/docs-verifier`: replace the `link:` overrides in its `package.json` with the registry versions (it already names VALANCE 0.7.0 and NEXUS 0.12.0), run `pnpm install` there, then `pnpm test` and `pnpm test:smoke`. Until then, `node scripts/with-local-packs.mjs <packs> --smoke` runs it against packed versions.
-3. The package tests, the tracer (`pnpm --filter @valancex/tracer-web test`, `test:browser`, `test:smoke`) and the docs-site pass; tag `v0.7.0`.
-4. Check: a clean project installs `@valancex/valance@0.7.0` with the registry's NEXUS, MESH and PORT Web and resolves one copy of each (`npm ls @valancex/nexus @valancex/mesh-runtime effect`).
-5. Mark the notes "released".
+2. `examples/docs-site` is a consumer of the *published* `@valancex/valance`, so it stays on the released set (VALANCE 0.6.0, NEXUS 0.11, MESH 0.9, PORT Web 0.3) in the release commit and moves to the new set in a follow-up after 0.7.0 is published (as `a5fbe56` did for 0.6.0). Bumping it earlier makes `pnpm install` look for a VALANCE 0.7.0 that does not exist yet.
+3. `examples/docs-verifier`: replace the `link:` overrides in its `package.json` with the registry versions (it already names VALANCE 0.7.0 and NEXUS 0.12.0), run `pnpm install` there, then `pnpm test` and `pnpm test:smoke`. Until then, `node scripts/with-local-packs.mjs <packs> --smoke` runs it against packed versions.
+4. The package tests, the tracer (`pnpm --filter @valancex/tracer-web test`, `test:browser`, `test:smoke`) and the docs-site pass; tag `v0.7.0`.
+5. Check: a clean project installs `@valancex/valance@0.7.0` with the registry's NEXUS, MESH and PORT Web and resolves one copy of each (`npm ls @valancex/nexus @valancex/mesh-runtime effect`).
+6. Mark the notes "released".
 
 ## Gates that were run on the prepared set
 
