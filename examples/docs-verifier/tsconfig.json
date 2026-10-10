@@ -30,6 +30,8 @@
     "vite.page.config.ts",
     "vitest.config.ts",
     "vitest.smoke.config.ts",
-    "vitest.principles.config.ts"
+    "vitest.principles.config.ts",
+    "budget",
+    "vitest.budget.config.ts"
   ]
 }

@@ -8,14 +8,15 @@ import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import { readGeneratedSite } from "../web/document.js";
-import { serve } from "../web/serve.js";
+import { exportSite } from "../web/export.js";
+import { builtAssets, serveSsr, serveStatic } from "../web/serve.js";
 
-let served: Awaited<ReturnType<typeof serve>>;
+let served: Awaited<ReturnType<typeof serveStatic>>;
 let browser: Browser;
 
 beforeAll(async () => {
   execFileSync("pnpm", ["run", "build"], { cwd: process.cwd(), stdio: "pipe" });
-  served = await serve(readGeneratedSite(), join(process.cwd(), "dist", "page"));
+  served = await serveStatic(join(process.cwd(), "dist", "site"));
   browser = await chromium.launch();
 });
 
@@ -383,3 +384,141 @@ it("a link to a section of another page lands on the section and keeps the addre
   await page.waitForFunction(() => document.activeElement?.tagName === "MAIN");
   expect(failures).toEqual([]);
 });
+
+
+// ---- a page on its way, and a page that cannot come ---------------------------------------------------------------------------------------------------------------------------
+
+it("a page on its way: the address, the title and the navigation move at once, the page before stays marked busy, and then the page replaces it", async () => {
+  const { page, failures } = await ready(browser, "/docs/introduction");
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+
+  await page.route("**/docs/guides/views/index.json", async (route) => { await held; await route.continue(); });
+  await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Views", exact: true }).click();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/views");
+
+  expect(await page.title()).toBe("Views · Valance");
+  expect(await page.locator("main").getAttribute("aria-busy")).toBe("true");
+  expect(await page.locator("main").getAttribute("data-status")).toBe("loading");
+  expect(await page.getByRole("heading", { level: 1 }).innerText()).toBe("Introduction");          // the page before, until the next is there
+  expect(await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Views", exact: true }).getAttribute("aria-current")).toBe("page");
+
+  release();
+  await page.waitForFunction(() => document.querySelector("main")?.getAttribute("aria-busy") === "false");
+  expect(await page.getByRole("heading", { level: 1 }).innerText()).toBe("Views");
+  expect(failures).toEqual([]);
+});
+
+it("a page that cannot come is said, with a way to try again; trying again brings it", async () => {
+  const { page } = await ready(browser, "/docs/introduction");
+  const errors: Array<string> = [];
+  let blocked = true;
+
+  page.on("pageerror", (error) => { errors.push(error.message); });
+  await page.route("**/docs/guides/views/index.json", (route) => blocked ? route.abort() : route.continue());
+  await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Views", exact: true }).click();
+  await page.getByRole("heading", { name: "This page could not be loaded" }).waitFor();
+  expect(await page.locator("main").getAttribute("data-status")).toBe("failed");
+  expect(await page.locator("main").getAttribute("aria-busy")).toBe("false");
+  expect(new URL(page.url()).pathname).toBe("/docs/guides/views");                                  // the address is the page asked for, so reloading it or sharing it works
+
+  blocked = false;
+  await page.getByRole("link", { name: "Try again" }).click();
+  await page.getByRole("heading", { name: "Views", exact: true, level: 1 }).waitFor();
+  expect(await page.locator("main").getAttribute("data-status")).toBe("ready");
+  expect(errors).toEqual([]);
+});
+
+it("going somewhere else while a page is on its way: the one asked for last is the one shown", async () => {
+  const { page } = await ready(browser, "/docs/introduction");
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+
+  await page.route("**/docs/guides/views/index.json", async (route) => { await held; await route.continue(); });
+  await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Views", exact: true }).click();
+  await page.waitForFunction(() => location.pathname === "/docs/guides/views");
+  await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Errors", exact: true }).click();
+  await page.getByRole("heading", { name: "Errors", exact: true, level: 1 }).waitFor();
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  expect(await page.getByRole("heading", { level: 1 }).innerText()).toBe("Errors");                  // the late answer for Views changed nothing
+  expect(new URL(page.url()).pathname).toBe("/docs/reference/errors");
+});
+
+// ---- delivered per request, and served from under a base --------------------------------------------------------------------------------------------------------------------
+
+it("the same site rendered per request (opt-in) hydrates and navigates the same way, fetching its pages from the renderer", async () => {
+  const rendered = await serveSsr(readGeneratedSite(), join(process.cwd(), "dist", "site"));
+
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const failures: Array<string> = [];
+
+    page.on("pageerror", (error) => { failures.push(error.message); });
+    await page.goto(`${rendered.origin}/docs/introduction`);
+    await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+    await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "State", exact: true }).click();
+    await page.getByRole("heading", { name: "State", exact: true, level: 1 }).waitFor();
+    expect(await page.title()).toBe("State · Valance");
+    expect(failures).toEqual([]);
+    await context.close();
+  } finally {
+    await new Promise<void>((resolve) => { rendered.server.close(() => { resolve(); }); });
+  }
+});
+
+it("served from under a base, every address is under it: the document, its assets, its pages' content, its search; and what is outside it is not the site", async () => {
+  const base = "/valance/";
+  const dir = join(process.cwd(), "dist", "site-base");
+
+  execFileSync("pnpm", ["exec", "vite", "build", "-c", "vite.page.config.ts", "--base", base, "--outDir", "dist/site-base"], { cwd: process.cwd(), stdio: "pipe" });
+  execFileSync("node", ["scripts/finish-build.mjs", "dist/site-base"], { cwd: process.cwd(), stdio: "pipe" });
+  await exportSite({ ...readGeneratedSite(), base, url: "https://example.com" }, dir, await builtAssets(dir, base));
+
+  const hosted = await serveStatic(dir, { base });
+
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    const failures: Array<string> = [];
+    const requested: Array<string> = [];
+
+    page.on("pageerror", (error) => { failures.push(error.message); });
+    page.on("console", (message) => { if (message.type() === "error") { failures.push(message.text()); } });
+    page.on("request", (request) => { requested.push(new URL(request.url()).pathname); });
+    await page.goto(`${hosted.origin}${base}docs/guides/state`);
+    await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
+
+    const hrefs = await page.locator("#app a[href]").evaluateAll((links) => links.map((link) => link.getAttribute("href")!).filter((href) => href.startsWith("/")));
+
+    expect(hrefs.length).toBeGreaterThan(10);
+    expect(hrefs.filter((href) => !href.startsWith(base))).toEqual([]);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector(".shell")!).display)).toBe("flex");        // the stylesheet came from under the base
+
+    await page.getByRole("navigation", { name: "Documentation" }).getByRole("link", { name: "Views", exact: true }).click();
+    await page.getByRole("heading", { name: "Views", exact: true, level: 1 }).waitFor();
+    expect(new URL(page.url()).pathname).toBe(`${base}docs/guides/views`);
+    expect(requested).toContain(`${base}docs/guides/views/index.json`);
+
+    await page.getByRole("searchbox").fill("waits");
+    await page.getByRole("status").filter({ hasText: /results?$/ }).waitFor();
+    expect(await page.locator("a.hit").first().getAttribute("href")).toMatch(new RegExp(`^${base}docs/guides/state#`));
+    await page.locator("a.hit").first().click();
+    await page.waitForFunction((expected) => location.pathname === `${expected}docs/guides/state` && location.hash === "#a-command-that-waits", base);
+
+    await page.goBack();
+    await page.waitForFunction((expected) => location.pathname === `${expected}docs/guides/views`, base);
+    expect(requested.filter((path) => !path.startsWith(base))).toEqual([]);                                             // nothing was asked for outside the base
+    expect(failures).toEqual([]);
+
+    const missing = await fetch(`${hosted.origin}${base}docs/nope`);
+
+    expect(missing.status).toBe(404);
+    expect(await missing.text()).toContain("There is no such page.");
+    expect((await fetch(`${hosted.origin}/docs/guides/state`)).status).toBe(404);                                       // the same path, outside the base, is not a page of this site
+    await context.close();
+  } finally {
+    await new Promise<void>((resolve) => { hosted.server.close(() => { resolve(); }); });
+  }
+}, 120_000);

@@ -255,3 +255,7 @@ main:focus { outline: none; }
   .search { order: 5; flex: 1 1 100%; }
   .results { top: 0; position: static; }
 }
+
+/* ---- a page on its way ---- */
+
+main[data-status="loading"] { opacity: 0.55; transition: opacity 120ms ease 150ms; }

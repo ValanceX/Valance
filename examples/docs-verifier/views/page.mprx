@@ -19,7 +19,7 @@
     <para class="toc-title">On this page</para>
     <list class="toc-list"><mesh-each items={toc} as="h" key={h.id}><item><navLink class={h.cls} href={h.href} current={h.current}>{h.label}</navLink></item></mesh-each></list>
   </nav></mesh-if></mesh-fill>
-  <main tabindex="-1">
+  <main tabindex="-1" busy={loading} status={contentStatus}>
     <mesh-each items={blocks} as="b" key={b.id}>
       <block b={b} on.copy={copyCode($event)} on.choose={selectTab($event)} />
     </mesh-each>

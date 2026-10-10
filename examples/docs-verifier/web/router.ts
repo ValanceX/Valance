@@ -4,8 +4,8 @@ import type { Plugin } from "@valancex/valance/web/plugin";
 
 import { routes } from "../app/routes.js";
 import type { AppState } from "../app/state.js";
-import type { Site } from "../model/site.js";
+import type { SiteMap } from "../model/site.js";
 
 import { afterNavigation } from "./navigation.js";
 
-export const router = (site: Site): Plugin<AppState> => ({ name: "docs-router", routes: { ...routes(site), onNavigated: afterNavigation } });
+export const router = (map: SiteMap): Plugin<AppState> => ({ name: "docs-router", routes: { ...routes(map), onNavigated: afterNavigation } });

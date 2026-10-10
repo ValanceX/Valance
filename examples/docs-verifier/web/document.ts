@@ -1,6 +1,7 @@
-// The server half of a page (Node): a request URL becomes a complete HTML document. The application is rendered with the public server path (`renderToHtml`) and the site's plugins,
-// the head the plugins say (title, description, canonical URL, stylesheet) is written with `renderHead`, and the state it rendered from, the site, the compiled MESH program and the
-// build's URLs travel in one JSON block (the browser never compiles MPRX and never reads the content directory). The document loads the page script. It writes no title and no style.
+// The server half of a page (Node): a request URL becomes a complete HTML document, for a static export and for a server alike. The application is rendered with the public server path
+// (`renderToHtml`) and the site's plugins, the head the plugins say (title, description, canonical URL, stylesheet) is written with `renderHead`, and the state it rendered from (the
+// page's content included) and the site's map travel in one JSON block. The compiled MESH program is not in it: it is in the page script, once, for every page. The browser never
+// reads the content directory. The document writes no title and no style.
 import { renderHead } from "@valancex/valance/web/plugin";
 import { renderToHtml } from "@valancex/valance/web/server";
 import { Effect } from "effect";
@@ -8,8 +9,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { application } from "../app/application.js";
+import { contentOf } from "../app/content.js";
 import { routes } from "../app/routes.js";
+import type { AppState } from "../app/state.js";
 import type { Site } from "../model/site.js";
+import { mapOf } from "../model/site.js";
 
 import type { Built } from "./built.js";
 import { compilePage } from "./compile.js";
@@ -23,12 +27,20 @@ const program = compilePage();
 
 program.catch(() => undefined);
 
+/** The state a request URL starts from: the application's own (`stateFor`), with the content of the page it names. */
+export const stateOf = (site: Site, url: string): AppState => {
+  const state = routes(mapOf(site)).stateFor(url);
+
+  return { ...state, content: contentOf(site, state.page) };
+};
+
 /** `built` is what `vite build` wrote (./serve.ts reads it). The head is the plugins' for the state rendered. */
 export const renderDocument = async (site: Site, url: string, built: Built): Promise<string> => {
   const compiled = await program;
-  const state = routes(site).stateFor(url);
-  const served = await Effect.runPromise(renderToHtml(application(compiled, site), { plugins: plugins(site, built), state }));
-  const boot = JSON.stringify({ program: compiled, site, state, built }).replaceAll("<", "\\u003c");
+  const map = mapOf(site);
+  const state = stateOf(site, url);
+  const served = await Effect.runPromise(renderToHtml(application(compiled, map), { plugins: plugins(map, built), state }));
+  const boot = JSON.stringify({ map, state, built }).replaceAll("<", "\\u003c");
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${renderHead(served.head)}</head><body><div id="app">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`;
 };

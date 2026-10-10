@@ -3,6 +3,7 @@
 import { Schema } from "effect";
 
 import { Hit } from "../model/search.js";
+import { Page } from "../model/site.js";
 
 export const Theme = Schema.Literal("system", "light", "dark");
 export type Theme = typeof Theme.Type;
@@ -11,8 +12,15 @@ export type Theme = typeof Theme.Type;
 export const SearchStatus = Schema.Literal("idle", "loading", "ready", "failed");
 export type SearchStatus = typeof SearchStatus.Type;
 
+/** `ready`: `content` is the page. `loading`: `page` has changed and `content` is still the one before, until the page arrives. `failed`: it could not be had. */
+export const ContentStatus = Schema.Literal("ready", "loading", "failed");
+export type ContentStatus = typeof ContentStatus.Type;
+
 export const AppState = Schema.Struct({
   page: Schema.String,
+  /** The content of the page shown, or of the one being left while the next is loading. A server puts it there; the browser asks the platform. */
+  content: Page,
+  status: ContentStatus,
   /** The id of the code block last copied; empty before any, and after moving on. */
   copied: Schema.String,
   /** The id of the code block whose copy failed (no clipboard, or the browser refused); empty otherwise. */
@@ -29,4 +37,6 @@ export const AppState = Schema.Struct({
 });
 export type AppState = typeof AppState.Type;
 
-export const initial: AppState = { page: "introduction", copied: "", copyFailed: "", theme: "system", tabs: {}, search: { query: "", status: "idle", hits: [] }, active: "", menu: false };
+const nothing: Page = { id: "", path: "", title: "", description: "", section: "", outline: [], blocks: [] };
+
+export const initial: AppState = { page: "introduction", content: nothing, status: "ready", copied: "", copyFailed: "", theme: "system", tabs: {}, search: { query: "", status: "idle", hits: [] }, active: "", menu: false };

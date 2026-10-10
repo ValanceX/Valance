@@ -67,8 +67,34 @@ export const Page = Schema.Struct({
 });
 export type Page = typeof Page.Type;
 
+/** A page without its content: what the navigation, the routes, the head and a sitemap need. */
+export const PageInfo = Schema.Struct({ id: Schema.String, path: Schema.String, title: Schema.String, description: Schema.String, section: Schema.String });
+export type PageInfo = typeof PageInfo.Type;
+
+/**
+ * The site's place on the web, shared by the build and the browser: its name, where it is served from (`base`, such as `/` or `/docs-site/`), the origin it is published at
+ * (`url`, empty when it is not published), and every page without its content. This is what travels in each document; a page's content is its own file.
+ */
+export const SiteMap = Schema.Struct({
+  name: Schema.String,
+  base: Schema.String,
+  url: Schema.String,
+  pages: Schema.Array(PageInfo),
+});
+export type SiteMap = typeof SiteMap.Type;
+
+/** The whole site: the map, and the content of every page. Only the build holds this. */
 export const Site = Schema.Struct({
   name: Schema.String,
+  base: Schema.String,
+  url: Schema.String,
   pages: Schema.Array(Page),
 });
 export type Site = typeof Site.Type;
+
+export const mapOf = (site: Site): SiteMap => ({
+  name: site.name,
+  base: site.base,
+  url: site.url,
+  pages: site.pages.map(({ id, path, title, description, section }) => ({ id, path, title, description, section })),
+});

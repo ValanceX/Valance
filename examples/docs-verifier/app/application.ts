@@ -5,24 +5,23 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { Effect, Option, Schema } from "effect";
 
-import type { Site } from "../model/site.js";
+import type { Page, SiteMap } from "../model/site.js";
 
-import { Clipboard, Index, Storage } from "./capabilities.js";
+import { Clipboard, Index, Pages, Storage } from "./capabilities.js";
+import { missing } from "./content.js";
 import { search } from "./search.js";
 import { pageScope } from "./scope.js";
 import { AppState, initial, Theme } from "./state.js";
 
-/** The text a copy button copies: a code block's, or the alternative of a code group that the button belongs to. */
-export const copyTextOf = (site: Site, id: string): string | undefined => {
-  for (const page of site.pages) {
-    for (const block of page.blocks) {
-      if (block.kind === "code" && block.id === id) { return block.text; }
+/** The text a copy button copies: a code block's, or the alternative of a code group that the button belongs to, on the page shown. */
+export const copyTextOf = (page: Page, id: string): string | undefined => {
+  for (const block of page.blocks) {
+    if (block.kind === "code" && block.id === id) { return block.text; }
 
-      if (block.kind === "codegroup") {
-        const tab = block.tabs.find((candidate) => candidate.id === id);
+    if (block.kind === "codegroup") {
+      const tab = block.tabs.find((candidate) => candidate.id === id);
 
-        if (tab !== undefined) { return tab.text; }
-      }
+      if (tab !== undefined) { return tab.text; }
     }
   }
 
@@ -37,19 +36,34 @@ const remember = (key: string, value: string) => Nexus.Capability.resolve(Storag
   Effect.catchAllDefect(() => Effect.void),
 );
 
-/** The commands, a function of the state handle and the site, so the build can read their names and inputs without one (../web/compile.ts reads them with an empty site). */
-export const commands = (state: Valance.StateHandle<AppState>, site: Site) => {
+/** The commands, a function of the state handle and the site's map, so the build can read their names and inputs without one (../web/compile.ts reads them with an empty map). */
+export const commands = (state: Valance.StateHandle<AppState>, map: SiteMap) => {
   const command = Valance.command(state);
 
   return {
-    /** Go to a page. Moving on clears the copied mark, the heading the reader was at, the search and the menu. */
-    go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id, copied: "", copyFailed: "", active: "", search: initial.search, menu: false })),
+    /**
+     * Go to a page. The page, the URL and the title change at once; the content is the platform's to bring, so the state says `loading` (the page before stays on screen, marked busy)
+     * until it arrives, and `failed` if it cannot (the page offers to try again, which is this command again). Moving on clears the copied mark, the heading the reader was at, the
+     * search and the menu. A newer `go` supersedes an older one, and an answer for a page the reader has since left changes nothing.
+     */
+    go: command.waiting(Schema.Struct({ id: Schema.String }), {
+      begin: ({ id }, current) => ({ ...current, page: id, status: current.content.id === id ? "ready" : "loading", copied: "", copyFailed: "", active: "", search: initial.search, menu: false }),
+      work: ({ id }) => {
+        const found = map.pages.find((page) => page.id === id);
+
+        return found === undefined
+          ? Effect.succeed(missing)
+          : Nexus.Capability.require(Pages).pipe(Effect.flatMap((pages) => Effect.tryPromise(() => pages.load(found.path))));
+      },
+      wanted: ({ id }, current) => current.page === id,
+      settle: (outcome, _input, current) => outcome.ok ? { ...current, content: outcome.value, status: "ready" } : { ...current, status: "failed" },
+    }),
     /**
      * A code block's copy button was pressed: put its text on the clipboard, and say what happened. The page says "Copied" only when the clipboard took it, and "Failed" when it did
      * not (no clipboard on this platform, or the browser refused), so the label is never a claim the application did not check.
      */
     copyCode: Nexus.Command.define("docs.copyCode", Schema.Struct({ blockId: Schema.String }), ({ blockId }) => Effect.gen(function* () {
-      const text = copyTextOf(site, blockId);
+      const text = copyTextOf((yield* state.get).content, blockId);
       const copied = text === undefined
         ? false
         : yield* Nexus.Capability.require(Clipboard).pipe(
@@ -107,10 +121,10 @@ export const commands = (state: Valance.StateHandle<AppState>, site: Site) => {
   };
 };
 
-export const application = (program: Valance.Program, site: Site) => Valance.define({
+export const application = (program: Valance.Program, map: SiteMap) => Valance.define({
   name: "docs",
   state: { schema: AppState, initial },
-  views: { page: { program, scope: (state: AppState) => pageScope(site, state) } },
+  views: { page: { program, scope: (state: AppState) => pageScope(map, state) } },
   view: () => "page" as const,
-  commands: (state: Valance.StateHandle<AppState>) => commands(state, site),
+  commands: (state: Valance.StateHandle<AppState>) => commands(state, map),
 });

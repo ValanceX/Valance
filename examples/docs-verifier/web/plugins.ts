@@ -2,11 +2,11 @@
 import type { Plugin } from "@valancex/valance/web/plugin";
 
 import type { AppState } from "../app/state.js";
-import type { Site } from "../model/site.js";
+import type { SiteMap } from "../model/site.js";
 
 import type { Built } from "./built.js";
 import { kit } from "./kit.js";
 import { router } from "./router.js";
 import { seo } from "./seo.js";
 
-export const plugins = (site: Site, built: Pick<Built, "style"> = {}): ReadonlyArray<Plugin<AppState>> => [kit(built), router(site), seo(site)];
+export const plugins = (map: SiteMap, built: Pick<Built, "style"> = {}): ReadonlyArray<Plugin<AppState>> => [kit(built), router(map), seo(map)];

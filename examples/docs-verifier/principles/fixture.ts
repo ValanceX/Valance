@@ -7,11 +7,12 @@ import { Effect, Schema } from "effect";
 import { fileURLToPath } from "node:url";
 
 import { application } from "../app/application.js";
+import { mapOf } from "../model/site.js";
 import { readSite } from "../tooling/content.js";
 import { compilePage } from "../web/compile.js";
 
 export const site = () => readSite(fileURLToPath(new URL("../content", import.meta.url)));
-export const docs = async () => application(await compilePage(), site());
+export const docs = async () => application(await compilePage(), mapOf(site()));
 
 const model = JSON.stringify({
   version: 1,

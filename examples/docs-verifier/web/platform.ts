@@ -4,8 +4,9 @@ import * as Nexus from "@valancex/nexus";
 import type { Plugin } from "@valancex/valance/web/plugin";
 import { Schema } from "effect";
 
-import { Clipboard, Index, Storage } from "../app/capabilities.js";
+import { Clipboard, Index, Pages, Storage } from "../app/capabilities.js";
 import { SearchIndex } from "../model/search.js";
+import { Page } from "../model/site.js";
 import type { AppState } from "../app/state.js";
 
 import type { Built } from "./built.js";
@@ -31,7 +32,7 @@ const storeOf = (win: Window): { readonly get: (key: string) => string | undefin
   }
 };
 
-export const browserPlatform = (win: Window, built: Pick<Built, "search">): Plugin<AppState> => {
+export const browserPlatform = (win: Window, built: Pick<Built, "base" | "search">): Plugin<AppState> => {
   const resolutions: Resolutions = new Map();
   const clipboard = win.navigator.clipboard;
   const store = storeOf(win);
@@ -56,6 +57,30 @@ export const browserPlatform = (win: Window, built: Pick<Built, "search">): Plug
       }).then((json: unknown) => Schema.decodeUnknownSync(SearchIndex)(json)).catch((error: unknown) => { loaded = undefined; throw error; }),
     });
   }
+
+  // A page is a file beside its document: `<base><path>/index.json`. Fetched when the reader goes there, checked on arrival, and kept (a page already seen is not fetched again).
+  const base = built.base ?? "/";
+  const seen = new Map<string, Promise<Page>>();
+
+  available(resolutions, Pages, {
+    load: (path: string) => {
+      const known = seen.get(path);
+
+      if (known !== undefined) { return known; }
+
+      const url = `${base}${path.replace(/^\//, "")}/index.json`;
+      const loading = win.fetch(url).then((response) => {
+        if (!response.ok) { throw new Error(`${url} answered ${response.status}`); }
+
+        return response.json();
+      }).then((json: unknown) => Schema.decodeUnknownSync(Page)(json));
+
+      seen.set(path, loading);
+      loading.catch(() => { seen.delete(path); });
+
+      return loading;
+    },
+  });
 
   return { name: "docs-browser", platform: Nexus.Capability.EnvironmentLive(resolutions) };
 };

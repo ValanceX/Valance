@@ -44,10 +44,12 @@ Needs sibling checkouts `../../../Nexus` and `../../../Port` (relative to this d
 Inside `./.work` (or any install against the packs):
 
 ```
-pnpm build         # content, server, page bundle (script and stylesheet), views
+pnpm build         # content, views (program), page bundle (script and stylesheet), the static site in dist/site
 pnpm test          # unit + incremental (update/patch, diff/updateChanges) tests
 pnpm test:smoke    # Chromium: hydrate, navigate, Back, theme, small screen, composite event -> command
-pnpm start         # serve the built site
+pnpm start         # serve dist/site as a static host does
+pnpm start:ssr     # the same site rendered per request (opt-in)
+pnpm test:budget   # a generated 500-page site: document, content file and export costs
 ```
 
 ## What it verifies
@@ -56,6 +58,7 @@ pnpm start         # serve the built site
 - A named slot (`layout`'s `nav`, filled by `page`) beside the default slot, and `mesh-switch` choosing a block's kind.
 - SSR + hydration + history navigation (`Web.run`, `renderToHtml`).
 - Valance 0.8's seams: the tags, the URL policy and the document head are three plugins; the document writes no title and no style of its own, and the browser keeps the same head in step (`docs/V1_CONTRACT.md` §19).
+- Static delivery: each page's content is its own file, fetched when the reader goes there; a document is its page and the site's map; the site is exported (documents, content files, 404, sitemap, robots) under a base, and the same bytes are rendered per request when that is wanted.
 - The content model: a closed union of block kinds; markdown with anchors, tables, lists, callouts, code with titles and groups, build-time highlighting, and examples that are compiled; a build that fails, with file and line, on a broken link or an example that is not there.
 - Capabilities: the clipboard, a store and the search index are asked for by name (`app/capabilities.ts`) and supplied by the platform (`web/platform.ts`); a command handles their absence in state. Search, remembered choices, an outline that follows the reader.
 - Style loading: one hashed stylesheet built from `styles/`, linked in the head before the page is drawn, with light, dark and system themes, a small-screen menu and `aria-*` state, checked in real Chromium.

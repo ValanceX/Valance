@@ -74,7 +74,11 @@ Plan as written:
 - Scroll to `#fragment` and focus after navigation, as a router plugin on `onNavigated` (see `EXTERNALS.md`, known limits).
 - **Exit:** Node tests with fake platforms, Chromium tests with real ones.
 
-### E. SSG delivery (primary)
+### E. SSG delivery (primary): **done**
+
+Delivered: a page's content is its own file (`<path>/index.json`) fetched through the `Pages` capability when the reader goes there, by a waiting `go` command (the address and title move at once, the page before stays marked busy, a failure says so with a way to try again, the last asked for wins); a document carries its page and the site's map and not the compiled views (now in the page script); `web/export.ts` (the generator stand-in, X3) writes documents, content files, the first page's aliases, `404.html`, `sitemap.xml` and `robots.txt`; a `base` (and published `url`) in `content/nav.json` puts every address under it, with a variant built and served under `/valance/` in the smoke tests; per-route `delivery` honoured by the exporter; `serveStatic` is the primary server (what a host does) and `serveSsr` the opt-in one, and every address gives the same bytes either way (`test/export.test.ts`); a budget test on a generated 500-page site (`pnpm test:budget`: document 120 KB / 11 KB gzipped, content file 3 KB, 56 s to export). 149 unit tests, 22 Chromium tests, 9 budget tests. Friction F24–F27.
+
+Plan as written:
 
 - X3 stand-in `tooling/export.ts`: `staticPaths(routes)` → `renderToHtml` per path → HTML with `renderHead`; per-page JSON payload instead of the whole site embedded in every document; sitemap, `robots.txt`, `404.html`, base path, hashed assets, canonical and meta through `head`.
 - Client navigation fetches the page payload through the fetch capability and `command.waiting`.

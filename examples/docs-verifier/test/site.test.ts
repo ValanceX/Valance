@@ -10,23 +10,25 @@ import { beforeAll, expect, it } from "vitest";
 import { application } from "../app/application.js";
 import { routes } from "../app/routes.js";
 import type { AppState } from "../app/state.js";
+import { contentOf } from "../app/content.js";
 import { initial } from "../app/state.js";
 import { compilePage } from "../web/compile.js";
 import type { Built } from "../web/built.js";
 import { readGeneratedSite, renderDocument } from "../web/document.js";
 import { plugins } from "../web/plugins.js";
-import { fakePlatform } from "./support.js";
+import { fakePlatform, type Fakes } from "./support.js";
 import { readSite } from "../tooling/content.js";
 import { fileURLToPath } from "node:url";
-import type { Site } from "../model/site.js";
-import { TokenKind } from "../model/site.js";
+import type { Site, SiteMap } from "../model/site.js";
+import { mapOf, TokenKind } from "../model/site.js";
 
 let site: Site;
+let map: SiteMap;
 
-const built: Built = { script: "/assets/page.js", style: "/assets/page.css" };
+const built: Built = { base: "/", script: "/assets/page.js", style: "/assets/page.css" };
 const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
-beforeAll(() => { site = readSite(here("../content")); });
+beforeAll(() => { site = readSite(here("../content")); map = mapOf(site); });
 
 it("a page is rendered on the server through the layout's slots: navigation, headings, a callout and a code block", async () => {
   const html = await renderDocument(site, "/docs/guides/getting-started", built);
@@ -61,7 +63,7 @@ it("the first page is also served at `/`, and says its own URL is the canonical 
 });
 
 it("without a stylesheet the site is still a page: no link, no failure", async () => {
-  const html = await renderDocument(site, "/docs/guides/state", { script: "/assets/page.js" });
+  const html = await renderDocument(site, "/docs/guides/state", { base: "/", script: "/assets/page.js" });
 
   expect(html).not.toContain('rel="stylesheet"');
   expect(html).toContain("<title>State · Valance</title>");
@@ -73,11 +75,11 @@ it("an unknown page is the application's own Not found, not an error, and it nam
   expect(html).toContain("<title>Valance</title>");
   expect(html).toContain("There is no such page.");
   expect(html).not.toContain('rel="canonical"');
-  expect(routes(site).known("/docs/nowhere")).toBe(false);
+  expect(routes(map).known("/docs/nowhere")).toBe(false);
 });
 
 it("the URL and the title are the application's functions of its state", () => {
-  const { urlOf, stateOf, titleOf, stateFor } = routes(site);
+  const { urlOf, stateOf, titleOf, stateFor } = routes(map);
 
   expect(urlOf({ ...initial, page: "guides-state" })).toBe("/docs/guides/state");
   expect(stateOf(new URL("http://x/docs/reference/api"))).toEqual({ id: "reference-api" });
@@ -86,7 +88,7 @@ it("the URL and the title are the application's functions of its state", () => {
 });
 
 it("the route table says what a build and a server need: the navigate command, every page's path, and what is known", () => {
-  const table = routes(site);
+  const table = routes(map);
 
   expect(table.navigate).toBe("go");
   expect(table.paths()).toEqual(["/docs/introduction", "/docs/guides/getting-started", "/docs/guides/state", "/docs/guides/views", "/docs/guides/plugins", "/docs/reference/api", "/docs/reference/errors"]);
@@ -96,7 +98,7 @@ it("the route table says what a build and a server need: the navigate command, e
 
 it("the site's plugins are the kit, the router and the head, each a value with its own name, composing without conflict", async () => {
   const { compose } = await import("@valancex/valance/web/plugin");
-  const list = plugins(site, built);
+  const list = plugins(map, built);
   const composed = compose<AppState>({}, list);
 
   expect(list.map((plugin) => plugin.name)).toEqual(["docs-kit", "docs-router", "docs-seo"]);
@@ -105,10 +107,16 @@ it("the site's plugins are the kit, the router and the head, each a value with i
   expect(composed.head?.({ ...initial, page: "guides-state" }).links).toEqual([{ rel: "stylesheet", href: "/assets/page.css" }, { rel: "canonical", href: "/docs/guides/state" }]);
 });
 
-const withApplication = async <A>(body: (handle: Valance.ApplicationHandle<AppState, never>, state: () => AppState) => Promise<A>, platform?: Nexus.Application.Platform): Promise<A> => {
+/** The state on page `id`, as a server would start it: the page and its content. */
+const stateOn = (id: string): AppState => ({ ...initial, page: id, content: contentOf(site, id) });
+
+/** A platform whose pages are this site's, as the browser's are fetched. */
+const platformOfSite = (fakes: Fakes = {}) => fakePlatform({ clipboard: async () => undefined, storage: {}, pages: async (path) => site.pages.find((page) => page.path === path)!, ...fakes });
+
+const withApplication = async <A>(body: (handle: Valance.ApplicationHandle<AppState, never>, state: () => AppState) => Promise<A>, platform: Nexus.Application.Platform = platformOfSite().platform): Promise<A> => {
   const program = await compilePage();
   const scope = Effect.runSync(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application(program, site), platform === undefined ? {} : { platform }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
+  const handle = await Effect.runPromise(Valance.start(application(program, map), { platform, state: stateOn("introduction") }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
 
   try {
     return await body(handle, () => Effect.runSync(handle.state as never) as AppState);
@@ -129,7 +137,7 @@ it("the copy button's composite event travels code-block → block → page to t
     expect(state().copied).toBe(code.id);
     await invoke(handle, "app/go", "guides-state");
     expect(state().copied).toBe("");                                                    // moving on clears it
-  }, fakePlatform().platform);
+  });
 });
 
 it("the menu opens and closes by its command, and moving to a page closes it", async () => {
@@ -162,7 +170,7 @@ it("the page shows Copied for the copied block", async () => {
   const { renderToHtml } = await import("@valancex/valance/web/server");
   const program = await compilePage();
   const code = site.pages.find((page) => page.id === "guides-getting-started")!.blocks.find((block) => block.kind === "code")!;
-  const { html } = await Effect.runPromise(renderToHtml(application(program, site), { plugins: plugins(site), state: { ...initial, page: "guides-getting-started", copied: code.id } }));
+  const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("guides-getting-started"), copied: code.id } }));
   const labels = [...html.matchAll(/<button[^>]*class="copy"[^>]*>([^<]*)<\/button>/g)].map((match) => match[1]);
 
   expect(labels.filter((label) => label === "Copied")).toHaveLength(1);                  // only the block that was copied says so
@@ -185,7 +193,7 @@ it("the navigation is grouped as the content groups it, and marks the current pa
 it("the theme and the menu are attributes of the shell, for the stylesheet to read, and the theme buttons say which is pressed", async () => {
   const { renderToHtml } = await import("@valancex/valance/web/server");
   const program = await compilePage();
-  const { html } = await Effect.runPromise(renderToHtml(application(program, site), { plugins: plugins(site), state: { ...initial, theme: "dark", menu: true } }));
+  const { html } = await Effect.runPromise(renderToHtml(application(program, map), { plugins: plugins(map), state: { ...stateOn("introduction"), theme: "dark", menu: true } }));
 
   expect(html).toMatch(/<div[^>]*class="shell"[^>]*data-theme="dark"[^>]*data-menu="true"|<div[^>]*data-menu="true"[^>]*data-theme="dark"[^>]*class="shell"|<div(?=[^>]*class="shell")(?=[^>]*data-theme="dark")(?=[^>]*data-menu="true")[^>]*>/);
   expect(html).toMatch(/aria-label="Use the dark theme"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*aria-label="Use the dark theme"/);

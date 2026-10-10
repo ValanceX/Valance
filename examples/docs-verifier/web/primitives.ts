@@ -14,7 +14,7 @@ export const primitives: Web.WebPrimitives = {
   shell: { element: "div", props: { class: klass, theme: Web.attribute("data-theme"), menu: Web.attribute("data-menu") } },
   header: { element: "header", props: { class: klass } },
   nav: { element: "nav", props: { class: klass, label } },
-  main: { element: "main", props: { tabindex: Web.attribute("tabindex") } },
+  main: { element: "main", props: { tabindex: Web.attribute("tabindex"), busy: Web.attribute("aria-busy"), status: Web.attribute("data-status") } },
   footer: { element: "footer" },
   div: { element: "div", props: { class: klass } },
   section: { element: "section" },

@@ -4,10 +4,10 @@ import type { Plugin } from "@valancex/valance/web/plugin";
 
 import { routes } from "../app/routes.js";
 import type { AppState } from "../app/state.js";
-import type { Site } from "../model/site.js";
+import type { SiteMap } from "../model/site.js";
 
-export const seo = (site: Site): Plugin<AppState> => {
-  const { titleOf, descriptionOf, canonicalOf } = routes(site);
+export const seo = (map: SiteMap): Plugin<AppState> => {
+  const { titleOf, descriptionOf, canonicalOf } = routes(map);
 
   return {
     name: "docs-seo",
@@ -16,7 +16,13 @@ export const seo = (site: Site): Plugin<AppState> => {
 
       return {
         title: titleOf(state),
-        meta: [{ name: "description", content: descriptionOf(state) }, { property: "og:title", content: titleOf(state) }, { property: "og:type", content: "article" }],
+        meta: [
+          { name: "description", content: descriptionOf(state) },
+          { property: "og:title", content: titleOf(state) },
+          { property: "og:type", content: "article" },
+          // A page that is not there is not for a search engine to keep.
+          ...(canonical === undefined ? [{ name: "robots", content: "noindex" }] : []),
+        ],
         links: canonical === undefined ? [] : [{ rel: "canonical", href: canonical }],
       };
     },

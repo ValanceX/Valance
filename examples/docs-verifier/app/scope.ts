@@ -4,9 +4,9 @@
 // kinds that have no use for it. `BlockView` is the one declaration of that shape, and `view` the one function that fills it.
 import { Schema } from "effect";
 
-import type { Block, Page, Site, Span, Token } from "../model/site.js";
+import type { Block, Page, SiteMap, Span, Token } from "../model/site.js";
 
-import { NOT_FOUND } from "./routes.js";
+import { hrefOf } from "./routes.js";
 import type { AppState } from "./state.js";
 
 const Link = Schema.Struct({ href: Schema.String, label: Schema.String });
@@ -75,6 +75,9 @@ export const PageScope = Schema.Struct({
   searching: Schema.Boolean,
   status: Schema.String,
   hits: Schema.Array(HitView),
+  /** `true` while the next page is being brought, as the text of `aria-busy`; and what the content is: `ready`, `loading` or `failed`, as the text of `data-status`. */
+  loading: Schema.Literal("true", "false"),
+  contentStatus: Schema.String,
   /** Whether the page has headings for "On this page". */
   hasToc: Schema.Boolean,
   /** The headings of the page, for "On this page". */
@@ -85,23 +88,12 @@ export const PageScope = Schema.Struct({
 });
 export type PageScope = typeof PageScope.Type;
 
-const text = (id: string, content: string): Span => ({ id, kind: "text", text: content });
-const missing: Page = {
-  id: NOT_FOUND,
-  path: "",
-  title: "Not found",
-  description: "",
-  section: "",
-  outline: [],
-  blocks: [
-    { id: "not-found:0", kind: "heading", level: 1, anchor: "not-found", spans: [text("not-found:0.0", "Not found")] },
-    { id: "not-found:1", kind: "paragraph", spans: [text("not-found:1.0", "There is no such page.")] },
-  ],
-};
-
 const none = { href: "", label: "" };
 
-const spanView = (span: Span) => ({ id: span.id, kind: span.kind, text: span.text, href: span.kind === "link" ? span.href : "" });
+/** An address inside the site (`/docs/...`) is under the base; an address elsewhere, and a fragment, are as written. */
+const insideSite = (base: string, href: string): string => href.startsWith("/") && !href.startsWith("//") ? `${base}${href.slice(1)}` : href;
+
+const spanView = (base: string) => (span: Span) => ({ id: span.id, kind: span.kind, text: span.text, href: span.kind === "link" ? insideSite(base, span.href) : "" });
 const tokenView = (token: Token) => ({ id: token.id, kind: token.kind, cls: token.kind === "plain" ? "" : `tok-${token.kind}`, text: token.text });
 
 const empty: BlockView = {
@@ -110,20 +102,21 @@ const empty: BlockView = {
 };
 
 /** One block, as the record the templates read. The copy label belongs to the state: a block is "Copied" when it is the one last copied. */
-const view = (block: Block, state: AppState): BlockView => {
+const view = (block: Block, state: AppState, base: string): BlockView => {
+  const spanView_ = spanView(base);
   const copy = (id: string): string => state.copied === id ? "Copied" : state.copyFailed === id ? "Failed" : "Copy";
 
   switch (block.kind) {
-    case "heading": return { ...empty, id: block.id, kind: block.kind, level: block.level, anchor: block.anchor, hash: `#${block.anchor}`, spans: block.spans.map(spanView) };
-    case "paragraph": return { ...empty, id: block.id, kind: block.kind, spans: block.spans.map(spanView) };
-    case "callout": return { ...empty, id: block.id, kind: block.kind, tone: block.tone, title: block.title, spans: block.spans.map(spanView) };
-    case "image": return { ...empty, id: block.id, kind: block.kind, src: block.src, alt: block.alt };
+    case "heading": return { ...empty, id: block.id, kind: block.kind, level: block.level, anchor: block.anchor, hash: `#${block.anchor}`, spans: block.spans.map(spanView_) };
+    case "paragraph": return { ...empty, id: block.id, kind: block.kind, spans: block.spans.map(spanView_) };
+    case "callout": return { ...empty, id: block.id, kind: block.kind, tone: block.tone, title: block.title, spans: block.spans.map(spanView_) };
+    case "image": return { ...empty, id: block.id, kind: block.kind, src: insideSite(base, block.src), alt: block.alt };
     case "code": return { ...empty, id: block.id, kind: block.kind, lang: block.lang, title: block.title, copyLabel: copy(block.id), tokens: block.tokens.map(tokenView) };
-    case "list": return { ...empty, id: block.id, kind: block.kind, ordered: block.ordered, items: block.items.map((item) => ({ id: item.id, spans: item.spans.map(spanView), nested: item.children.length > 0, children: item.children.map((child) => ({ id: child.id, spans: child.spans.map(spanView) })) })) };
+    case "list": return { ...empty, id: block.id, kind: block.kind, ordered: block.ordered, items: block.items.map((item) => ({ id: item.id, spans: item.spans.map(spanView_), nested: item.children.length > 0, children: item.children.map((child) => ({ id: child.id, spans: child.spans.map(spanView_) })) })) };
     case "table": return {
       ...empty, id: block.id, kind: block.kind,
-      head: block.head.map((cell) => ({ id: cell.id, align: cell.align, spans: cell.spans.map(spanView) })),
-      rows: block.rows.map((row) => ({ id: row.id, cells: row.cells.map((cell) => ({ id: cell.id, align: cell.align, spans: cell.spans.map(spanView) })) })),
+      head: block.head.map((cell) => ({ id: cell.id, align: cell.align, spans: cell.spans.map(spanView_) })),
+      rows: block.rows.map((row) => ({ id: row.id, cells: row.cells.map((cell) => ({ id: cell.id, align: cell.align, spans: cell.spans.map(spanView_) })) })),
     };
     case "codegroup": {
       const chosen = block.tabs.find((tab) => tab.label === state.tabs[block.group]) ?? block.tabs[0];
@@ -145,33 +138,45 @@ const statusOf = ({ query, status, hits }: AppState["search"]): string => {
   }
 };
 
-export const pageScope = (site: Site, state: AppState): PageScope => {
-  const at = site.pages.findIndex((page) => page.id === state.page);
-  const page = site.pages[at] ?? missing;
-  const link = (target: Page | undefined, arrow: (title: string) => string) => target === undefined ? none : { href: target.path, label: arrow(target.title) };
+/** What the page says while its content could not be had: what happened, and the way to try again (the same address, which is the same `go`). */
+const failure = (page: string, href: string): ReadonlyArray<Block> => [
+  { id: "failed:0", kind: "heading", level: 1, anchor: "failed", spans: [{ id: "failed:0.0", kind: "text", text: "This page could not be loaded" }] },
+  { id: "failed:1", kind: "paragraph", spans: [{ id: "failed:1.0", kind: "text", text: "The connection may have dropped. " }, { id: "failed:1.1", kind: "link", text: "Try again", href }] },
+].map((block) => ({ ...block, id: `${block.id}:${page}` })) as ReadonlyArray<Block>;
+
+export const pageScope = (map: SiteMap, state: AppState): PageScope => {
+  const at = map.pages.findIndex((page) => page.id === state.page);
+  const here = map.pages[at];
+  const page: Page = state.content;
+  const link = (target: { readonly path: string; readonly title: string } | undefined, arrow: (title: string) => string) => target === undefined ? none : { href: hrefOf(map, target.path), label: arrow(target.title) };
   const sections: Array<{ id: string; title: string; items: Array<{ id: string; href: string; label: string; current: string }> }> = [];
 
-  for (const entry of site.pages) {
+  for (const entry of map.pages) {
     const id = entry.section === "" ? "top" : entry.section.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const section = sections.find((candidate) => candidate.id === id) ?? sections[sections.push({ id, title: entry.section, items: [] }) - 1]!;
 
-    section.items.push({ id: entry.id, href: entry.path, label: entry.title, current: entry.id === state.page ? "page" : "false" });
+    section.items.push({ id: entry.id, href: hrefOf(map, entry.path), label: entry.title, current: entry.id === state.page ? "page" : "false" });
   }
 
+  const blocks = state.status === "failed" ? failure(state.page, here === undefined ? map.base : hrefOf(map, here.path)) : page.blocks;
+  const outline = state.status === "failed" ? [] : page.outline;
+
   return {
-    site: site.name,
-    home: site.pages[0]?.path ?? "/",
+    site: map.name,
+    home: hrefOf(map, map.pages[0]?.path ?? "/"),
     theme: state.theme,
     menu: state.menu ? "true" : "false",
     sections,
     query: state.search.query,
     searching: state.search.status !== "idle",
     status: statusOf(state.search),
-    hits: state.search.hits.map((hit) => ({ id: hit.id, href: hit.href, title: hit.title, where: [hit.section, hit.heading].filter((part) => part !== "").join(" › "), excerpt: hit.excerpt })),
-    hasToc: page.outline.length > 0,
-    toc: page.outline.map((entry) => ({ id: entry.id, href: `#${entry.anchor}`, label: entry.label, cls: `toc-link toc-level-${entry.level}`, current: entry.anchor === state.active ? "location" : "false" })),
-    blocks: page.blocks.map((block) => view(block, state)),
-    prev: at > 0 ? link(site.pages[at - 1], (title) => `← ${title}`) : none,
-    next: at >= 0 ? link(site.pages[at + 1], (title) => `${title} →`) : none,
+    hits: state.search.hits.map((hit) => ({ id: hit.id, href: hrefOf(map, hit.href), title: hit.title, where: [hit.section, hit.heading].filter((part) => part !== "").join(" › "), excerpt: hit.excerpt })),
+    loading: state.status === "loading" ? "true" : "false",
+    contentStatus: state.status,
+    hasToc: outline.length > 0,
+    toc: outline.map((entry) => ({ id: entry.id, href: `#${entry.anchor}`, label: entry.label, cls: `toc-link toc-level-${entry.level}`, current: entry.anchor === state.active ? "location" : "false" })),
+    blocks: blocks.map((block) => view(block, state, map.base)),
+    prev: at > 0 ? link(map.pages[at - 1], (title) => `← ${title}`) : none,
+    next: at >= 0 ? link(map.pages[at + 1], (title) => `${title} →`) : none,
   };
 };

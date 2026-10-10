@@ -11,6 +11,10 @@ export { ContentError } from "./markdown.js";
 
 interface Nav {
   readonly site: string;
+  /** Where the site is served from: `/` (the default), or a path such as `/docs-site/`. */
+  readonly base?: string;
+  /** The origin the site is published at, such as `https://example.com`: for the sitemap and absolute canonical URLs. Absent: the site is not published anywhere yet. */
+  readonly url?: string;
   readonly sections: ReadonlyArray<{ readonly title: string; readonly pages: ReadonlyArray<string> }>;
 }
 
@@ -38,6 +42,14 @@ export const readSite = (dir: string): Site => {
   const snippets = join(root, "snippets");
   const shown = (file: string): string => relative(root, file).split(sep).join("/");
   const nav = JSON.parse(readFileSync(join(dir, "nav.json"), "utf8")) as Nav;
+  const where = shown(join(dir, "nav.json"));
+  const base = nav.base ?? "/";
+  const url = nav.url ?? "";
+
+  if (!/^\/([\w.~-]+\/)*$/.test(base)) { throw new ContentError(where, 1, `base "${base}" must start and end with a slash: "/" or "/docs-site/"`); }
+
+  if (url !== "" && !/^https?:\/\/[^/\s]+$/.test(url)) { throw new ContentError(where, 1, `url "${url}" must be an origin such as https://example.com, with no path and no trailing slash`); }
+
   const pages: Array<Page> = [];
   const files = new Map<string, string>();
 
@@ -77,7 +89,7 @@ export const readSite = (dir: string): Site => {
 
   checkLinks(pages, files);
 
-  return { name: nav.site, pages };
+  return { name: nav.site, base, url, pages };
 };
 
 /** Every internal link must reach a page, and a `#fragment` must reach a heading on it. A link elsewhere (`https:`, `mailto:`) is not checked; a relative one is refused (pages move). */

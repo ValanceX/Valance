@@ -58,9 +58,16 @@ describe("the layers", () => {
 
   it("web/ depends on the application and the target libraries, never on tooling/", () => {
     const allowed = (specifier: string, layer: string | undefined): boolean =>
-      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build|\/plugin)?)?|nexus|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model" || layer === "styles";
+      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build|\/plugin)?)?|nexus|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model" || layer === "styles" || specifier.endsWith("/generated/program.json?raw");
 
     expect(outside("web", allowed)).toEqual([]);
+  });
+
+  it("app/ and web/ keep no module-level mutable state (the same code serves any number of renders and requests): only const at the top", () => {
+    for (const file of [...code("app"), ...code("web")].filter((name) => !name.endsWith("page.ts") && !name.endsWith("-main.ts"))) {
+      // A top-level `let` or `var` (a line that starts at the margin).
+      expect(withoutComments(readFileSync(join(root, file), "utf8")).split("\n").filter((line) => /^(let|var)\s/.test(line)), file).toEqual([]);
+    }
   });
 
   it("snippets/ show what a consumer writes: the published packages and each other, never this project's own layers", () => {

@@ -3,6 +3,7 @@
 import * as Nexus from "@valancex/nexus";
 
 import type { SearchIndex } from "../model/search.js";
+import type { Page } from "../model/site.js";
 
 /** Put text on the reader's clipboard. Rejects when the reader's browser refuses. */
 export const Clipboard = Nexus.Capability.define<{ readonly write: (text: string) => Promise<void> }>("docs/clipboard");
@@ -12,3 +13,6 @@ export const Storage = Nexus.Capability.define<{ readonly get: (key: string) => 
 
 /** The site's search index, loaded when it is first needed. */
 export const Index = Nexus.Capability.define<{ readonly load: () => Promise<SearchIndex> }>("docs/search-index");
+
+/** The content of a page, by the page's own path (`/docs/guides/state`). Rejects when the page cannot be had. */
+export const Pages = Nexus.Capability.define<{ readonly load: (path: string) => Promise<Page> }>("docs/pages");

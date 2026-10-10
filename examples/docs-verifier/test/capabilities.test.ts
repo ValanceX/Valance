@@ -11,27 +11,35 @@ import { application } from "../app/application.js";
 import type { AppState } from "../app/state.js";
 import { pageScope } from "../app/scope.js";
 import type { SearchIndex } from "../model/search.js";
-import type { Site } from "../model/site.js";
+import type { Site, SiteMap } from "../model/site.js";
+import { mapOf } from "../model/site.js";
+import { contentOf } from "../app/content.js";
+import { initial } from "../app/state.js";
 import { readSite } from "../tooling/content.js";
 import { buildSearchIndex } from "../tooling/search.js";
 import { compilePage } from "../web/compile.js";
 import { fakePlatform, type Fakes } from "./support.js";
 
 let site: Site;
+let map: SiteMap;
 let index: SearchIndex;
 
 beforeAll(() => {
   site = readSite(fileURLToPath(new URL("../content", import.meta.url)));
+  map = mapOf(site);
   index = buildSearchIndex(site);
 });
 
+/** The state on page `id`, as a server starts it. */
+const onPage = (id: string): AppState => ({ ...initial, page: id, content: contentOf(site, id) });
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-const run = async (fakes?: Fakes) => {
+const run = async (fakes: Fakes = { clipboard: async () => undefined, storage: {} }) => {
   const program = await compilePage();
   const scope = Effect.runSync(Scope.make());
-  const made = fakePlatform(fakes);
-  const handle = await Effect.runPromise(Valance.start(application(program, site), { platform: made.platform }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
+  const made = fakePlatform({ pages: async (path) => site.pages.find((page) => page.path === path)!, ...fakes });
+  const handle = await Effect.runPromise(Valance.start(application(program, map), { platform: made.platform, state: onPage("guides-getting-started") }).pipe(Scope.extend(scope))) as unknown as Valance.ApplicationHandle<AppState, never>;
 
   return {
     written: made.written,
@@ -68,7 +76,7 @@ describe("the clipboard", () => {
 
     await t.invoke("app/copyCode", id);
     expect(t.state()).toMatchObject({ copied: "", copyFailed: id });
-    expect(pageScope(site, { ...t.state(), page: "guides-getting-started" }).blocks.flatMap((block) => block.tabs).find((tab) => tab.id === id)?.copyLabel).toBe("Failed");
+    expect(pageScope(map, { ...t.state(), page: "guides-getting-started" }).blocks.flatMap((block) => block.tabs).find((tab) => tab.id === id)?.copyLabel).toBe("Failed");
     await t.close();
   });
 
@@ -162,11 +170,11 @@ describe("search", () => {
     void t.invoke("app/search", "waits");
     await settle();
     expect(t.state().search).toMatchObject({ query: "waits", status: "loading", hits: [] });
-    expect(pageScope(site, t.state()).status).toBe("Searching…");
+    expect(pageScope(map, t.state()).status).toBe("Searching…");
     load(index); await settle();
     expect(t.state().search).toMatchObject({ query: "waits", status: "ready" });
     expect(t.state().search.hits[0]).toMatchObject({ href: "/docs/guides/state#a-command-that-waits" });
-    expect(pageScope(site, t.state()).status).toMatch(/^\d+ results?$/);
+    expect(pageScope(map, t.state()).status).toMatch(/^\d+ results?$/);
     await t.close();
   });
 
@@ -175,7 +183,7 @@ describe("search", () => {
 
     await t.invoke("app/search", "zzzzzz");
     expect(t.state().search).toMatchObject({ status: "ready", hits: [] });
-    expect(pageScope(site, t.state()).status).toBe("No results for “zzzzzz”.");
+    expect(pageScope(map, t.state()).status).toBe("No results for “zzzzzz”.");
     await t.close();
   });
 
@@ -185,7 +193,7 @@ describe("search", () => {
 
     await t.invoke("app/search", "state");
     expect(t.state().search).toMatchObject({ status: "failed", hits: [] });
-    expect(pageScope(site, t.state()).status).toBe("Search is not available right now.");
+    expect(pageScope(map, t.state()).status).toBe("Search is not available right now.");
     fail = false;
     await t.invoke("app/search", "state");
     expect(t.state().search.status).toBe("ready");
@@ -247,7 +255,7 @@ describe("the heading the reader is at", () => {
 
     await t.invoke("app/go", "guides-state");
     await t.invoke("app/setActive", "commands");
-    expect(pageScope(site, t.state()).toc.map((entry) => [entry.href, entry.current])).toEqual([["#rules", "false"], ["#commands", "location"], ["#a-command-that-waits", "false"], ["#ending", "false"]]);
+    expect(pageScope(map, t.state()).toc.map((entry) => [entry.href, entry.current])).toEqual([["#rules", "false"], ["#commands", "location"], ["#a-command-that-waits", "false"], ["#ending", "false"]]);
     await t.invoke("app/go", "guides-views");
     expect(t.state().active).toBe("");
     await t.close();

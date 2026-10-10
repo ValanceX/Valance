@@ -1,5 +1,17 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": false, "outDir": "dist/server", "rootDir": "." },
-  "include": ["model", "tooling", "app", "web"]
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist/server",
+    "rootDir": "."
+  },
+  "include": [
+    "model",
+    "tooling",
+    "app",
+    "web"
+  ],
+  "exclude": [
+    "web/page.ts"
+  ]
 }

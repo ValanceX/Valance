@@ -213,12 +213,12 @@ describe("the content directory is the site", () => {
   });
 
   describe("a mistake fails the build, with where it is", () => {
-    const site = (pages: Readonly<Record<string, string>>, snippets: Readonly<Record<string, string>> = {}): string => {
+    const site = (pages: Readonly<Record<string, string>>, snippets: Readonly<Record<string, string>> = {}, nav: Readonly<Record<string, unknown>> = {}): string => {
       const root = mkdtempSync(join(tmpdir(), "verifier-"));
 
       mkdirSync(join(root, "content", "docs", "guides"), { recursive: true });
       mkdirSync(join(root, "snippets"));
-      writeFileSync(join(root, "content", "nav.json"), JSON.stringify({ site: "x", sections: [{ title: "", pages: Object.keys(pages) }] }));
+      writeFileSync(join(root, "content", "nav.json"), JSON.stringify({ site: "x", ...nav, sections: [{ title: "", pages: Object.keys(pages) }] }));
 
       for (const [name, text] of Object.entries(pages)) { writeFileSync(join(root, "content", "docs", `${name}.md`), text); }
 
@@ -262,6 +262,13 @@ describe("the content directory is the site", () => {
       expect(text).toContain('content/docs/a.md: [no heading](/docs/b#nope) leads to no heading "nope" on /docs/b');
       expect(text).toContain("content/docs/a.md: [relative](b) is a relative link");
       expect(text).toContain('content/docs/a.md: [self](#nope) leads to no heading "nope" on /docs/a');
+    });
+
+    it("the site's base and published address are checked: a base starts and ends with a slash, an address is an origin", () => {
+      expect(readSite(site({ a: page("A", "# A\n") }, {}, { base: "/docs-site/", url: "https://example.com" }))).toMatchObject({ base: "/docs-site/", url: "https://example.com" });
+      expect(readSite(site({ a: page("A", "# A\n") }))).toMatchObject({ base: "/", url: "" });
+      expect(message(site({ a: page("A", "# A\n") }, {}, { base: "docs-site" }))).toContain('base "docs-site" must start and end with a slash');
+      expect(message(site({ a: page("A", "# A\n") }, {}, { url: "https://example.com/docs" }))).toContain("must be an origin");
     });
 
     it("without a description, a page is described by its first paragraph", () => {
