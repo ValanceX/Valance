@@ -24,6 +24,7 @@ try {
     present: "hydrate",
     state: boot.state,
     history: { window, urlOf, stateOf, navigate: "go", titleOf, container },
+    shutdown: { grace: "250 millis" },                              // closing the page lets a command that is finishing finish, then ends the rest
   });
 
   container.dataset["valance"] = "running";                      // readiness marker for whoever drives the page

@@ -22,7 +22,7 @@ it("a page is rendered on the server through the layout's slot: title, navigatio
 
   expect(html).toContain("<title>Getting Started · Valance</title>");
   expect(html).toContain('<a href="/docs/guides/state"');
-  expect(html).toMatch(/<h1[^>]*>(<span>)+Getting Started(<\/span>)+<\/h1>/);     // each run is wrapped: a composite has one root element (FINDINGS F3)
+  expect(html).toMatch(/<h1[^>]*>Getting Started<\/h1>/);                              // the text is the heading's own: runs are fragments, which make no node
   expect(html).toMatch(/<aside[^>]*><strong[^>]*>tip<\/strong>/);                       // the callout composite, with its text placed by its slot
   expect(html).toMatch(/<figure[^>]*><pre[^>]*>import \* as Valance/);                 // the code-block composite
   expect(html).toMatch(/<button[^>]*>Copy<\/button>/);
@@ -86,5 +86,20 @@ it("inline marks (strong, code, link) are runs the views draw", async () => {
 
   expect(html).toMatch(/<strong[^>]*>one value<\/strong>/);
   expect(html).toMatch(/<code[^>]*>Valance\.command<\/code>/);
-  expect(html).toMatch(/<a href="\/docs\/guides\/getting-started"[^>]*>(<span>)*getting-started guide/);
+  expect(html).toMatch(/<a href="\/docs\/guides\/getting-started"[^>]*>getting-started guide<\/a>/);
+});
+
+it("makes no node that a template did not write: no wrapper elements around runs, blocks or text", async () => {
+  const html = await renderDocument(site, "/docs/guides/getting-started", "/assets/page.js");
+  const app = /<div id="app">([\s\S]*)<\/div><script id="valance-boot"/.exec(html)![1]!;
+  const tags = new Set([...app.matchAll(/<([a-z0-9]+)[\s>]/g)].map((match) => match[1]));
+
+  // Every element is one a template names (the primitives table), and nothing the framework added.
+  const written = new Set(["a", "aside", "button", "code", "div", "figure", "footer", "h1", "h2", "h3", "header", "li", "main", "nav", "p", "pre", "strong", "ul"]);
+
+  expect([...tags].filter((tag) => !written.has(tag!))).toEqual([]);
+  expect(tags.has("span")).toBe(false);
+  expect(tags.has("section")).toBe(false);
+  // A paragraph holds its text and marks directly: `<p>` is followed by text or a mark, never by another container.
+  expect(app).not.toMatch(/<p[^>]*><(span|div|p)/);
 });

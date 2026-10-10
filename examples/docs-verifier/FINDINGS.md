@@ -6,7 +6,7 @@ Principle: the user writes the application, never system config (JSON, TS or JS)
 |---|---------|---------|--------|
 | F1 | Composites were not in Valance's derived manifest; `views/composites.json` was hand-written. | Gap | **Fixed (Mesh dev).** `compileProgram` infers each composite's contract from the templates; the verifier has no composite config. |
 | F2 | `mesh-slot` had to be declared in the manifest by hand. | Gap | **Fixed (Mesh dev).** Reserved tags (`mesh-slot`, `mesh-fill`, `mesh-switch`, `mesh-case`, `mesh-default`, `mesh-if`, `mesh-each`) are declared by the toolchain when a template uses them. |
-| F3 | Inline marks (strong, code, link). | Model gap, not a feature gap: expressed as `spans` rendered by `runs`/`inline` composites. Cost: every run is a wrapper element, because a composite has exactly one root element and a `mesh-if` body must be an element. | Open: fragment roots. |
+| F3 | Inline marks (strong, code, link) cost a wrapper element per run. | Gap (the principle: MESH makes no node a template did not write) | **Fixed (Mesh dev).** `mesh-fragment`: `runs` and `inline` are fragments, so a heading's text and marks are its own children, and a block is no `section`. The page holds only elements the templates name, which `test/site.test.ts` checks. |
 | F4 | Lists are flattened to `item` blocks. | Partly a gap. A fixed-depth list is expressible (`mesh-each` inside `mesh-each`). Arbitrary nesting is not: composites cannot recurse. | Open: bounded recursion. |
 | F5 | Valance 0.6.0 redraws the whole tree on every change. | Gap | **Fixed (Valance 0.7 prepared).** A later render of a view is MESH's `update` of the previous one, applied with PORT's `patch`; the smoke test compares the patched page with the server's HTML for the same URL. |
 | F6 | Kind dispatch needed seven sibling `mesh-if`s. | Gap | **Fixed (Mesh dev).** `block.mprx` is one `mesh-switch`. |
@@ -36,7 +36,10 @@ Learned while probing F3: `mesh-if` already takes a second element child as its 
 
 4. **Valance on `update`/`patch` (F5).** `Nexus.Mesh.update` (NEXUS 0.12) and an optional `Target.patch` (VALANCE 0.7); a target without `patch` is given `update` as before.
 
-Still to build: fragment roots (F3) and bounded recursion (F4).
+5. **Fragments (F3).** `mesh-fragment` places content without a node, as a composite's root, a case body, a conditional alternative or a repeat item; nothing wraps content on the author's behalf.
+6. **Shutdown.** `Web.run` takes `shutdown: { grace }`; NEXUS 0.12 settles the work it tracks (grace, then interrupt) before releasing resources.
+
+Still to build: bounded recursion (F4).
 
 ## Found by validating the prepared set (the packs, in a clean project and in this repository)
 
@@ -47,3 +50,6 @@ Still to build: fragment roots (F3) and bounded recursion (F4).
 | V3 | A stale Vite dependency cache after swapping packages made three real-page browser tests fail once. | Environment, not a defect; delete `node_modules/.vite`. |
 | V4 | NEXUS's lockfile test needs the lockfile to name the installed runtime, which can only be written once MESH 0.10 is published. | Open until the set is published, in order. |
 | V5 | MESH's two browser test files hang here unless `MESH_CHROMIUM=/opt/pw-browsers/chromium` is set; with it they pass (1 and 5 tests). | Environment. |
+| V6 | Text runs on either side of a conditional or repeat that chose nothing were two runs, not one (the tree's runs are maximal, so the server's single text node could not be matched on the client). | Fixed in MESH: runs are merged whatever made them adjacent. |
+| V7 | The substrate route `Application.shutdown(running.nexus)` used to release a resource under an admitted command; the tracer pinned that as characterised behavior. | NEXUS 0.12 interrupts the command first; the two tripwires now pin that. |
+| V8 | `shutdown.grace` of 0 must not wait even a turn in VALANCE (a command admitted in the step the close began is interrupted before it runs), while NEXUS waits one turn so subscription consumers end with the bus. | Both pinned by tests. |

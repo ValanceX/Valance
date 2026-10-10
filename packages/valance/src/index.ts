@@ -330,9 +330,10 @@ export const start = <S, E, R extends Ambient, V extends string>(app: Applicatio
       // The wait is a fiber of its own, interruptible, so the grace can end it although a finalizer is not: the Scope's close awaits it.
       const waited = Effect.interruptible(Effect.ignore(Effect.timeout(Effect.forEach(commands, (command) => Fiber.await(command), { discard: true }), grace)));
 
+      // No grace is no wait at all (not even a turn): a command admitted in the step the close began is interrupted before it runs.
       return commands.length === 0
         ? Effect.void
-        : Effect.flatMap(Effect.forkDaemon(waited), Fiber.await).pipe(
+        : (Duration.isZero(grace) ? Effect.void : Effect.flatMap(Effect.forkDaemon(waited), Fiber.await)).pipe(
           Effect.andThen(Effect.forEach(commands, (command) => Fiber.interrupt(command), { discard: true }))   // interrupts what is left, and awaits each ACTUAL exit
         );
     }));

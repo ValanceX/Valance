@@ -1,6 +1,8 @@
-<text>
-  <mesh-if when={kind == "text"}><text>{text}</text></mesh-if>
-  <mesh-if when={kind == "strong"}><strong>{text}</strong></mesh-if>
-  <mesh-if when={kind == "code"}><code>{text}</code></mesh-if>
-  <mesh-if when={kind == "link"}><link href={href}>{text}</link></mesh-if>
-</text>
+<mesh-fragment>
+  <mesh-switch>
+    <mesh-case when={kind == "strong"}><strong>{text}</strong></mesh-case>
+    <mesh-case when={kind == "code"}><code>{text}</code></mesh-case>
+    <mesh-case when={kind == "link"}><link href={href}>{text}</link></mesh-case>
+    <mesh-default><mesh-fragment>{text}</mesh-fragment></mesh-default>
+  </mesh-switch>
+</mesh-fragment>
