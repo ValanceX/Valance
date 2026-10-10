@@ -1,6 +1,6 @@
 {
   "name": "@valancex/valance",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "VALANCE application composition: starts a NEXUS application, renders it with MESH, and realizes it on a PORT target.",
   "type": "module",
   "license": "MIT",

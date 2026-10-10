@@ -1,4 +1,4 @@
 <figure>
   <pre>{code}</pre>
-  <button on.click={copy(blockId)}>{copyLabel}</button>
+  <button class="copy" on.click={copy(blockId)}>{copyLabel}</button>
 </figure>

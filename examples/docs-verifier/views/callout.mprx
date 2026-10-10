@@ -1,4 +1,4 @@
-<aside>
+<aside tone={tone}>
   <strong>{tone}</strong>
   <mesh-slot />
 </aside>

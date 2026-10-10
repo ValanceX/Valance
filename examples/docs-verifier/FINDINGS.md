@@ -14,7 +14,12 @@ Principle: the user writes the application, never system config (JSON, TS or JS)
 | F8 | Copy-to-clipboard needs a platform capability. | Open | Port capability design. |
 | F9 | No on-page TOC (no anchor or scroll support). | Open | Port capability design. |
 | F10 | No search in the slice. | App work | Later slice. |
-| F11 | Dev checkouts need sibling `link:` overrides. | Tooling | Goes away once Mesh and Port release. |
+| F11 | Dev checkouts need sibling `link:` overrides. | Tooling | Superseded: the verifier runs against packs of the prepared packages (`scripts/build-packs.sh`, `scripts/with-local-packs.mjs`). |
+| F12 | An attribute's value is text in the derived manifest, so a boolean (`menu`, `theme == "dark"`) cannot be passed to `aria-pressed` or `data-menu`: `type-mismatch ... needs string, found boolean`. The scope turns the menu into `"true"`/`"false"`, and the template writes `theme == "dark" ? "true" : "false"`. | Friction, small. | Open: a Port realization for an enumerated or boolean-as-text attribute (`aria-*`), or the compiler coercing a boolean to its text for a text slot. |
+| F13 | A prop is required on every use unless it is a boolean attribute, so a styling hook (`class`) must be written on every use of a primitive that has one. Variants are better as `data-*`/`aria-*` the stylesheet reads. | Friction, small; shaped the templates (a `class` only where a part has a role). | Open: optional props in the derived manifest (already noted in `manifest`'s own docs). |
+| F14 | The first state's head is applied by Valance's follower just after `run` resolves; a client-only mount shows no head for that moment. Hydrated pages do not (the server wrote it). | Known limit. | Accepted for the static path; revisit if a client-only mount matters. |
+| F15 | A link to an unknown path inside the app navigates to the `not-found` state, whose `urlOf` is `/docs/`, so the address bar is rewritten. | Gap in the stand-in router (X1). | Open, phase E (routing completeness). |
+| F16 | `@valancex/valance` does not re-export `BoundaryValue` (the payload of `invoke`), so a test that calls `handle.invoke` types it from `@valancex/mesh-runtime`. | API surface. | Open: re-export the type, or type `invoke`'s arguments from the command table (principles O2). |
 
 Learned while probing F3: `mesh-if` already takes a second element child as its else branch, and `mesh-if` may not be directly nested, so an else-if chain cannot be written.
 
@@ -38,6 +43,8 @@ Learned while probing F3: `mesh-if` already takes a second element child as its 
 
 5. **Fragments (F3).** `mesh-fragment` places content without a node, as a composite's root, a case body, a conditional alternative or a repeat item; nothing wraps content on the author's behalf.
 6. **Shutdown.** `Web.run` takes `shutdown: { grace }`; NEXUS 0.12 settles the work it tracks (grace, then interrupt) before releasing resources.
+
+7. **Plugins and the head (Valance 0.8, phase B).** The verifier's tags, URL policy and head are three plugins (`web/kit.ts`, `web/router.ts`, `web/seo.ts`, listed in `web/plugins.ts`); `document.ts` writes the head the plugins say and no title or style of its own; `page.ts` passes the same plugins to `Web.run`.
 
 Still to build: bounded recursion (F4).
 

@@ -1,18 +1,23 @@
-<layout site={site}>
-  <mesh-fill slot="nav"><nav>
-    <list>
-      <mesh-each items={nav} as="n" key={n.id}>
-        <item><link href={n.href}>{n.label}</link></item>
-      </mesh-each>
-    </list>
+<layout site={site} home={home} theme={theme} menu={menu} on.toggleMenu={toggleMenu()} on.setTheme={setTheme($event)}>
+  <mesh-fill slot="nav"><nav class="sidebar" label="Documentation">
+    <mesh-each items={sections} as="s" key={s.id}>
+      <section>
+        <mesh-if when={s.title != ""}><para class="nav-title">{s.title}</para></mesh-if>
+        <list class="nav-list">
+          <mesh-each items={s.items} as="n" key={n.id}>
+            <item><navLink class="nav-link" href={n.href} current={n.current}>{n.label}</navLink></item>
+          </mesh-each>
+        </list>
+      </section>
+    </mesh-each>
   </nav></mesh-fill>
   <main>
     <mesh-each items={blocks} as="b" key={b.id}>
       <block kind={b.kind} text={b.text} spans={b.spans} level={b.level} lang={b.lang} tone={b.tone} blockId={b.id} copyLabel={b.copyLabel} on.copy={copyCode($event)} />
     </mesh-each>
-    <nav>
-      <mesh-if when={prev.href != ""}><link href={prev.href}>{prev.label}</link></mesh-if>
-      <mesh-if when={next.href != ""}><link href={next.href}>{next.label}</link></mesh-if>
+    <nav class="pager" label="Previous and next page">
+      <mesh-if when={prev.href != ""}><navLink class="pager-link" href={prev.href} current="false">{prev.label}</navLink></mesh-if>
+      <mesh-if when={next.href != ""}><navLink class="pager-link" href={next.href} current="false">{next.label}</navLink></mesh-if>
     </nav>
   </main>
 </layout>

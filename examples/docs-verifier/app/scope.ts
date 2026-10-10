@@ -7,10 +7,18 @@ import { NOT_FOUND } from "./routes.js";
 import type { AppState } from "./state.js";
 
 const Link = Schema.Struct({ href: Schema.String, label: Schema.String });
+const NavItem = Schema.Struct({ id: Schema.String, href: Schema.String, label: Schema.String, current: Schema.String });
+const NavSection = Schema.Struct({ id: Schema.String, title: Schema.String, items: Schema.Array(NavItem) });
 
 export const PageScope = Schema.Struct({
   site: Schema.String,
-  nav: Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String, href: Schema.String })),
+  /** The home page's URL. */
+  home: Schema.String,
+  theme: Schema.String,
+  /** `true` or `false`, as the text of `data-menu` and `aria-pressed`: an attribute's value is text. */
+  menu: Schema.Literal("true", "false"),
+  /** The navigation, grouped as the content groups it. `current` is the value of `aria-current`: `page` for the page shown, `false` for the rest. */
+  sections: Schema.Array(NavSection),
   blocks: Schema.Array(Schema.Struct({
     id: Schema.String,
     kind: Schema.String,
@@ -42,9 +50,21 @@ export const pageScope = (site: Site, state: AppState): PageScope => {
   const link = (target: Page | undefined, arrow: (title: string) => string) => target === undefined ? none : { href: target.path, label: arrow(target.title) };
   const show = (block: Block) => ({ ...block, copyLabel: block.kind === "code" ? (state.copied === block.id ? "Copied" : "Copy") : "" });
 
+  const sections: Array<{ id: string; title: string; items: Array<{ id: string; href: string; label: string; current: string }> }> = [];
+
+  for (const entry of site.pages) {
+    const id = entry.section === "" ? "top" : entry.section.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const section = sections.find((candidate) => candidate.id === id) ?? sections[sections.push({ id, title: entry.section, items: [] }) - 1]!;
+
+    section.items.push({ id: entry.id, href: entry.path, label: entry.title, current: entry.id === state.page ? "page" : "false" });
+  }
+
   return {
     site: site.name,
-    nav: site.pages.map((entry) => ({ id: entry.id, href: entry.path, label: `${entry.id === state.page ? "› " : ""}${entry.section === "" ? "" : `${entry.section}: `}${entry.title}` })),
+    home: site.pages[0]?.path ?? "/",
+    theme: state.theme,
+    menu: state.menu ? "true" : "false",
+    sections,
     blocks: page.blocks.map(show),
     prev: at > 0 ? link(site.pages[at - 1], (title) => `← ${title}`) : none,
     next: at >= 0 ? link(site.pages[at + 1], (title) => `${title} →`) : none,

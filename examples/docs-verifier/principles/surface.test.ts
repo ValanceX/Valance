@@ -14,6 +14,7 @@ afterAll(() => { seen.write(); });
 
 const packages = ["@valancex/valance", "@valancex/nexus", "@valancex/mesh-runtime", "@valancex/mesh-compiler", "@valancex/port-web"] as const;
 const root = (name: string) => join(process.cwd(), "node_modules", name);
+const packageJsonResolvable = () => Object.fromEntries(packages.map((name) => [name, exportsPackageJson(name)]));
 const exportsPackageJson = (name: string) => { try { require_.resolve(`${name}/package.json`); return true; } catch { return false; } };
 const declarations = (dir: string): Array<string> => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? declarations(join(dir, entry.name)) : entry.name.endsWith(".d.ts") ? [join(dir, entry.name)] : []);
 
@@ -77,6 +78,7 @@ it("§17: the five packages agree on one dependency story (peer ranges name the 
   }
 
   seen.record("ranges", ranges);
-  seen.record("packageJsonResolvable", Object.fromEntries(packages.map((name) => [name, exportsPackageJson(name)])));
+  seen.record("packageJsonResolvable", packageJsonResolvable());
   expect(Object.keys(ranges)).toHaveLength(5);
+  expect(Object.values(packageJsonResolvable()).every(Boolean)).toBe(true);                // NEXUS 0.12.1 exports ./package.json like the others (O1)
 });

@@ -31,11 +31,12 @@ const target = () => {
 };
 const states: ReadonlyArray<AppState> = [
   initial,
-  { page: "guides-getting-started", copied: "" },
-  { page: "guides-getting-started", copied: "guides-getting-started:2" },
-  { page: "guides-state", copied: "" },
-  { page: "reference-api", copied: "" },
-  { page: "nowhere", copied: "" },
+  { ...initial, page: "guides-getting-started" },
+  { ...initial, page: "guides-getting-started", copied: "guides-getting-started:2" },
+  { ...initial, page: "guides-getting-started", copied: "guides-getting-started:2", theme: "dark" },
+  { ...initial, page: "guides-state", menu: true },
+  { ...initial, page: "reference-api", theme: "light" },
+  { ...initial, page: "nowhere" },
   initial,
 ];
 
@@ -104,10 +105,13 @@ it("the same walk through the changes form (diff → updateChanges) gives the sa
 it("an event on the patched DOM still reaches the command through the composite chain", async () => {
   program ??= await compilePage();
   const { dispatch } = await import("@valancex/mesh-runtime");
-  const state: AppState = { page: "guides-getting-started", copied: "" };
+  const state: AppState = { ...initial, page: "guides-getting-started" };
   const first = (await render({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: scopeOf(initial) })).render!;
   const next = (await update(first, scopeOf(state))).render!;
-  const button = JSON.stringify(next.tree).match(/"events":\{"click":"([^"]+)"\}/)?.[1];
+  // The copy button's handler: the first click handler in the page is the menu's (the header comes first), so find the button that is the code block's.
+  type Node = { readonly component?: string; readonly props?: Readonly<Record<string, unknown>>; readonly events?: Readonly<Record<string, string>>; readonly children?: ReadonlyArray<Node> };
+  const find = (node: Node): string | undefined => node.component === "button" && node.props?.["class"] === "copy" ? node.events?.["click"] : node.children?.map(find).find((id) => id !== undefined);
+  const button = find((next.tree as unknown as { root: Node }).root);
 
   expect(button).toBeDefined();
 

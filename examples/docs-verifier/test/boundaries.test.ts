@@ -5,6 +5,7 @@
 //   tooling/   build time: content → generated/site.json. Depends on model/ and Node.
 //   app/       the Valance application. Depends on model/, `effect` and the Valance core. Names no target, no DOM, no file, no tooling.
 //   views/     MPRX templates. No code.
+//   styles/    the stylesheet. No code; the browser entry (web/page.ts) imports it, and the build turns it into one hashed file.
 //   web/       the target: primitives, compile, server, browser. Depends on app/, model/, Valance, MESH, PORT and Node. Not on tooling/.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -30,9 +31,11 @@ const outside = (dir: string, allowed: (specifier: string, layer: string | undef
   code(dir).flatMap((file) => imports(file).filter(({ specifier, layer }) => layer !== dir && !allowed(specifier, layer)).map(({ specifier }) => `${file} imports ${specifier}`));
 
 describe("the layers", () => {
-  it("content/ and views/ hold no code", () => {
+  it("content/, views/ and styles/ hold no code", () => {
     expect(code("content")).toEqual([]);
     expect(code("views")).toEqual([]);
+    expect(code("styles")).toEqual([]);
+    expect(files("styles").filter((name) => !name.endsWith(".css"))).toEqual([]);
     expect(files("views").filter((name) => !/\.(mprx|json)$/.test(name))).toEqual([]);
   });
 
@@ -54,7 +57,7 @@ describe("the layers", () => {
 
   it("web/ depends on the application and the target libraries, never on tooling/", () => {
     const allowed = (specifier: string, layer: string | undefined): boolean =>
-      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build)?)?|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model";
+      specifier.startsWith("node:") || specifier === "effect" || /^@valancex\/(valance(\/web(\/server|\/build|\/plugin)?)?|mesh-runtime(\/mesh-runtime\.wasm\?url)?|mesh-compiler)$/.test(specifier) || layer === "app" || layer === "model" || layer === "styles";
 
     expect(outside("web", allowed)).toEqual([]);
   });

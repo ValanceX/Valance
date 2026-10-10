@@ -5,7 +5,7 @@ Method (§18): a consumer's tasks, written from the public packages only. `pnpm 
 A confirmed defect is a probe marked `it.fails`: the suite is green while it is open, and goes red the moment it is fixed, so the marker is then removed.
 The docs are referential: where a doc and the behaviour disagree, the behaviour is what was judged.
 
-## Status after the follow-up (prepared, nothing tagged or published)
+## Status after the follow-up (prepared, nothing tagged or published; the verifier runs against packs of them)
 
 | # | Fix | Where | Release |
 |---|-----|-------|---------|
@@ -14,7 +14,9 @@ The docs are referential: where a doc and the behaviour disagree, the behaviour 
 | P3 | README gains an install line and a stability section | Mesh `main` | rides the next MESH release (no code change warrants a lockstep 0.10.1) |
 | O1 | `./package.json` exported | Nexus | `@valancex/nexus` 0.12.1 |
 
-The P1 and O1 probes flip from `it.fails` to `it` once this verifier runs against the published 0.4.1 and 0.12.1; P3 once MESH next releases.
+P1 and O1 are confirmed fixed against the packs of PORT Web 0.4.1 and NEXUS 0.12.2 (`pnpm test:principles` through `scripts/with-local-packs.mjs`): the P1 probe is now an ordinary test that a `javascript:` link is refused (`unrealizable-value`), and the O1 check asserts all five manifests resolve. P3 flips when MESH next releases; P2 stays open.
+
+NEXUS 0.12.2 also declares `sideEffects: false` (found while making Valance's entries tree-shakable), and Valance 0.8 adds the plugin seams (`docs/V1_CONTRACT.md` §19).
 
 ## Result
 

@@ -1,6 +1,16 @@
-<shell>
-  <header>{site}</header>
-  <mesh-slot name="nav" />
-  <mesh-slot />
+<shell class="shell" theme={theme} menu={menu}>
+  <header class="bar">
+    <toggle class="menu-button" label="Navigation" pressed={menu} on.click={toggleMenu()}>Menu</toggle>
+    <navLink class="brand" href={home} current="false">{site}</navLink>
+    <nav class="themes" label="Colour theme">
+      <toggle class="theme-option" label="Follow the system theme" pressed={theme == "system" ? "true" : "false"} on.click={setTheme("system")}>Auto</toggle>
+      <toggle class="theme-option" label="Use the light theme" pressed={theme == "light" ? "true" : "false"} on.click={setTheme("light")}>Light</toggle>
+      <toggle class="theme-option" label="Use the dark theme" pressed={theme == "dark" ? "true" : "false"} on.click={setTheme("dark")}>Dark</toggle>
+    </nav>
+  </header>
+  <div class="frame">
+    <mesh-slot name="nav" />
+    <mesh-slot />
+  </div>
   <footer>The features verifier: a documentation site on the development branches</footer>
 </shell>

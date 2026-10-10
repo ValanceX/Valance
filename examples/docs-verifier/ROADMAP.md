@@ -40,7 +40,11 @@ Rule for every phase: **use only what exists first, log friction in `FINDINGS.md
 Evidence: 170 tests in `packages/valance` (47 new), 553 in `examples/tracer-web` (5 new, `Web.run` with plugins in jsdom including hydration of server HTML and its head).
 Not yet done in phase A: the verifier itself still runs on the **released** 0.7.0 (it does not use the seams until 0.8 is published or packed, as `scripts/with-local-packs.mjs` does); nothing is tagged or published.
 
-### B. Verifier on the seams
+### B. Verifier on the seams: **done** (verified against local packs of Nexus 0.12.2, Port Web 0.4.1 and Valance 0.8.0)
+
+Delivered: `app/` (state with `theme` and `menu`, four commands, structured navigation scope, a route table with `navigate`/`paths`/`canonicalOf`); `web/kit.ts`, `router.ts`, `seo.ts`, `plugins.ts`; `document.ts` writes `renderHead` of the plugins' head and links the hashed stylesheet; `styles/site.css` (tokens, three themes, sticky bar, sidebar, callout tones, small-screen menu); primitives with `class`/`data-*`/`aria-*`; `scripts/build-packs.sh` and a persistent `with-local-packs.mjs`; principle probes P1 and O1 confirmed fixed. 33 unit tests, 6 Chromium tests, 20 principle probes. Friction F12–F16 logged in `FINDINGS.md`.
+
+Plan as written:
 
 - Run the verifier against the 0.8 packs. Move `app/routes.ts` into a `RouteTable`, `web/primitives.ts` and the views into a kit plugin, the head into a `head` function; `document.ts` stops hand-writing `<title>`.
 - CSS pipeline: a stylesheet built by Vite with a hashed name, linked through `head` (`links: [{ rel: "stylesheet", ... }]`), replacing the `STYLE` string. `class`, `aria-*` and `data-*` through `attribute()`.
