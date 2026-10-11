@@ -116,13 +116,14 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     const { document: layout } = await open("src/layout.mprx");
     const callLine = layout.getText().split("\n").findIndex((line) => line.includes("<theme-toggle")) + 1;
 
-    // Definition: one declaration. In the layout the event goes to the component that raises it, the command and the state to main.ts.
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/theme-toggle.mprx:")), "on.toggle -> the component");
+    // Definition: one declaration. The event, the prop, the command and the state go to main.ts; the tag goes to its template.
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/main.ts:")), "on.toggle -> where main.ts declares it");
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "<theme-toggle", 2)).some((target) => target.startsWith("src/theme-toggle.mprx:")), "<theme-toggle> -> its template");
     assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "toggleTheme", 2)).some((target) => target.startsWith("src/main.ts:")), "toggleTheme -> main.ts");
     assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{theme}", 2)).some((target) => target.startsWith("src/main.ts:")), "{theme} -> main.ts");
 
     // Inside the component the event it raises IS its declaration: ctrl+click stays, and VS Code then shows the references.
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).every((target) => target.startsWith("src/theme-toggle.mprx:")), "toggle() -> itself");
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).some((target) => target.startsWith("src/main.ts:")), "toggle() -> where main.ts declares it");
 
     // References: every use, as a list.
     assert.ok((await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "toggle()", 1)).includes(`src/layout.mprx:${callLine}`), "references of the event: the handler in the layout");
@@ -134,6 +135,17 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
 
     assert.ok(site.some((target) => target.startsWith("cli/README.md:")), `{site} -> ${text(site)}`);
     assert.ok(!site.some((target) => target.includes("manifest.json")));
+  }],
+
+  ["the template imports in src/main.ts are links to the files", async () => {
+    const { document } = await open("src/main.ts");
+    const links = await waitFor("links in src/main.ts", async () => {
+      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.DocumentLink>>("vscode.executeLinkProvider", document.uri);
+
+      return found.some((link) => link.target?.fsPath.endsWith(join("src", "layout.mprx"))) ? found : undefined;
+    });
+
+    assert.ok(links.some((link) => link.target?.fsPath.endsWith(join("src", "theme-toggle.mprx"))), `links: ${text(links.map((link) => link.target?.fsPath))}`);
   }],
 
   ["CodeLens puts the other end of each connection beside this one", async () => {
@@ -149,8 +161,11 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     };
 
     assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+theme ← \{theme\}\s+·\s+on toggle ⇒ toggleTheme\(\)/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · passed from layout\.mprx:\d+ as \{theme\}/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · declared in main\.ts:\d+ · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · declared in main\.ts:\d+ · passed from layout\.mprx:\d+ as \{theme\}/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /in layout\s+·\s+declared in main\.ts:\d+\s+·\s+used in layout\.mprx:\d+/);
+    assert.match(await titlesOf("src/layout.mprx"), /the application's layout\s+·\s+declared in main\.ts:\d+/);
+    assert.match(await titlesOf("src/main.ts"), /event toggle · raised in theme-toggle\.mprx:\d+ · handled in layout\.mprx:\d+/);
     assert.match(await titlesOf("src/main.ts"), /command · run in layout\.mprx:\d+/);
     assert.match(await titlesOf("src/main.ts"), /state · read in layout\.mprx/);
   }],

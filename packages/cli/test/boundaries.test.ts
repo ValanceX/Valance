@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 const src = fileURLToPath(new URL("../src/", import.meta.url));
 const core = fileURLToPath(new URL("../../valance/", import.meta.url));
 const read = (path: string): string => readFileSync(path, "utf8");
-const importsOf = (text: string): ReadonlyArray<string> => Array.from(text.matchAll(/(?:from|import\()\s*"([^"]+)"/g), (match) => match[1]!);
+// Comments are not imports (the author API documents itself with examples).
+const importsOf = (text: string): ReadonlyArray<string> => Array.from(text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").matchAll(/(?:from|import\()\s*"([^"]+)"/g), (match) => match[1]!);
 const files = readdirSync(src).filter((name) => name.endsWith(".ts") && !name.endsWith(".d.ts"));
 
 /** Every file reachable from `entry` through relative imports. */

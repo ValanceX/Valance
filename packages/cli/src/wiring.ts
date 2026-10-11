@@ -8,8 +8,10 @@ import { ownNames } from "./app.js";
 import type { Compiled } from "./compile.js";
 import type { DefinedApp } from "./index.js";
 import { ENTRY_FILE } from "./project.js";
+import type { Place } from "./tree.js";
+import { placeIn, siteOf } from "./tree.js";
 
-export interface Place { readonly file: string; readonly line: number; readonly column: number }
+export type { Place };
 
 export interface Use {
   /** The tag in a template. */
@@ -27,8 +29,21 @@ export interface Use {
 export interface Component {
   readonly name: string;
   readonly file: string;
-  readonly props: ReadonlyArray<{ readonly name: string; readonly at: Place; readonly passedBy: ReadonlyArray<{ readonly at: Place; readonly from: string }> }>;
-  readonly events: ReadonlyArray<{ readonly name: string; readonly at: Place; readonly handledBy: ReadonlyArray<{ readonly at: Place; readonly to: string }> }>;
+  /** `at` is where the template first reads the prop; `declared` where `src/main.ts` lists it. */
+  readonly props: ReadonlyArray<{ readonly name: string; readonly at: Place; readonly declared?: Place; readonly passedBy: ReadonlyArray<{ readonly at: Place; readonly from: string }> }>;
+  /** `at` is where the template first raises the event; `declared` where `src/main.ts` lists it. */
+  readonly events: ReadonlyArray<{ readonly name: string; readonly at: Place; readonly declared?: Place; readonly handledBy: ReadonlyArray<{ readonly at: Place; readonly to: string }> }>;
+}
+
+/** A component as `src/main.ts` declares it: the application's component tree, one entry per component, from `layout` down. */
+export interface Declaration {
+  readonly name: string;
+  readonly file: string;
+  /** Where it is declared in `src/main.ts` (its `component(…)` call, or its import). */
+  readonly declared?: Place;
+  /** The components that list it in `uses`; `(application)` for the layout and an override. */
+  readonly parents: ReadonlyArray<string>;
+  readonly uses: ReadonlyArray<string>;
 }
 
 export interface Wiring {
@@ -39,6 +54,8 @@ export interface Wiring {
   readonly bindings: Readonly<Record<string, ReadonlyArray<Place>>>;
   readonly uses: ReadonlyArray<Use>;
   readonly components: ReadonlyArray<Component>;
+  /** The component tree, as declared. */
+  readonly tree: ReadonlyArray<Declaration>;
   readonly state: ReadonlyArray<{ readonly name: string; readonly source: Place; readonly readBy: ReadonlyArray<Place> }>;
   readonly commands: ReadonlyArray<{ readonly name: string; readonly source: Place; readonly runBy: ReadonlyArray<Place> }>;
 }
@@ -155,12 +172,6 @@ export const scan = (text: string): Scanned => {
   return { reads, elements };
 };
 
-const placeIn = (text: string, offset: number, file: string): Place => {
-  const before = text.slice(0, offset).split("\n");
-
-  return { file, line: before.length, column: before[before.length - 1]!.length + 1 };
-};
-
 /** The first place a key `name:` is written in `src/main.ts`: where a state field or a command is declared. A text search, not a parse: it is for pointing, and falls back to the top of the file. */
 export const locateKey = (text: string, name: string): Place => {
   const found = new RegExp(`(^|[\\s{,(])(${name})\\s*:`, "m").exec(text);
@@ -191,6 +202,8 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
   const bindings: Record<string, Array<Place>> = {};
   const define = (path: ReadonlyArray<string>, place: Place | undefined): void => { if (place !== undefined) { definitions[path.join("/")] = place; } };
   const placeOf = (component: string, offset: number): Place => { const found = scanned.get(component)!; return placeIn(found.template.source, offset, found.template.file); };
+  const sites = new Map(compiled.tree.map((node) => [node.name, siteOf(mainText, node.file)]));
+  const declaredAt = (name: string): Place | undefined => { const site = sites.get(name); return site?.call ?? site?.imported; };
   const top = (component: string): Place => ({ file: scanned.get(component)!.template.file, line: 1, column: 1 });
 
   // Where each component is used, and what is passed and handled.
@@ -243,25 +256,29 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
       const first = reads.find((read) => read.name === prop && !read.call);
       const at = first === undefined ? top(name) : placeOf(name, first.at);
       const passedBy = callers.flatMap((use) => use.props.filter((passed) => passed.name === prop).map((passed) => ({ at: passed.at, from: passed.from })));
+      const declared = sites.get(name)?.member("props", prop) ?? declaredAt(name);
+      const everywhere = [...(first === undefined ? [] : [at]), ...passedBy.map((each) => each.at)];
 
-      define(["components", name, "props", prop], at);
-      define(["components", name, "scope", prop], at);
-      bindings[["components", name, "props", prop].join("/")] = passedBy.map((each) => each.at);
-      bindings[["components", name, "scope", prop].join("/")] = passedBy.map((each) => each.at);
+      define(["components", name, "props", prop], declared ?? at);
+      define(["components", name, "scope", prop], declared ?? at);
+      bindings[["components", name, "props", prop].join("/")] = everywhere;
+      bindings[["components", name, "scope", prop].join("/")] = everywhere;
 
-      return { name: prop, at, passedBy };
+      return { name: prop, at, ...(declared === undefined ? {} : { declared }), passedBy };
     });
     const events = Object.keys(entry?.events ?? {}).map((event) => {
       const first = reads.find((read) => read.name === event && read.call);
       const at = first === undefined ? top(name) : placeOf(name, first.at);
       const handledBy = callers.flatMap((use) => use.events.filter((handled) => handled.name === event).map((handled) => ({ at: handled.at, to: handled.to })));
+      const declared = sites.get(name)?.member("events", event) ?? declaredAt(name);
+      const everywhere = [...(first === undefined ? [] : [at]), ...handledBy.map((each) => each.at)];
 
-      define(["components", name, "events", event], at);
-      define(["components", name, "commands", event], at);
-      bindings[["components", name, "events", event].join("/")] = handledBy.map((each) => each.at);
-      bindings[["components", name, "commands", event].join("/")] = handledBy.map((each) => each.at);
+      define(["components", name, "events", event], declared ?? at);
+      define(["components", name, "commands", event], declared ?? at);
+      bindings[["components", name, "events", event].join("/")] = everywhere;
+      bindings[["components", name, "commands", event].join("/")] = everywhere;
 
-      return { name: event, at, handledBy };
+      return { name: event, at, ...(declared === undefined ? {} : { declared }), handledBy };
     });
 
     components.push({ name, file: template.file, props, events });
@@ -285,6 +302,7 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
     bindings,
     uses,
     components,
+    tree: compiled.tree.map((node) => { const declared = declaredAt(node.name); return { name: node.name, file: node.file, ...(declared === undefined ? {} : { declared }), parents: node.parents, uses: node.uses }; }),
     state: own.state.map((name) => ({ name, source: locateKey(mainText, name), readBy: readsOf(name, false) })),
     commands: own.commands.map((name) => ({ name, source: locateKey(mainText, name), runBy: readsOf(name, true) })),
   };

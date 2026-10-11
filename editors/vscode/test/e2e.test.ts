@@ -186,14 +186,16 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     return answered === undefined || project.kind !== "ready" ? [] : referencesOf(readWiring(app, project.wiring), answered.manifest, answered.line).map((place) => `${place.file}:${place.line}`);
   };
 
-  it("goes in from the layout: the tag, the event and the prop to the component, the state and the command to main.ts", async () => {
+  it("goes in from the layout: the tag to the component's template, its event and prop to where main.ts declares them, the state and the command to main.ts", async () => {
     const wiring = readWiring(app, ".valance/wiring.json")!;
+    const declared = wiring.definitions["components/theme-toggle/events/toggle"]!;
     const state = wiring.state.find((each) => each.name === "theme")!.source;
     const command = wiring.commands.find((each) => each.name === "toggleTheme")!.source;
 
     expect(await where("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toBe("src/theme-toggle.mprx:1");
-    expect(await where("src/layout.mprx", "<theme-toggle", "on.toggle", 4)).toBe("src/theme-toggle.mprx:1");
-    expect(await where("src/layout.mprx", "<theme-toggle", " theme=", 2)).toBe("src/theme-toggle.mprx:1");
+    expect(declared.file).toBe("src/main.ts");
+    expect(await where("src/layout.mprx", "<theme-toggle", "on.toggle", 4)).toBe(`src/main.ts:${declared.line}`);
+    expect(await where("src/layout.mprx", "<theme-toggle", " theme=", 2)).toBe(`src/main.ts:${wiring.definitions["components/theme-toggle/props/theme"]!.line}`);
     expect(await where("src/layout.mprx", "<theme-toggle", "{theme}", 2)).toBe(`src/main.ts:${state.line}`);
     expect(await where("src/layout.mprx", "<theme-toggle", "toggleTheme", 2)).toBe(`src/main.ts:${command.line}`);
   });
@@ -201,12 +203,15 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
   it("is the same declaration from inside the component (where VS Code then shows the references), and the many uses are references, not a jump", async () => {
     const layoutLine = readFileSync(join(app, "src/layout.mprx"), "utf8").split("\n").findIndex((each) => each.includes("<theme-toggle")) + 1;
 
-    expect(await where("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toBe("src/theme-toggle.mprx:1");
-    expect(await uses("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every handler of the event
-    expect(await uses("src/theme-toggle.mprx", "on.click", "{theme ==", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every place the prop is passed
+    const tree = readWiring(app, ".valance/wiring.json")!.tree!;
+    const declared = tree.find((each) => each.name === "theme-toggle")!.declared!;
+
+    expect(await where("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toBe(`src/main.ts:${declared.line}`);
+    expect(await uses("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toEqual(["src/theme-toggle.mprx:1", `src/layout.mprx:${layoutLine}`]);        // where it is raised, and every handler
+    expect(await uses("src/theme-toggle.mprx", "on.click", "{theme ==", 2)).toEqual(["src/theme-toggle.mprx:1", `src/layout.mprx:${layoutLine}`]);        // where it is read, and every place it is passed
     expect(await uses("src/layout.mprx", "<theme-toggle", "toggleTheme", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every place the command runs
     expect(await uses("src/layout.mprx", "<theme-toggle", "{theme}", 2)).toEqual([`src/layout.mprx:1`, `src/layout.mprx:${layoutLine}`]);   // every place the state is read
-    expect(await uses("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);       // every use of the component
+    expect(await uses("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toEqual([`src/main.ts:${declared.line}`, `src/layout.mprx:${layoutLine}`]);       // where it is declared, and every use
   });
 
   it("sends the framework's names and the elements to the README that explains them, and a built-in to its template", async () => {
@@ -225,8 +230,8 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     const wiring = readWiring(app, ".valance/wiring.json")!;
     const titles = (file: string): ReadonlyArray<string> => lensesFor(wiring, file).map((lens) => lens.title);
 
-    expect(titles("src/layout.mprx")).toEqual(["→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()", "→ blocks.mprx  ·  items ← {blocks}"]);
-    expect(titles("src/theme-toggle.mprx")).toEqual(["used in layout.mprx:4", "prop theme · passed from layout.mprx:4 as {theme}", "event toggle · handled in layout.mprx:4 ⇒ toggleTheme()"]);
-    expect(titles("src/main.ts")).toEqual(["state · read in layout.mprx:1, layout.mprx:4", "command · run in layout.mprx:4"]);
+    expect(titles("src/layout.mprx")).toEqual(["→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()", "→ blocks.mprx  ·  items ← {blocks}", "the application's layout  ·  declared in main.ts:8"]);
+    expect(titles("src/theme-toggle.mprx")).toEqual(["in layout  ·  declared in main.ts:9  ·  used in layout.mprx:4", "prop theme · declared in main.ts:9 · passed from layout.mprx:4 as {theme}", "event toggle · declared in main.ts:9 · handled in layout.mprx:4 ⇒ toggleTheme()"]);
+    expect(titles("src/main.ts")).toEqual(["→ layout.mprx  ·  uses theme-toggle", "→ theme-toggle.mprx  ·  in layout", "prop theme · read in theme-toggle.mprx:1 · passed from layout.mprx:4 as {theme}", "event toggle · raised in theme-toggle.mprx:1 · handled in layout.mprx:4 ⇒ toggleTheme()", "state · read in layout.mprx:1, layout.mprx:4", "command · run in layout.mprx:4"]);
   });
 });

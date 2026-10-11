@@ -77,10 +77,11 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
   generateEntries(root);
 
+  const base = baseConfig(root, config);
   const server = await createServer({
-    ...baseConfig(root, config),
+    ...base,
     server: { port: options.port ?? 5173, host: options.host ?? "127.0.0.1", strictPort: false, fs: { allow: [root] } },
-    plugins: [{
+    plugins: [...(base.plugins ?? []), {
       name: "valance",
       configureServer: (vite) => () => {
         // After Vite's own middleware: modules, styles, public files and the client have had their chance. What is left is a page.

@@ -77,7 +77,7 @@ $ cp ~/path/to/Valance/examples/docs-app/src/{layout.mprx,theme-toggle.mprx,styl
 $ cp ~/path/to/Valance/examples/docs-app/public/logo.svg public/
 ```
 
-Edit them; `npm run dev` picks everything up. The conventions are in [`packages/cli/README.md`](../../packages/cli/README.md).
+These four files go together: `main.ts` imports `layout.mprx` and `theme-toggle.mprx` and declares them as the application's component tree, so copy all of them. Edit them; `npm run dev` picks everything up. Start reading at `src/main.ts`: it names every template, and in VS Code ctrl+click on an import opens the file. The conventions are in [`packages/cli/README.md`](../../packages/cli/README.md).
 
 After pulling new code: `pnpm build` in the Valance clone, then `npx vlx check` in your project (it rewrites `.valance/`). If you installed from a tarball earlier, remove it and install by path: `npm uninstall @valancex/cli && npm install -D ~/path/to/Valance/packages/cli`.
 

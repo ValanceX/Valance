@@ -218,3 +218,15 @@ describe("a project built by an older vlx", () => {
     expect(old).toEqual({ kind: "ready", settings: { model: ".valance/manifest.json", components: { "src/layout.mprx": "layout" } } });
   });
 });
+
+describe("the imports in src/main.ts", () => {
+  it("makes each template import a link to the file, and nothing else", async () => {
+    const { templateImports } = await import("../src/wiring");
+    const text = 'import { component, defineApp } from "@valancex/cli";\nimport layout from "./layout.mprx";\nimport chip from \'../shared/chip.mprx\';\nimport x from "./x.ts";\n';
+    const found = templateImports(text);
+
+    expect(found.map((each) => each.specifier)).toEqual(["./layout.mprx", "../shared/chip.mprx"]);
+    expect(found.map((each) => each.line)).toEqual([1, 2]);
+    expect(text.split("\n")[1]!.slice(found[0]!.start, found[0]!.end)).toBe("./layout.mprx");
+  });
+});

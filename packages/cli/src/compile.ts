@@ -12,13 +12,17 @@ import { commandTable, scopeSchema } from "./app.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "./index.js";
+import { asComponent } from "./index.js";
+import type { Node, Place } from "./tree.js";
+import { nameOf, siteOf, treeOf } from "./tree.js";
 import { primitives } from "./primitives.js";
+import { ENTRY_FILE } from "./project.js";
 
 export const SOURCE_DIR = "src";
 /** The component the page is drawn by. */
 export const ROOT = "layout";
 
-const BUILT_IN = fileURLToPath(new URL("../views/", import.meta.url));
+export const BUILT_IN = fileURLToPath(new URL("../views/", import.meta.url));
 /** The package directory: where its README, which documents the framework's own names, is. */
 export const PACKAGE_DIR = fileURLToPath(new URL("../", import.meta.url));
 
@@ -32,8 +36,27 @@ interface Template {
 
 const mprxIn = (dir: string): ReadonlyArray<string> => existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".mprx")).sort() : [];
 
-/** Built-in templates, then the author's: a name the author uses again replaces the built-in. */
-export const templatesOf = (root: string): ReadonlyArray<Template> => {
+const TAG = /<([a-z][a-z0-9-]*)[\s/>]/g;
+
+const lineAndColumn = (source: string, offset: number): { readonly line: number; readonly column: number } => {
+  const before = source.slice(0, offset).split("\n");
+
+  return { line: before.length, column: before[before.length - 1]!.length + 1 };
+};
+
+const entryText = (root: string): string => { try { return readFileSync(join(root, ENTRY_FILE), "utf8"); } catch { return ""; } };
+
+export interface Templates {
+  readonly all: ReadonlyArray<Template>;
+  /** The declared tree, in `src/main.ts`'s own words. */
+  readonly tree: ReadonlyArray<Node>;
+}
+
+/**
+ * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout` and, under it, each component's `uses`. A file under `src/` that is not in that
+ * tree is an error, not a guess; a tag a template uses without declaring it is an error; so is declaring one it does not use. A name that is a built-in's replaces it only through `override`.
+ */
+export const templatesOf = (root: string, author: DefinedApp | undefined): Templates => {
   const found = new Map<string, Template>();
 
   for (const file of mprxIn(BUILT_IN)) {
@@ -42,30 +65,73 @@ export const templatesOf = (root: string): ReadonlyArray<Template> => {
     found.set(component, { component, path: `@valancex/cli/views/${file}`, source: readFileSync(join(BUILT_IN, file), "utf8"), builtIn: true });
   }
 
-  const own = new Map<string, string>();
+  const layout = author?.layout === undefined ? undefined : asComponent(author.layout);
+  const overrides = (author?.override ?? []).map(asComponent);
+  const tree = treeOf(layout, overrides);
+  const text = entryText(root);
   const problems: Array<Diagnostic> = [];
+  const at = (file: string): Place => siteOf(text, file).imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+  const problem = (place: Place, code: string, message: string): void => { problems.push(diagnostic(place.file, place.line, code, message, place.column)); };
 
+  if (layout !== undefined && nameOf(layout.template.mprx) !== ROOT) { problem(at(layout.template.mprx), "layout-name", `the layout's template must be named ${ROOT}.mprx, not ${basename(layout.template.mprx)}`); }
+
+  const builtInNames = new Set(found.keys());
+
+  for (const each of overrides) {
+    const name = nameOf(each.template.mprx);
+
+    if (!builtInNames.has(name) && name !== ROOT) { problem(at(each.template.mprx), "override-unknown", `<${name}> is not a built-in component, so there is nothing to override; list it in the \`uses\` of the component that uses it`); }
+  }
+
+  const files = new Map<string, string>();
+
+  for (const node of tree) {
+    const place = at(node.file);
+
+    if (files.has(node.name) && files.get(node.name) !== node.file) { problem(place, "template-duplicate", `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`); continue; }
+    if (node.name in primitives) { problem(place, "template-primitive", `<${node.name}> is already a tag the framework draws as an element; name the file something else`); continue; }
+    if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(node.name)) { problem(place, "template-name", `"${node.name}" cannot be a tag: use lowercase words joined by - (for example callout or post-card)`); continue; }
+    if (!existsSync(join(root, node.file))) { problem(place, "template-missing", `${node.file} does not exist`); continue; }
+
+    files.set(node.name, node.file);
+    found.set(node.name, { component: node.name, path: node.file, source: readFileSync(join(root, node.file), "utf8"), builtIn: false });
+  }
+
+  // Every template under src/ must be somewhere in the tree.
   for (const file of mprxIn(join(root, SOURCE_DIR))) {
-    const component = basename(file, ".mprx");
     const path = `${SOURCE_DIR}/${file}`;
 
-    if (own.has(component)) { problems.push(diagnostic(path, 0, "template-duplicate", `${own.get(component)} is also <${component}>: a component is named by its file, so the name must be unique under ${SOURCE_DIR}/`)); continue; }
-    if (component in primitives) { problems.push(diagnostic(path, 0, "template-primitive", `<${component}> is already a tag the framework draws as an element; name the file something else`)); continue; }
-    if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(component)) { problems.push(diagnostic(path, 0, "template-name", `"${component}" cannot be a tag: use lowercase words joined by - (for example callout or post-card)`)); continue; }
+    if (![...files.values()].includes(path)) { problems.push(diagnostic(path, 0, "template-unused", `${path} is not in the component tree: import it in ${ENTRY_FILE} and ${basename(file) === `${ROOT}.mprx` ? "pass it as \`layout\`" : "list it in the \`uses\` of the component that uses it"}`)); }
+  }
 
-    own.set(component, path);
-    found.set(component, { component, path, source: readFileSync(join(root, path), "utf8"), builtIn: false });
+  // The tags each template uses, against the components it declared.
+  for (const node of tree) {
+    const template = found.get(node.name);
+
+    if (template === undefined || template.builtIn) { continue; }
+
+    const written = new Map<string, number>();
+
+    for (const tag of template.source.matchAll(TAG)) { if (!written.has(tag[1]!)) { written.set(tag[1]!, tag.index!); } }
+
+    for (const [tag, offset] of written) {
+      if (files.has(tag) && !node.uses.includes(tag) && tag !== node.name) {
+        problems.push(diagnostic(node.file, lineAndColumn(template.source, offset).line, "component-undeclared", `<${tag}> is used here but ${node.name === ROOT ? "the layout" : `<${node.name}>`} does not declare it: add it to \`uses\` where ${node.name} is declared in ${ENTRY_FILE}`, lineAndColumn(template.source, offset).column));
+      }
+    }
+
+    for (const used of node.uses) {
+      if (!written.has(used)) { problem(siteOf(text, node.file).call ?? at(node.file), "component-unused", `${node.name} declares <${used}> in uses, but ${node.file} never uses it`); }
+    }
   }
 
   if (problems.length > 0) { throw new AppError(problems); }
 
-  return [...found.values()];
+  return { all: [...found.values()], tree };
 };
 
-const TAG = /<([a-z][a-z0-9-]*)[\s/>]/g;
-
 /** The templates the root reaches, following the tags each uses. A template nothing uses is not part of the program (the compiler refuses one). */
-const reachable = (all: ReadonlyArray<Template>): { readonly used: ReadonlyArray<Template>; readonly unused: ReadonlyArray<Template> } => {
+const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
   const byName = new Map(all.map((template) => [template.component, template]));
   const seen = new Set<string>();
   const queue = [ROOT];
@@ -81,7 +147,7 @@ const reachable = (all: ReadonlyArray<Template>): { readonly used: ReadonlyArray
     for (const tag of template.source.matchAll(TAG)) { queue.push(tag[1]!); }
   }
 
-  return { used: all.filter((template) => seen.has(template.component)), unused: all.filter((template) => !seen.has(template.component)) };
+  return all.filter((template) => seen.has(template.component));
 };
 
 export const manifestOf = (author: DefinedApp | undefined) => manifest({
@@ -101,16 +167,17 @@ export interface Compiled {
   /** Each template the program was built from, by source path, for the editor: `src/theme-toggle.mprx` → `theme-toggle`. Built-in templates are not listed (they are not in the project). */
   readonly files: Readonly<Record<string, string>>;
   readonly components: ReadonlyArray<string>;
+  /** The component tree as `src/main.ts` declares it. */
+  readonly tree: ReadonlyArray<Node>;
   /** Every template the program was built from, with its source text and its file relative to the project (a built-in's is under the package, so it may start with `..`). */
   readonly templates: ReadonlyArray<{ readonly component: string; readonly file: string; readonly source: string; readonly builtIn: boolean }>;
 }
 
 /** Compiles the application's templates. Fails with every diagnostic, each pointing into the file it is about. */
 export const compileViews = async (root: string, author: DefinedApp | undefined): Promise<Compiled> => {
-  const all = templatesOf(root);
-  const { used, unused } = reachable(all);
+  const { all, tree } = templatesOf(root, author);
+  const used = reachable(all);
   const model = manifestOf(author);
-  const orphans = unused.filter((template) => !template.builtIn).map((template) => diagnostic(template.path, 1, "template-unused", `<${template.component}> is never used: it is not reached from ${SOURCE_DIR}/${ROOT}.mprx (or the built-in layout), and an unused component is not compiled`));
 
   if (!used.some((template) => template.component === ROOT)) { throw new AppError([diagnostic(`${SOURCE_DIR}/${ROOT}.mprx`, 0, "layout-missing", "there is no layout")]); }
 
@@ -126,17 +193,45 @@ export const compileViews = async (root: string, author: DefinedApp | undefined)
       ...(((result.assembly as { readonly diagnostics?: ReadonlyArray<{ readonly code: string; readonly message: string; readonly path?: string; readonly span?: { readonly start: { readonly line: number; readonly column: number } } }> } | undefined)?.diagnostics ?? []).map((each) => diagnostic(each.path ?? "program", each.span?.start.line ?? 0, each.code, each.message, each.span?.start.column ?? 0))),
     ];
 
-    throw new AppError([...found.map((each) => relocate(each, root)), ...orphans]);
+    throw new AppError(found.map((each) => relocate(each, root)));
   }
-
-  if (orphans.length > 0) { throw new AppError(orphans); }
 
   const program = result.program as unknown as Valance.Program;
   const enriched = (program as unknown as { readonly model: unknown }).model;
+  const manifestOfProgram = typeof enriched === "string" ? JSON.parse(enriched) : enriched;
+
+  // What each component declared it takes and raises, against what its template does.
+  const text = entryText(root);
+  const mismatches: Array<Diagnostic> = [];
+
+  for (const node of tree) {
+    const entry = (manifestOfProgram as { readonly components: Readonly<Record<string, { readonly props: Record<string, unknown>; readonly events: Record<string, unknown> }>> }).components[node.name];
+    const site = siteOf(text, node.file);
+    const where = (kind: "props" | "events", name: string): Place => site.member(kind, name) ?? site.call ?? site.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+
+    for (const [kind, declared, actual] of [["props", node.props, Object.keys(entry?.props ?? {})], ["events", node.events, Object.keys(entry?.events ?? {})]] as const) {
+      const noun = kind === "props" ? "prop" : "event";
+
+      for (const name of actual.filter((each) => !declared.includes(each))) {
+        const place = site.call ?? site.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+
+        mismatches.push(diagnostic(place.file, place.line, `${noun}-undeclared`, `<${node.name}> has the ${noun} "${name}" (see ${node.file}) but ${ENTRY_FILE} does not declare it: add "${name}" to ${kind} of ${node.name}`, place.column));
+      }
+
+      for (const name of declared.filter((each) => !actual.includes(each))) {
+        const place = where(kind, name);
+
+        mismatches.push(diagnostic(place.file, place.line, `${noun}-unknown`, `${node.name} declares the ${noun} "${name}" but ${node.file} has no such ${noun}`, place.column));
+      }
+    }
+  }
+
+  if (mismatches.length > 0) { throw new AppError(mismatches); }
 
   return {
     program,
-    manifest: typeof enriched === "string" ? JSON.parse(enriched) : enriched,
+    manifest: manifestOfProgram,
+    tree,
     files: Object.fromEntries(used.filter((template) => !template.builtIn).map((template) => [template.path, template.component])),
     components: used.map((template) => template.component),
     templates: used.map((template) => ({ component: template.component, file: template.builtIn ? relative(root, join(BUILT_IN, `${template.component}.mprx`)).split(sep).join("/") : template.path, source: template.source, builtIn: template.builtIn })),

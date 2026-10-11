@@ -37,6 +37,7 @@
     "dist",
     "bin",
     "views",
+    "types",
     "schemas"
   ],
   "scripts": {

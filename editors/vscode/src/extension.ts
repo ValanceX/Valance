@@ -7,12 +7,12 @@ import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { LanguageClient } from "vscode-languageclient/node";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { forTheCheck, place, run, UNMAPPED, unmappedMessage } from "./diagnostics";
 import { explain, findProjects, forWorkspace, readProject, templateOf } from "./project";
 import type { LspSettings } from "./project";
-import { authoredPlace, lensesFor, readWiring, referencesOf } from "./wiring";
+import { authoredPlace, lensesFor, readWiring, referencesOf, templateImports } from "./wiring";
 
 /** `partial`: the language server runs, but the project has no wiring data, so navigation to the author's files and the connection lenses are off. */
 export type Status = "starting" | "ready" | "partial" | "not-a-project" | "not-generated" | "no-server" | "failed";
@@ -300,10 +300,21 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     },
   };
   const wiringWatcher = vscode.workspace.createFileSystemWatcher("**/.valance/wiring.json");
+  // `import layout from "./layout.mprx"`: TypeScript resolves the specifier to its ambient declaration, so the specifier is made a link to the template itself.
+  const importLinks: vscode.DocumentLinkProvider = {
+    provideDocumentLinks: (document) => templateImports(document.getText()).map((each) => {
+      const link = new vscode.DocumentLink(new vscode.Range(each.line, each.start, each.line, each.end), vscode.Uri.file(join(dirname(document.uri.fsPath), each.specifier)));
+
+      link.tooltip = "Open the template";
+
+      return link;
+    }),
+  };
 
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider([{ language: "mprx" }, { pattern: "**/src/main.ts" }], lensProvider),
     vscode.languages.registerReferenceProvider({ language: "mprx" }, referenceProvider),
+    vscode.languages.registerDocumentLinkProvider({ pattern: "**/src/main.ts" }, importLinks),
     wiringWatcher,
     wiringWatcher.onDidChange(() => { lensesChanged.fire(); }),
     wiringWatcher.onDidCreate(() => { lensesChanged.fire(); void refresh(); }),

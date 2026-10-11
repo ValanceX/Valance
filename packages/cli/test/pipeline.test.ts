@@ -10,6 +10,13 @@ afterEach(cleanup);
 
 const BASIC = { "content/index.md": PAGE("Home", "See [the guide](/guide/a)."), "content/guide/a.md": PAGE("A", "## Part\n\nText.") };
 
+/** A src/main.ts that declares the layout, and under it the given components (name → props and events), plus anything else the definition holds. */
+const entry = (uses: Record<string, { props?: string[]; events?: string[] }> = {}, rest = ""): string => {
+  const names = Object.keys(uses);
+
+  return `import { component, defineApp, Schema } from "@valancex/cli";\nimport layout from "./layout.mprx";\n${names.map((name) => `import ${name} from "./${name}.mprx";\n`).join("")}\nexport default defineApp({\n  layout: component(layout, { uses: [${names.map((name) => `component(${name}, ${JSON.stringify(uses[name])})`).join(", ")}] }),\n${rest}});\n`;
+};
+
 const codes = async (files: Record<string, string>): Promise<ReadonlyArray<string>> => (await check(project(files))).diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
 
 describe("vlx check", () => {
@@ -22,29 +29,29 @@ describe("vlx check", () => {
   });
 
   it("reports content and template problems together, in one shape", async () => {
-    const found = await codes({ ...BASIC, "content/bad.md": "---\ntitle: Bad\n---\n\n<b>x</b>\n", "src/layout.mprx": "<shell class=\"x\" theme=\"light\"><nothing /></shell>" });
+    const found = await codes({ ...BASIC, "content/bad.md": "---\ntitle: Bad\n---\n\n<b>x</b>\n", "src/main.ts": entry(), "src/layout.mprx": "<shell class=\"x\" theme=\"light\"><nothing /></shell>" });
 
     expect(found).toContain("content/bad.md:5 md-html");
     expect(found.some((entry) => entry.startsWith("src/layout.mprx:1 "))).toBe(true);
   });
 
   it("points a template error at the line and column of the template", async () => {
-    const result = await check(project({ ...BASIC, "src/layout.mprx": '<shell class="x" theme="light">\n  <para class="y">{missingName}</para>\n</shell>\n' }));
+    const result = await check(project({ ...BASIC, "src/main.ts": entry(), "src/layout.mprx": '<shell class="x" theme="light">\n  <para class="y">{missingName}</para>\n</shell>\n' }));
     const found = result.diagnostics.find((each) => each.file === "src/layout.mprx");
 
     expect(found).toMatchObject({ line: 2 });
     expect(found!.message).toMatch(/missingName/);
   });
 
-  it("refuses a component nothing uses, and a name that is already a tag", async () => {
-    expect(await codes({ ...BASIC, "src/orphan.mprx": '<para class="x">x</para>' })).toEqual(["src/orphan.mprx:1 template-unused"]);
-    expect(await codes({ ...BASIC, "src/link.mprx": "<para />" })).toEqual(["src/link.mprx:0 template-primitive"]);
+  it("refuses a template that is not in the tree, and a name that is already a tag", async () => {
+    expect(await codes({ ...BASIC, "src/orphan.mprx": '<para class="x">x</para>' })).toEqual(["src/orphan.mprx:0 template-unused"]);
+    expect(await codes({ ...BASIC, "src/main.ts": 'import { defineApp } from "@valancex/cli";\nimport link from "./link.mprx";\nexport default defineApp({ override: [link] });\n', "src/link.mprx": "<para />" })).toContain("src/main.ts:2 template-primitive");
   });
 
   it("reads src/main.ts: state fields become names a layout may read, and a clash is an error", async () => {
-    const main = (fields: string): string => `import { defineApp, Schema } from "@valancex/cli";\nexport default defineApp({ state: { schema: Schema.Struct({ ${fields} }), initial: { ${fields.replace(/: Schema\.\w+/g, ": 0")} } } });\n`;
+    const main = (fields: string, layout = false): string => (layout ? entry({}, `  state: { schema: Schema.Struct({ ${fields} }), initial: { ${fields.replace(/: Schema\.\w+/g, ": 0")} } },\n`) : `import { defineApp, Schema } from "@valancex/cli";\nexport default defineApp({ state: { schema: Schema.Struct({ ${fields} }), initial: { ${fields.replace(/: Schema\.\w+/g, ": 0")} } } });\n`);
 
-    expect((await check(project({ ...BASIC, "src/main.ts": main("count: Schema.Number"), "src/layout.mprx": '<shell class="x" theme="light"><para class="y">{count}</para></shell>' }))).diagnostics).toEqual([]);
+    expect((await check(project({ ...BASIC, "src/main.ts": main("count: Schema.Number", true), "src/layout.mprx": '<shell class="x" theme="light"><para class="y">{count}</para></shell>' }))).diagnostics).toEqual([]);
     expect(await codes({ ...BASIC, "src/main.ts": main("title: Schema.Number") })).toEqual(["src/main.ts:1 entry-definition"]);
     expect(await codes({ ...BASIC, "src/main.ts": "export default 1;\n" })).toEqual(["src/main.ts:1 entry-export"]);
     expect(await codes({ ...BASIC, "src/main.ts": 'import { defineApp } from "@valancex/cli";\nexport default defineApp({ commands: (command) => ({ go: command((state) => state) }) });\n' })).toEqual(["src/main.ts:1 entry-definition"]);
@@ -112,12 +119,52 @@ describe("vlx build", () => {
   });
 
   it("lets a template replace a built-in by name", async () => {
-    const root = project({ ...BASIC, "src/runs.mprx": '<mesh-fragment><mesh-each items={spans} as="s" key={s.id}><em>{s.text}</em></mesh-each></mesh-fragment>' });
+    const root = project({ ...BASIC, "src/main.ts": 'import { defineApp } from "@valancex/cli";\nimport runs from "./runs.mprx";\nimport { component } from "@valancex/cli";\nexport default defineApp({ override: [component(runs, { props: ["spans"] })] });\n', "src/runs.mprx": '<mesh-fragment><mesh-each items={spans} as="s" key={s.id}><em>{s.text}</em></mesh-each></mesh-fragment>' });
 
     writeFileSync(join(root, "unused"), "");
     await build(root);
 
     expect(readFileSync(join(root, "dist/index.html"), "utf8")).toContain("<em>See </em>");
+  });
+});
+
+describe("the component tree declared in src/main.ts", () => {
+  const LAYOUT = (inner: string): string => `<shell class="x" theme="light">${inner}</shell>`;
+  const BADGE = '<span class="b">{count}</span>';
+  const NESTED = '<mesh-fragment><chip label={count} /></mesh-fragment>';
+  const CHIP = '<span class="c">{label}</span>';
+
+  it("builds a tree of any depth: each component lists the components its template uses", async () => {
+    const main = 'import { component, defineApp } from "@valancex/cli";\nimport layout from "./layout.mprx";\nimport badge from "./badge.mprx";\nimport chip from "./chip.mprx";\nexport default defineApp({ layout: component(layout, { uses: [component(badge, { props: ["count"], uses: [component(chip, { props: ["label"] })] })] }) });\n';
+
+    expect(await codes({ ...BASIC, "src/main.ts": main, "src/layout.mprx": LAYOUT('<badge count="1" />'), "src/badge.mprx": NESTED, "src/chip.mprx": CHIP })).toEqual([]);
+  });
+
+  it("refuses a tag the template uses without declaring, at the tag", async () => {
+    const main = 'import { component, defineApp } from "@valancex/cli";\nimport layout from "./layout.mprx";\nimport badge from "./badge.mprx";\nimport chip from "./chip.mprx";\nexport default defineApp({ layout: component(layout, { uses: [component(badge, { props: ["count"], uses: [component(chip, { props: ["label"] })] })] }) });\n';
+
+    expect(await codes({ ...BASIC, "src/main.ts": main, "src/layout.mprx": LAYOUT('<badge count="1" /><chip label="x" />'), "src/badge.mprx": NESTED, "src/chip.mprx": CHIP })).toEqual(["src/layout.mprx:1 component-undeclared"]);
+    expect(await codes({ ...BASIC, "src/main.ts": entry(), "src/layout.mprx": LAYOUT('<badge count="1" />'), "src/badge.mprx": BADGE })).toEqual(["src/badge.mprx:0 template-unused"]);
+  });
+
+  it("refuses a declaration the template does not use, at the declaration", async () => {
+    expect(await codes({ ...BASIC, "src/main.ts": entry({ badge: { props: ["count"] } }), "src/layout.mprx": LAYOUT('<para class="y">x</para>'), "src/badge.mprx": BADGE })).toEqual(["src/main.ts:6 component-unused"]);
+  });
+
+  it("checks the props and events a component lists against its template, naming both files", async () => {
+    const files = { ...BASIC, "src/layout.mprx": LAYOUT('<badge count="1" on.close={shut()} />'), "src/badge.mprx": '<button class="b" pressed="false" on.click={close()}>{count}</button>' };
+
+    const rest = "  commands: (command) => ({ shut: command((state) => state) }),\n";
+
+    expect(await codes({ ...files, "src/main.ts": entry({ badge: {} }, rest) })).toEqual(["src/main.ts:6 prop-undeclared", "src/main.ts:6 event-undeclared"]);
+    expect(await codes({ ...files, "src/main.ts": entry({ badge: { props: ["count", "size"], events: ["close", "open"] } }, rest) })).toEqual(["src/main.ts:6 prop-unknown", "src/main.ts:6 event-unknown"]);
+    expect(await codes({ ...files, "src/main.ts": entry({ badge: { props: ["count"], events: ["close"] } }, rest) })).toEqual([]);
+  });
+
+  it("wants the layout's template named layout, and a template that exists", async () => {
+    const main = 'import { component, defineApp } from "@valancex/cli";\nimport shell from "./shell.mprx";\nexport default defineApp({ layout: component(shell) });\n';
+
+    expect(await codes({ ...BASIC, "src/main.ts": main, "src/shell.mprx": LAYOUT("") })).toContain("src/main.ts:2 layout-name");
   });
 });
 
@@ -132,7 +179,7 @@ describe("a mistake in src/main.ts itself", () => {
 
 describe("what an editor reads", () => {
   it("manifest.json declares the author's own components, with the props their uses pass; editor.json maps files to components", async () => {
-    const root = project({ ...BASIC, "src/main.ts": 'import { defineApp, Schema } from "@valancex/cli";\nexport default defineApp({ state: { schema: Schema.Struct({ n: Schema.Number }), initial: { n: 0 } } });\n', "src/layout.mprx": '<shell class="x" theme="light"><badge count={n} /></shell>', "src/badge.mprx": '<span class="b">{count}</span>' });
+    const root = project({ ...BASIC, "src/main.ts": entry({ badge: { props: ["count"], events: [] } }, "  state: { schema: Schema.Struct({ n: Schema.Number }), initial: { n: 0 } },\n"), "src/layout.mprx": '<shell class="x" theme="light"><badge count={n} /></shell>', "src/badge.mprx": '<span class="b">{count}</span>' });
 
     await build(root);
 

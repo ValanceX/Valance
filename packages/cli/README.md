@@ -33,10 +33,10 @@ That is a complete application. It uses a built-in layout. Everything below is h
 | `valance.web.json` | The web target: `base` (where it is served, default `/`) and `url` (where it is published; adds canonical links and `sitemap.xml`). Optional. | you |
 | `content/**/*.md` | The pages. A file's path is its address. | you |
 | `public/**` | Files served as they are (`public/logo.svg` is `/logo.svg`). | you |
-| `src/layout.mprx` | The shell around every page. Optional (a default ships). | you |
-| `src/*.mprx` | Your components, each named by its file (`src/callout.mprx` is `<callout>`). A file named like a built-in (`runs`, `block`, `heading`…) replaces it. | you |
+| `src/layout.mprx` | The shell around every page. Optional: without a `layout` in `src/main.ts` a default ships. | you |
+| `src/*.mprx` | Your components, each named by its file (`src/callout.mprx` is `<callout>`). Each is imported and declared in `src/main.ts`; a file nothing declares is an error. | you |
 | `src/**/*.css` | Styles. Every stylesheet is loaded. | you |
-| `src/main.ts` | Optional. `defineApp`: state of your own and the commands that change it. | you |
+| `src/main.ts` | Optional until you own a template. `defineApp`: the component tree (`layout` and what it uses), state of your own and the commands that change it. | you |
 | `.valance/` | Generated: content, compiled templates, the entries, and for editors `manifest.json` (what a template may use) and `editor.json` (which file is which component). Git-ignored by a `.gitignore` inside it. | the tools |
 | `dist/` | The built site. | the tools |
 
@@ -75,7 +75,31 @@ Templates are MPRX. A layout reads these names (the framework's) and any field o
 
 Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `para`, `quote`, `list`, `olist`, `item`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
 
-A component is a file; nothing registers it. One that nothing uses is an error (the compiler would refuse it).
+## The component tree
+
+Your application is the tree you declare in `src/main.ts`, from `layout` down. Nothing under `src/` is part of it by being there.
+
+```ts
+// src/main.ts
+import { component, defineApp } from "@valancex/cli";
+import layout from "./layout.mprx";
+import themeToggle from "./theme-toggle.mprx";
+
+export default defineApp({
+  layout: component(layout, {
+    uses: [component(themeToggle, { props: ["theme"], events: ["toggle"] })],
+  }),
+});
+```
+
+- `import x from "./x.mprx"` names a template file; `component(x, …)` declares it. The tag is the file's name (`theme-toggle.mprx` is `<theme-toggle>`).
+- `uses` lists the components *its template* uses, and only those. A tag used but not listed is an error at the tag (`component-undeclared`); one listed but not used is an error at the declaration (`component-unused`). A file under `src/` that no declaration reaches is an error (`template-unused`).
+- `props` and `events` list what the template reads from its user and raises to it, and are checked against the template both ways (`prop-undeclared`, `prop-unknown`, `event-undeclared`, `event-unknown`). That is the component's declared interface: it is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
+- A component used in several places is one declaration you pass to each `uses`; a declaration may live in any file you import (`export const themeToggle = component(…)` in `theme-toggle.ts`).
+- `override: [component(runs, { props: ["spans"] })]` replaces a built-in (`runs`, `heading`, …) with your template of the same name.
+- `layout` is optional; without it the built-in layout draws the page. Its template must be named `layout.mprx`.
+
+The tree is plain data you can read from the top; the compiled program is built from it, and nothing is loaded lazily yet (a page ships one program).
 
 ## State and commands
 
@@ -84,6 +108,7 @@ A component is a file; nothing registers it. One that nothing uses is an error (
 import { defineApp, Schema } from "@valancex/cli";
 
 export default defineApp({
+  // (and `layout`, if you own one: see above)
   state: { schema: Schema.Struct({ theme: Schema.Literal("light", "dark") }), initial: { theme: "light" } },
   commands: (command) => ({
     toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
@@ -91,7 +116,7 @@ export default defineApp({
 });
 ```
 
-`theme` is now a name the layout reads (`<shell theme={theme}>`) and `toggleTheme()` a command it runs (`on.click={toggleTheme()}`). A component forwards an event (`on.click={toggle()}`) and its user binds it (`<theme-toggle on.toggle={toggleTheme()} />`). A state field may not reuse a framework name (`site`, `title`, `blocks`…), and `go` is the framework's command. Both are errors that say so.
+`theme` is now a name the layout reads (`<shell theme={theme}>`) and `toggleTheme()` a command it runs (`on.click={toggleTheme()}`). A component raises an event (`on.click={toggle()}`, declared in `events`) and its user binds it (`<theme-toggle on.toggle={toggleTheme()} />`). A state field may not reuse a framework name (`site`, `title`, `blocks`…), and `go` is the framework's command. Both are errors that say so.
 
 ## What `vlx dev` does when you save
 
