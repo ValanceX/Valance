@@ -12,7 +12,7 @@ export const project = (files: Readonly<Record<string, string>>): string => {
 
   made.push(root);
   mkdirSync(join(root, "node_modules", "@valancex"), { recursive: true });
-  symlinkSync(PACKAGE, join(root, "node_modules", "@valancex", "cli"), "dir");
+  symlinkSync(PACKAGE, join(root, "node_modules", "@valancex", "cli"), process.platform === "win32" ? "junction" : "dir");
 
   for (const [name, text] of Object.entries({ "valance.json": '{ "name": "Test" }', ...files })) {
     mkdirSync(dirname(join(root, name)), { recursive: true });

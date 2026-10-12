@@ -2,8 +2,9 @@
 // before MESH publishes its language extension; once it does, this extension depends on that one (`extensionDependencies`) and the copy goes. `MESH_DIR` points at a MESH checkout.
 import { copyFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const mesh = resolve(process.env["MESH_DIR"] ?? new URL("../../../../Mesh", import.meta.url).pathname);
+const mesh = resolve(process.env["MESH_DIR"] ?? fileURLToPath(new URL("../../../../Mesh", import.meta.url)));
 
 for (const [from, to] of [["editors/vscode/syntaxes/mprx.tmLanguage.json", "syntaxes/mprx.tmLanguage.json"], ["editors/vscode/language-configuration.json", "language-configuration.json"]]) {
   copyFileSync(resolve(mesh, from), new URL(`../${to}`, import.meta.url));

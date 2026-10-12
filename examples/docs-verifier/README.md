@@ -111,7 +111,7 @@ pnpm test:visual      # screenshots of each site against the last run (baselines
 To verify a set of packages that is prepared but not yet on the registry, build packs of the sibling checkouts and install against them (`../../../Nexus` and `../../../Port` relative to this directory):
 
 ```
-scripts/build-packs.sh                      # packs Nexus, Port Web and Valance into ./.packs
+scripts/build-packs.mjs                     # packs Nexus, Port Web and Valance into ./.packs
 node scripts/with-local-packs.mjs           # copies the project to ./.work, installs against the packs, then: typecheck, build, test
 node scripts/with-local-packs.mjs --only build --smoke
 ```

@@ -238,7 +238,7 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       await replaceAll(editor, original.replace(/\n    <badge label=\{site\} \/>/, ""));
       await document.save();
       if (existsSync(badge)) { unlinkSync(badge); }
-      execFileSync(join(project(), "node_modules", ".bin", "vlx"), ["check"], { cwd: project() });
+      execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
     }
   }],
 
@@ -256,7 +256,7 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     assert.ok(found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) || found.length === 0, "without wiring data the definition is the manifest");
 
     // `vlx` writes the wiring again: the window notices, no reload.
-    execFileSync(join(project(), "node_modules", ".bin", "vlx"), ["check"], { cwd: project() });
+    execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
     await waitFor(`the status to become ready again (it is ${api().status()})`, () => api().status() === "ready", 60_000);
 
     const again = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));

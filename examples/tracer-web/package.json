@@ -12,7 +12,7 @@
     "test:bfcache": "vitest run -c vitest.bfcache.config.ts",
     "build:page": "vite build -c vite.page.config.ts",
     "test:smoke": "vitest run -c vitest.smoke.config.ts",
-    "build:server": "tsc -p tsconfig.server.json && cp src/*.mprx src/components.json dist/server/",
+    "build:server": "tsc -p tsconfig.server.json && node ../../scripts/copy-into.mjs dist/server/ \"src/*.mprx\" src/components.json",
     "serve:page": "node dist/server/serve-main.js"
   },
   "dependencies": {

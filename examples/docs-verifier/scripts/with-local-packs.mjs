@@ -2,7 +2,7 @@
 //
 //   node scripts/with-local-packs.mjs [packs] [--smoke] [--only a,b,c] [--fresh]
 //
-//   packs     the directory holding the .tgz packs (default ./.packs, made by scripts/build-packs.sh). A package with a pack is taken from it, overrides included so only one
+//   packs     the directory holding the .tgz packs (default ./.packs, made by scripts/build-packs.mjs). A package with a pack is taken from it, overrides included so only one
 //             copy of each resolves; a package without one stays at the version in package.json (the registry).
 //   --smoke   also run the Chromium smoke tests.
 //   --only    run just these package scripts, in order (default: typecheck,build,test).

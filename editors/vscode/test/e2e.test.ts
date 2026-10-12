@@ -90,7 +90,7 @@ describe("what the server cannot see", () => {
 
     mkdirSync(join(root, "node_modules/@valancex"), { recursive: true });
     mkdirSync(join(root, "content"));
-    symlinkSync(resolve(__dirname, "../../../packages/cli"), join(root, "node_modules/@valancex/cli"), "dir");
+    symlinkSync(resolve(__dirname, "../../../packages/cli"), join(root, "node_modules/@valancex/cli"), process.platform === "win32" ? "junction" : "dir");
     writeFileSync(join(root, "valance.json"), '{ "name": "T" }');
     writeFileSync(join(root, "content/index.md"), "---\ntitle: Home\n---\n\n# Home\n\n[gone](/nowhere)\n");
 
@@ -105,7 +105,7 @@ describe("a project inside a larger workspace (the window opened on a folder abo
     const parent = mkdtempSync(join(tmpdir(), "valance-vscode-parent-"));
 
     mkdirSync(join(parent, "apps"), { recursive: true });
-    symlinkSync(app, join(parent, "apps", "docs"), "dir");
+    symlinkSync(app, join(parent, "apps", "docs"), process.platform === "win32" ? "junction" : "dir");
 
     const project = readProject(app);
 

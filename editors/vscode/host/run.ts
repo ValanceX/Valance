@@ -21,8 +21,8 @@ const project = (into: string): string => {
 
   // No `$schema` line: the suite checks the schema the extension itself contributes.
   writeFileSync(join(into, "valance.json"), '{\n  "version": 1,\n  "name": "Notes"\n}\n');
-  symlinkSync(join(app, "node_modules"), join(into, "node_modules"), "dir");
-  execFileSync(join(into, "node_modules", ".bin", "vlx"), ["check"], { cwd: into, stdio: "inherit" });
+  symlinkSync(join(app, "node_modules"), join(into, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+  execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: into, stdio: "inherit" });
 
   return into;
 };
