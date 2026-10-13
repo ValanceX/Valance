@@ -267,15 +267,19 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
   ["a project without wiring data (built by an older vlx) is said to be partial, not ready, and recovers by itself when vlx writes it", async () => {
     const wiring = join(project(), ".valance", "wiring.json");
 
-    assert.equal(api().status(), "ready");
-    unlinkSync(wiring);
-    await waitFor(`the status to become partial (it is ${api().status()})`, () => api().status() === "partial");
-
-    // Navigation to the author's files is off, as the message says: the server's answer is the generated manifest again.
+    // The check a save started earlier (the previous case saved files) may still be running and write the wiring after it is removed: remove it until the window is without it.
     const { document } = await open("src/layout.mprx");
-    const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
 
-    assert.ok(found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) || found.length === 0, "without wiring data the definition is the manifest");
+    await waitFor("the status to be ready", () => api().status() === "ready" ? true : undefined, 60_000);
+    await waitFor("the definition to be the generated manifest, as the message says: navigation to the author's files is off", async () => {
+      if (existsSync(wiring)) { unlinkSync(wiring); }
+
+      await waitFor(`the status to become partial (it is ${api().status()})`, () => api().status() === "partial" ? true : undefined);
+
+      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
+
+      return found.length === 0 || found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) ? true : undefined;
+    }, 60_000);
 
     // `vlx` writes the wiring again: the window notices, no reload.
     execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
