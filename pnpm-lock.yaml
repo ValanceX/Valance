@@ -22,8 +22,8 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-lsp':
-        specifier: 0.10.0
-        version: 0.10.0
+        specifier: 0.11.0
+        version: 0.11.0
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -38,23 +38,23 @@ importers:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@0.11.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.11.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/mesh-runtime':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/nexus':
         specifier: ^0.10.3
-        version: 0.10.3(@valancex/mesh-runtime@0.10.0)
+        version: 0.10.3(@valancex/mesh-runtime@0.11.0)
       '@valancex/port-web':
         specifier: ^0.4.0
-        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
+        version: 0.4.0(@valancex/mesh-runtime@0.11.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -84,17 +84,17 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/mesh-runtime':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/nexus':
         specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.10.0)
+        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
       '@valancex/port-web':
         specifier: ^0.4.0
-        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
+        version: 0.4.0(@valancex/mesh-runtime@0.11.0)
       '@vitest/browser':
         specifier: 3.2.7
         version: 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
@@ -120,14 +120,14 @@ importers:
   packages/cli:
     dependencies:
       '@valancex/mesh-compiler':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/mesh-runtime':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/port-web':
         specifier: ^0.4.0
-        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
+        version: 0.4.0(@valancex/mesh-runtime@0.11.0)
       '@valancex/valance':
         specifier: workspace:*
         version: link:../valance
@@ -155,20 +155,20 @@ importers:
     dependencies:
       '@valancex/nexus':
         specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.10.0)
+        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/mesh-runtime':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/port-web':
         specifier: ^0.4.0
-        version: 0.4.0(@valancex/mesh-runtime@0.10.0)
+        version: 0.4.0(@valancex/mesh-runtime@0.11.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -554,42 +554,42 @@ packages:
   '@types/tough-cookie@4.0.5':
     resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
 
-  '@valancex/mesh-compiler@0.10.0':
-    resolution: {integrity: sha512-YzFqUlyZxZZAWQOIqD1iHnxPD560Rad/onQB9ckO8pO1ZrVECPVDwjNDY4F6raER9ixPUS0CChX4TfHm49U6mg==}
+  '@valancex/mesh-compiler@0.11.0':
+    resolution: {integrity: sha512-aHQJSeLd6euIDcZkgINjjxgSgvAGTr+mlb9pbWQs16cKm48DoPj3pl4diEziiQvkBOOaBPkg+3D2i57Bqn0cmw==}
     engines: {node: '>=22'}
 
-  '@valancex/mesh-lsp-darwin-arm64@0.10.0':
-    resolution: {integrity: sha512-4H6mL3Ym5TpFVvlPydpzYe7Sz3gzjxAl6VZSruA6KbBZd3DpVRK0NU9VCpx28e4TiW1YfoWwdC/otygBNJql3w==}
+  '@valancex/mesh-lsp-darwin-arm64@0.11.0':
+    resolution: {integrity: sha512-NbGbU1uz5d16S2mCKuO38Y337yvJ+3UOXvAhvYUr1vul8WBnM1ay9P8pMXSIFQdK8kxFLGDD8yYER5XTFJ7onw==}
     cpu: [arm64]
     os: [darwin]
 
-  '@valancex/mesh-lsp-darwin-x64@0.10.0':
-    resolution: {integrity: sha512-IOSZLAXIg5yL9Y5n24JXBgvON6uQ2gzVW+ZRXLBJ+ry1r/Pa24w3COFP6BuQCLAriYx+PNxRAyod9V48NG0sow==}
+  '@valancex/mesh-lsp-darwin-x64@0.11.0':
+    resolution: {integrity: sha512-p7ZaIr1jO+P6UxPcXOHW/8F7qmVWmgD3yAXkshP8SlL6a3/jt/IAY3wTweZwEbnWt4DzabrEeIYJSvF3DQyapQ==}
     cpu: [x64]
     os: [darwin]
 
-  '@valancex/mesh-lsp-linux-arm64@0.10.0':
-    resolution: {integrity: sha512-y3pWvIJFASXgMe++w2AKtSkvb3J4vEMjodgDAnnbhivKCQaa/D9XPjyIZGptaz07tJnh7mpo+zYUD0JP9WmM6A==}
+  '@valancex/mesh-lsp-linux-arm64@0.11.0':
+    resolution: {integrity: sha512-MXE0ul8w14fnmZv/M9zk+dzwci+MrtTenY4In/yIQVJpkQln2L/goj8KEa4aseEcvzoaBKeR8e3y6UfaS9g7jw==}
     cpu: [arm64]
     os: [linux]
 
-  '@valancex/mesh-lsp-linux-x64@0.10.0':
-    resolution: {integrity: sha512-t6u8qInLq5Dvo/tLvE5r2ZuBQOfpSOgVIIS4EsQbJvk5wdRLWxGG+ymal5eV/aVc5Sn3InmcHS8ZIrMTmL7GQQ==}
+  '@valancex/mesh-lsp-linux-x64@0.11.0':
+    resolution: {integrity: sha512-5qfP3G4FEj9BfYb4EVr5szFTHjd/xGauuOKzluQk9iEHdAaYIaEoYNQrCGINopB5NjHV0zpJlahwW2sukbwsiw==}
     cpu: [x64]
     os: [linux]
 
-  '@valancex/mesh-lsp-win32-x64@0.10.0':
-    resolution: {integrity: sha512-VNE20Jc+6JwREJeL1Ys8i9I1zAcMebqg9JINIez4UNBbcmyP6WhwAADRJasd9ypA7HNG2k8/Lq7mz+w+UP4KPw==}
+  '@valancex/mesh-lsp-win32-x64@0.11.0':
+    resolution: {integrity: sha512-paBNwa0P+rx0CJK7xLhOB7As9lmXucoRLa09SS3eP+ofXXlAqBwg4XHLxOKvzQciLv1tcQPOt1u6pJa/1KXYww==}
     cpu: [x64]
     os: [win32]
 
-  '@valancex/mesh-lsp@0.10.0':
-    resolution: {integrity: sha512-6qEAIzhWj/W+vy/B1G/bCNm03JY1Wk4jwWgpWGD3n/0vlnDqwhrphBml08+oKyzMV74c4HJ2OjwEjSaKKb44NA==}
+  '@valancex/mesh-lsp@0.11.0':
+    resolution: {integrity: sha512-5ANlSe/tEMDrbcsVgFPOAdqK54KI99WLvRjTihEvnx5oM1UwbVryw9hzByu68AnPz1Zn0XsXj6n3yt0mBPDduw==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@valancex/mesh-runtime@0.10.0':
-    resolution: {integrity: sha512-1VdLN2EhVjCufFz927Mf9C1I7v/GczRivvfWskQjn9vUgMLBR7LRm3m/wmixghZVQkvD7zVCrbVSMLVjlSOG6g==}
+  '@valancex/mesh-runtime@0.11.0':
+    resolution: {integrity: sha512-CR/XekGa7vjXP+3axxPCga7Zl2rsAlGtmrv2GR4tgIQCdDG9pmuuGXu0eSgIWfNyl9SCTJrEUG6crvOWoS0NMQ==}
     engines: {node: '>=22'}
 
   '@valancex/nexus@0.10.3':
@@ -1324,54 +1324,54 @@ snapshots:
 
   '@types/tough-cookie@4.0.5': {}
 
-  '@valancex/mesh-compiler@0.10.0': {}
+  '@valancex/mesh-compiler@0.11.0': {}
 
-  '@valancex/mesh-lsp-darwin-arm64@0.10.0':
+  '@valancex/mesh-lsp-darwin-arm64@0.11.0':
     optional: true
 
-  '@valancex/mesh-lsp-darwin-x64@0.10.0':
+  '@valancex/mesh-lsp-darwin-x64@0.11.0':
     optional: true
 
-  '@valancex/mesh-lsp-linux-arm64@0.10.0':
+  '@valancex/mesh-lsp-linux-arm64@0.11.0':
     optional: true
 
-  '@valancex/mesh-lsp-linux-x64@0.10.0':
+  '@valancex/mesh-lsp-linux-x64@0.11.0':
     optional: true
 
-  '@valancex/mesh-lsp-win32-x64@0.10.0':
+  '@valancex/mesh-lsp-win32-x64@0.11.0':
     optional: true
 
-  '@valancex/mesh-lsp@0.10.0':
+  '@valancex/mesh-lsp@0.11.0':
     optionalDependencies:
-      '@valancex/mesh-lsp-darwin-arm64': 0.10.0
-      '@valancex/mesh-lsp-darwin-x64': 0.10.0
-      '@valancex/mesh-lsp-linux-arm64': 0.10.0
-      '@valancex/mesh-lsp-linux-x64': 0.10.0
-      '@valancex/mesh-lsp-win32-x64': 0.10.0
+      '@valancex/mesh-lsp-darwin-arm64': 0.11.0
+      '@valancex/mesh-lsp-darwin-x64': 0.11.0
+      '@valancex/mesh-lsp-linux-arm64': 0.11.0
+      '@valancex/mesh-lsp-linux-x64': 0.11.0
+      '@valancex/mesh-lsp-win32-x64': 0.11.0
 
-  '@valancex/mesh-runtime@0.10.0': {}
+  '@valancex/mesh-runtime@0.11.0': {}
 
-  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.10.0)':
+  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.11.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.10.0
+      '@valancex/mesh-runtime': 0.11.0
       effect: 3.22.2
 
-  '@valancex/nexus@0.12.0(@valancex/mesh-runtime@0.10.0)':
+  '@valancex/nexus@0.12.0(@valancex/mesh-runtime@0.11.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.10.0
+      '@valancex/mesh-runtime': 0.11.0
       effect: 3.22.2
 
-  '@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0)':
+  '@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.11.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.10.0
+      '@valancex/mesh-runtime': 0.11.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.10.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.10.0))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.11.0)(@valancex/port-web@0.4.0(@valancex/mesh-runtime@0.11.0))(effect@3.22.2)':
     dependencies:
-      '@valancex/mesh-runtime': 0.10.0
-      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.10.0)
+      '@valancex/mesh-runtime': 0.11.0
+      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.11.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': 0.4.0(@valancex/mesh-runtime@0.10.0)
+      '@valancex/port-web': 0.4.0(@valancex/mesh-runtime@0.11.0)
 
   '@vitest/browser@3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)':
     dependencies:
