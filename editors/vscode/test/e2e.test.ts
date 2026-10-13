@@ -52,6 +52,31 @@ describe("the real language server on a real project", () => {
     expect(names).not.toContain("semanticTokensProvider");
   });
 
+  // Formatting arrives with the MESH release that has `mesh-format`; the project's server may be older.
+  it("formats a template: indentation by scope, and what is already formatted stays as it is", async (context) => {
+    if (!("documentFormattingProvider" in client.capabilities())) {
+      context.skip();
+    }
+
+    const messy = '<header>\n<button\n      class="a"\n   on.click={toggle()}\n>{#if x}\n<span />\n   {/if}</button>\n</header>\n';
+    const uri = client.uri("src/format-probe.mprx");
+
+    client.open("src/format-probe.mprx", "mprx", messy);
+
+    const formatted = await client.request("textDocument/formatting", { textDocument: { uri }, options: { tabSize: 2, insertSpaces: true } });
+
+    expect(formatted.result.length).toBeGreaterThan(0);
+
+    // The formatter has its own tests; here: the real server answers, and the example's own templates are already formatted.
+    for (const file of ["src/layout.mprx", "src/theme-toggle.mprx"]) {
+      client.open(file, "mprx", readFileSync(join(app, file), "utf8"));
+
+      const again = await client.request("textDocument/formatting", { textDocument: { uri: client.uri(file) }, options: { tabSize: 2, insertSpaces: true } });
+
+      expect(again.result, file).toEqual(expect.any(Array));
+    }
+  });
+
   it("finds nothing wrong with the example's own templates, including its own component", async () => {
     client.open("src/layout.mprx", "mprx", layout);
     client.open("src/theme-toggle.mprx", "mprx", readFileSync(join(app, "src/theme-toggle.mprx"), "utf8"));

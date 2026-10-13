@@ -82,7 +82,16 @@
         "command": "valance.showOutput",
         "title": "VALANCE: Show details"
       }
-    ]
+    ],
+    "configurationDefaults": {
+      "[mprx]": {
+        "editor.autoIndent": "full",
+        "editor.formatOnType": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.detectIndentation": false
+      }
+    }
   },
   "scripts": {
     "prepare": "node scripts/copy-schemas.mjs",
