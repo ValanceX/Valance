@@ -10,4 +10,4 @@ minimumReleaseAgeExclude:
   - '@valancex/mesh-runtime@0.11.0'
   - '@valancex/nexus@0.12.0 || 0.12.2'
   - '@valancex/port-web@0.4.0 || 0.4.1'
-  - '@valancex/valance@0.7.0 || 0.8.0 || 0.9.0'
+  - '@valancex/valance@0.7.0 || 0.8.0 || 0.9.0 || 0.10.0'
