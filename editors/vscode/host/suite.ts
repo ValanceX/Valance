@@ -284,7 +284,7 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+1 prop, 1 event/);
       assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · 1 pass/);
       assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · 1 handler/);
-      assert.match(await titlesOf("src/theme-toggle.mprx"), /1 prop · 1 event/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /1 prop\s+·\s+1 event/);
     },
   ],
 
