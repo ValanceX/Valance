@@ -5,7 +5,9 @@ import type { RouteTable } from "@valancex/valance/web/plugin";
 import type { Content } from "./model.js";
 import { pageAt } from "./scope.js";
 
-export interface PageState { readonly page: string }
+export interface PageState {
+  readonly page: string;
+}
 
 /** An address as the application sees it: under the base removed, no trailing slash, `/` for the first page. An address outside the base is kept whole (it is not a page). */
 export const normalize = (pathname: string, base: string): string => {
@@ -27,13 +29,21 @@ export const routes = (content: Content): RouteTable<PageState> => ({
   delivery: () => "static",
   onNavigated: ({ kind, url }) => {
     // Land at the top of a new page, or at its heading when the address names one; Back and Forward are the browser's to restore.
-    if (kind !== "link" || typeof window === "undefined") { return; }
+    if (kind !== "link" || typeof window === "undefined") {
+      return;
+    }
 
     // The application's state has no fragment, so the address bar lost it: put it back.
-    if (url.hash !== "") { window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`); }
+    if (url.hash !== "") {
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
 
     const target = url.hash === "" ? undefined : document.getElementById(decodeURIComponent(url.hash.slice(1)));
 
-    if (target === null || target === undefined) { window.scrollTo(0, 0); } else { target.scrollIntoView(); }
+    if (target === null || target === undefined) {
+      window.scrollTo(0, 0);
+    } else {
+      target.scrollIntoView();
+    }
   },
 });

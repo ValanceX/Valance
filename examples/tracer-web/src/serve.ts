@@ -15,7 +15,9 @@ export const builtScript = async (dir: string): Promise<string> => {
   const manifest = JSON.parse(await readFile(join(dir, ".vite", "manifest.json"), "utf8")) as Record<string, { readonly file: string; readonly isEntry?: boolean }>;
   const entry = Object.values(manifest).find((chunk) => chunk.isEntry === true);
 
-  if (entry === undefined) { throw new Error("the build has no entry chunk"); }
+  if (entry === undefined) {
+    throw new Error("the build has no entry chunk");
+  }
 
   return `/${entry.file}`;
 };
@@ -32,7 +34,10 @@ export const servePage = async (dir: string, port = 0): Promise<{ readonly serve
         } else if (url.startsWith("/assets/")) {
           const file = normalize(join(dir, url.split("?")[0]!));
 
-          if (!file.startsWith(join(dir, "assets"))) { response.writeHead(403).end(); return; }
+          if (!file.startsWith(join(dir, "assets"))) {
+            response.writeHead(403).end();
+            return;
+          }
 
           response.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" }).end(await readFile(file));
         } else {
@@ -44,7 +49,9 @@ export const servePage = async (dir: string, port = 0): Promise<{ readonly serve
     })();
   });
 
-  await new Promise<void>((resolve) => { server.listen(port, "127.0.0.1", resolve); });
+  await new Promise<void>((resolve) => {
+    server.listen(port, "127.0.0.1", resolve);
+  });
   const address = server.address();
 
   return { server, origin: `http://127.0.0.1:${typeof address === "object" && address !== null ? address.port : port}`, script };

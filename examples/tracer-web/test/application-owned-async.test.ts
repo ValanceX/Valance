@@ -26,26 +26,41 @@ const fakeResource = () => {
       log.push("started");
 
       return Deferred.await(gate).pipe(
-        Effect.onInterrupt(() => Effect.sync(() => { log.push("interrupted"); })),
-        Effect.tap(() => Effect.sync(() => { log.push("settled"); }))
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            log.push("interrupted");
+          }),
+        ),
+        Effect.tap(() =>
+          Effect.sync(() => {
+            log.push("settled");
+          }),
+        ),
       );
     }),
     open: (outcome: Outcome) => Effect.runPromise(Deferred.succeed(gate, outcome)),
   };
 };
 
-const app = (resource: ReturnType<typeof fakeResource>) => Valance.define({
-  name: "async-owner",
-  state: { schema: State, initial: { phase: "loading", detail: "" } satisfies State },
-  views: { only: { program: titleProgram, scope: (state: State) => ({ title: `${state.phase}${state.detail === "" ? "" : `: ${state.detail}`}` }) } },
-  view: () => "only" as const,
-  commands: (state: Nexus.State.StateHandle<State>) => ({
-    // A failure of the resource becomes ordinary state inside the command; nothing else is needed for it to be application-visible.
-    "app/load": Valance.entry(Nexus.Command.define("load", Schema.Struct({}), () => resource.fetch.pipe(
-      Effect.flatMap((outcome) => state.update(() => Effect.succeed<State>(outcome._tag === "Ok" ? { phase: "ready", detail: outcome.value } : { phase: "failed", detail: outcome.reason })))
-    ))),
-  }),
-});
+const app = (resource: ReturnType<typeof fakeResource>) =>
+  Valance.define({
+    name: "async-owner",
+    state: { schema: State, initial: { phase: "loading", detail: "" } satisfies State },
+    views: { only: { program: titleProgram, scope: (state: State) => ({ title: `${state.phase}${state.detail === "" ? "" : `: ${state.detail}`}` }) } },
+    view: () => "only" as const,
+    commands: (state: Nexus.State.StateHandle<State>) => ({
+      // A failure of the resource becomes ordinary state inside the command; nothing else is needed for it to be application-visible.
+      "app/load": Valance.entry(
+        Nexus.Command.define("load", Schema.Struct({}), () =>
+          resource.fetch.pipe(
+            Effect.flatMap((outcome) =>
+              state.update(() => Effect.succeed<State>(outcome._tag === "Ok" ? { phase: "ready", detail: outcome.value } : { phase: "failed", detail: outcome.reason })),
+            ),
+          ),
+        ),
+      ),
+    }),
+  });
 
 const wait = async (done: () => boolean): Promise<void> => {
   for (let tries = 0; !done(); tries += 1) {
@@ -62,7 +77,14 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
   const scope = await Effect.runPromise(Scope.make());
   const released: Array<string> = [];
 
-  await Effect.runPromise(Scope.addFinalizer(scope, Effect.sync(() => { released.push("platform resource released"); })));   // registered before start: runs after NEXUS terminates
+  await Effect.runPromise(
+    Scope.addFinalizer(
+      scope,
+      Effect.sync(() => {
+        released.push("platform resource released");
+      }),
+    ),
+  ); // registered before start: runs after NEXUS terminates
 
   const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
   let target: TextTarget | undefined;
@@ -118,9 +140,9 @@ describe("an application-owned async operation, started by the host into the app
 
     await b.resource.open({ _tag: "Ok", value: "late" });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(b.resource.log).toEqual(["started", "interrupted"]);                                  // nothing settled
-    expect(await b.state()).toEqual({ phase: "loading", detail: "" });                           // the last state stays readable and unchanged
-    expect(b.screen()).toBe("");                                                                  // the mount closed with the Scope
+    expect(b.resource.log).toEqual(["started", "interrupted"]); // nothing settled
+    expect(await b.state()).toEqual({ phase: "loading", detail: "" }); // the last state stays readable and unchanged
+    expect(b.screen()).toBe(""); // the mount closed with the Scope
   });
 
   it("5: the operation does not depend on a mount: it completes with none, and a mount made afterwards draws the settled state at once", async () => {
@@ -166,10 +188,17 @@ describe("an application-owned async operation, started by the host into the app
     const scope = await Effect.runPromise(Scope.make());
     const released: Array<string> = [];
 
-    await Effect.runPromise(Scope.addFinalizer(scope, Effect.sync(() => { released.push("platform resource released"); })));
+    await Effect.runPromise(
+      Scope.addFinalizer(
+        scope,
+        Effect.sync(() => {
+          released.push("platform resource released");
+        }),
+      ),
+    );
 
     const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
-    const orphan = Effect.runFork(Effect.exit(handle.invoke("app/load", [])));            // owned by nothing: not the Scope, not a mount
+    const orphan = Effect.runFork(Effect.exit(handle.invoke("app/load", []))); // owned by nothing: not the Scope, not a mount
 
     await wait(() => resource.log.includes("started"));
     await Effect.runPromise(Scope.close(scope, Exit.void));

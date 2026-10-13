@@ -17,7 +17,12 @@ export const renderDocument = async (url: string, script: string): Promise<strin
   const built = await programs;
   const state = stateFor(url);
   // Search runs in the browser: rendering never starts one, so the service here is never called.
-  const { html } = await Effect.runPromise(renderToHtml(application(built, async () => []), { primitives, state }));
+  const { html } = await Effect.runPromise(
+    renderToHtml(
+      application(built, async () => []),
+      { primitives, state },
+    ),
+  );
   const boot = JSON.stringify({ programs: built, state }).replaceAll("<", "\\u003c");
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(titleOf(state))}</title><style>body{font:16px/1.5 system-ui,sans-serif;margin:0}shell>*{padding:0 1rem}ul{list-style:none;padding:0}pre{background:#f4f4f8;padding:.75rem;overflow:auto}</style></head><body><div id="app">${html}</div><script type="application/json" id="valance-boot">${boot}</script><script type="module" src="${script}"></script></body></html>`;

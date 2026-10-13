@@ -30,36 +30,51 @@ describe("shared MESH render failure versus mount-local target failure", () => {
     const [first, second] = [await diagnosticOf(one), await diagnosticOf(two)];
 
     expect(first).toContain("runtime-value-mismatch");
-    expect(first).toBe(second);                                                              // the same relevant MESH diagnostic, once per mount
-    expect([one.label(), two.label()]).toEqual(["A0", "A0"]);                                 // each retains its last good render
+    expect(first).toBe(second); // the same relevant MESH diagnostic, once per mount
+    expect([one.label(), two.label()]).toEqual(["A0", "A0"]); // each retains its last good render
     expect([one.ops, two.ops]).toEqual([["draw A0"], ["draw A0"]]);
-    await b.invoke("app/bump");                                                              // commits do not wait for the mounts
+    await b.invoke("app/bump"); // commits do not wait for the mounts
     expect(await b.state()).toEqual({ view: "a", n: 1, bad: true });
     await one.close();
     await two.close();
   });
 
   it("2 one mount presents the invalid state and fails; the other skips it and stays live and reaches the final valid state (arranged deterministically: each mount's own first update commits the next state)", async () => {
-    for (let round = 0; round < 5; round += 1) {                                             // microtask ordering only: the same outcome every time
+    for (let round = 0; round < 5; round += 1) {
+      // microtask ordering only: the same outcome every time
       const b = await boot();
       let breaks = false;
       let fixes = false;
-      const failing = await b.mountOn({ onUpdate: () => { if (breaks) { breaks = false; Effect.runFork(b.rawInvoke("app/break")); } } });
-      const skipping = await b.mountOn({ onUpdate: () => { if (fixes) { fixes = false; Effect.runFork(b.rawInvoke("app/fix")); } } });
+      const failing = await b.mountOn({
+        onUpdate: () => {
+          if (breaks) {
+            breaks = false;
+            Effect.runFork(b.rawInvoke("app/break"));
+          }
+        },
+      });
+      const skipping = await b.mountOn({
+        onUpdate: () => {
+          if (fixes) {
+            fixes = false;
+            Effect.runFork(b.rawInvoke("app/fix"));
+          }
+        },
+      });
 
       breaks = true;
       fixes = true;
-      await b.invoke("app/bump");                                                            // valid; each mount's update of it then commits invalid, then valid
+      await b.invoke("app/bump"); // valid; each mount's update of it then commits invalid, then valid
       await sleep(80);
-      expect(b.log).toEqual(["commit bump", "commit break", "commit fix"]);                  // valid → invalid → valid
-      expect(await failing.standing()).toBe("failed MeshDiagnostics");                       // it rendered the invalid state
-      expect(await skipping.standing()).toBe("following");                                   // it never did: it went from the first update to the final valid state
+      expect(b.log).toEqual(["commit bump", "commit break", "commit fix"]); // valid → invalid → valid
+      expect(await failing.standing()).toBe("failed MeshDiagnostics"); // it rendered the invalid state
+      expect(await skipping.standing()).toBe("following"); // it never did: it went from the first update to the final valid state
       expect(failing.ops).toEqual(["draw A0", "update A1"]);
       expect(skipping.ops).toEqual(["draw A0", "update A1", "update A1"]);
       await b.invoke("app/bump");
       await sleep(40);
-      expect(skipping.label()).toBe("A2");                                                   // and it keeps presenting
-      expect(failing.label()).toBe("A1");                                                    // the failed one holds its last good render
+      expect(skipping.label()).toBe("A2"); // and it keeps presenting
+      expect(failing.label()).toBe("A1"); // the failed one holds its last good render
       await failing.close();
       await skipping.close();
     }
@@ -78,14 +93,14 @@ describe("shared MESH render failure versus mount-local target failure", () => {
     expect(await other.standing()).toBe("following");
     await b.invoke("app/break");
     await sleep(60);
-    expect(await other.standing()).toBe("failed MeshDiagnostics");                           // B fails on the invalid render
-    expect(await local.standing()).toBe("defect update failed");                             // A keeps its own cause: no second failure
+    expect(await other.standing()).toBe("failed MeshDiagnostics"); // B fails on the invalid render
+    expect(await local.standing()).toBe("defect update failed"); // A keeps its own cause: no second failure
     expect(local.ops).toEqual(["draw A0"]);
-    local.click();                                                                           // A's retained render still dispatches (C31)
+    local.click(); // A's retained render still dispatches (C31)
     await sleep(60);
     expect(b.log.at(-1)).toBe("commit back-on-a");
     expect(local.ledger()).toEqual(["succeeded"]);
-    expect(other.ledger()).toEqual([]);                                                      // and nothing leaked into the other mount's bookkeeping
+    expect(other.ledger()).toEqual([]); // and nothing leaked into the other mount's bookkeeping
     await local.close();
     await other.close();
   });
@@ -94,28 +109,28 @@ describe("shared MESH render failure versus mount-local target failure", () => {
     const b = await boot();
     let localThrows = false;
     let secondThrows = false;
-    const local = await b.mountOn({ updateThrows: () => localThrows });                      // will retain view A's render
-    const second = await b.mountOn({ updateThrows: () => secondThrows });                    // will retain view B's render
+    const local = await b.mountOn({ updateThrows: () => localThrows }); // will retain view A's render
+    const second = await b.mountOn({ updateThrows: () => secondThrows }); // will retain view B's render
 
     localThrows = true;
     await b.invoke("app/bump");
     await sleep(40);
-    await b.invoke("app/toggle");                                                            // the live mount draws view B
+    await b.invoke("app/toggle"); // the live mount draws view B
     await sleep(40);
     secondThrows = true;
-    await b.invoke("app/bump");                                                              // its next update fails: it retains the view-B render
+    await b.invoke("app/bump"); // its next update fails: it retains the view-B render
     await sleep(40);
-    await b.invoke("app/toggle");                                                            // the application is back on view A
+    await b.invoke("app/toggle"); // the application is back on view A
     await sleep(40);
     expect([local.label(), second.label()]).toEqual(["A0", "B1"]);
     expect(await b.state()).toEqual({ view: "a", n: 2, bad: false });
 
-    local.click();                                                                           // retained A render: A's intent
-    second.click();                                                                          // retained B render: B's intent
+    local.click(); // retained A render: A's intent
+    second.click(); // retained B render: B's intent
     await sleep(60);
     expect(b.log.filter((entry) => entry.startsWith("commit back"))).toEqual(["commit back-on-a", "commit back-on-b"]);
-    expect(await b.state()).toEqual({ view: "a", n: 112, bad: false });                      // +10 and +100 on current state
-    expect([local.ops, second.ops]).toEqual([["draw A0"], ["draw A0", "update A1", "draw B1"]]);   // neither presented
+    expect(await b.state()).toEqual({ view: "a", n: 112, bad: false }); // +10 and +100 on current state
+    expect([local.ops, second.ops]).toEqual([["draw A0"], ["draw A0", "update A1", "draw B1"]]); // neither presented
     expect([local.ledger(), second.ledger()]).toEqual([["succeeded"], ["succeeded"]]);
     await local.close();
     await second.close();
@@ -128,18 +143,18 @@ describe("shared MESH render failure versus mount-local target failure", () => {
     const shared = await b.mountOn();
 
     throws = true;
-    await b.invoke("app/bump");                                                              // local fails its update; shared updates
+    await b.invoke("app/bump"); // local fails its update; shared updates
     await sleep(60);
     expect([await local.standing(), await shared.standing()]).toEqual(["defect update failed", "following"]);
     expect(shared.label()).toBe("A1");
-    await b.invoke("app/break");                                                             // now the shared render fails
+    await b.invoke("app/break"); // now the shared render fails
     await sleep(60);
     expect([await local.standing(), await shared.standing()]).toEqual(["defect update failed", "failed MeshDiagnostics"]);
-    expect([local.label(), shared.label()]).toEqual(["A0", "A1"]);                           // each retains its own last good render
+    expect([local.label(), shared.label()]).toEqual(["A0", "A1"]); // each retains its own last good render
     local.click();
     shared.click();
     await sleep(60);
-    expect([local.ledger(), shared.ledger()]).toEqual([["succeeded"], ["succeeded"]]);       // independent ledgers
+    expect([local.ledger(), shared.ledger()]).toEqual([["succeeded"], ["succeeded"]]); // independent ledgers
     expect([local.ops, shared.ops]).toEqual([["draw A0"], ["draw A0", "update A1"]]);
     await local.close();
     await shared.close();
@@ -151,20 +166,20 @@ describe("shared MESH render failure versus mount-local target failure", () => {
 
     await b.invoke("app/break");
     await sleep(60);
-    await b.invoke("app/fix");                                                               // the repair
+    await b.invoke("app/fix"); // the repair
     await b.invoke("app/bump");
     await sleep(60);
     expect([await one.standing(), await two.standing()]).toEqual(["failed MeshDiagnostics", "failed MeshDiagnostics"]);
-    expect([one.ops, two.ops]).toEqual([["draw A0"], ["draw A0"]]);                          // still inert: nothing was presented
+    expect([one.ops, two.ops]).toEqual([["draw A0"], ["draw A0"]]); // still inert: nothing was presented
     expect([one.label(), two.label()]).toEqual(["A0", "A0"]);
 
     const fresh = await b.mountOn();
 
-    expect(fresh.ops).toEqual(["draw A1"]);                                                  // the repaired current state
-    one.click();                                                                             // a retained event still dispatches and commits (C31)
+    expect(fresh.ops).toEqual(["draw A1"]); // the repaired current state
+    one.click(); // a retained event still dispatches and commits (C31)
     await sleep(60);
     expect(b.log.at(-1)).toBe("commit back-on-a");
-    expect(fresh.ops).toEqual(["draw A1", "update A11"]);                                    // the fresh mount follows what it committed
+    expect(fresh.ops).toEqual(["draw A1", "update A11"]); // the fresh mount follows what it committed
     expect(one.ops).toEqual(["draw A0"]);
     await fresh.close();
     await one.close();
@@ -178,7 +193,7 @@ describe("shared MESH render failure versus mount-local target failure", () => {
     await b.invoke("app/break");
     await sleep(60);
     for (let i = 0; i < 5; i += 1) {
-      await b.invoke("app/bump");                                                            // each completes without any mount recovering
+      await b.invoke("app/bump"); // each completes without any mount recovering
     }
     await b.invoke("app/toggle");
     expect(await b.state()).toEqual({ view: "b", n: 5, bad: true });

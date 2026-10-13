@@ -16,7 +16,7 @@ type Flat = typeof Flat.Type;
 const State = Schema.Union(
   Schema.Struct({ phase: Schema.Literal("loading") }),
   Schema.Struct({ phase: Schema.Literal("ready"), value: Schema.String }),
-  Schema.Struct({ phase: Schema.Literal("error"), message: Schema.String })
+  Schema.Struct({ phase: Schema.Literal("error"), message: Schema.String }),
 );
 type State = typeof State.Type;
 

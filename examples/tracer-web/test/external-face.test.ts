@@ -24,8 +24,18 @@ const page = () => {
   const live = new Set<unknown>();
   const add = win.addEventListener.bind(win);
   const remove = win.removeEventListener.bind(win);
-  win.addEventListener = ((type: string, listener: never, options?: never) => { if (type === "catalog:open") { live.add(listener); } add(type, listener, options); }) as typeof win.addEventListener;
-  win.removeEventListener = ((type: string, listener: never, options?: never) => { if (type === "catalog:open") { live.delete(listener); } remove(type, listener, options); }) as typeof win.removeEventListener;
+  win.addEventListener = ((type: string, listener: never, options?: never) => {
+    if (type === "catalog:open") {
+      live.add(listener);
+    }
+    add(type, listener, options);
+  }) as typeof win.addEventListener;
+  win.removeEventListener = ((type: string, listener: never, options?: never) => {
+    if (type === "catalog:open") {
+      live.delete(listener);
+    }
+    remove(type, listener, options);
+  }) as typeof win.removeEventListener;
 
   return {
     win: win as unknown as Window,
@@ -47,40 +57,49 @@ const scenario = async () => {
   const p = page();
   const states: Array<{ readonly via: string; readonly state: AppState }> = [];
 
-  await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-    const handle = yield* Valance.start(app, { platform, state: { view: "home", items: items("ABC") } });
-    yield* Valance.mount(handle, Web.target({ container: p.container, primitives }));
-    yield* fromWindowEvent(handle, p.win, "catalog:open", "app/open");
-    expect(p.live.size).toBe(1);
+  await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const handle = yield* Valance.start(app, { platform, state: { view: "home", items: items("ABC") } });
+        yield* Valance.mount(handle, Web.target({ container: p.container, primitives }));
+        yield* fromWindowEvent(handle, p.win, "catalog:open", "app/open");
+        expect(p.live.size).toBe(1);
 
-    // A host observes state through the handle alone: one read, no internal composition, no runtime.
-    const seen = (via: string) => handle.state.pipe(Effect.map((state) => { states.push({ via, state }); }));
+        // A host observes state through the handle alone: one read, no internal composition, no runtime.
+        const seen = (via: string) =>
+          handle.state.pipe(
+            Effect.map((state) => {
+              states.push({ via, state });
+            }),
+          );
 
-    // MESH intent -> home/open -> catalog.open
-    p.click(p.rowButton("Beta"));
-    yield* settle(() => p.container.textContent?.startsWith("Item B: Beta") === true);
-    yield* seen("mesh: home/open B");
-    p.click(p.button("Back"));
-    yield* settle(() => p.container.textContent?.startsWith("3 items") === true);
+        // MESH intent -> home/open -> catalog.open
+        p.click(p.rowButton("Beta"));
+        yield* settle(() => p.container.textContent?.startsWith("Item B: Beta") === true);
+        yield* seen("mesh: home/open B");
+        p.click(p.button("Back"));
+        yield* settle(() => p.container.textContent?.startsWith("3 items") === true);
 
-    // Outside producer -> app/open -> the SAME catalog.open
-    p.announce("B");
-    yield* settle(() => p.container.textContent?.startsWith("Item B: Beta") === true);
-    yield* seen("host: app/open B");
+        // Outside producer -> app/open -> the SAME catalog.open
+        p.announce("B");
+        yield* settle(() => p.container.textContent?.startsWith("Item B: Beta") === true);
+        yield* seen("host: app/open B");
 
-    // An id the application does not have: the command decides (not-found), whoever asked. MESH reaches it with an empty list.
-    yield* handle.invoke("app/home", []);
-    yield* handle.invoke("app/changeItems", [{ value: [] as never }]);
-    yield* settle(() => p.container.textContent?.startsWith("0 items") === true);
-    p.click(p.button("Open first"));                                          // firstId "" -> home/open ""
-    yield* settle(() => p.container.textContent?.startsWith("Not found") === true);
-    yield* seen("mesh: home/open ''");
-    yield* handle.invoke("app/home", []);
-    yield* settle(() => p.container.textContent?.startsWith("0 items") === true);
-    p.announce("");
-    yield* settle(() => p.container.textContent?.startsWith("Not found") === true);
-    yield* seen("host: app/open ''");
-  })));
+        // An id the application does not have: the command decides (not-found), whoever asked. MESH reaches it with an empty list.
+        yield* handle.invoke("app/home", []);
+        yield* handle.invoke("app/changeItems", [{ value: [] as never }]);
+        yield* settle(() => p.container.textContent?.startsWith("0 items") === true);
+        p.click(p.button("Open first")); // firstId "" -> home/open ""
+        yield* settle(() => p.container.textContent?.startsWith("Not found") === true);
+        yield* seen("mesh: home/open ''");
+        yield* handle.invoke("app/home", []);
+        yield* settle(() => p.container.textContent?.startsWith("0 items") === true);
+        p.announce("");
+        yield* settle(() => p.container.textContent?.startsWith("Not found") === true);
+        yield* seen("host: app/open ''");
+      }),
+    ),
+  );
 
   // Same command, same semantics, whichever producer: equal states for equal asks.
   expect(states[0]!.state).toEqual(states[1]!.state);

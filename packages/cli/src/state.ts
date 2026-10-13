@@ -19,7 +19,9 @@ const isField = (value: unknown): value is Field => typeof value === "object" &&
 export const stateOf = (author: DefinedApp | undefined): State | undefined => {
   const state = author?.state as Record<string, unknown> | undefined;
 
-  if (state === undefined) { return undefined; }
+  if (state === undefined) {
+    return undefined;
+  }
 
   const entries = Object.entries(state);
 
@@ -41,7 +43,11 @@ export const stateOf = (author: DefinedApp | undefined): State | undefined => {
 export const badDefaults = (author: DefinedApp | undefined): ReadonlyArray<string> => {
   const state = stateOf(author);
 
-  if (state === undefined || !state.declared) { return []; }
+  if (state === undefined || !state.declared) {
+    return [];
+  }
 
-  return Object.entries(state.schema.fields).filter(([name, schema]) => !Schema.is(schema as Schema.Schema<unknown>)(state.initial[name])).map(([name]) => name);
+  return Object.entries(state.schema.fields)
+    .filter(([name, schema]) => !Schema.is(schema as Schema.Schema<unknown>)(state.initial[name]))
+    .map(([name]) => name);
 };

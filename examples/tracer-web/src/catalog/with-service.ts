@@ -30,7 +30,8 @@ export const applicationWithCatalog = (programs: Programs) => {
           const name = catalog.lookup(id);
 
           yield* state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items, { id, name }] }));
-        }));
+        }),
+      );
 
       return { ...base.commands(state), "app/lookupItem": Nexus.Mesh.bind(lookupItem, (args) => ({ id: firstValue(args) })) };
     },

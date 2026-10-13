@@ -10,8 +10,14 @@ const served = inject("docs");
 
 it("Web.run without init(wasmUrl) rejects; the message is what the author is told", async () => {
   const root = document.createElement("div");
-  const error = await Web.run(application(served.programs, () => new Promise(() => undefined)), { container: root, primitives, present: "mount" }).then(() => undefined, (failure: unknown) => failure);
+  const error = await Web.run(
+    application(served.programs, () => new Promise(() => undefined)),
+    { container: root, primitives, present: "mount" },
+  ).then(
+    () => undefined,
+    (failure: unknown) => failure,
+  );
 
-  expect(String(error)).toContain("Pass the URL of mesh-runtime.wasm to init()");   // a MESH-level message that says exactly what to do
+  expect(String(error)).toContain("Pass the URL of mesh-runtime.wasm to init()"); // a MESH-level message that says exactly what to do
   expect((error as { code?: string }).code).toBe("module-unavailable");
 });

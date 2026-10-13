@@ -11,7 +11,9 @@ import { beforeAll, expect, inject, it } from "vitest";
 
 const program = inject("keyed");
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 const Item = Schema.Struct({ id: Schema.String, value: Schema.String });
 const State = Schema.Struct({ items: Schema.Array(Item) });
@@ -36,10 +38,17 @@ const boot = async () => {
       const command = Valance.command(state);
 
       return {
-        pick: command(Schema.Struct({ id: Schema.String }), ({ id }, s) => { picked.push(id); return s; }),
+        pick: command(Schema.Struct({ id: Schema.String }), ({ id }, s) => {
+          picked.push(id);
+          return s;
+        }),
         // The order the application wants; an id it already has keeps its item (and value), a new one is made.
-        order: command(Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }, s) => ({ items: ids.map((id) => s.items.find((item) => item.id === id) ?? { id, value: id.toUpperCase() }) })),
-        rename: command(Schema.Struct({ id: Schema.String, value: Schema.String }), ({ id, value }, s) => ({ items: s.items.map((item) => item.id === id ? { id, value } : item) })),
+        order: command(Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }, s) => ({
+          items: ids.map((id) => s.items.find((item) => item.id === id) ?? { id, value: id.toUpperCase() }),
+        })),
+        rename: command(Schema.Struct({ id: Schema.String, value: Schema.String }), ({ id, value }, s) => ({
+          items: s.items.map((item) => (item.id === id ? { id, value } : item)),
+        })),
       };
     },
   });
@@ -53,10 +62,18 @@ const boot = async () => {
     const port = Web.target({ container: main, primitives })(report);
 
     return {
-      draw: (tree) => { ops.push("draw"); port.draw(tree); },
-      update: (tree) => { ops.push("update"); port.update(tree); },
+      draw: (tree) => {
+        ops.push("draw");
+        port.draw(tree);
+      },
+      update: (tree) => {
+        ops.push("update");
+        port.update(tree);
+      },
       hydrate: (tree) => port.hydrate(tree),
-      unmount: () => { port.unmount(); },
+      unmount: () => {
+        port.unmount();
+      },
     };
   };
 
@@ -66,7 +83,14 @@ const boot = async () => {
   const input = (row: HTMLElement) => row.querySelector("input") as HTMLInputElement;
   const label = (row: HTMLElement) => row.querySelector("button")!.textContent;
   const labels = () => rows().map(label);
-  const until = async (done: () => boolean) => { for (let i = 0; !done(); i += 1) { if (i > 400) { throw new Error(`timed out: ${labels().join(",")} / ${ops.join(",")}`); } await new Promise((r) => setTimeout(r, 5)); } };
+  const until = async (done: () => boolean) => {
+    for (let i = 0; !done(); i += 1) {
+      if (i > 400) {
+        throw new Error(`timed out: ${labels().join(",")} / ${ops.join(",")}`);
+      }
+      await new Promise((r) => setTimeout(r, 5));
+    }
+  };
   const invoke = async (key: string, ...values: ReadonlyArray<unknown>) => {
     const before = ops.length;
 
@@ -85,9 +109,15 @@ it("keyed items keep their DOM node, value and handler through insert, remove, r
   const [rowA, rowB, rowC] = t.rows() as [HTMLElement, HTMLElement, HTMLElement];
   const [inA, inB, inC] = [t.input(rowA), t.input(rowB), t.input(rowC)];
 
-  for (const [el, text] of [[inA, "va"], [inB, "vb"], [inC, "vc"]] as const) { await userEvent.type(el, text); }
+  for (const [el, text] of [
+    [inA, "va"],
+    [inB, "vb"],
+    [inC, "vc"],
+  ] as const) {
+    await userEvent.type(el, text);
+  }
   expect([inA.value, inB.value, inC.value]).toEqual(["va", "vb", "vc"]);
-  await userEvent.click(inB);                                   // focus B's input
+  await userEvent.click(inB); // focus B's input
   expect(document.activeElement).toBe(inB);
 
   // 2. Insert in the middle: [a, x, b, c]. Existing nodes are the same elements, in new positions; only x is new.
@@ -101,7 +131,7 @@ it("keyed items keep their DOM node, value and handler through insert, remove, r
   const rowX = t.rows()[1]!;
 
   expect(rowX).not.toBe(rowA);
-  expect(document.activeElement).toBe(inB);                     // nothing moved B itself: focus stays
+  expect(document.activeElement).toBe(inB); // nothing moved B itself: focus stays
 
   // 3. Remove from the middle: [a, b, c]. Only X is detached.
   await t.invoke("app/order", ["a", "b", "c"]);
@@ -115,7 +145,7 @@ it("keyed items keep their DOM node, value and handler through insert, remove, r
   expect(t.labels()).toEqual(["C", "A", "B"]);
   expect(t.rows()).toEqual([rowC, rowA, rowB]);
   expect([inA.value, inB.value, inC.value]).toEqual(["va", "vb", "vc"]);
-  expect(document.activeElement).toBe(inB);                     // [c,a,b]: only C moved, B was not touched
+  expect(document.activeElement).toBe(inB); // [c,a,b]: only C moved, B was not touched
 
   // 4b. Move the focused item itself: [b, c, a]. Same elements and values; focus itself is not asserted: observed lost in Chromium when the focused node is the one moved (a DOM insertBefore blurs it), which is the platform's, not identity.
   await t.invoke("app/order", ["b", "c", "a"]);
@@ -131,9 +161,9 @@ it("keyed items keep their DOM node, value and handler through insert, remove, r
   expect(inB.value).toBe("vb");
 
   // 6. Events after reorder reach the item whose node was clicked, not the one now at that position.
-  await userEvent.click(t.rows()[0]!.querySelector("button")!);   // row 0 is C now
-  await userEvent.click(t.rows()[2]!.querySelector("button")!);   // row 2 is B now
-  await userEvent.click(t.rows()[1]!.querySelector("button")!);   // row 1 is A now
+  await userEvent.click(t.rows()[0]!.querySelector("button")!); // row 0 is C now
+  await userEvent.click(t.rows()[2]!.querySelector("button")!); // row 2 is B now
+  await userEvent.click(t.rows()[1]!.querySelector("button")!); // row 1 is A now
   await t.until(() => t.picked.length === 3);
   expect(t.picked).toEqual(["c", "b", "a"]);
 
@@ -144,7 +174,7 @@ it("keyed items keep their DOM node, value and handler through insert, remove, r
   expect(rowB.isConnected).toBe(false);
   buttonB.click();
   await new Promise((r) => setTimeout(r, 50));
-  expect(t.picked).toEqual(["c", "b", "a"]);                    // the detached B reaches nothing
+  expect(t.picked).toEqual(["c", "b", "a"]); // the detached B reaches nothing
   await t.invoke("app/order", ["c", "a", "b"]);
   const rowB2 = t.byLabel("B");
 
@@ -154,6 +184,6 @@ it("keyed items keep their DOM node, value and handler through insert, remove, r
   await t.until(() => t.picked.length === 4);
   expect(t.picked.at(-1)).toBe("b");
 
-  expect(t.ops.every((op, i) => op === (i === 0 ? "draw" : "update"))).toBe(true);   // every change is an update
+  expect(t.ops.every((op, i) => op === (i === 0 ? "draw" : "update"))).toBe(true); // every change is an update
   await t.close();
 });

@@ -19,7 +19,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await browser.close();
-  await new Promise<void>((resolve) => { served.server.close(() => { resolve(); }); });
+  await new Promise<void>((resolve) => {
+    served.server.close(() => {
+      resolve();
+    });
+  });
 });
 
 it("serves a rendered document, a 404 for an unknown path, and the search endpoint", async () => {
@@ -37,8 +41,14 @@ it("hydrates, searches, navigates by links, keeps the title, and Back restores",
   const failures: Array<string> = [];
   const documents: Array<string> = [];
 
-  page.on("pageerror", (error) => { failures.push(error.message); });
-  page.on("request", (request) => { if (request.resourceType() === "document") { documents.push(new URL(request.url()).pathname); } });
+  page.on("pageerror", (error) => {
+    failures.push(error.message);
+  });
+  page.on("request", (request) => {
+    if (request.resourceType() === "document") {
+      documents.push(new URL(request.url()).pathname);
+    }
+  });
   await page.goto(`${served.origin}/docs/guides/state`);
   await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
   expect(await page.title()).toBe("State · Valance");
@@ -61,5 +71,5 @@ it("hydrates, searches, navigates by links, keeps the title, and Back restores",
   expect(await page.getByRole("heading", { name: "State", exact: true }).count()).toBe(1);
 
   expect(failures).toEqual([]);
-  expect(documents).toEqual(["/docs/guides/state"]);                                      // one document load: everything after was in place
+  expect(documents).toEqual(["/docs/guides/state"]); // one document load: everything after was in place
 });

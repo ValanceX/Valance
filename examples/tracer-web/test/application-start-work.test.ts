@@ -22,8 +22,16 @@ const fakeResource = () => {
       log.push("started");
 
       return Deferred.await(gate).pipe(
-        Effect.onInterrupt(() => Effect.sync(() => { log.push("interrupted"); })),
-        Effect.tap(() => Effect.sync(() => { log.push("settled"); }))
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            log.push("interrupted");
+          }),
+        ),
+        Effect.tap(() =>
+          Effect.sync(() => {
+            log.push("settled");
+          }),
+        ),
       );
     }),
     open: (outcome: Outcome) => Effect.runPromise(Deferred.succeed(gate, outcome)),
@@ -31,20 +39,31 @@ const fakeResource = () => {
 };
 
 /** `raise`: a rejected operation FAILS the command (uncaught). Otherwise the command catches it into state. */
-const app = (resource: ReturnType<typeof fakeResource>, options: { readonly raise?: boolean; readonly start?: string | undefined } = {}) => Valance.define({
-  name: "start-work",
-  state: { schema: State, initial: { phase: "loading", detail: "" } satisfies State },
-  views: { only: { program: titleProgram, scope: (state: State) => ({ title: `${state.phase}${state.detail === "" ? "" : `: ${state.detail}`}` }) } },
-  view: () => "only" as const,
-  commands: (state: Nexus.State.StateHandle<State>) => ({
-    "app/load": Valance.entry(Nexus.Command.define("load", Schema.Struct({}), () => Effect.flatMap(state.get, (current) => current.phase !== "loading" ? Effect.void : resource.fetch.pipe(
-      Effect.flatMap((outcome) => outcome._tag === "Err" && options.raise === true
-        ? Effect.fail({ _tag: "LoadError" as const, reason: outcome.reason })
-        : state.update(() => Effect.succeed<State>(outcome._tag === "Ok" ? { phase: "ready", detail: outcome.value } : { phase: "failed", detail: outcome.reason })))
-    )))),
-  }),
-  ...("start" in options ? (options.start === undefined ? {} : { start: options.start }) : { start: "app/load" }),
-});
+const app = (resource: ReturnType<typeof fakeResource>, options: { readonly raise?: boolean; readonly start?: string | undefined } = {}) =>
+  Valance.define({
+    name: "start-work",
+    state: { schema: State, initial: { phase: "loading", detail: "" } satisfies State },
+    views: { only: { program: titleProgram, scope: (state: State) => ({ title: `${state.phase}${state.detail === "" ? "" : `: ${state.detail}`}` }) } },
+    view: () => "only" as const,
+    commands: (state: Nexus.State.StateHandle<State>) => ({
+      "app/load": Valance.entry(
+        Nexus.Command.define("load", Schema.Struct({}), () =>
+          Effect.flatMap(state.get, (current) =>
+            current.phase !== "loading"
+              ? Effect.void
+              : resource.fetch.pipe(
+                  Effect.flatMap((outcome) =>
+                    outcome._tag === "Err" && options.raise === true
+                      ? Effect.fail({ _tag: "LoadError" as const, reason: outcome.reason })
+                      : state.update(() => Effect.succeed<State>(outcome._tag === "Ok" ? { phase: "ready", detail: outcome.value } : { phase: "failed", detail: outcome.reason })),
+                  ),
+                ),
+          ),
+        ),
+      ),
+    }),
+    ...("start" in options ? (options.start === undefined ? {} : { start: options.start }) : { start: "app/load" }),
+  });
 
 const wait = async (done: () => boolean): Promise<void> => {
   for (let tries = 0; !done(); tries += 1) {
@@ -61,11 +80,25 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
   const scope = await Effect.runPromise(Scope.make());
   const released: Array<string> = [];
   const logs: Array<string> = [];
-  const logger = Logger.replace(Logger.defaultLogger, Logger.make(({ message }) => { logs.push(String(message)); }));
+  const logger = Logger.replace(
+    Logger.defaultLogger,
+    Logger.make(({ message }) => {
+      logs.push(String(message));
+    }),
+  );
 
-  await Effect.runPromise(Scope.addFinalizer(scope, Effect.sync(() => { released.push("platform resource released"); })));   // before start: runs after NEXUS terminates
+  await Effect.runPromise(
+    Scope.addFinalizer(
+      scope,
+      Effect.sync(() => {
+        released.push("platform resource released");
+      }),
+    ),
+  ); // before start: runs after NEXUS terminates
 
-  const handle = await Effect.runPromise(Valance.start(app(resource, options), options.state === undefined ? {} : { state: options.state }).pipe(Effect.provide(logger), Scope.extend(scope)));   // the host's ONLY act
+  const handle = await Effect.runPromise(
+    Valance.start(app(resource, options), options.state === undefined ? {} : { state: options.state }).pipe(Effect.provide(logger), Scope.extend(scope)),
+  ); // the host's ONLY act
   let target: TextTarget | undefined;
 
   if (options.mount !== false) {
@@ -74,7 +107,16 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
     await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
   }
 
-  return { resource, scope, released, logs, handle, close: () => Effect.runPromise(Scope.close(scope, Exit.void)), screen: () => target?.screen() ?? "", state: () => Effect.runPromise(handle.state) };
+  return {
+    resource,
+    scope,
+    released,
+    logs,
+    handle,
+    close: () => Effect.runPromise(Scope.close(scope, Exit.void)),
+    screen: () => target?.screen() ?? "",
+    state: () => Effect.runPromise(handle.state),
+  };
 };
 
 describe("start-time work declared by the application", () => {

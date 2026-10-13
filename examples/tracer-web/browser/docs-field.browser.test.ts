@@ -11,28 +11,41 @@ import { application, stateFor, stateOf, urlOf } from "../src/docs-benchmark/app
 import { primitives } from "../src/docs-benchmark/web.js";
 
 const served = inject("docs");
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 const calls: Array<{ resolve: (hits: ReadonlyArray<{ id: string; title: string }>) => void }> = [];
-const searchDocs = () => new Promise<ReadonlyArray<{ id: string; title: string }>>((resolve) => { calls.push({ resolve }); });
+const searchDocs = () =>
+  new Promise<ReadonlyArray<{ id: string; title: string }>>((resolve) => {
+    calls.push({ resolve });
+  });
 
 it("server-rendered non-empty value, hydration, typing, clearing, replacement and a focused caret", async () => {
   history.replaceState(null, "", "/docs/guides/state");
   const base = stateFor("/docs/guides/state");
-  const ssr = await Effect.runPromise(renderToHtml(application(served.programs, searchDocs), { primitives, state: { ...base, search: { ...base.search, query: "async", status: "done" as const, results: [] } } }));
+  const ssr = await Effect.runPromise(
+    renderToHtml(application(served.programs, searchDocs), { primitives, state: { ...base, search: { ...base.search, query: "async", status: "done" as const, results: [] } } }),
+  );
 
-  expect(ssr.html).toContain('<input value="async">');                                          // the server wrote the value as the attribute
+  expect(ssr.html).toContain('<input value="async">'); // the server wrote the value as the attribute
 
   const root = document.createElement("div");
   root.innerHTML = ssr.html;
   document.body.append(root);
   const original = root.querySelector("input")!;
-  const host = await Web.run(application(served.programs, searchDocs), { container: root, primitives, present: "hydrate", state: ssr.state, history: { window, urlOf, stateOf, navigate: "go" } });
+  const host = await Web.run(application(served.programs, searchDocs), {
+    container: root,
+    primitives,
+    present: "hydrate",
+    state: ssr.state,
+    history: { window, urlOf, stateOf, navigate: "go" },
+  });
   const state = async () => (await Effect.runPromise(host.handle.state as never)) as any;
   const box = root.querySelector("input")!;
 
-  expect(host.mounted.hydration).toEqual({ adopted: true });                                    // hydration verified the same attribute
+  expect(host.mounted.hydration).toEqual({ adopted: true }); // hydration verified the same attribute
   expect(box).toBe(original);
-  expect(box.value).toBe("async");                                                              // the property agrees with what the server rendered
+  expect(box.value).toBe("async"); // the property agrees with what the server rendered
 
   // typing: every character kept, state and box agree
   await userEvent.clear(box);
@@ -45,7 +58,7 @@ it("server-rendered non-empty value, hydration, typing, clearing, replacement an
   await userEvent.type(box, "abXc");
   box.focus();
   box.setSelectionRange(3, 3);
-  Effect.runFork(host.handle.invoke("app/search", [{ value: "abYc" }]) as never);              // the application changes the text (same length); an invoked waiting command is not awaited here
+  Effect.runFork(host.handle.invoke("app/search", [{ value: "abYc" }]) as never); // the application changes the text (same length); an invoked waiting command is not awaited here
   await expect.poll(() => box.value).toBe("abYc");
   expect(document.activeElement).toBe(box);
   expect(box.selectionStart).toBe(3);

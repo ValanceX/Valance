@@ -16,7 +16,13 @@ export interface DocsServed {
 
 export default async function setup(project: TestProject): Promise<void> {
   const programs = await compilePrograms();
-  const serve = (url: string): Promise<DocsServed> => Effect.runPromise(renderToHtml(application(programs, () => new Promise(() => undefined)), { primitives, state: stateFor(url) }));
+  const serve = (url: string): Promise<DocsServed> =>
+    Effect.runPromise(
+      renderToHtml(
+        application(programs, () => new Promise(() => undefined)),
+        { primitives, state: stateFor(url) },
+      ),
+    );
 
   project.provide("docs", { programs, home: await serve("/docs/"), guide: await serve("/docs/guides/state"), reference: await serve("/docs/reference/api") });
 }

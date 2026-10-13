@@ -13,31 +13,43 @@ it("loads /tracer/about?tab=details as a real document; its script hydrates thro
   document.body.append(frame);
 
   try {
-    await new Promise<void>((resolve) => { frame.addEventListener("load", () => { resolve(); }, { once: true }); });
+    await new Promise<void>((resolve) => {
+      frame.addEventListener(
+        "load",
+        () => {
+          resolve();
+        },
+        { once: true },
+      );
+    });
     const doc = frame.contentDocument!;
     const win = frame.contentWindow!;
 
-    expect(text(doc)).toBe("About Tracer: 0 clickstab: detailsBack");                 // the server's HTML, before the page script has run
-    await expect.poll(() => doc.querySelector<HTMLElement>("#app")?.dataset["valance"]).toBe("running");   // the page script called `run` and it mounted
+    expect(text(doc)).toBe("About Tracer: 0 clickstab: detailsBack"); // the server's HTML, before the page script has run
+    await expect.poll(() => doc.querySelector<HTMLElement>("#app")?.dataset["valance"]).toBe("running"); // the page script called `run` and it mounted
 
     const errors: Array<unknown> = [];
-    for (const level of ["error", "warn", "log"] as const) { (win as unknown as { console: Console }).console[level] = (...args: Array<unknown>) => { errors.push(args); }; }   // anything the host reports (Effect's default logger writes every level through console.log)
+    for (const level of ["error", "warn", "log"] as const) {
+      (win as unknown as { console: Console }).console[level] = (...args: Array<unknown>) => {
+        errors.push(args);
+      };
+    } // anything the host reports (Effect's default logger writes every level through console.log)
 
-    button(doc, "Back").click();                                                       // About -> counter: a different program, drawn fresh
+    button(doc, "Back").click(); // About -> counter: a different program, drawn fresh
     await expect.poll(() => text(doc)).toBe("0 clicks, last at 0ClickAbout");
     const section = doc.querySelector("section");
 
-    button(doc, "Click").click();                                                      // same program: updated in place, by a command that reads the platform clock
+    button(doc, "Click").click(); // same program: updated in place, by a command that reads the platform clock
     await expect.poll(() => text(doc)).toMatch(/^1 clicks, last at [1-9]\d+/);
     expect(doc.querySelector("section")).toBe(section);
 
-    button(doc, "About").click();                                                      // navigation reaches the browser's history through the host's `history` option
+    button(doc, "About").click(); // navigation reaches the browser's history through the host's `history` option
     await expect.poll(() => win.location.pathname + win.location.search).toBe("/tracer/about?tab=overview");
     expect(text(doc)).toBe("About Tracer: 1 clickstab: overviewBack");
 
-    win.dispatchEvent(new Event("pagehide"));                       // the page is hidden: its one Scope closes
-    await expect.poll(() => doc.querySelector("#app")?.innerHTML).toBe("");            // the target was unmounted by the Scope, not by the page script
-    expect(errors).toEqual([]);                                                        // a normal end is silent: the host reports only abnormal ones (this hook sees console.error, warn and log)
+    win.dispatchEvent(new Event("pagehide")); // the page is hidden: its one Scope closes
+    await expect.poll(() => doc.querySelector("#app")?.innerHTML).toBe(""); // the target was unmounted by the Scope, not by the page script
+    expect(errors).toEqual([]); // a normal end is silent: the host reports only abnormal ones (this hook sees console.error, warn and log)
   } finally {
     frame.remove();
   }

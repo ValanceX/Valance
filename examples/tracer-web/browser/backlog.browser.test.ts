@@ -12,9 +12,16 @@ import { beforeAll, expect, it } from "vitest";
 
 import { app, label, recording, run } from "./burst-fixture.js";
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
-const spin = (ms: number): void => { const end = performance.now() + ms; while (performance.now() < end) { /* the target takes real time */ } };
+const spin = (ms: number): void => {
+  const end = performance.now() + ms;
+  while (performance.now() < end) {
+    /* the target takes real time */
+  }
+};
 
 /** A burst of `commits` invokes of `key` in one Effect, against a mount whose every PORT operation takes 1 ms. */
 const burst = async (key: "app/bump" | "app/toggle", commits: number) => {
@@ -27,7 +34,14 @@ const burst = async (key: "app/bump" | "app/toggle", commits: number) => {
   const handle = await run(Valance.start(definition).pipe(Scope.extend(scope)));
   const log: Array<string> = [];
 
-  await run(Valance.mount(handle, recording(root, log, timeline, 0, () => { spin(1); })).pipe(Scope.extend(scope)));
+  await run(
+    Valance.mount(
+      handle,
+      recording(root, log, timeline, 0, () => {
+        spin(1);
+      }),
+    ).pipe(Scope.extend(scope)),
+  );
   await run(Effect.forEach(Array.from({ length: commits }), () => handle.invoke(key, []), { discard: true }));
   const deadline = performance.now() + 20_000;
   const expectedLabel = key === "app/bump" ? `A${commits}` : commits % 2 === 0 ? "A0" : "B0";
@@ -48,15 +62,15 @@ it("commits outrun a slow presentation, and the mount presents the latest state:
   for (const commits of [100, 1000]) {
     const seen = await burst("app/bump", commits);
 
-    expect(seen.committed).toBe(commits);                                                          // the application committed every one
+    expect(seen.committed).toBe(commits); // the application committed every one
     expect(seen.state).toEqual({ view: "a", n: commits });
     expect(seen.final).toBe(`A${commits}`);
     expect(seen.log[0]).toBe("draw A0");
-    expect(seen.log.at(-1)).toBe(`update A${commits}`);                                            // the last presentation is the last committed state
-    expect(seen.log.length).toBeLessThan(commits + 1);                                             // the backlog is not worked through
+    expect(seen.log.at(-1)).toBe(`update A${commits}`); // the last presentation is the last committed state
+    expect(seen.log.length).toBeLessThan(commits + 1); // the backlog is not worked through
     const numbers = seen.log.slice(1).map((entry) => Number(entry.replace("update A", "")));
 
-    expect(numbers.every((value, index) => index === 0 || value > numbers[index - 1]!)).toBe(true);   // never reordered, never repeated
+    expect(numbers.every((value, index) => index === 0 || value > numbers[index - 1]!)).toBe(true); // never reordered, never repeated
   }
 }, 60_000);
 
@@ -65,7 +79,7 @@ it("a view-changing burst converges too: the final view is presented, and contin
   const seen = await burst("app/toggle", commits);
 
   expect(seen.committed).toBe(commits);
-  expect(seen.final).toBe("A0");                                                                   // 200 toggles end on A
+  expect(seen.final).toBe("A0"); // 200 toggles end on A
   expect(seen.state).toEqual({ view: "a", n: 0 });
   expect(seen.log.at(-1)).toMatch(/A0$/);
   expect(seen.log.length).toBeLessThan(commits + 1);
@@ -75,6 +89,6 @@ it("a view-changing burst converges too: the final view is presented, and contin
     const [operation, shown] = seen.log[index]!.split(" ");
     const [, before] = seen.log[index - 1]!.split(" ");
 
-    expect(operation).toBe(shown![0] === before![0] ? "update" : "draw");                          // a skipped intermediate view makes the neighbours the same view: an update
+    expect(operation).toBe(shown![0] === before![0] ? "update" : "draw"); // a skipped intermediate view makes the neighbours the same view: an update
   }
 }, 60_000);

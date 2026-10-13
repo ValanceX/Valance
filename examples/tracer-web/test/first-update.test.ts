@@ -41,15 +41,15 @@ for (const kind of ["mount", "hydrate"] as const) {
       await run(r.handle.invoke("app/fix", []));
       await run(r.handle.invoke("app/bump", []));
       await sleep(60);
-      expect(m.ops).toEqual([first]);                                                   // nothing more through this mount
-      expect(await r.state()).toEqual({ n: 1, bad: false });                            // the application kept committing
+      expect(m.ops).toEqual([first]); // nothing more through this mount
+      expect(await r.state()).toEqual({ n: 1, bad: false }); // the application kept committing
       const recovered = await r.recovers();
 
       expect(recovered.text).toBe("n1");
       expect(recovered.followed).toBe("following");
       await recovered.close();
       await m.close();
-      expect(m.ops).toEqual([first, "unmount"]);                                        // the inert mount still unmounts once, on its own Scope's close
+      expect(m.ops).toEqual([first, "unmount"]); // the inert mount still unmounts once, on its own Scope's close
     });
 
     it("the first update's target call throws: the follower ends with that defect, the last good DOM stays, a fresh mount recovers", async () => {
@@ -65,7 +65,7 @@ for (const kind of ["mount", "hydrate"] as const) {
       expect(m.ops).toEqual([first]);
       await run(r.handle.invoke("app/bump", []));
       await sleep(40);
-      expect(m.ops).toEqual([first]);                                                   // inert
+      expect(m.ops).toEqual([first]); // inert
       expect(await r.state()).toEqual({ n: 2, bad: false });
       const recovered = await r.recovers();
 
@@ -79,21 +79,30 @@ for (const kind of ["mount", "hydrate"] as const) {
         const r = await rig();
         let closing: Promise<void> | undefined;
         const container: { current?: Awaited<ReturnType<typeof r.open>> } = {};
-        const closeNow = () => { closing = container.current!.close(); };
+        const closeNow = () => {
+          closing = container.current!.close();
+        };
         const m = await r.open(kind, { inUpdate: at === "in the target call" ? closeNow : () => undefined });
 
         container.current = m;
-        if (at === "in the render") { r.hooks.onScope = closeNow; }
+        if (at === "in the render") {
+          r.hooks.onScope = closeNow;
+        }
         await run(r.handle.invoke("app/bump", []));
-        if (at === "before the wake") { await m.close(); } else { await sleep(60); await closing; }
+        if (at === "before the wake") {
+          await m.close();
+        } else {
+          await sleep(60);
+          await closing;
+        }
         const atClose = [...m.ops];
 
         await sleep(60);
-        expect(m.ops).toEqual(atClose);                                                  // nothing after the close resolved
+        expect(m.ops).toEqual(atClose); // nothing after the close resolved
         expect(m.ops.filter((op) => op === "unmount")).toHaveLength(1);
         expect(m.ops.at(-1)).toBe("unmount");
-        expect(m.ops.slice(0, -1).every((op, index) => op === (index === 0 ? first : "update"))).toBe(true);   // before the unmount: the first render, and at most the one update
-        expect(await r.standing(m.mounted)).not.toBe("following");                       // the follower ended: settled
+        expect(m.ops.slice(0, -1).every((op, index) => op === (index === 0 ? first : "update"))).toBe(true); // before the unmount: the first render, and at most the one update
+        expect(await r.standing(m.mounted)).not.toBe("following"); // the follower ended: settled
         expect(await r.state()).toEqual({ n: 1, bad: false });
         const recovered = await r.recovers();
 
@@ -119,7 +128,7 @@ describe("several mounts", () => {
     expect([failing.label(), healthy.label()]).toEqual(["n0", "n1"]);
     await run(r.handle.invoke("app/bump", []));
     await sleep(40);
-    expect([failing.label(), healthy.label()]).toEqual(["n0", "n2"]);                  // the healthy mount carries on; the failed one stays at its last good render
+    expect([failing.label(), healthy.label()]).toEqual(["n0", "n2"]); // the healthy mount carries on; the failed one stays at its last good render
     expect(failing.ops).toEqual(["draw"]);
     expect(healthy.ops).toEqual(["draw", "update", "update"]);
     await failing.close();

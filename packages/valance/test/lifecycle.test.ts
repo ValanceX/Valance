@@ -19,7 +19,10 @@ const application = Valance.define({
   views: { main: { program: eventFreeProgram, scope: () => ({}) } },
   view: () => "main" as const,
   commands: (state) => ({
-    "app/bump": Nexus.Mesh.bind(Nexus.Command.define("t.bump", Schema.Struct({}), () => state.update((current) => Effect.succeed({ n: current.n + 1 })).pipe(Effect.asVoid)), () => ({})),
+    "app/bump": Nexus.Mesh.bind(
+      Nexus.Command.define("t.bump", Schema.Struct({}), () => state.update((current) => Effect.succeed({ n: current.n + 1 })).pipe(Effect.asVoid)),
+      () => ({}),
+    ),
   }),
 });
 
@@ -28,7 +31,17 @@ const counting = () => {
   const counts = { acquired: 0, released: 0 };
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(Effect.acquireRelease(Effect.sync(() => { counts.acquired += 1; }), () => Effect.sync(() => { counts.released += 1; })))
+    Layer.scopedDiscard(
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          counts.acquired += 1;
+        }),
+        () =>
+          Effect.sync(() => {
+            counts.released += 1;
+          }),
+      ),
+    ),
   );
 
   return { counts, platform };
@@ -58,7 +71,9 @@ describe("lifecycle: one lifetime, the caller's Scope", () => {
   it("while open, with no NEXUS handle: events are accepted, `states` is live, nothing is released", async () => {
     const { running, counts, close } = await open();
     let ended = false;
-    const watcher = Effect.runPromise(Stream.runDrain(running.states)).then(() => { ended = true; });
+    const watcher = Effect.runPromise(Stream.runDrain(running.states)).then(() => {
+      ended = true;
+    });
 
     await Effect.runPromise(running.invoke("app/bump", []));
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -78,10 +93,10 @@ describe("lifecycle: one lifetime, the caller's Scope", () => {
     await Effect.runPromise(running.invoke("app/bump", []));
     await close();
 
-    expect(counts).toEqual({ acquired: 1, released: 1 });                    // the platform's resources, released
-    expect((await states).at(-1)).toEqual({ n: 1 });                         // `states` completed normally, ending with the last commit
-    expect(await refused(running)).toBe(true);                               // new work is refused as a defect
-    expect(await Effect.runPromise(running.state)).toEqual({ n: 1 });       // what the application held stays readable
+    expect(counts).toEqual({ acquired: 1, released: 1 }); // the platform's resources, released
+    expect((await states).at(-1)).toEqual({ n: 1 }); // `states` completed normally, ending with the last commit
+    expect(await refused(running)).toBe(true); // new work is refused as a defect
+    expect(await Effect.runPromise(running.state)).toEqual({ n: 1 }); // what the application held stays readable
   });
 
   it("those signals agree with NEXUS's own status (a NEXUS observation: Running, then Stopped)", async () => {
@@ -105,7 +120,7 @@ describe("lifecycle: one lifetime, the caller's Scope", () => {
     expect(await refused(running)).toBe(true);
     expect(await Effect.runPromise(Nexus.Application.status(running.nexus))).toEqual({ _tag: "Stopped" });
 
-    await close();                                                           // the scope closing afterwards: no error, no second release
+    await close(); // the scope closing afterwards: no error, no second release
     expect(counts).toEqual({ acquired: 1, released: 1 });
   });
 });

@@ -21,22 +21,40 @@ const history = async (b: Booted) => {
   const logs: Array<string> = [];
   const push = dom.window.history.pushState.bind(dom.window.history);
 
-  dom.window.history.pushState = (data, unused, target) => { pushed.push(String(target)); push(data, unused, target); };
-  const logger = Logger.replace(Logger.defaultLogger, Logger.make(({ message }) => { logs.push(String(message)); }));
+  dom.window.history.pushState = (data, unused, target) => {
+    pushed.push(String(target));
+    push(data, unused, target);
+  };
+  const logger = Logger.replace(
+    Logger.defaultLogger,
+    Logger.make(({ message }) => {
+      logs.push(String(message));
+    }),
+  );
   const scope = await run(Scope.make());
 
-  await run(Web.history(b.handle, { window: dom.window as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(Effect.provide(logger), Scope.extend(scope)));
+  await run(
+    Web.history(b.handle, { window: dom.window as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(
+      Effect.provide(logger),
+      Scope.extend(scope),
+    ),
+  );
   await sleep(30);
 
   return { win: dom.window, pushed, logs, close: () => run(Scope.close(scope, Exit.void)) };
 };
-const popstate = async (h: Awaited<ReturnType<typeof history>>) => { h.win.history.pushState(null, "", "/foreign"); h.pushed.length = 0; h.win.history.back(); await sleep(60); };
+const popstate = async (h: Awaited<ReturnType<typeof history>>) => {
+  h.win.history.pushState(null, "", "/foreign");
+  h.pushed.length = 0;
+  h.win.history.back();
+  await sleep(60);
+};
 
 describe("one handle, one application", () => {
   it("A. several mounts and histories from one handle share its state and keep independent consumer state; closing one leaves the rest", async () => {
     const b = await boot();
     let throws = false;
-    const stuck = await b.mountOn({ updateThrows: () => throws ? "after" : undefined });
+    const stuck = await b.mountOn({ updateThrows: () => (throws ? "after" : undefined) });
     const live = await b.mountOn();
     const h1 = await history(b);
     const h2 = await history(b);
@@ -44,18 +62,18 @@ describe("one handle, one application", () => {
     throws = true;
     await b.invoke("app/bump");
     await settle();
-    expect([live.title(), live.ops]).toEqual(["A1", ["draw", "update"]]);   // every consumer reacted to the one application...
-    expect(stuck.ops).toEqual(["draw"]);                                 // ...and each mount holds its own presentation state
+    expect([live.title(), live.ops]).toEqual(["A1", ["draw", "update"]]); // every consumer reacted to the one application...
+    expect(stuck.ops).toEqual(["draw"]); // ...and each mount holds its own presentation state
     expect([h1.pushed, h2.pushed]).toEqual([["/n1"], ["/n1"]]);
     await h1.close();
     await live.close();
     await b.invoke("app/bump");
     await settle();
     expect(h1.pushed).toEqual(["/n1"]);
-    expect(h2.pushed).toEqual(["/n1", "/n2"]);                           // the other history carries on
+    expect(h2.pushed).toEqual(["/n1", "/n2"]); // the other history carries on
     const fresh = await b.mountOn();
 
-    expect(fresh.title()).toBe("A2");                                    // and a fresh mount reads the same application
+    expect(fresh.title()).toBe("A2"); // and a fresh mount reads the same application
     await Promise.all([stuck.close(), fresh.close(), h2.close()]);
   });
 
@@ -67,7 +85,7 @@ describe("one handle, one application", () => {
 
     await a.invoke("app/bump");
     await settle();
-    expect([ma.title(), mb.title()]).toEqual(["A1", "A0"]);              // only A's consumers reacted
+    expect([ma.title(), mb.title()]).toEqual(["A1", "A0"]); // only A's consumers reacted
     expect([ha.pushed, hb.pushed]).toEqual([["/n1"], []]);
     await b.invoke("app/bump");
     await b.invoke("app/bump");
@@ -77,12 +95,12 @@ describe("one handle, one application", () => {
 
     await closeApp(a);
     await settle();
-    expect((await a.state()).n).toBe(1);                                 // readable
-    expect(Exit.isFailure(await Effect.runPromise(Effect.exit(a.rawInvoke("app/bump"))))).toBe(true);   // admission refused
-    expect(await ma.standing()).toBe("ended");                           // post-close: inert mount...
+    expect((await a.state()).n).toBe(1); // readable
+    expect(Exit.isFailure(await Effect.runPromise(Effect.exit(a.rawInvoke("app/bump"))))).toBe(true); // admission refused
+    expect(await ma.standing()).toBe("ended"); // post-close: inert mount...
     await popstate(ha);
-    expect(ha.logs).toEqual(["popstate navigation failed"]);             // ...history refusing popstate
-    await b.invoke("app/bump");                                          // B is untouched
+    expect(ha.logs).toEqual(["popstate navigation failed"]); // ...history refusing popstate
+    await b.invoke("app/bump"); // B is untouched
     await settle();
     expect(mb.title()).toBe("A3");
     expect(hb.pushed).toEqual(["/n1", "/n2", "/n3"]);
@@ -96,11 +114,21 @@ describe("one handle, one application", () => {
     const b = await boot();
     const reads: Array<[number, number]> = [];
 
-    for (const [target, count] of [[a, 1], [b, 2], [a, 1]] as const) {
-      for (let i = 0; i < count; i += 1) { await target.invoke("app/bump"); }
+    for (const [target, count] of [
+      [a, 1],
+      [b, 2],
+      [a, 1],
+    ] as const) {
+      for (let i = 0; i < count; i += 1) {
+        await target.invoke("app/bump");
+      }
       reads.push([(await a.state()).n, (await b.state()).n]);
     }
-    expect(reads).toEqual([[1, 0], [1, 2], [2, 2]]);
+    expect(reads).toEqual([
+      [1, 0],
+      [1, 2],
+      [2, 2],
+    ]);
     await Promise.all([closeApp(a), closeApp(b)]);
   });
 
@@ -108,37 +136,45 @@ describe("one handle, one application", () => {
     const State = Schema.Struct({ n: Schema.Number });
     type State = Schema.Schema.Type<typeof State>;
     const other = Valance.define({
-      name: "other", state: { schema: State, initial: { n: 0 } },
-      views: { only: { program: titleProgram, scope: (s: State) => ({ title: `o${s.n}` }) } }, view: () => "only" as const,
-      commands: (state: Nexus.State.StateHandle<State>) => ({
-        "app/only-here": Nexus.Mesh.bind(Nexus.Command.define("o.here", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ n: c.n + 100 })))), () => ({})),
-      }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
+      name: "other",
+      state: { schema: State, initial: { n: 0 } },
+      views: { only: { program: titleProgram, scope: (s: State) => ({ title: `o${s.n}` }) } },
+      view: () => "only" as const,
+      commands: (state: Nexus.State.StateHandle<State>) =>
+        ({
+          "app/only-here": Nexus.Mesh.bind(
+            Nexus.Command.define("o.here", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ n: c.n + 100 })))),
+            () => ({}),
+          ),
+        }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
     });
     const scope = await run(Scope.make());
     const handle = await run(Valance.start(other).pipe(Scope.extend(scope)));
     const b = await boot();
-    const typed = (exit: Exit.Exit<unknown, unknown>) => Exit.isFailure(exit) && Cause.isFailType(exit.cause) ? (exit.cause.error as { _tag: string })._tag : "not typed";
+    const typed = (exit: Exit.Exit<unknown, unknown>) => (Exit.isFailure(exit) && Cause.isFailType(exit.cause) ? (exit.cause.error as { _tag: string })._tag : "not typed");
 
     await run(handle.invoke("app/only-here", []));
     expect(await run(handle.state)).toEqual({ n: 100 });
-    expect(typed(await Effect.runPromise(Effect.exit(handle.invoke("app/bump", []))))).toBe("UnmappedCommand");   // b's key, unknown here
-    expect(typed(await Effect.runPromise(Effect.exit(b.rawInvoke("app/only-here"))))).toBe("UnmappedCommand");     // and the other way round
+    expect(typed(await Effect.runPromise(Effect.exit(handle.invoke("app/bump", []))))).toBe("UnmappedCommand"); // b's key, unknown here
+    expect(typed(await Effect.runPromise(Effect.exit(b.rawInvoke("app/only-here"))))).toBe("UnmappedCommand"); // and the other way round
     await b.invoke("app/bump");
     expect((await b.state()).n).toBe(1);
-    expect(await run(handle.state)).toEqual({ n: 100 });                 // neither touched the other
+    expect(await run(handle.state)).toEqual({ n: 100 }); // neither touched the other
     await Promise.all([run(Scope.close(scope, Exit.void)), closeApp(b)]);
   });
 
   it("E/G. a consumer attached later reads the current state of its handle's application and replays nothing; earlier consumers carry on from their own state; zero consumers is a full application", async () => {
     const b = await boot();
 
-    for (let i = 0; i < 3; i += 1) { await b.invoke("app/bump"); }       // no consumers: committing is just the application
+    for (let i = 0; i < 3; i += 1) {
+      await b.invoke("app/bump");
+    } // no consumers: committing is just the application
     const early = await b.mountOn();
     const h1 = await history(b);
 
     expect(early.ops).toEqual(["draw"]);
-    expect(early.title()).toBe("A3");                                    // current state, no replay of earlier commits
-    expect(h1.pushed).toEqual([]);                                       // baseline: nothing written for attaching
+    expect(early.title()).toBe("A3"); // current state, no replay of earlier commits
+    expect(h1.pushed).toEqual([]); // baseline: nothing written for attaching
     await b.invoke("app/bump");
     await settle();
     const late = await b.mountOn();
@@ -146,7 +182,7 @@ describe("one handle, one application", () => {
 
     expect(late.ops).toEqual(["draw"]);
     expect(late.title()).toBe("A4");
-    expect(early.ops).toEqual(["draw", "update"]);                       // the earlier mount went on from its own retained render
+    expect(early.ops).toEqual(["draw", "update"]); // the earlier mount went on from its own retained render
     expect(h1.pushed).toEqual(["/n4"]);
     expect(h2.pushed).toEqual([]);
     await b.invoke("app/bump");

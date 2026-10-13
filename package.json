@@ -17,9 +17,14 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "test:browser": "pnpm --filter @valancex/tracer-web run test:browser",
-    "test:examples": "pnpm --filter @valancex/docs-site run test:smoke && pnpm --filter @valancex/docs-app run test:smoke"
+    "test:examples": "pnpm --filter @valancex/docs-site run test:smoke && pnpm --filter @valancex/docs-app run test:smoke",
+    "lint": "oxlint",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check"
   },
   "devDependencies": {
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
     "typescript": "^5.6.0"
   }
 }

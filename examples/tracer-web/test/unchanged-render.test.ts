@@ -18,12 +18,17 @@ describe("an unchanged render is still a presentation", () => {
     const b = await boot();
     const m = await b.mountOn();
 
-    for (const [key, args] of [["app/note", ["x"]], ["app/note", ["x"]], ["app/copy", []], ["app/copy", []]] as const) {
+    for (const [key, args] of [
+      ["app/note", ["x"]],
+      ["app/note", ["x"]],
+      ["app/copy", []],
+      ["app/copy", []],
+    ] as const) {
       await b.invoke(key, ...args);
       await settle();
     }
     expect(m.ops).toEqual(["draw", "update", "update", "update", "update"]);
-    expect(new Set(m.trees).size).toBe(1);                              // five presentations, one tree
+    expect(new Set(m.trees).size).toBe(1); // five presentations, one tree
     expect((await b.state()).note).toBe("x");
     await m.close();
   });
@@ -35,10 +40,10 @@ describe("an unchanged render is still a presentation", () => {
     await b.invoke("app/same");
     await b.invoke("app/same");
     await settle();
-    expect(m.ops).toEqual(["draw"]);                                    // nothing new to present
+    expect(m.ops).toEqual(["draw"]); // nothing new to present
     await b.invoke("app/copy");
     await settle();
-    expect(m.ops).toEqual(["draw", "update"]);                          // equal content, new state: presented
+    expect(m.ops).toEqual(["draw", "update"]); // equal content, new state: presented
     await b.invoke("app/same");
     await settle();
     expect(m.ops).toEqual(["draw", "update"]);
@@ -56,8 +61,8 @@ describe("an unchanged render is still a presentation", () => {
     await b.invoke("app/ids", ["A", "D"]);
     await settle();
     expect(m.ops).toEqual(["draw", "update", "update", "update"]);
-    expect(m.trees[1]).toBe(m.trees[2]);                                // R1 and R1' are the same tree...
-    expect(m.trees[2]).not.toBe(m.trees[3]);                            // ...and R2 is not
+    expect(m.trees[1]).toBe(m.trees[2]); // R1 and R1' are the same tree...
+    expect(m.trees[2]).not.toBe(m.trees[3]); // ...and R2 is not
 
     const c = await boot();
     const n = await c.mountOn();
@@ -67,7 +72,7 @@ describe("an unchanged render is still a presentation", () => {
     await settle();
     expect(n.ops[0]).toBe("draw");
     expect(n.ops.slice(1).every((op) => op === "update")).toBe(true);
-    expect(n.ops.length).toBeLessThanOrEqual(4);                        // some states may have been skipped (C32); none is ever suppressed for being equal
+    expect(n.ops.length).toBeLessThanOrEqual(4); // some states may have been skipped (C32); none is ever suppressed for being equal
     expect(n.trees.at(-1)).toBe(m.trees.at(-1));
     await m.close();
     await n.close();
@@ -78,8 +83,8 @@ describe("an unchanged render is still a presentation", () => {
     const m = await b.mountOn();
 
     m.page.click(m.rowEls()[1]!.querySelector("button")!);
-    await until(() => b.taps.length === 1);                             // "B"
-    await b.invoke("app/tag", "z");                                     // same tree, new event argument
+    await until(() => b.taps.length === 1); // "B"
+    await b.invoke("app/tag", "z"); // same tree, new event argument
     await settle();
     expect(m.ops).toEqual(["draw", "update"]);
     expect(m.trees[0]).toBe(m.trees[1]);
@@ -87,7 +92,7 @@ describe("an unchanged render is still a presentation", () => {
     await until(() => b.taps.length === 2);
     await b.invoke("app/tag", "y");
     await settle();
-    m.reports[0]!.send();                                               // an interaction reported earlier is still resolved against what is retained NOW
+    m.reports[0]!.send(); // an interaction reported earlier is still resolved against what is retained NOW
     await until(() => b.taps.length === 3);
     expect(b.taps).toEqual(["B", "zB", "yB"]);
     expect(m.mounted.dispatched.map(Exit.isSuccess)).toEqual([true, true, true]);
@@ -101,8 +106,8 @@ describe("an unchanged render is still a presentation", () => {
 
     await b.invoke("app/toggleView");
     await until(() => m.ops.length === 2);
-    expect(m.page.container.textContent).toBe(before);                 // the same visible output
-    await b.invoke("app/note", "x");                                    // same view: update
+    expect(m.page.container.textContent).toBe(before); // the same visible output
+    await b.invoke("app/note", "x"); // same view: update
     await settle();
     await b.invoke("app/toggleView");
     await until(() => m.ops.length === 4);
@@ -114,7 +119,15 @@ describe("an unchanged render is still a presentation", () => {
     const b = await boot();
     let once = false;
     const slow = await b.mountOn();
-    const eager = await b.mountOn({ onUpdate: () => { if (!once) { once = true; void b.invoke("app/copy"); void b.invoke("app/tag", "q"); } } });
+    const eager = await b.mountOn({
+      onUpdate: () => {
+        if (!once) {
+          once = true;
+          void b.invoke("app/copy");
+          void b.invoke("app/tag", "q");
+        }
+      },
+    });
 
     await b.invoke("app/note", "n");
     await settle();
@@ -122,11 +135,11 @@ describe("an unchanged render is still a presentation", () => {
     for (const m of [slow, eager]) {
       expect(m.ops[0]).toBe("draw");
       expect(m.ops.slice(1).every((op) => op === "update")).toBe(true);
-      expect(new Set(m.trees).size).toBe(1);                            // every presentation was the same tree
+      expect(new Set(m.trees).size).toBe(1); // every presentation was the same tree
       m.page.click(m.rowEls()[0]!.querySelector("button")!);
     }
     await until(() => b.taps.length === 2);
-    expect(b.taps).toEqual(["qA", "qA"]);                                // both end on the latest state's event arguments
+    expect(b.taps).toEqual(["qA", "qA"]); // both end on the latest state's event arguments
     await slow.close();
     await eager.close();
   });

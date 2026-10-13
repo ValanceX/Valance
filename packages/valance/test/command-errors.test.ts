@@ -29,7 +29,7 @@ describe("heterogeneous failures in one command table", () => {
 
     expectTypeOf<ErrorsOf<typeof two>>().toEqualTypeOf<Offline | SaveError | CVE>();
     expectTypeOf<ErrorsOf<typeof three>>().toEqualTypeOf<Offline | SaveError | AuthError | CVE>();
-    expectTypeOf<AuthError>().not.toMatchTypeOf<ErrorsOf<typeof two>>();                 // nothing is widened to admit an error that is not in the table
+    expectTypeOf<AuthError>().not.toMatchTypeOf<ErrorsOf<typeof two>>(); // nothing is widened to admit an error that is not in the table
     expectTypeOf<ErrorsOf<typeof two>>().not.toBeAny();
     expectTypeOf<ErrorsOf<typeof two>>().not.toBeUnknown();
   });
@@ -49,7 +49,11 @@ describe("heterogeneous failures in one command table", () => {
   it("an annotated table (the old workaround) and exact bindings (`entry`) give the same exact unions; mixed forms combine", () => {
     const annotated = Valance.define({ name: "e", ...base, commands: (): Valance.CommandTable<Offline | SaveError, never> => ({ fetch: offline(), save: saveError() }) });
     const bindings = Valance.define({ name: "f", ...base, commands: () => ({ "app/fetch": Valance.entry(offline()), "app/save": Valance.entry(saveError()) }) });
-    const mixed = Valance.define({ name: "g", ...base, commands: (state) => ({ inc: Valance.command(state)((s) => s), fetch: offline(), "app/save": Valance.entry(saveError()) }) });
+    const mixed = Valance.define({
+      name: "g",
+      ...base,
+      commands: (state) => ({ inc: Valance.command(state)((s) => s), fetch: offline(), "app/save": Valance.entry(saveError()) }),
+    });
 
     expectTypeOf<ErrorsOf<typeof annotated>>().toEqualTypeOf<Offline | SaveError | CVE>();
     expectTypeOf<ErrorsOf<typeof bindings>>().toEqualTypeOf<Offline | SaveError | CVE>();
@@ -71,7 +75,7 @@ describe("heterogeneous failures in one command table", () => {
     const ok = Valance.define({ name: "r", ...base, commands: () => ({ env: needsEnvironment }) });
 
     expectTypeOf<RequirementsOf<typeof ok>>().toEqualTypeOf<Nexus.Capability.EnvironmentShape>();
-    expectTypeOf(needsOther).toEqualTypeOf<Nexus.Command.Command<{}, void, never, { readonly x: number }>>();          // the reason for the next error is exactly this requirement
+    expectTypeOf(needsOther).toEqualTypeOf<Nexus.Command.Command<{}, void, never, { readonly x: number }>>(); // the reason for the next error is exactly this requirement
     // @ts-expect-error `Other` is not provided by the application's runtime
     void Valance.define({ name: "bad", ...base, commands: () => ({ other: needsOther }) });
   });
@@ -80,7 +84,10 @@ describe("heterogeneous failures in one command table", () => {
     const app = Valance.define({ name: "run", ...base, commands: () => ({ fetch: offline(), save: saveError() }) });
     const scope = await Effect.runPromise(Scope.make());
     const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-    const failure = async (key: string) => { const exit = await Effect.runPromise(Effect.exit(handle.invoke(key, []))); return Exit.isFailure(exit) ? Cause.failureOption(exit.cause) : undefined; };
+    const failure = async (key: string) => {
+      const exit = await Effect.runPromise(Effect.exit(handle.invoke(key, [])));
+      return Exit.isFailure(exit) ? Cause.failureOption(exit.cause) : undefined;
+    };
 
     expect(await failure("app/fetch")).toMatchObject({ _tag: "Some", value: { _tag: "Offline" } });
     expect(await failure("app/save")).toMatchObject({ _tag: "Some", value: { _tag: "SaveError" } });

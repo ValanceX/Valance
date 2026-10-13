@@ -10,7 +10,9 @@ import { application, manifest, primitives, source } from "../test/links-fixture
 export default async function setup(project: TestProject): Promise<void> {
   const compiled = await compileProgram({ model: { manifest, path: "components.json" }, root: "shell", components: [{ component: "shell", path: "shell.mprx", source }] });
 
-  if (compiled.program === undefined) { throw new Error(JSON.stringify(compiled.assembly ?? compiled.components)); }
+  if (compiled.program === undefined) {
+    throw new Error(JSON.stringify(compiled.assembly ?? compiled.components));
+  }
 
   const served = await Effect.runPromise(renderToHtml(application(compiled.program), { primitives, state: { page: "home" } }));
 

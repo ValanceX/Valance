@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 180,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "endOfLine": "lf",
+  "ignorePatterns": ["**/dist/**", "**/dist-host/**", "**/.valance/**", "**/node_modules/**", "pnpm-lock.yaml", "**/*.mprx", "**/*.md", "**/*.json", "**/*.css", "examples/docs-verifier/**", "**/__screenshots__/**"]
+}

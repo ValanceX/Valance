@@ -14,13 +14,17 @@ export const AppState = Schema.Struct({ items: Schema.Array(Item), selected: Sch
 export type AppState = typeof AppState.Type;
 
 export const initial: AppState = {
-  items: [{ id: "a", title: "Alpha" }, { id: "b", title: "Beta" }, { id: "c", title: "Gamma" }],
+  items: [
+    { id: "a", title: "Alpha" },
+    { id: "b", title: "Beta" },
+    { id: "c", title: "Gamma" },
+  ],
   selected: "",
   detail: { status: "idle", text: "" },
 };
 
 /** state → URL, and URL → the part of the state it names. The application's. */
-export const urlOf = ({ selected }: AppState): string => selected === "" ? "/items" : `/items?item=${encodeURIComponent(selected)}`;
+export const urlOf = ({ selected }: AppState): string => (selected === "" ? "/items" : `/items?item=${encodeURIComponent(selected)}`);
 export const stateOf = (url: URL): { readonly id: string } => ({ id: url.searchParams.get("item") ?? "" });
 /** What a request URL means as a starting state: a named item starts out loading (its text is fetched by the application's startup work). */
 export const stateFor = (url: string): AppState => {
@@ -47,17 +51,18 @@ export const DetailScope = Schema.Struct({ title: Schema.String, heading: Schema
 
 /** The application's commands. A function of the fetch service so the manifest can be derived from the table without a service (./compile.ts). */
 export const commands = (fetchDetail: FetchDetail) => (state: Nexus.State.StateHandle<AppState>) => {
-  let latest = 0;                                    // the newest request; an older result is ignored
+  let latest = 0; // the newest request; an older result is ignored
   const set = (next: (current: AppState) => AppState) => state.update((current) => Effect.succeed(next(current)));
 
-  const load = (id: string) => Effect.gen(function* () {
-    const mine = ++latest;
-    yield* set((current) => ({ ...current, selected: id, detail: { status: "loading", text: "" } }));
-    const result = yield* Effect.tryPromise({ try: (signal) => fetchDetail(id, signal), catch: String }).pipe(Effect.either);
+  const load = (id: string) =>
+    Effect.gen(function* () {
+      const mine = ++latest;
+      yield* set((current) => ({ ...current, selected: id, detail: { status: "loading", text: "" } }));
+      const result = yield* Effect.tryPromise({ try: (signal) => fetchDetail(id, signal), catch: String }).pipe(Effect.either);
 
-    if (mine !== latest) return;                     // a newer request started meanwhile: drop this result
-    yield* set((current) => ({ ...current, detail: result._tag === "Right" ? { status: "ready", text: result.right } : { status: "failed", text: result.left } }));
-  });
+      if (mine !== latest) return; // a newer request started meanwhile: drop this result
+      yield* set((current) => ({ ...current, detail: result._tag === "Right" ? { status: "ready", text: result.right } : { status: "failed", text: result.left } }));
+    });
 
   // Going back must also supersede a request still in flight, and the counter that does so is the commands' closure: so this is not a pure `command`.
   const leave = Effect.suspend(() => {
@@ -66,11 +71,13 @@ export const commands = (fetchDetail: FetchDetail) => (state: Nexus.State.StateH
   });
   const back = Nexus.Command.define("items.back", Schema.Struct({}), () => leave);
   // The one way to show an item, for a click and for the browser's Back/Forward alike: no id means the list.
-  const select = Nexus.Command.define("items.select", Schema.Struct({ id: Schema.String }), ({ id }) => id === "" ? leave : load(id));
+  const select = Nexus.Command.define("items.select", Schema.Struct({ id: Schema.String }), ({ id }) => (id === "" ? leave : load(id)));
   const reload = Nexus.Command.define("items.reload", Schema.Struct({}), () =>
-    Effect.flatMap(state.get, (current) => current.selected === "" ? Effect.void : load(current.selected)));
+    Effect.flatMap(state.get, (current) => (current.selected === "" ? Effect.void : load(current.selected))),
+  );
   const startup = Nexus.Command.define("items.startup", Schema.Struct({}), () =>
-    Effect.flatMap(state.get, (current) => current.selected !== "" && current.detail.status === "loading" ? load(current.selected) : Effect.void));
+    Effect.flatMap(state.get, (current) => (current.selected !== "" && current.detail.status === "loading" ? load(current.selected) : Effect.void)),
+  );
 
   return {
     select,
@@ -78,17 +85,18 @@ export const commands = (fetchDetail: FetchDetail) => (state: Nexus.State.StateH
     startup,
     back,
   };
-  };
+};
 
-export const application = (programs: Programs, fetchDetail: FetchDetail) => Valance.define({
-  name: "items",
-  state: { schema: AppState, initial },
-  views: {
-    list: { program: programs.list, scope: (state: AppState): typeof ListScope.Type => ({ title: "Items", items: state.items.map(({ id, title }) => ({ id, title })) }) },
-    detail: { program: programs.detail, scope: (state: AppState): typeof DetailScope.Type => ({ title: "Item", heading: titleOf(state) ?? "", status: statusText(state) }) },
-  },
-  // A selected id that names no item is the list: the application decides.
-  view: (state) => titleOf(state) === undefined ? "list" : "detail",
-  commands: commands(fetchDetail),
-  start: "startup",
-});
+export const application = (programs: Programs, fetchDetail: FetchDetail) =>
+  Valance.define({
+    name: "items",
+    state: { schema: AppState, initial },
+    views: {
+      list: { program: programs.list, scope: (state: AppState): typeof ListScope.Type => ({ title: "Items", items: state.items.map(({ id, title }) => ({ id, title })) }) },
+      detail: { program: programs.detail, scope: (state: AppState): typeof DetailScope.Type => ({ title: "Item", heading: titleOf(state) ?? "", status: statusText(state) }) },
+    },
+    // A selected id that names no item is the list: the application decides.
+    view: (state) => (titleOf(state) === undefined ? "list" : "detail"),
+    commands: commands(fetchDetail),
+    start: "startup",
+  });

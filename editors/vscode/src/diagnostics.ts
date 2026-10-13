@@ -34,7 +34,8 @@ export const place = (each: ValanceDiagnostic): Placed => ({
  * Template diagnostics are the language server's, with hover and quick fixes: reporting them twice would double every squiggle. But the server only checks a file it was told is a component. For a
  * template it was not told about (not compiled yet, never used) the check is the only voice, so its diagnostics stay. `covered` is the files the server was told about.
  */
-export const forTheCheck = (all: ReadonlyArray<ValanceDiagnostic>, covered: ReadonlySet<string> = new Set()): ReadonlyArray<ValanceDiagnostic> => all.filter((each) => !each.file.endsWith(".mprx") || !covered.has(each.file));
+export const forTheCheck = (all: ReadonlyArray<ValanceDiagnostic>, covered: ReadonlySet<string> = new Set()): ReadonlyArray<ValanceDiagnostic> =>
+  all.filter((each) => !each.file.endsWith(".mprx") || !covered.has(each.file));
 
 /** The note put on a template the language server does not know, so the editor says what its log says. */
 export const UNMAPPED = "valance-unmapped";
@@ -44,7 +45,9 @@ export const unmappedMessage = (file: string): string =>
 export const parse = (stdout: string): ReadonlyArray<ValanceDiagnostic> => {
   const value = JSON.parse(stdout) as unknown;
 
-  if (!Array.isArray(value)) { throw new Error("`vlx check --json` did not print a list"); }
+  if (!Array.isArray(value)) {
+    throw new Error("`vlx check --json` did not print a list");
+  }
 
   return value as ReadonlyArray<ValanceDiagnostic>;
 };
@@ -56,10 +59,18 @@ export const run = (root: string, script: string): Promise<ReadonlyArray<Valance
     let out = "";
     let err = "";
 
-    child.stdout.on("data", (chunk: Buffer) => { out += chunk.toString(); });
-    child.stderr.on("data", (chunk: Buffer) => { err += chunk.toString(); });
+    child.stdout.on("data", (chunk: Buffer) => {
+      out += chunk.toString();
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      err += chunk.toString();
+    });
     child.on("error", reject);
     child.on("close", () => {
-      try { resolve(parse(out)); } catch { reject(new Error(err.trim() || "vlx check printed nothing readable")); }
+      try {
+        resolve(parse(out));
+      } catch {
+        reject(new Error(err.trim() || "vlx check printed nothing readable"));
+      }
     });
   });

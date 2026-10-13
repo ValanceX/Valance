@@ -8,7 +8,11 @@ import type { Schema } from "effect";
 import type { Component } from "./index.js";
 import { ENTRY_FILE } from "./project.js";
 
-export interface Place { readonly file: string; readonly line: number; readonly column: number }
+export interface Place {
+  readonly file: string;
+  readonly line: number;
+  readonly column: number;
+}
 
 export interface Node {
   /** The tag: the template's file name without `.mprx`. */
@@ -35,20 +39,39 @@ export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<C
     const name = nameOf(declared.template.mprx);
     const known = found.get(name);
 
-    if (known !== undefined) { if (!known.parents.includes(parent)) { known.parents.push(parent); } return; }
+    if (known !== undefined) {
+      if (!known.parents.includes(parent)) {
+        known.parents.push(parent);
+      }
+      return;
+    }
 
     const entry = { node: undefined as unknown as Node, parents: [parent] };
 
     found.set(name, entry);
     const contract = declared.props === undefined && declared.events === undefined ? {} : { interface: { props: declared.props ?? {}, events: declared.events ?? {} } };
 
-    entry.node = { name, file: declared.template.mprx, ...contract, uses: declared.uses.map((each) => nameOf(each.template.mprx)), get parents() { return entry.parents; } };
+    entry.node = {
+      name,
+      file: declared.template.mprx,
+      ...contract,
+      uses: declared.uses.map((each) => nameOf(each.template.mprx)),
+      get parents() {
+        return entry.parents;
+      },
+    };
 
-    for (const child of declared.uses) { walk(child, name); }
+    for (const child of declared.uses) {
+      walk(child, name);
+    }
   };
 
-  if (layout !== undefined) { walk(layout, APPLICATION); }
-  for (const each of overrides) { walk(each, APPLICATION); }
+  if (layout !== undefined) {
+    walk(layout, APPLICATION);
+  }
+  for (const each of overrides) {
+    walk(each, APPLICATION);
+  }
 
   return [...found.values()].map((entry) => entry.node);
 };
@@ -70,9 +93,20 @@ const closing = (text: string, open: number): number => {
   for (let at = open; at < text.length; at += 1) {
     const char = text[at];
 
-    if (char === '"' || char === "'" || char === "`") { const quote = char; at += 1; while (at < text.length && text[at] !== quote) { at += text[at] === "\\" ? 2 : 1; } }
-    else if (char === "(") { depth += 1; }
-    else if (char === ")") { depth -= 1; if (depth === 0) { return at + 1; } }
+    if (char === '"' || char === "'" || char === "`") {
+      const quote = char;
+      at += 1;
+      while (at < text.length && text[at] !== quote) {
+        at += text[at] === "\\" ? 2 : 1;
+      }
+    } else if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return at + 1;
+      }
+    }
   }
 
   return text.length;
@@ -85,9 +119,20 @@ const braceEnd = (text: string, open: number): number => {
   for (let at = open; at < text.length; at += 1) {
     const char = text[at];
 
-    if (char === '"' || char === "'" || char === "`") { const quote = char; at += 1; while (at < text.length && text[at] !== quote) { at += text[at] === "\\" ? 2 : 1; } }
-    else if (char === "{") { depth += 1; }
-    else if (char === "}") { depth -= 1; if (depth === 0) { return at + 1; } }
+    if (char === '"' || char === "'" || char === "`") {
+      const quote = char;
+      at += 1;
+      while (at < text.length && text[at] !== quote) {
+        at += text[at] === "\\" ? 2 : 1;
+      }
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return at + 1;
+      }
+    }
   }
 
   return text.length;
@@ -117,12 +162,16 @@ const siteIn = (file: string, text: string, ident: string, imported: number): Si
     imported: at(imported),
     ...(call === null ? {} : { call: at(call.index) }),
     member: (kind, name) => {
-      if (range === undefined) { return undefined; }
+      if (range === undefined) {
+        return undefined;
+      }
 
       const body = text.slice(range.from, range.to);
       const start = new RegExp(`\\b${kind}\\s*:\\s*\\{`).exec(body);
 
-      if (start === null) { return undefined; }
+      if (start === null) {
+        return undefined;
+      }
 
       const open = start.index + start[0].length - 1;
       const close = braceEnd(body, open);
@@ -133,7 +182,12 @@ const siteIn = (file: string, text: string, ident: string, imported: number): Si
   };
 };
 
-const typescriptIn = (dir: string): ReadonlyArray<string> => existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts") && !file.endsWith(".d.ts")).sort() : [];
+const typescriptIn = (dir: string): ReadonlyArray<string> =>
+  existsSync(dir)
+    ? readdirSync(dir, { recursive: true, encoding: "utf8" })
+        .filter((file) => file.endsWith(".ts") && !file.endsWith(".d.ts"))
+        .sort()
+    : [];
 
 /**
  * Where each template's component is defined: the `component(template, …)` call in the project's TypeScript, wherever it is written (the entry file, or a file of its own beside the template), and the
@@ -141,21 +195,32 @@ const typescriptIn = (dir: string): ReadonlyArray<string> => existsSync(dir) ? r
  */
 export const declarationsOf = (root: string): ReadonlyMap<string, Site> => {
   const found = new Map<string, Site>();
-  const files = [ENTRY_FILE, ...typescriptIn(join(root, "src")).map((file) => `src/${file.split(sep).join("/")}`).filter((file) => file !== ENTRY_FILE)];
+  const files = [
+    ENTRY_FILE,
+    ...typescriptIn(join(root, "src"))
+      .map((file) => `src/${file.split(sep).join("/")}`)
+      .filter((file) => file !== ENTRY_FILE),
+  ];
 
   for (const file of files) {
     const path = join(root, file);
 
-    if (!existsSync(path)) { continue; }
+    if (!existsSync(path)) {
+      continue;
+    }
 
     const text = readFileSync(path, "utf8");
 
     for (const match of text.matchAll(IMPORT)) {
-      const template = relative(root, resolve(dirname(path), match[2]!)).split(sep).join("/");
+      const template = relative(root, resolve(dirname(path), match[2]!))
+        .split(sep)
+        .join("/");
       const site = siteIn(file, text, match[1]!, match.index);
 
       // A definition wins over an import that only passes the component on.
-      if (!found.has(template) || (found.get(template)!.call === undefined && site.call !== undefined)) { found.set(template, site); }
+      if (!found.has(template) || (found.get(template)!.call === undefined && site.call !== undefined)) {
+        found.set(template, site);
+      }
     }
   }
 

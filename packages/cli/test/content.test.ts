@@ -7,10 +7,20 @@ import { cleanup, PAGE, project } from "./fixture.js";
 
 afterEach(cleanup);
 
-const read = (files: Record<string, string>) => { const root = project(files); return readContent(root, loadConfig(root)); };
+const read = (files: Record<string, string>) => {
+  const root = project(files);
+  return readContent(root, loadConfig(root));
+};
 
 const problems = (files: Record<string, string>): ReadonlyArray<string> => {
-  try { read(files); } catch (error) { if (error instanceof AppError) { return error.diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`); } throw error; }
+  try {
+    read(files);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return error.diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
+    }
+    throw error;
+  }
 
   return [];
 };
@@ -52,7 +62,10 @@ describe("content/ is the pages", () => {
   });
 
   it("reports every mistake in every file together", () => {
-    expect(problems({ "content/index.md": "---\ntitle: X\n---\n\n<b>x</b>\n", "content/a.md": "---\ncolor: red\n---\n\n# A\n" })).toEqual(["content/a.md:2 front-unknown", "content/index.md:5 md-html"]);
+    expect(problems({ "content/index.md": "---\ntitle: X\n---\n\n<b>x</b>\n", "content/a.md": "---\ncolor: red\n---\n\n# A\n" })).toEqual([
+      "content/a.md:2 front-unknown",
+      "content/index.md:5 md-html",
+    ]);
   });
 });
 
@@ -65,7 +78,10 @@ describe("links and images are checked against what exists", () => {
   });
 
   it("accepts pages by address, by file, with a fragment, within the page, external and mailto; writes them under the base", () => {
-    const root = project({ ...files("[a](/guide/a) [b](./guide/a.md#part) [c](#home) [d](https://x.dev) [e](mailto:a@b.c) [f](/logo.svg)\n\n![logo](/logo.svg)"), "valance.web.json": '{ "base": "/docs/" }' });
+    const root = project({
+      ...files("[a](/guide/a) [b](./guide/a.md#part) [c](#home) [d](https://x.dev) [e](mailto:a@b.c) [f](/logo.svg)\n\n![logo](/logo.svg)"),
+      "valance.web.json": '{ "base": "/docs/" }',
+    });
     const { pages } = readContent(root, loadConfig(root));
     const hrefs = pages[0]!.blocks.flatMap((block) => block.spans.filter((span) => span.kind === "link").map((span) => span.href));
 
@@ -76,7 +92,10 @@ describe("links and images are checked against what exists", () => {
   it("resolves a relative address from the file it is written in", () => {
     const { pages } = read(files("x", { "content/guide/b.md": PAGE("B", "[up](../index.md) [side](./a.md)") }));
 
-    expect(pages.find((page) => page.path === "/guide/b")!.blocks.flatMap((block) => block.spans.filter((span) => span.kind === "link").map((span) => span.href))).toEqual(["/", "/guide/a"]);
+    expect(pages.find((page) => page.path === "/guide/b")!.blocks.flatMap((block) => block.spans.filter((span) => span.kind === "link").map((span) => span.href))).toEqual([
+      "/",
+      "/guide/a",
+    ]);
   });
 
   it("names the file and line of a broken link, a missing heading, a missing image and a forbidden scheme", () => {

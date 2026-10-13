@@ -12,7 +12,7 @@ const registry = (async () => {
 
   return new Registry({
     onigLib: Promise.resolve({ createOnigScanner: (patterns) => new OnigScanner(patterns), createOnigString: (text) => new OnigString(text) }),
-    loadGrammar: async (scope) => scope === "source.mprx" ? parseRawGrammar(readFileSync(here("syntaxes/mprx.tmLanguage.json"), "utf8"), "mprx.tmLanguage.json") : null,
+    loadGrammar: async (scope) => (scope === "source.mprx" ? parseRawGrammar(readFileSync(here("syntaxes/mprx.tmLanguage.json"), "utf8"), "mprx.tmLanguage.json") : null),
   }).loadGrammar("source.mprx");
 })();
 
@@ -25,7 +25,9 @@ const tokenize = async (text: string) => {
   for (const line of text.split("\n")) {
     const result = grammar.tokenizeLine(line, state);
 
-    for (const token of result.tokens) { tokens.push({ text: line.slice(token.startIndex, token.endIndex), scopes: token.scopes.slice(1) }); }
+    for (const token of result.tokens) {
+      tokens.push({ text: line.slice(token.startIndex, token.endIndex), scopes: token.scopes.slice(1) });
+    }
 
     state = result.ruleStack;
   }
@@ -36,7 +38,9 @@ const tokenize = async (text: string) => {
 const scopeOf = (tokens: ReadonlyArray<{ readonly text: string; readonly scopes: ReadonlyArray<string> }>, text: string, nth = 0): string => {
   const found = tokens.filter((token) => token.text === text)[nth];
 
-  if (found === undefined) { throw new Error(`no token "${text}" in ${JSON.stringify(tokens.map((token) => token.text))}`); }
+  if (found === undefined) {
+    throw new Error(`no token "${text}" in ${JSON.stringify(tokens.map((token) => token.text))}`);
+  }
 
   return found.scopes.at(-1)!;
 };
@@ -73,10 +77,10 @@ describe("the MPRX TextMate grammar", () => {
   });
 
   it("scopes text interpolation and closing tags, and an object argument", async () => {
-    const { tokens, closed } = await tokenize('<button on.click={save(user, { force: true })}>Save {user.name}</button>');
+    const { tokens, closed } = await tokenize("<button on.click={save(user, { force: true })}>Save {user.name}</button>");
 
     expect(scopeOf(tokens, "force")).toBe("variable.other.property.mprx");
-    expect(tokens.find((token) => token.text === "Save ")!.scopes).toEqual([]);                  // plain text has no scope: the theme's default
+    expect(tokens.find((token) => token.text === "Save ")!.scopes).toEqual([]); // plain text has no scope: the theme's default
     expect(scopeOf(tokens, "name")).toBe("variable.other.property.mprx");
     expect(tokens.filter((token) => token.text === "button").map((token) => token.scopes.at(-1))).toEqual(["entity.name.tag.mprx", "entity.name.tag.mprx"]);
     expect(closed).toBe(true);
@@ -92,7 +96,9 @@ describe("the MPRX TextMate grammar", () => {
 
   it("returns to the top level after every template of the example application and of the built-in kit", async () => {
     const files = [
-      ...readdirSync(here("../../examples/docs-app/src")).filter((name) => name.endsWith(".mprx")).map((name) => here(`../../examples/docs-app/src/${name}`)),
+      ...readdirSync(here("../../examples/docs-app/src"))
+        .filter((name) => name.endsWith(".mprx"))
+        .map((name) => here(`../../examples/docs-app/src/${name}`)),
       ...readdirSync(here("../../packages/cli/views")).map((name) => here(`../../packages/cli/views/${name}`)),
     ];
 
@@ -102,8 +108,14 @@ describe("the MPRX TextMate grammar", () => {
       const { tokens, closed } = await tokenize(readFileSync(file, "utf8").trimEnd());
 
       expect(closed, file).toBe(true);
-      expect(tokens.some((token) => token.scopes.at(-1) === "entity.name.tag.mprx"), file).toBe(true);
-      expect(tokens.filter((token) => token.scopes.length > 0 && token.scopes.at(-1)!.startsWith("invalid")), file).toEqual([]);
+      expect(
+        tokens.some((token) => token.scopes.at(-1) === "entity.name.tag.mprx"),
+        file,
+      ).toBe(true);
+      expect(
+        tokens.filter((token) => token.scopes.length > 0 && token.scopes.at(-1)!.startsWith("invalid")),
+        file,
+      ).toEqual([]);
     }
   });
 });

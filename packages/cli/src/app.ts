@@ -37,14 +37,22 @@ const authorFields = (author: DefinedApp | undefined): ReadonlyArray<string> => 
 /** Checks the author's definition against the names the framework owns. */
 export const checkDefinition = (author: DefinedApp | undefined): void => {
   for (const name of authorFields(author)) {
-    if (RESERVED.includes(name)) { throw new AppDefinitionError(`src/main.ts: the state field "${name}" is a name the layout already reads from the framework (${RESERVED.join(", ")}); choose another`); }
-    if (name === "page") { throw new AppDefinitionError('src/main.ts: the state field "page" is the framework\'s (which page is shown); choose another'); }
+    if (RESERVED.includes(name)) {
+      throw new AppDefinitionError(`src/main.ts: the state field "${name}" is a name the layout already reads from the framework (${RESERVED.join(", ")}); choose another`);
+    }
+    if (name === "page") {
+      throw new AppDefinitionError('src/main.ts: the state field "page" is the framework\'s (which page is shown); choose another');
+    }
   }
 
-  for (const name of badDefaults(author)) { throw new AppDefinitionError(`src/main.ts: the default of the state field "${name}" is not a value of its type`); }
+  for (const name of badDefaults(author)) {
+    throw new AppDefinitionError(`src/main.ts: the default of the state field "${name}" is not a value of its type`);
+  }
 
   // Building the table reads no state (a command reads it when it runs), so it can be built here, with nothing, to see its names.
-  if ("go" in (author?.commands?.(Valance.command({} as never) as never) ?? {})) { throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name'); }
+  if ("go" in (author?.commands?.(Valance.command({} as never) as never) ?? {})) {
+    throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name');
+  }
 };
 
 /** The names `src/main.ts` adds: state fields (readable in the layout) and commands (runnable from it). */
@@ -67,16 +75,20 @@ export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, 
 };
 
 /** The command table: the framework's `go`, then the author's. */
-export const commandTable = (author: DefinedApp | undefined) => (state: Parameters<typeof Valance.command>[0]): Valance.CommandTable<any, Valance.Ambient> => {
-  const command = Valance.command(state as never) as Valance.CommandMaker<AppState>;
-  const own = author?.commands?.(command as never) ?? {};
+export const commandTable =
+  (author: DefinedApp | undefined) =>
+  (state: Parameters<typeof Valance.command>[0]): Valance.CommandTable<any, Valance.Ambient> => {
+    const command = Valance.command(state as never) as Valance.CommandMaker<AppState>;
+    const own = author?.commands?.(command as never) ?? {};
 
-  if ("go" in own) { throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name'); }
+    if ("go" in own) {
+      throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name');
+    }
 
-  return { go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })), ...own };
-};
+    return { go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })), ...own };
+  };
 
-export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", ...(stateOf(author)?.initial ?? {}) });
+export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", ...stateOf(author)?.initial });
 
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);

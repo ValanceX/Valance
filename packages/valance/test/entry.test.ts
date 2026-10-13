@@ -39,11 +39,26 @@ const application = Valance.define({
   view: () => "main" as const,
   commands: (state) => {
     const set = Nexus.Command.define("t.set", Schema.Struct({ n: Schema.Number }), ({ n }) => state.update((current) => Effect.succeed({ ...current, n })).pipe(Effect.asVoid));
-    const readClock = Nexus.Command.define("t.readClock", Schema.Struct({}), () => Effect.flatMap(Clock.currentTimeMillis, (clock) => state.update((current) => Effect.succeed({ ...current, clock }))).pipe(Effect.asVoid));
-    const readProbe = Nexus.Command.define("t.readProbe", Schema.Struct({}), () => Effect.flatMap(FiberRef.get(probe), (seen) => state.update((current) => Effect.succeed({ ...current, seen }))).pipe(Effect.asVoid));
+    const readClock = Nexus.Command.define("t.readClock", Schema.Struct({}), () =>
+      Effect.flatMap(Clock.currentTimeMillis, (clock) => state.update((current) => Effect.succeed({ ...current, clock }))).pipe(Effect.asVoid),
+    );
+    const readProbe = Nexus.Command.define("t.readProbe", Schema.Struct({}), () =>
+      Effect.flatMap(FiberRef.get(probe), (seen) => state.update((current) => Effect.succeed({ ...current, seen }))).pipe(Effect.asVoid),
+    );
     const writeProbe = Nexus.Command.define("t.writeProbe", Schema.Struct({}), () => FiberRef.set(probe, "written by the application"));
 
-    const hangs = Nexus.Command.define("t.hang", Schema.Struct({}), () => Effect.sync(() => { hang.started = true; }).pipe(Effect.zipRight(Effect.never), Effect.onInterrupt(() => Effect.sync(() => { hang.interrupted = true; }))));
+    const hangs = Nexus.Command.define("t.hang", Schema.Struct({}), () =>
+      Effect.sync(() => {
+        hang.started = true;
+      }).pipe(
+        Effect.zipRight(Effect.never),
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            hang.interrupted = true;
+          }),
+        ),
+      ),
+    );
     const dies = Nexus.Command.define("t.dies", Schema.Struct({}), () => Effect.die(new Error("a defect in a command")));
 
     return {
@@ -61,13 +76,17 @@ const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.Enviro
 
 describe("application event entry", () => {
   it("delivers an event with the caller holding no runtime: invoke, on the default Effect runtime, causes the transition", async () => {
-    const state = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(application);
+    const state = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const running = yield* Valance.start(application);
 
-      yield* running.invoke("app/set", [{ value: 7 }]);
+          yield* running.invoke("app/set", [{ value: 7 }]);
 
-      return yield* running.state;
-    })));
+          return yield* running.state;
+        }),
+      ),
+    );
 
     expect(state.n).toBe(7);
   });
@@ -77,43 +96,55 @@ describe("application event entry", () => {
     const absent: Valance.DispatchExit<never> | undefined = undefined;
 
     void absent;
-    expectTypeOf<Valance.Mounted<never>["dispatched"]>().not.toBeAny();         // its structure stays readable through `Mounted`
+    expectTypeOf<Valance.Mounted<never>["dispatched"]>().not.toBeAny(); // its structure stays readable through `Mounted`
     expect(Object.keys(Valance).sort()).toEqual(["ValanceError", "command", "define", "entry", "hydrate", "isRefusal", "isValanceError", "mount", "start"]);
   });
 
   it("the handle is the application's face and nothing else: state and invoke, frozen, with no composition or substrate", async () => {
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(application);
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(application);
 
-      expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
-      expect(Object.isFrozen(handle)).toBe(true);
-      for (const internal of ["nexus", "values", "dispatch", "render", "states", "runtime", "shutdown", "status"]) {
-        expect(internal in handle, internal).toBe(false);
-      }
-    })));
+          expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
+          expect(Object.isFrozen(handle)).toBe(true);
+          for (const internal of ["nexus", "values", "dispatch", "render", "states", "runtime", "shutdown", "status"]) {
+            expect(internal in handle, internal).toBe(false);
+          }
+        }),
+      ),
+    );
 
     expectTypeOf<keyof Valance.ApplicationHandle<State, never>>().toEqualTypeOf<"state" | "invoke">();
   });
 
   it("state is one read of what commands have committed, not a subscription", async () => {
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(application);
-      const before = yield* handle.state;
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(application);
+          const before = yield* handle.state;
 
-      yield* handle.invoke("app/set", [{ value: 3 }]);
+          yield* handle.invoke("app/set", [{ value: 3 }]);
 
-      expect(before.n).toBe(0);                                  // a value, as of when it ran
-      expect((yield* handle.state).n).toBe(3);
-    })));
+          expect(before.n).toBe(0); // a value, as of when it ran
+          expect((yield* handle.state).n).toBe(3);
+        }),
+      ),
+    );
   });
 
   it("invalid arguments to a known entry fail as the command's own validation error, and change nothing", async () => {
-    const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(application);
-      const exit = yield* Effect.exit(handle.invoke("app/set", [{ value: "not a number" }]));
+    const result = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(application);
+          const exit = yield* Effect.exit(handle.invoke("app/set", [{ value: "not a number" }]));
 
-      return { exit, state: yield* handle.state };
-    })));
+          return { exit, state: yield* handle.state };
+        }),
+      ),
+    );
 
     expect(Exit.isFailure(result.exit) && Cause.isFailType(result.exit.cause) && result.exit.cause.error).toMatchObject({ _tag: "CommandValidationError" });
     expect(result.state.n).toBe(0);
@@ -127,11 +158,15 @@ describe("application event entry", () => {
   });
 
   it("an unmapped entry is the existing UnmappedCommand failure", async () => {
-    const exit = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(application);
+    const exit = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const running = yield* Valance.start(application);
 
-      return yield* Effect.exit(running.invoke("nowhere/at-all", []));
-    })));
+          return yield* Effect.exit(running.invoke("nowhere/at-all", []));
+        }),
+      ),
+    );
 
     expect(exit).toEqual(Exit.fail({ _tag: "UnmappedCommand", component: "nowhere", name: "at-all" }));
   });
@@ -144,17 +179,21 @@ describe("application event entry", () => {
       callerProbe.push(yield* FiberRef.get(probe));
     });
 
-    const state = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(application, { platform });
+    const state = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const running = yield* Valance.start(application, { platform });
 
-      yield* observe;
-      yield* running.invoke("app/readClock", []);                // the platform's Clock is the application's
-      yield* running.invoke("app/writeProbe", []);               // an application-side FiberRef write
-      yield* observe;
-      yield* running.invoke("app/readProbe", []);                // ... which a later event does not see either: each event runs in the application's own context
+          yield* observe;
+          yield* running.invoke("app/readClock", []); // the platform's Clock is the application's
+          yield* running.invoke("app/writeProbe", []); // an application-side FiberRef write
+          yield* observe;
+          yield* running.invoke("app/readProbe", []); // ... which a later event does not see either: each event runs in the application's own context
 
-      return yield* running.state;
-    })));
+          return yield* running.state;
+        }),
+      ),
+    );
 
     expect(state.clock).toBe(42);
     expect(callerClocks).toHaveLength(2);
@@ -164,33 +203,49 @@ describe("application event entry", () => {
   });
 
   it("the caller's FiberRefs at start flow into the application; later changes in the caller do not reach an event", async () => {
-    const state = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      yield* FiberRef.set(probe, "set by the caller before start");
-      const running = yield* Valance.start(application);
+    const state = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* FiberRef.set(probe, "set by the caller before start");
+          const running = yield* Valance.start(application);
 
-      yield* FiberRef.set(probe, "set by the caller after start");
-      yield* running.invoke("app/readProbe", []);
+          yield* FiberRef.set(probe, "set by the caller after start");
+          yield* running.invoke("app/readProbe", []);
 
-      return yield* running.state;
-    })));
+          return yield* running.state;
+        }),
+      ),
+    );
 
     expect(state.seen).toBe("set by the caller before start");
   });
 
   it("interrupting the caller interrupts the command; a defect in a command reaches the caller as a defect", async () => {
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(application);
-      const event = yield* Effect.fork(running.invoke("app/hang", []));
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const running = yield* Valance.start(application);
+          const event = yield* Effect.fork(running.invoke("app/hang", []));
 
-      yield* Effect.promise(async () => { for (let i = 0; i < 200 && !hang.started; i += 1) { await new Promise((resolve) => setTimeout(resolve, 5)); } });
-      expect(hang).toEqual({ started: true, interrupted: false });
-      yield* Fiber.interrupt(event);
-      yield* Effect.promise(async () => { for (let i = 0; i < 200 && !hang.interrupted; i += 1) { await new Promise((resolve) => setTimeout(resolve, 5)); } });
-      expect(hang.interrupted).toBe(true);
+          yield* Effect.promise(async () => {
+            for (let i = 0; i < 200 && !hang.started; i += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+            }
+          });
+          expect(hang).toEqual({ started: true, interrupted: false });
+          yield* Fiber.interrupt(event);
+          yield* Effect.promise(async () => {
+            for (let i = 0; i < 200 && !hang.interrupted; i += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+            }
+          });
+          expect(hang.interrupted).toBe(true);
 
-      const exit = yield* Effect.exit(running.invoke("app/dies", []));
+          const exit = yield* Effect.exit(running.invoke("app/dies", []));
 
-      expect(Exit.isFailure(exit) && Cause.isDie(exit.cause)).toBe(true);
-    })));
+          expect(Exit.isFailure(exit) && Cause.isDie(exit.cause)).toBe(true);
+        }),
+      ),
+    );
   });
 });

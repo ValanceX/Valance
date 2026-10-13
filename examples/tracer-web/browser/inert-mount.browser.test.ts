@@ -12,13 +12,15 @@ import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { userEvent } from "@vitest/browser/context";
-import { Effect, Exit, Scope } from "effect";
+import { Exit, Scope } from "effect";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { application, following, label, roots, run } from "./inert-fixture.js";
 import { primitives } from "../src/catalog/web.js";
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 describe("a mount that stopped following", () => {
   it("MESH render failure: every mount ends (they render the same state); the application stays authoritative and alive, nothing recovers by itself, a fresh mount starts from the current state, closing a failed mount touches nothing else", async () => {
@@ -44,7 +46,7 @@ describe("a mount that stopped following", () => {
       await run(handle.invoke("app/fix", []));
       expect(await run(handle.state)).toEqual({ n: 2, bad: false });
       await new Promise((resolve) => setTimeout(resolve, 100));
-      expect([label(rootA), label(rootB)]).toEqual(["n1", "n1"]);            // no further DOM updates, and no automatic recovery
+      expect([label(rootA), label(rootB)]).toEqual(["n1", "n1"]); // no further DOM updates, and no automatic recovery
       expect(await Promise.all([following(mountedA), following(mountedB)])).toEqual(["failed: diagnostics", "failed: diagnostics"]);
 
       // An event on the inert target still reaches the application (its drawn render is retained), and commits.
@@ -65,18 +67,20 @@ describe("a mount that stopped following", () => {
       // Closing a failed mount disposes that mount only.
       await run(Scope.close(scopeA!, Exit.void));
       expect(rootA.innerHTML).toBe("");
-      expect(label(rootB)).toBe("n1");                                        // the other failed mount is as it was
+      expect(label(rootB)).toBe("n1"); // the other failed mount is as it was
       await run(handle.invoke("app/bump", []));
-      await expect.poll(() => label(rootC)).toBe("n5");                       // the healthy mount carries on
+      await expect.poll(() => label(rootC)).toBe("n5"); // the healthy mount carries on
       expect(await run(handle.state)).toEqual({ n: 5, bad: false });
       expect(await following(mountedC)).toBe("following");
 
-      await run(Scope.close(appScope!, Exit.void));                           // closing the application is still clean, with a failed mount open
+      await run(Scope.close(appScope!, Exit.void)); // closing the application is still clean, with a failed mount open
       await run(Scope.close(scopeB!, Exit.void));
       await run(Scope.close(scopeC!, Exit.void));
       expect([rootB.innerHTML, rootC.innerHTML]).toEqual(["", ""]);
     } finally {
-      rootA.remove(); rootB.remove(); rootC.remove();
+      rootA.remove();
+      rootB.remove();
+      rootC.remove();
     }
   });
 
@@ -88,23 +92,39 @@ describe("a mount that stopped following", () => {
       const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
       let failing = false;
       // A target that fails to realize an update: PORT's failure, in this mount alone. A wrapper over the public `TargetFactory`; PORT is otherwise real.
-      const flaky = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
-        const port = Web.target({ container: root, primitives })(report);
+      const flaky =
+        (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> =>
+        (report) => {
+          const port = Web.target({ container: root, primitives })(report);
 
-        return { draw: (tree) => { port.draw(tree); }, update: (tree) => { if (failing) { throw new Error("the target could not realize the update"); } port.update(tree); }, hydrate: (tree) => port.hydrate(tree), unmount: () => { port.unmount(); } };
-      };
+          return {
+            draw: (tree) => {
+              port.draw(tree);
+            },
+            update: (tree) => {
+              if (failing) {
+                throw new Error("the target could not realize the update");
+              }
+              port.update(tree);
+            },
+            hydrate: (tree) => port.hydrate(tree),
+            unmount: () => {
+              port.unmount();
+            },
+          };
+        };
       const mountedA = await run(Valance.mount(handle, flaky(rootA)).pipe(Scope.extend(scopeA!)));
       const mountedB = await run(Valance.mount(handle, Web.target({ container: rootB, primitives })).pipe(Scope.extend(scopeB!)));
 
       failing = true;
       await run(handle.invoke("app/bump", []));
-      await expect.poll(() => label(rootB)).toBe("n1");                       // the healthy mount followed
-      await expect.poll(() => following(mountedA)).toBe("failed: defect");    // the failing one ended, as a defect: PORT's, not MESH's
-      expect(label(rootA)).toBe("n0");                                        // last good DOM
+      await expect.poll(() => label(rootB)).toBe("n1"); // the healthy mount followed
+      await expect.poll(() => following(mountedA)).toBe("failed: defect"); // the failing one ended, as a defect: PORT's, not MESH's
+      expect(label(rootA)).toBe("n0"); // last good DOM
       expect(await following(mountedB)).toBe("following");
 
       await run(handle.invoke("app/bump", []));
-      await expect.poll(() => label(rootB)).toBe("n2");                       // B keeps following; A stays inert
+      await expect.poll(() => label(rootB)).toBe("n2"); // B keeps following; A stays inert
       expect(label(rootA)).toBe("n0");
       expect(await run(handle.state)).toEqual({ n: 2, bad: false });
 
@@ -120,7 +140,9 @@ describe("a mount that stopped following", () => {
       await run(Scope.close(scopeB!, Exit.void));
       await run(Scope.close(scopeC!, Exit.void));
     } finally {
-      rootA.remove(); rootB.remove(); rootC.remove();
+      rootA.remove();
+      rootB.remove();
+      rootC.remove();
     }
   });
 });

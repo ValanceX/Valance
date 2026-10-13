@@ -15,6 +15,6 @@ export const primitives: Web.WebPrimitives = {
   code: { element: "pre" },
   text: { element: "span" },
   button: { element: "button", events: { click: { type: "click" } } },
-  link: Web.link,                                                         // a destination: the application navigates, the browser keeps modified clicks
-  field: Web.textField,                                                   // a text field: the box always shows the rendered value, and input carries what was typed
+  link: Web.link, // a destination: the application navigates, the browser keeps modified clicks
+  field: Web.textField, // a text field: the box always shows the rendered value, and input carries what was typed
 };

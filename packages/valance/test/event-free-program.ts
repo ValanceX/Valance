@@ -14,7 +14,11 @@ const model = JSON.stringify({
   },
 });
 
-const result = await compileProgram({ model: { manifest: model, path: "components.json" }, root: "main", components: [{ component: "main", source: "<text>main</text>", path: "main.mprx" }] });
+const result = await compileProgram({
+  model: { manifest: model, path: "components.json" },
+  root: "main",
+  components: [{ component: "main", source: "<text>main</text>", path: "main.mprx" }],
+});
 
 if (result.program === undefined) {
   throw new Error(`the event-free test program doesn't compile: ${JSON.stringify(result.assembly ?? result.components)}`);

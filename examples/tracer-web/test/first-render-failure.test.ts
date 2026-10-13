@@ -29,20 +29,50 @@ const attempt = async (v: Variant) => {
   doc.body.append(container);
   const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
     const port = Web.target({ container, primitives })(report);
-    const close = () => { void Effect.runPromise(Scope.close(scope, Exit.void)); };
+    const close = () => {
+      void Effect.runPromise(Scope.close(scope, Exit.void));
+    };
 
-    if (v.closeAt === "sync") { close(); }
-    if (v.closeAt === "microtask") { queueMicrotask(close); }
+    if (v.closeAt === "sync") {
+      close();
+    }
+    if (v.closeAt === "microtask") {
+      queueMicrotask(close);
+    }
 
     return {
-      draw: (t) => { if (v.drawThrows === true) { throw new Error("draw failed"); } port.draw(t); ops.push("draw"); },
-      update: (t) => { port.update(t); ops.push("update"); },
-      hydrate: (t) => { if (v.drawThrows === true) { throw new Error("hydrate failed"); } ops.push("hydrate"); return port.hydrate(t); },
-      unmount: () => { port.unmount(); ops.push("unmount"); },
+      draw: (t) => {
+        if (v.drawThrows === true) {
+          throw new Error("draw failed");
+        }
+        port.draw(t);
+        ops.push("draw");
+      },
+      update: (t) => {
+        port.update(t);
+        ops.push("update");
+      },
+      hydrate: (t) => {
+        if (v.drawThrows === true) {
+          throw new Error("hydrate failed");
+        }
+        ops.push("hydrate");
+        return port.hydrate(t);
+      },
+      unmount: () => {
+        port.unmount();
+        ops.push("unmount");
+      },
     };
   };
   const effect = v.kind === "mount" ? Valance.mount(handle, factory) : Valance.hydrate(handle, factory);
-  const exit = await Effect.runPromise(effect.pipe(Scope.extend(scope), Effect.exit, Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const })));
+  const exit = await Effect.runPromise(
+    effect.pipe(
+      Scope.extend(scope),
+      Effect.exit,
+      Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const }),
+    ),
+  );
 
   await sleep(40);
 
@@ -63,7 +93,9 @@ for (const kind of ["mount", "hydrate"] as const) {
       const r = await attempt({ kind, initial: { n: 0, bad: false }, drawThrows: true });
 
       expect(causeOf(r.exit)).toBe("defect");
-      expect(Exit.isFailure(r.exit as Exit.Exit<unknown, unknown>) && Cause.pretty((r.exit as Exit.Exit<unknown, unknown> & { cause: Cause.Cause<unknown> }).cause)).toContain(kind === "mount" ? "draw failed" : "hydrate failed");
+      expect(Exit.isFailure(r.exit as Exit.Exit<unknown, unknown>) && Cause.pretty((r.exit as Exit.Exit<unknown, unknown> & { cause: Cause.Cause<unknown> }).cause)).toContain(
+        kind === "mount" ? "draw failed" : "hydrate failed",
+      );
       expect(r.ops).toEqual([]);
       expect(r.container.innerHTML).toBe("");
     });
@@ -89,16 +121,16 @@ for (const kind of ["mount", "hydrate"] as const) {
       const exit = await Effect.runPromise(Effect.exit(effect.pipe(Scope.extend(fresh))));
 
       expect(causeOf(exit)).toBe("success");
-      expect(failed.ops).toEqual([kind === "mount" ? "draw" : "hydrate"]);                // only the fresh attempt acted
+      expect(failed.ops).toEqual([kind === "mount" ? "draw" : "hydrate"]); // only the fresh attempt acted
       await run(failed.handle.invoke("app/bump", []));
       await sleep(40);
-      expect(failed.container.querySelector("section")?.getAttribute("aria-label")).toBe("n1");   // and it follows
+      expect(failed.container.querySelector("section")?.getAttribute("aria-label")).toBe("n1"); // and it follows
       const before = [...failed.ops];
 
-      await run(Scope.close(failed.scope, Exit.void));                                 // the failed attempt's Scope: no finalizer was registered, so nothing unmounts
+      await run(Scope.close(failed.scope, Exit.void)); // the failed attempt's Scope: no finalizer was registered, so nothing unmounts
       expect(failed.ops).toEqual(before);
       await run(Scope.close(fresh, Exit.void));
-      expect(failed.ops.at(-1)).toBe("unmount");                                       // the fresh one unmounts once
+      expect(failed.ops.at(-1)).toBe("unmount"); // the fresh one unmounts once
     });
   });
 }
@@ -110,7 +142,7 @@ describe("hydrate: a mismatch is not a failure", () => {
 
     expect(causeOf(r.exit)).toBe("success");
     expect(r.ops).toEqual(["hydrate"]);
-    expect(r.container.querySelector("section")?.getAttribute("aria-label")).toBe("n0");   // the client's render, not the server's
+    expect(r.container.querySelector("section")?.getAttribute("aria-label")).toBe("n0"); // the client's render, not the server's
     expect((r.exit as Exit.Exit<{ hydration: { adopted: boolean } }, unknown> & { value: { hydration: { adopted: boolean } } }).value.hydration.adopted).toBe(false);
   });
 });

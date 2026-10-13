@@ -17,8 +17,16 @@ const world = () => {
   const logs: Array<string> = [];
   const push = dom.window.history.pushState.bind(dom.window.history);
 
-  dom.window.history.pushState = (data, unused, target) => { pushed.push(String(target)); push(data, unused, target); };
-  const logger = Logger.replace(Logger.defaultLogger, Logger.make(({ message }) => { logs.push(String(message)); }));
+  dom.window.history.pushState = (data, unused, target) => {
+    pushed.push(String(target));
+    push(data, unused, target);
+  };
+  const logger = Logger.replace(
+    Logger.defaultLogger,
+    Logger.make(({ message }) => {
+      logs.push(String(message));
+    }),
+  );
 
   return { win: dom.window, pushed, logs, logger };
 };
@@ -26,12 +34,22 @@ type World = ReturnType<typeof world>;
 const history = async (b: Booted, w: World) => {
   const scope = await run(Scope.make());
 
-  await run(Web.history(b.handle, { window: w.win as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(Effect.provide(w.logger), Scope.extend(scope)));
-  await sleep(30);                                                       // the baseline (the first state) is taken asynchronously
+  await run(
+    Web.history(b.handle, { window: w.win as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(
+      Effect.provide(w.logger),
+      Scope.extend(scope),
+    ),
+  );
+  await sleep(30); // the baseline (the first state) is taken asynchronously
 
   return { scope, close: () => run(Scope.close(scope, Exit.void)) };
 };
-const popstate = async (w: World) => { w.win.history.pushState(null, "", "/foreign"); w.pushed.length = 0; w.win.history.back(); await sleep(60); };
+const popstate = async (w: World) => {
+  w.win.history.pushState(null, "", "/foreign");
+  w.pushed.length = 0;
+  w.win.history.back();
+  await sleep(60);
+};
 const settle = () => sleep(50);
 
 describe("each Scope closes only what it owns", () => {
@@ -43,11 +61,11 @@ describe("each Scope closes only what it owns", () => {
     await b.invoke("app/bump");
     await settle();
     await first.close();
-    await b.invoke("app/bump");                                          // the application is alive
+    await b.invoke("app/bump"); // the application is alive
     await settle();
     expect((await b.state()).n).toBe(2);
-    expect(first.ops).toEqual(["draw", "update", "unmount"]);            // nothing after the close
-    expect(other.title()).toBe("A2");                                    // the other mount went on presenting
+    expect(first.ops).toEqual(["draw", "update", "unmount"]); // nothing after the close
+    expect(other.title()).toBe("A2"); // the other mount went on presenting
     const fresh = await b.mountOn();
 
     expect(fresh.ops).toEqual(["draw"]);
@@ -64,16 +82,16 @@ describe("each Scope closes only what it owns", () => {
     await first.close();
     await b.invoke("app/bump");
     await settle();
-    expect(w.pushed).toEqual(["/n1"]);                                   // once: only the other history is left
+    expect(w.pushed).toEqual(["/n1"]); // once: only the other history is left
     await popstate(w);
-    expect((await b.state()).n).toBe(2);                                 // handled once, by the other history (the application is alive)
+    expect((await b.state()).n).toBe(2); // handled once, by the other history (the application is alive)
     await other.close();
     w.logs.length = 0;
     await popstate(w);
-    expect((await b.state()).n).toBe(2);                                 // none left: no handling
+    expect((await b.state()).n).toBe(2); // none left: no handling
     const fresh = await history(b, w);
 
-    expect(w.pushed).toEqual([]);                                        // baseline = current state: nothing written for attaching
+    expect(w.pushed).toEqual([]); // baseline = current state: nothing written for attaching
     await b.invoke("app/bump");
     await settle();
     expect(w.pushed).toEqual(["/n3"]);
@@ -91,21 +109,21 @@ describe("each Scope closes only what it owns", () => {
     await settle();
     await closeApp(b);
     await settle();
-    expect(await m.standing()).toBe("ended");                            // inert, not unmounted
+    expect(await m.standing()).toBe("ended"); // inert, not unmounted
     expect(m.ops).toEqual(["draw", "update"]);
     expect(m.title()).toBe("A1");
-    expect((await b.state()).n).toBe(1);                                 // readable
+    expect((await b.state()).n).toBe(1); // readable
     await popstate(w);
-    expect(w.logs).toEqual(["popstate navigation failed"]);              // the history's listener is alive and its refusal contained
+    expect(w.logs).toEqual(["popstate navigation failed"]); // the history's listener is alive and its refusal contained
     expect((await b.state()).n).toBe(1);
     expect(w.pushed).toEqual([]);
     await m.close();
-    expect(m.ops).toEqual(["draw", "update", "unmount"]);                // the mount's own boundary
+    expect(m.ops).toEqual(["draw", "update", "unmount"]); // the mount's own boundary
     await popstate(w);
-    expect(w.logs.length).toBe(2);                                       // still listening: the mount's close did not touch it
+    expect(w.logs.length).toBe(2); // still listening: the mount's close did not touch it
     await h.close();
     await popstate(w);
-    expect(w.logs.length).toBe(2);                                       // the history's own boundary
+    expect(w.logs.length).toBe(2); // the history's own boundary
   });
 
   it("D. closing every mount and history leaves the application alive: commits succeed with no presentation or history work, and new consumers start from the current state", async () => {
@@ -126,7 +144,7 @@ describe("each Scope closes only what it owns", () => {
 
     expect(m2.ops).toEqual(["draw"]);
     expect(m2.title()).toBe("A2");
-    expect(w.pushed).toEqual([]);                                        // baseline: the current state, nothing written
+    expect(w.pushed).toEqual([]); // baseline: the current state, nothing written
     await b.invoke("app/bump");
     await settle();
     expect(w.pushed).toEqual(["/n3"]);
@@ -177,10 +195,10 @@ describe("each Scope closes only what it owns", () => {
       const state = await b.state();
 
       await settle();
-      expect(m.ops).toEqual(atClose);                                    // nothing after the mount's close resolved
+      expect(m.ops).toEqual(atClose); // nothing after the mount's close resolved
       expect(atClose.filter((op) => op === "unmount")).toEqual(["unmount"]);
       expect(atClose.at(-1)).toBe("unmount");
-      expect(await b.state()).toEqual(state);                            // no commit after the application's
+      expect(await b.state()).toEqual(state); // no commit after the application's
     }
   });
 });

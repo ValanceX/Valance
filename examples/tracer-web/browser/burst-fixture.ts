@@ -28,19 +28,43 @@ export const app = (timeline: Array<string>) => {
     },
     view: (state: State) => state.view,
     commands: (state: Nexus.State.StateHandle<State>) => {
-      const set = (name: string, change: (current: State) => State) => Nexus.Mesh.bind(Nexus.Command.define(`t.${name}`, Schema.Struct({}), () => Effect.asVoid(Effect.tap(state.update((current): Effect.Effect<State> => Effect.succeed(change(current))), () => Effect.sync(() => { intents.push(name); timeline.push(`commit ${name}`); })))), () => ({}));
+      const set = (name: string, change: (current: State) => State) =>
+        Nexus.Mesh.bind(
+          Nexus.Command.define(`t.${name}`, Schema.Struct({}), () =>
+            Effect.asVoid(
+              Effect.tap(
+                state.update((current): Effect.Effect<State> => Effect.succeed(change(current))),
+                () =>
+                  Effect.sync(() => {
+                    intents.push(name);
+                    timeline.push(`commit ${name}`);
+                  }),
+              ),
+            ),
+          ),
+          () => ({}),
+        );
 
       return {
         "app/bump": set("bump", (current) => ({ ...current, n: current.n + 1 })),
         // ONE command, TWO commits, published back to back: a round trip to the other view and back (the middle state can be superseded before a mount reaches it).
-        "app/round-trip": Nexus.Mesh.bind(Nexus.Command.define("t.round-trip", Schema.Struct({}), () => {
-          const flip = Effect.tap(state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, view: current.view === "a" ? "b" : "a" })), () => Effect.sync(() => { timeline.push("commit flip"); }));
+        "app/round-trip": Nexus.Mesh.bind(
+          Nexus.Command.define("t.round-trip", Schema.Struct({}), () => {
+            const flip = Effect.tap(
+              state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, view: current.view === "a" ? "b" : "a" })),
+              () =>
+                Effect.sync(() => {
+                  timeline.push("commit flip");
+                }),
+            );
 
-          return Effect.asVoid(Effect.zipRight(flip, flip));
-        }), () => ({})),
+            return Effect.asVoid(Effect.zipRight(flip, flip));
+          }),
+          () => ({}),
+        ),
         "app/toggle": set("toggle", (current) => ({ ...current, view: current.view === "a" ? "b" : "a" })),
-        "notfound/back": set("back-on-a", (current) => ({ ...current, n: current.n + 10 })),   // A's one button
-        "details/back": set("back-on-b", (current) => ({ ...current, n: current.n + 100 })),   // B's one button
+        "notfound/back": set("back-on-a", (current) => ({ ...current, n: current.n + 10 })), // A's one button
+        "details/back": set("back-on-b", (current) => ({ ...current, n: current.n + 100 })), // B's one button
       } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
     },
   });
@@ -51,14 +75,33 @@ export const app = (timeline: Array<string>) => {
 export const label = (root: Element): string | null | undefined => root.querySelector("section")?.getAttribute("aria-label");
 
 /** The Web target, recording each PORT operation Valance asks for together with what the DOM shows right after it. */
-export const recording = (root: Element, log: Array<string>, timeline: Array<string>, mount: number, after: () => void = () => undefined): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
-  const port = Web.target({ container: root, primitives })(report);
+export const recording =
+  (
+    root: Element,
+    log: Array<string>,
+    timeline: Array<string>,
+    mount: number,
+    after: () => void = () => undefined,
+  ): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> =>
+  (report) => {
+    const port = Web.target({ container: root, primitives })(report);
 
-  return {
-    draw: (tree) => { port.draw(tree); log.push(`draw ${label(root)}`); timeline.push(`m${mount} draw ${label(root)}`); after(); },
-    update: (tree) => { port.update(tree); log.push(`update ${label(root)}`); timeline.push(`m${mount} update ${label(root)}`); after(); },
-    hydrate: (tree) => port.hydrate(tree),
-    unmount: () => { port.unmount(); },
+    return {
+      draw: (tree) => {
+        port.draw(tree);
+        log.push(`draw ${label(root)}`);
+        timeline.push(`m${mount} draw ${label(root)}`);
+        after();
+      },
+      update: (tree) => {
+        port.update(tree);
+        log.push(`update ${label(root)}`);
+        timeline.push(`m${mount} update ${label(root)}`);
+        after();
+      },
+      hydrate: (tree) => port.hydrate(tree),
+      unmount: () => {
+        port.unmount();
+      },
+    };
   };
-};
-

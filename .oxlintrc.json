@@ -1,0 +1,52 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "node",
+    "vitest"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/dist-host/**",
+    "**/.valance/**",
+    "**/node_modules/**",
+    "examples/docs-verifier/**",
+    "**/__screenshots__/**"
+  ],
+  "rules": {
+    "vitest/expect-expect": "off",
+    "vitest/no-conditional-expect": "off",
+    "vitest/valid-expect": "off",
+    "vitest/require-to-throw-message": "off",
+    "no-unused-vars": [
+      "error",
+      {
+        "ignoreRestSiblings": true,
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "unicorn/no-useless-spread": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "packages/cli/src/index.ts"
+      ],
+      "rules": {
+        "typescript/triple-slash-reference": "off"
+      }
+    }
+  ]
+}

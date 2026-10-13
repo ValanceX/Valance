@@ -29,7 +29,10 @@ import type { Plugin } from "./web-plugin.js";
 export class ManifestError extends Error {
   readonly _tag = "ManifestError";
 
-  constructor(readonly path: string, reason: string) {
+  constructor(
+    readonly path: string,
+    reason: string,
+  ) {
     super(`${path}: ${reason}`);
     this.name = "ManifestError";
   }
@@ -45,12 +48,17 @@ export type MeshType =
 export interface Manifest {
   readonly version: 1;
   readonly types: Readonly<Record<string, never>>;
-  readonly components: Readonly<Record<string, {
-    readonly props: Readonly<Record<string, { readonly type: MeshType; readonly required: boolean }>>;
-    readonly events: Readonly<Record<string, { readonly payload?: MeshType }>>;
-    readonly commands: Readonly<Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }>>;
-    readonly scope: Readonly<Record<string, MeshType>>;
-  }>>;
+  readonly components: Readonly<
+    Record<
+      string,
+      {
+        readonly props: Readonly<Record<string, { readonly type: MeshType; readonly required: boolean }>>;
+        readonly events: Readonly<Record<string, { readonly payload?: MeshType }>>;
+        readonly commands: Readonly<Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }>>;
+        readonly scope: Readonly<Record<string, MeshType>>;
+      }
+    >
+  >;
 }
 
 export interface ManifestOptions {
@@ -70,24 +78,32 @@ type Field = { readonly type: MeshType; readonly required: boolean };
 
 const typeOf = (ast: AST.AST, path: string): MeshType => {
   switch (ast._tag) {
-    case "StringKeyword": return { kind: "string" };
-    case "NumberKeyword": return { kind: "number" };
-    case "BooleanKeyword": return { kind: "boolean" };
+    case "StringKeyword":
+      return { kind: "string" };
+    case "NumberKeyword":
+      return { kind: "number" };
+    case "BooleanKeyword":
+      return { kind: "boolean" };
     case "AnyKeyword":
-    case "UnknownKeyword": return { kind: "any" };
+    case "UnknownKeyword":
+      return { kind: "any" };
     case "Literal":
       if (ast.literal === null) {
         return { kind: "null" };
       }
 
       return { kind: typeof ast.literal === "number" ? "number" : typeof ast.literal === "boolean" ? "boolean" : "string" };
-    case "Refinement": return typeOf(ast.from, path);
+    case "Refinement":
+      return typeOf(ast.from, path);
     case "Union": {
       const members = ast.types.filter((member) => member._tag !== "UndefinedKeyword");
       const kinds = new Set(members.map((member) => typeOf(member, path)).map((type) => JSON.stringify(type)));
 
       if (kinds.size !== 1) {
-        throw new ManifestError(path, `a union of different kinds has no MESH type${members.some((member) => member._tag === "Literal" && member.literal === null) ? " (null is a value in MESH, a type of its own; MESH has no union, so say which)" : ""}`);
+        throw new ManifestError(
+          path,
+          `a union of different kinds has no MESH type${members.some((member) => member._tag === "Literal" && member.literal === null) ? " (null is a value in MESH, a type of its own; MESH has no union, so say which)" : ""}`,
+        );
       }
 
       const only = typeOf(members[0]!, path);
@@ -105,7 +121,10 @@ const typeOf = (ast: AST.AST, path: string): MeshType => {
         throw new ManifestError(path, "a record with an index signature has no MESH type; name its fields");
       }
 
-      return { kind: "record", fields: Object.fromEntries(ast.propertySignatures.map((property) => [String(property.name), fieldOf(property, `${path}.${String(property.name)}`)])) };
+      return {
+        kind: "record",
+        fields: Object.fromEntries(ast.propertySignatures.map((property) => [String(property.name), fieldOf(property, `${path}.${String(property.name)}`)])),
+      };
     }
     default:
       throw new ManifestError(path, `${ast._tag} has no MESH type`);
@@ -116,9 +135,7 @@ const fieldOf = (property: AST.PropertySignature, path: string): Field => {
   const withoutUndefined = property.type._tag === "Union" ? AST.Union.make(property.type.types.filter((member) => member._tag !== "UndefinedKeyword")) : property.type;
 
   // `p?: T` (and `p?: T | undefined`) may be left out; `p: T | undefined` must be written but may be absent.
-  return property.isOptional
-    ? { type: typeOf(withoutUndefined, path), required: false }
-    : { type: typeOf(property.type, path), required: true };
+  return property.isOptional ? { type: typeOf(withoutUndefined, path), required: false } : { type: typeOf(property.type, path), required: true };
 };
 
 const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.TypeLiteral => {
@@ -137,28 +154,37 @@ const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["pr
   switch (realization.kind) {
     case "attribute":
     case "controlled":
-    case "text-property": return { type: { kind: "string" }, required: true };
-    case "boolean-attribute": return { type: { kind: "boolean" }, required: false };
-    case "property": return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };
-    default: throw new ManifestError(path, `the realization of prop \`${name}\` is not one this version derives (${String((realization as { kind: unknown }).kind)})`);
+    case "text-property":
+      return { type: { kind: "string" }, required: true };
+    case "boolean-attribute":
+      return { type: { kind: "boolean" }, required: false };
+    case "property":
+      return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };
+    default:
+      throw new ManifestError(path, `the realization of prop \`${name}\` is not one this version derives (${String((realization as { kind: unknown }).kind)})`);
   }
 };
 
 const tagOf = (tag: string, primitive: WebPrimitives[string]): Manifest["components"][string] => ({
   props: Object.fromEntries(Object.entries(primitive.props ?? {}).map(([name, realization]) => [name, propOf(name, realization, `${tag}.${name}`)])),
-  events: Object.fromEntries(Object.entries(primitive.events ?? {}).map(([name, realization]) => {
-    if (realization.payload === undefined) {
-      return [name, {}];
-    }
+  events: Object.fromEntries(
+    Object.entries(primitive.events ?? {}).map(([name, realization]) => {
+      if (realization.payload === undefined) {
+        return [name, {}];
+      }
 
-    const kind = payloadKindOf(realization);
+      const kind = payloadKindOf(realization);
 
-    if (kind === undefined) {
-      throw new ManifestError(`${tag}.${name}`, "the event builds a payload, but the kind of that payload is not declared. Build it with Web.event(type, { kind, of }): a function does not say what it builds");
-    }
+      if (kind === undefined) {
+        throw new ManifestError(
+          `${tag}.${name}`,
+          "the event builds a payload, but the kind of that payload is not declared. Build it with Web.event(type, { kind, of }): a function does not say what it builds",
+        );
+      }
 
-    return [name, { payload: { kind } as MeshType }];
-  })),
+      return [name, { payload: { kind } as MeshType }];
+    }),
+  ),
   commands: {},
   scope: {},
 });
@@ -168,11 +194,14 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
 
   for (const [key, value] of Object.entries(table)) {
     if (key.startsWith("app/")) {
-      continue;                                            // an entry for `invoke`, history and `start`: no template runs it
+      continue; // an entry for `invoke`, history and `start`: no template runs it
     }
 
     if (key.includes("/")) {
-      throw new ManifestError(key, `an exact "component/name" key binds an \`entry\`, whose adapter turns the event's arguments into the command's input with a function; the parameters a template passes cannot be derived from it${views.has(key.split("/")[0]!) ? "" : " (and the component is not one of the views)"}. Name the command by its bare name, whose arguments are its input's fields in order, or write the manifest by hand`);
+      throw new ManifestError(
+        key,
+        `an exact "component/name" key binds an \`entry\`, whose adapter turns the event's arguments into the command's input with a function; the parameters a template passes cannot be derived from it${views.has(key.split("/")[0]!) ? "" : " (and the component is not one of the views)"}. Name the command by its bare name, whose arguments are its input's fields in order, or write the manifest by hand`,
+      );
     }
 
     if (typeof value !== "object" || value === null || !("input" in value)) {
@@ -183,17 +212,21 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
     const ast = AST.typeAST(input.ast);
 
     commands[key] = {
-      parameters: ast._tag === "TypeLiteral" && ast.indexSignatures.length === 0
-        ? ast.propertySignatures.map((property) => {
-          const field = fieldOf(property, `${key}.${String(property.name)}`);
+      parameters:
+        ast._tag === "TypeLiteral" && ast.indexSignatures.length === 0
+          ? ast.propertySignatures.map((property) => {
+              const field = fieldOf(property, `${key}.${String(property.name)}`);
 
-          if (!field.required) {
-            throw new ManifestError(`${key}.${String(property.name)}`, "an optional input field cannot be a manifest parameter: every parameter is required, and an invocation passes exactly that many arguments");
-          }
+              if (!field.required) {
+                throw new ManifestError(
+                  `${key}.${String(property.name)}`,
+                  "an optional input field cannot be a manifest parameter: every parameter is required, and an invocation passes exactly that many arguments",
+                );
+              }
 
-          return { name: String(property.name), type: field.type };
-        })
-        : [{ name: "value", type: typeOf(ast, key) }],
+              return { name: String(property.name), type: field.type };
+            })
+          : [{ name: "value", type: typeOf(ast, key) }],
     };
   }
 
@@ -203,7 +236,17 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
 /** The names MESH reserved as elements for control flow and then retired for blocks: a view or a primitive may not take one. */
 const RETIRED = new Set(["mesh-if", "mesh-each", "mesh-switch", "mesh-case", "mesh-default"]);
 
-const noState = new Proxy({}, { get: (_target, property) => { throw new ManifestError("commands", `the table read state.${String(property)} while it was being built; a table is built without reading state (commands read it when they RUN)`); } }) as Nexus.State.StateHandle<any>;
+const noState = new Proxy(
+  {},
+  {
+    get: (_target, property) => {
+      throw new ManifestError(
+        "commands",
+        `the table read state.${String(property)} while it was being built; a table is built without reading state (commands read it when they RUN)`,
+      );
+    },
+  },
+) as Nexus.State.StateHandle<any>;
 
 /** The manifest of an application, derived from its Web primitives table, its views' scope Schemas and its command table. Pass it to `compileProgram` as JSON. */
 export const manifest = (given: ManifestOptions): Manifest => {
@@ -228,16 +271,23 @@ export const manifest = (given: ManifestOptions): Manifest => {
     types: {},
     components: {
       ...Object.fromEntries(Object.entries(options.primitives).map(([tag, primitive]) => [tag, tagOf(tag, primitive)])),
-      ...Object.fromEntries(Object.entries(options.scopes).map(([view, schema]) => [view, {
-        props: {},
-        events: {},
-        commands,                                            // a bare command is every view's, as `start` binds it to every declared `component/name`
-        scope: Object.fromEntries(structOf(schema, view).propertySignatures.map((property) => {
-          const field = fieldOf(property, `${view}.${String(property.name)}`);
+      ...Object.fromEntries(
+        Object.entries(options.scopes).map(([view, schema]) => [
+          view,
+          {
+            props: {},
+            events: {},
+            commands, // a bare command is every view's, as `start` binds it to every declared `component/name`
+            scope: Object.fromEntries(
+              structOf(schema, view).propertySignatures.map((property) => {
+                const field = fieldOf(property, `${view}.${String(property.name)}`);
 
-          return [String(property.name), field.required ? field.type : { kind: "optional", type: field.type }];
-        })),
-      }])),
+                return [String(property.name), field.required ? field.type : { kind: "optional", type: field.type }];
+              }),
+            ),
+          },
+        ]),
+      ),
     },
   };
 };

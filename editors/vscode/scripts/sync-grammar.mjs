@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const mesh = resolve(process.env["MESH_DIR"] ?? fileURLToPath(new URL("../../../../Mesh", import.meta.url)));
 
-for (const [from, to] of [["editors/vscode/syntaxes/mprx.tmLanguage.json", "syntaxes/mprx.tmLanguage.json"], ["editors/vscode/language-configuration.json", "language-configuration.json"]]) {
+for (const [from, to] of [
+  ["editors/vscode/syntaxes/mprx.tmLanguage.json", "syntaxes/mprx.tmLanguage.json"],
+  ["editors/vscode/language-configuration.json", "language-configuration.json"],
+]) {
   copyFileSync(resolve(mesh, from), new URL(`../${to}`, import.meta.url));
 }
 

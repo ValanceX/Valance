@@ -61,7 +61,10 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
 
   for (const [name, schema] of Object.entries(declared.events)) {
     try {
-      if (isEmpty(schema)) { events[name] = {}; continue; }
+      if (isEmpty(schema)) {
+        events[name] = {};
+        continue;
+      }
 
       const type = typeOf(schema);
 

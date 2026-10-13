@@ -53,7 +53,7 @@ describe("reading a template", () => {
   });
 
   it("reads only a block's expressions: the keyword and the name `as` binds are not reads, and the name is not a read of state inside the block", () => {
-    const text = '{#if ready}{#each rows as row (row.id)}<i n={row.n} m={count} />{/each}{:else if count > 1}{row}{:else}x{/if}{row}';
+    const text = "{#if ready}{#each rows as row (row.id)}<i n={row.n} m={count} />{/each}{:else if count > 1}{row}{:else}x{/if}{row}";
     const { reads } = scan(text);
 
     expect(reads.map((read) => read.name)).toEqual(["ready", "rows", "count", "count", "row", "row"]);
@@ -81,7 +81,7 @@ describe("both ends of each connection", () => {
     expect(at["components/counter"]).toMatchObject({ file: "src/counter.mprx", line: 1 });
     expect(at["components/counter/props/n"]).toMatchObject({ file: "src/main.ts", line: 5 });
     expect(at["components/counter/events/bump"]).toMatchObject({ file: "src/main.ts", line: 5 });
-    expect(at["components/counter/events/bump"]!.column).toBeGreaterThan(at["components/counter/props/n"]!.column);   // the words in the list, not the start of the call
+    expect(at["components/counter/events/bump"]!.column).toBeGreaterThan(at["components/counter/props/n"]!.column); // the words in the list, not the start of the call
   });
 
   it("binds a prop to where the template reads it and the attribute that passes it, and an event to where it is raised and the on.x that handles it", async () => {
@@ -100,19 +100,31 @@ describe("both ends of each connection", () => {
     expect(counter.file).toBe("src/counter.mprx");
     expect(counter.props.find((prop) => prop.name === "n")!.passedBy).toEqual([{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), from: "{count}" }]);
     expect(counter.props.find((prop) => prop.name === "label")!.passedBy).toEqual([{ at: expect.objectContaining({ line: 2 }), from: '"clicks"' }]);
-    expect(counter.events).toEqual([{ name: "bump", at: expect.objectContaining({ file: "src/counter.mprx", line: 1 }), declared: expect.objectContaining({ file: "src/main.ts", line: 5 }), handledBy: [{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), to: "bump()" }] }]);
+    expect(counter.events).toEqual([
+      {
+        name: "bump",
+        at: expect.objectContaining({ file: "src/counter.mprx", line: 1 }),
+        declared: expect.objectContaining({ file: "src/main.ts", line: 5 }),
+        handledBy: [{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), to: "bump()" }],
+      },
+    ]);
   });
 
   it("records who uses what: the call site, the target, what is passed (with where) and what is done on an event", async () => {
     const { uses, state, commands } = await wiringOf();
 
-    expect(uses).toEqual([{
-      at: { file: "src/layout.mprx", line: 2, column: 3 },
-      tag: "counter",
-      target: { file: "src/counter.mprx", line: 1, column: 1 },
-      props: [{ name: "n", from: "{count}", at: { file: "src/layout.mprx", line: 2, column: 12 } }, { name: "label", from: '"clicks"', at: { file: "src/layout.mprx", line: 2, column: 22 } }],
-      events: [{ name: "bump", to: "bump()", at: { file: "src/layout.mprx", line: 2, column: 37 } }],
-    }]);
+    expect(uses).toEqual([
+      {
+        at: { file: "src/layout.mprx", line: 2, column: 3 },
+        tag: "counter",
+        target: { file: "src/counter.mprx", line: 1, column: 1 },
+        props: [
+          { name: "n", from: "{count}", at: { file: "src/layout.mprx", line: 2, column: 12 } },
+          { name: "label", from: '"clicks"', at: { file: "src/layout.mprx", line: 2, column: 22 } },
+        ],
+        events: [{ name: "bump", to: "bump()", at: { file: "src/layout.mprx", line: 2, column: 37 } }],
+      },
+    ]);
     expect(state).toEqual([{ name: "count", source: expect.objectContaining({ line: 9 }), readBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
     expect(commands).toEqual([{ name: "bump", source: expect.objectContaining({ line: 11 }), runBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
   });
@@ -127,9 +139,13 @@ describe("both ends of each connection", () => {
   });
 
   it("does not mistake a component's own prop for the application's state of the same spelling", async () => {
-    const { state } = await wiringOf({ ...FILES, "src/layout.mprx": '<shell class="x" theme="light"><counter n={count} label="a" on.bump={bump()} /></shell>', "src/counter.mprx": '<button class="c" pressed="false" on.click={bump()}>{label}: {n} {n}</button>' });
+    const { state } = await wiringOf({
+      ...FILES,
+      "src/layout.mprx": '<shell class="x" theme="light"><counter n={count} label="a" on.bump={bump()} /></shell>',
+      "src/counter.mprx": '<button class="c" pressed="false" on.click={bump()}>{label}: {n} {n}</button>',
+    });
 
-    expect(state[0]!.readBy).toHaveLength(1);                      // `count`, in the layout; `n` in counter is a prop
+    expect(state[0]!.readBy).toHaveLength(1); // `count`, in the layout; `n` in counter is a prop
   });
 
   it("sends the framework's names and the elements to the README that ships with the package, on the line that explains them", async () => {

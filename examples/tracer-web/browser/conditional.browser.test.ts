@@ -11,7 +11,9 @@ import { beforeAll, expect, inject, it } from "vitest";
 
 const program = inject("conditional");
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 const State = Schema.Struct({ on: Schema.Boolean, field: Schema.Boolean, n: Schema.Number });
 type State = typeof State.Type;
@@ -33,7 +35,11 @@ const boot = async () => {
     view: () => "branches",
     commands: (state) => {
       const command = Valance.command(state);
-      const logged = (name: string, change: (s: State) => State) => command((s) => { log.push(name); return change(s); });
+      const logged = (name: string, change: (s: State) => State) =>
+        command((s) => {
+          log.push(name);
+          return change(s);
+        });
 
       return {
         turnOff: logged("turnOff", (s) => ({ ...s, on: false })),
@@ -54,10 +60,18 @@ const boot = async () => {
     const port = Web.target({ container: main, primitives })(report);
 
     return {
-      draw: (tree) => { ops.push("draw"); port.draw(tree); },
-      update: (tree) => { ops.push("update"); port.update(tree); },
+      draw: (tree) => {
+        ops.push("draw");
+        port.draw(tree);
+      },
+      update: (tree) => {
+        ops.push("update");
+        port.update(tree);
+      },
       hydrate: (tree) => port.hydrate(tree),
-      unmount: () => { port.unmount(); },
+      unmount: () => {
+        port.unmount();
+      },
     };
   };
 
@@ -65,10 +79,23 @@ const boot = async () => {
 
   const section = () => main.firstElementChild as HTMLElement;
   const kids = () => Array.from(section().children) as Array<HTMLElement>;
-  const shape = () => kids().map((el) => (el.tagName === "BUTTON" || el.tagName === "SPAN" ? el.textContent : el.tagName.toLowerCase())).join("|");
+  const shape = () =>
+    kids()
+      .map((el) => (el.tagName === "BUTTON" || el.tagName === "SPAN" ? el.textContent : el.tagName.toLowerCase()))
+      .join("|");
   const button = (label: string) => kids().find((el) => el.tagName === "BUTTON" && el.textContent === label)!;
-  const until = async (done: () => boolean) => { for (let i = 0; !done(); i += 1) { if (i > 400) { throw new Error(`timed out: ${shape()} / ${ops.join(",")}`); } await new Promise((r) => setTimeout(r, 5)); } };
-  const click = async (label: string, expectedOps: number) => { await userEvent.click(button(label)); await until(() => ops.length === expectedOps); };
+  const until = async (done: () => boolean) => {
+    for (let i = 0; !done(); i += 1) {
+      if (i > 400) {
+        throw new Error(`timed out: ${shape()} / ${ops.join(",")}`);
+      }
+      await new Promise((r) => setTimeout(r, 5));
+    }
+  };
+  const click = async (label: string, expectedOps: number) => {
+    await userEvent.click(button(label));
+    await until(() => ops.length === expectedOps);
+  };
 
   const invoke = (key: string) => Effect.runPromise(handle.invoke(key, [] as never));
 
@@ -83,21 +110,21 @@ it("a branch swap in place: head and tail keep their nodes, the alternatives are
   expect(t.shape()).toBe("head|A|show field|hide field|bump|n=0");
   const a = t.button("A");
 
-  await t.click("A", 2);                                  // A → turnOff → on=false → alternative B at the same place
+  await t.click("A", 2); // A → turnOff → on=false → alternative B at the same place
   expect(t.log).toEqual(["turnOff"]);
   expect(t.shape()).toBe("head|B|show field|hide field|bump|n=0");
   const b = t.button("B");
 
-  expect(a.isConnected).toBe(false);                      // the removed alternative leaves the document …
-  expect(b).not.toBe(a);                                  // … and its twin is a new node, not A relabelled (distinct sites)
-  expect(t.section().children[0]).toBe(head);             // static siblings keep their nodes
+  expect(a.isConnected).toBe(false); // the removed alternative leaves the document …
+  expect(b).not.toBe(a); // … and its twin is a new node, not A relabelled (distinct sites)
+  expect(t.section().children[0]).toBe(head); // static siblings keep their nodes
   expect(t.section().lastElementChild).toBe(tail);
 
-  await t.click("B", 3);                                  // the click on B reaches B's command, not A's stale one
+  await t.click("B", 3); // the click on B reaches B's command, not A's stale one
   expect(t.log).toEqual(["turnOff", "turnOn"]);
   expect(t.shape()).toBe("head|A|show field|hide field|bump|n=0");
-  expect(t.button("A")).not.toBe(a);                      // a returning alternative is a NEW node (the old A is gone for good)
-  expect(t.ops).toEqual(["draw", "update", "update"]);    // every change is one update, never a draw
+  expect(t.button("A")).not.toBe(a); // a returning alternative is a NEW node (the old A is gone for good)
+  expect(t.ops).toEqual(["draw", "update", "update"]); // every change is one update, never a draw
 
   // A removed node's handler is gone with it: a click on the detached A reaches nothing.
   a.click();
@@ -118,18 +145,18 @@ it("a stateful element in a conditional: it survives unrelated updates, and when
   expect(input.value).toBe("abc");
   expect(document.activeElement).toBe(input);
 
-  await t.invoke("app/bump");                             // unrelated update, no click (a click would move focus): the field is the same site, so the same element
+  await t.invoke("app/bump"); // unrelated update, no click (a click would move focus): the field is the same site, so the same element
   await t.until(() => t.ops.length === 3);
   expect(t.section().querySelector("input")).toBe(input);
   expect(input.value).toBe("abc");
   expect(document.activeElement).toBe(input);
 
-  await t.click("hide field", 4);                         // the branch goes away
+  await t.click("hide field", 4); // the branch goes away
   expect(input.isConnected).toBe(false);
   expect(t.section().querySelector("input")).toBeNull();
   expect(t.shape()).toBe("head|A|show field|hide field|bump|n=1");
 
-  await t.click("show field", 5);                         // … and returns: same identity to MESH, but a new occurrence to the DOM
+  await t.click("show field", 5); // … and returns: same identity to MESH, but a new occurrence to the DOM
   const back = t.section().querySelector("input") as HTMLInputElement;
 
   expect(back).not.toBe(input);

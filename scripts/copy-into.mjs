@@ -17,7 +17,9 @@ const expand = (pattern) => {
   }
 
   const matcher = new RegExp(`^${basename(pattern).split("*").map(escape).join(".*")}$`);
-  const found = readdirSync(dirname(pattern)).filter((name) => matcher.test(name)).map((name) => join(dirname(pattern), name));
+  const found = readdirSync(dirname(pattern))
+    .filter((name) => matcher.test(name))
+    .map((name) => join(dirname(pattern), name));
 
   if (found.length === 0) {
     throw new Error(`${pattern} matches no file`);

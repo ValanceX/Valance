@@ -8,12 +8,16 @@ import { join } from "node:path";
 
 const EXTENSION = "valancex.valance-vscode";
 /** What the extension exposes (src/extension.ts `Api`). */
-interface Api { readonly status: () => string; readonly known: () => ReadonlyArray<string>; readonly project: () => string | undefined }
+interface Api {
+  readonly status: () => string;
+  readonly known: () => ReadonlyArray<string>;
+  readonly project: () => string | undefined;
+}
 
 const scenario = process.env["VALANCE_HOST_SCENARIO"] ?? "project";
 const root = (): string => vscode.workspace.workspaceFolders![0]!.uri.fsPath;
 /** The project: the window's folder, or (in the `parent` scenario) the folder two levels down that holds the valance.json. */
-const project = (): string => scenario === "parent" ? join(root(), "apps", "docs") : root();
+const project = (): string => (scenario === "parent" ? join(root(), "apps", "docs") : root());
 const uri = (file: string): vscode.Uri => vscode.Uri.file(join(project(), file));
 const api = (): Api => vscode.extensions.getExtension<Api>(EXTENSION)!.exports;
 
@@ -24,8 +28,12 @@ const waitFor = async <T>(what: string, probe: () => T | undefined | false | Pro
   for (;;) {
     const found = await probe();
 
-    if (found !== undefined && found !== false) { return found; }
-    if (Date.now() > end) { throw new Error(`timed out after ${ms} ms waiting for ${what}`); }
+    if (found !== undefined && found !== false) {
+      return found;
+    }
+    if (Date.now() > end) {
+      throw new Error(`timed out after ${ms} ms waiting for ${what}`);
+    }
 
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -43,7 +51,9 @@ const open = async (file: string): Promise<{ readonly document: vscode.TextDocum
 const replaceAll = async (editor: vscode.TextEditor, text: string): Promise<void> => {
   const whole = new vscode.Range(editor.document.positionAt(0), editor.document.positionAt(editor.document.getText().length));
 
-  await editor.edit((builder) => { builder.replace(whole, text); });
+  await editor.edit((builder) => {
+    builder.replace(whole, text);
+  });
 };
 
 const positionOf = (document: vscode.TextDocument, needle: string, shift = 0): vscode.Position => document.positionAt(document.getText().indexOf(needle) + shift);
@@ -51,266 +61,412 @@ const positionOf = (document: vscode.TextDocument, needle: string, shift = 0): v
 const text = (value: unknown): string => JSON.stringify(value);
 
 /** The words of a hover. Its contents are `MarkdownString`s (or plain strings, or `{ language, value }`): objects whose text is `.value`, which `JSON.stringify` does not see. */
-const hoverText = (hovers: ReadonlyArray<vscode.Hover>): string => hovers.flatMap((each) => each.contents).map((each) => typeof each === "string" ? each : each.value).join("\n");
+const hoverText = (hovers: ReadonlyArray<vscode.Hover>): string =>
+  hovers
+    .flatMap((each) => each.contents)
+    .map((each) => (typeof each === "string" ? each : each.value))
+    .join("\n");
 
 const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
-  ["the extension activates", async () => {
-    const extension = vscode.extensions.getExtension(EXTENSION);
+  [
+    "the extension activates",
+    async () => {
+      const extension = vscode.extensions.getExtension(EXTENSION);
 
-    assert.ok(extension, `${EXTENSION} is not installed in the host`);
-    await extension.activate();
-    assert.ok(extension.isActive);
-    await waitFor(`the status to be ready (it is ${api().status()})`, () => api().status() === "ready");
-    assert.equal(api().project(), project());
-  }],
+      assert.ok(extension, `${EXTENSION} is not installed in the host`);
+      await extension.activate();
+      assert.ok(extension.isActive);
+      await waitFor(`the status to be ready (it is ${api().status()})`, () => api().status() === "ready");
+      assert.equal(api().project(), project());
+    },
+  ],
 
-  ["a .mprx file is the mprx language", async () => {
-    const { document } = await open("src/layout.mprx");
+  [
+    "a .mprx file is the mprx language",
+    async () => {
+      const { document } = await open("src/layout.mprx");
 
-    assert.equal(document.languageId, "mprx");
-  }],
+      assert.equal(document.languageId, "mprx");
+    },
+  ],
 
-  ["a template mistake is a diagnostic at its place, and it clears when fixed", async () => {
-    const { document, editor, original } = await open("src/layout.mprx");
-
-    await replaceAll(editor, original.replace("{site}", "{sitee}"));
-
-    const found = await waitFor("an unknown-reference diagnostic", () => vscode.languages.getDiagnostics(document.uri).find((each) => codeOf(each) === "unknown-reference"));
-
-    assert.equal(found.range.start.line, original.split("\n").findIndex((line) => line.includes("{site}")));
-    assert.match(found.message, /sitee/);
-
-    await replaceAll(editor, original);
-    await waitFor("the diagnostics to clear", () => vscode.languages.getDiagnostics(document.uri).length === 0);
-  }],
-
-  ["hover on a component shows its contract", async () => {
-    const { document } = await open("src/layout.mprx");
-    const at = positionOf(document, "<theme-toggle", 2);
-    const found = await waitFor("a hover answer", async () => {
-      const result = await vscode.commands.executeCommand<ReadonlyArray<vscode.Hover>>("vscode.executeHoverProvider", document.uri, at);
-
-      return result.length > 0 ? result : undefined;
-    });
-
-    assert.match(hoverText(found), /component theme-toggle/);
-    assert.match(hoverText(found), /theme: string/);
-  }],
-
-  ["go to definition of a component opens its template, not the generated manifest", async () => {
-    const { document } = await open("src/layout.mprx");
-    const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "<theme-toggle", 2));
-    const targets = found.map((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath);
-
-    assert.ok(targets.some((target) => target.endsWith(join("src", "theme-toggle.mprx"))), `definitions: ${text(targets)}`);
-    assert.ok(!targets.some((target) => target.endsWith("manifest.json")), `definitions: ${text(targets)}`);
-  }],
-
-  ["ctrl+click goes to the one declaration; the many places a name is used are its references (an event may be handled in many places, a handler bound to many events)", async () => {
-    const at = async (command: "vscode.executeDefinitionProvider" | "vscode.executeReferenceProvider", file: string, needle: string, shift: number): Promise<ReadonlyArray<string>> => {
-      const { document } = await open(file);
-      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>(command, document.uri, positionOf(document, needle, shift));
-
-      return found.map((each) => { const target = "targetUri" in each ? each.targetUri : each.uri; const range = "targetRange" in each ? each.targetRange : each.range; return `${target.fsPath.split(/[\\/]/).slice(-2).join("/")}:${range.start.line + 1}`; });
-    };
-    const { document: layout } = await open("src/layout.mprx");
-    const callLine = layout.getText().split("\n").findIndex((line) => line.includes("<theme-toggle")) + 1;
-
-    // Definition: one declaration. The event and the prop go to where the component is defined (theme-toggle.ts), the command and the state to main.ts; the tag goes to its template.
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/theme-toggle.ts:")), "on.toggle -> where theme-toggle.ts declares it");
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "<theme-toggle", 2)).some((target) => target.startsWith("src/theme-toggle.mprx:")), "<theme-toggle> -> its template");
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "toggleTheme", 2)).some((target) => target.startsWith("src/main.ts:")), "toggleTheme -> main.ts");
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{theme}", 2)).some((target) => target.startsWith("src/main.ts:")), "{theme} -> main.ts");
-
-    // Inside the component the event it raises IS its declaration: ctrl+click stays, and VS Code then shows the references.
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).some((target) => target.startsWith("src/theme-toggle.ts:")), "toggle() -> where theme-toggle.ts declares it");
-
-    // References: every use, as a list.
-    assert.ok((await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "toggle()", 1)).includes(`src/layout.mprx:${callLine}`), "references of the event: the handler in the layout");
-    assert.ok((await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "{theme ==", 2)).includes(`src/layout.mprx:${callLine}`), "references of the prop: where it is passed");
-    assert.ok((await at("vscode.executeReferenceProvider", "src/layout.mprx", "toggleTheme", 2)).includes(`src/layout.mprx:${callLine}`), "references of the command: where it runs");
-
-    // The framework's own names go to its documentation, not to the generated manifest.
-    const site = await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{site}", 2);
-
-    assert.ok(site.some((target) => target.startsWith("cli/README.md:")), `{site} -> ${text(site)}`);
-    assert.ok(!site.some((target) => target.includes("manifest.json")));
-  }],
-
-  ["the template imports in the project's TypeScript are links to the files", async () => {
-    const linksOf = async (file: string, template: string): Promise<ReadonlyArray<vscode.DocumentLink>> => {
-      const { document } = await open(file);
-
-      return waitFor(`links in ${file}`, async () => {
-        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.DocumentLink>>("vscode.executeLinkProvider", document.uri);
-
-        return found.some((link) => link.target?.fsPath.endsWith(join("src", template))) ? found : undefined;
-      });
-    };
-
-    // main.ts imports the layout's template; theme-toggle.ts, where the component is defined, imports its own.
-    assert.ok((await linksOf("src/main.ts", "layout.mprx")).length > 0);
-    assert.ok((await linksOf("src/theme-toggle.ts", "theme-toggle.mprx")).length > 0);
-  }],
-
-  ["CodeLens puts the other end of each connection beside this one", async () => {
-    const titlesOf = async (file: string): Promise<string> => {
-      const { document } = await open(file);
-      const lenses = await waitFor(`code lenses in ${file}`, async () => {
-        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.CodeLens>>("vscode.executeCodeLensProvider", document.uri);
-
-        return found.length > 0 ? found : undefined;
-      });
-
-      return lenses.map((lens) => lens.command?.title ?? "").join("\n");
-    };
-
-    assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+theme ← \{theme\}\s+·\s+on toggle ⇒ toggleTheme\(\)/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · declared in theme-toggle\.ts:\d+ · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · declared in theme-toggle\.ts:\d+ · passed from layout\.mprx:\d+ as \{theme\}/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /in layout\s+·\s+declared in theme-toggle\.ts:\d+\s+·\s+used in layout\.mprx:\d+/);
-    assert.match(await titlesOf("src/layout.mprx"), /the application's layout\s+·\s+declared in main\.ts:\d+/);
-    assert.match(await titlesOf("src/theme-toggle.ts"), /event toggle · raised in theme-toggle\.mprx:\d+ · handled in layout\.mprx:\d+/);
-    assert.match(await titlesOf("src/main.ts"), /command · run in layout\.mprx:\d+/);
-    assert.match(await titlesOf("src/main.ts"), /state · read in layout\.mprx/);
-  }],
-
-  ["completion after < offers the project's components", async () => {
-    const { document, editor, original } = await open("src/layout.mprx");
-    const line = original.split("\n").findIndex((each) => each.includes("<header"));
-
-    await editor.edit((builder) => { builder.insert(new vscode.Position(line, 0), "<\n"); });
-
-    const items = await waitFor("completions that include theme-toggle", async () => {
-      const result = await vscode.commands.executeCommand<vscode.CompletionList>("vscode.executeCompletionItemProvider", document.uri, new vscode.Position(line, 1), "<");
-
-      return text(result.items.map((each) => each.label)).includes("theme-toggle") ? result.items : undefined;
-    });
-
-    assert.ok(items.length > 10);
-    await replaceAll(editor, original);
-  }],
-
-  ["a broken link in Markdown is a valance diagnostic on its line after saving, and clears when fixed", async () => {
-    const { document, editor, original } = await open("content/index.md");
-
-    await replaceAll(editor, `${original.trimEnd()}\n\n[gone](/nowhere)\n`);
-    await document.save();
-
-    const found = await waitFor("a link-broken diagnostic from valance", () => vscode.languages.getDiagnostics(document.uri).find((each) => each.source === "valance" && codeOf(each) === "link-broken"), 60_000);
-
-    assert.equal(document.lineAt(found.range.start.line).text, "[gone](/nowhere)");
-
-    await replaceAll(editor, original);
-    await document.save();
-    await waitFor("the valance diagnostics to clear", () => vscode.languages.getDiagnostics(document.uri).filter((each) => each.source === "valance").length === 0, 60_000);
-  }],
-
-  ["a template the project does not know is marked, and the mark goes away once it is part of the project (a stale mapping is refreshed without a reload)", async () => {
-    const badge = join(project(), "src", "badge.mprx");
-    const layoutFile = join(project(), "src", "layout.mprx");
-
-    writeFileSync(badge, '<span class="badge">{label}</span>\n');
-
-    let mainOriginalText: string | undefined;
-
-    try {
-      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(badge));
-
-      await vscode.window.showTextDocument(document);
-
-      const note = await waitFor("the note on a template the server does not know", () => vscode.languages.getDiagnostics(document.uri).find((each) => codeOf(each) === "valance-unmapped"));
-
-      assert.match(note.message, /vlx check/);
-
-      // Use it in the layout and save: the check rebuilds the project, `.valance/editor.json` changes, and the running server is told.
-      // The tree is declared: main.ts imports the template and lists it in the layout's `uses`, and the layout uses it.
-      const { document: mainDocument, editor: mainEditor, original: mainOriginal } = await open("src/main.ts");
-
-      mainOriginalText = mainOriginal;
-      await replaceAll(mainEditor, mainOriginal.replace('import layout from "./layout.mprx";', 'import layout from "./layout.mprx";\nimport badge from "./badge.mprx";').replace("uses: [themeToggle]", "uses: [themeToggle, component(badge)]"));
-
-      const { document: layoutDocument, editor, original } = await open("src/layout.mprx");
-
-      await replaceAll(editor, original.replace('<header class="bar">', '<header class="bar">\n    <badge label={site} />'));
-      await mainDocument.save();
-      await layoutDocument.save();
-      await waitFor("the project to know the new template", () => api().known().includes("src/badge.mprx"), 60_000);
-      await waitFor("the note to go away", () => vscode.languages.getDiagnostics(document.uri).every((each) => codeOf(each) !== "valance-unmapped"));
-
-      // And the server now checks it: hover on the new tag in the layout answers with its contract.
-      const hovers = await waitFor("a hover on the new component", async () => {
-        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Hover>>("vscode.executeHoverProvider", layoutDocument.uri, positionOf(layoutDocument, "<badge", 2));
-
-        return found.length > 0 ? found : undefined;
-      }, 60_000);
-
-      assert.match(hoverText(hovers), /component badge/);
-    } finally {
+  [
+    "a template mistake is a diagnostic at its place, and it clears when fixed",
+    async () => {
       const { document, editor, original } = await open("src/layout.mprx");
 
-      await replaceAll(editor, original.replace(/\n    <badge label=\{site\} \/>/, ""));
+      await replaceAll(editor, original.replace("{site}", "{sitee}"));
+
+      const found = await waitFor("an unknown-reference diagnostic", () => vscode.languages.getDiagnostics(document.uri).find((each) => codeOf(each) === "unknown-reference"));
+
+      assert.equal(
+        found.range.start.line,
+        original.split("\n").findIndex((line) => line.includes("{site}")),
+      );
+      assert.match(found.message, /sitee/);
+
+      await replaceAll(editor, original);
+      await waitFor("the diagnostics to clear", () => vscode.languages.getDiagnostics(document.uri).length === 0);
+    },
+  ],
+
+  [
+    "hover on a component shows its contract",
+    async () => {
+      const { document } = await open("src/layout.mprx");
+      const at = positionOf(document, "<theme-toggle", 2);
+      const found = await waitFor("a hover answer", async () => {
+        const result = await vscode.commands.executeCommand<ReadonlyArray<vscode.Hover>>("vscode.executeHoverProvider", document.uri, at);
+
+        return result.length > 0 ? result : undefined;
+      });
+
+      assert.match(hoverText(found), /component theme-toggle/);
+      assert.match(hoverText(found), /theme: string/);
+    },
+  ],
+
+  [
+    "go to definition of a component opens its template, not the generated manifest",
+    async () => {
+      const { document } = await open("src/layout.mprx");
+      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>(
+        "vscode.executeDefinitionProvider",
+        document.uri,
+        positionOf(document, "<theme-toggle", 2),
+      );
+      const targets = found.map((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath);
+
+      assert.ok(
+        targets.some((target) => target.endsWith(join("src", "theme-toggle.mprx"))),
+        `definitions: ${text(targets)}`,
+      );
+      assert.ok(!targets.some((target) => target.endsWith("manifest.json")), `definitions: ${text(targets)}`);
+    },
+  ],
+
+  [
+    "ctrl+click goes to the one declaration; the many places a name is used are its references (an event may be handled in many places, a handler bound to many events)",
+    async () => {
+      const at = async (
+        command: "vscode.executeDefinitionProvider" | "vscode.executeReferenceProvider",
+        file: string,
+        needle: string,
+        shift: number,
+      ): Promise<ReadonlyArray<string>> => {
+        const { document } = await open(file);
+        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>(command, document.uri, positionOf(document, needle, shift));
+
+        return found.map((each) => {
+          const target = "targetUri" in each ? each.targetUri : each.uri;
+          const range = "targetRange" in each ? each.targetRange : each.range;
+          return `${target.fsPath.split(/[\\/]/).slice(-2).join("/")}:${range.start.line + 1}`;
+        });
+      };
+      const { document: layout } = await open("src/layout.mprx");
+      const callLine =
+        layout
+          .getText()
+          .split("\n")
+          .findIndex((line) => line.includes("<theme-toggle")) + 1;
+
+      // Definition: one declaration. The event and the prop go to where the component is defined (theme-toggle.ts), the command and the state to main.ts; the tag goes to its template.
+      assert.ok(
+        (await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/theme-toggle.ts:")),
+        "on.toggle -> where theme-toggle.ts declares it",
+      );
+      assert.ok(
+        (await at("vscode.executeDefinitionProvider", "src/layout.mprx", "<theme-toggle", 2)).some((target) => target.startsWith("src/theme-toggle.mprx:")),
+        "<theme-toggle> -> its template",
+      );
+      assert.ok(
+        (await at("vscode.executeDefinitionProvider", "src/layout.mprx", "toggleTheme", 2)).some((target) => target.startsWith("src/main.ts:")),
+        "toggleTheme -> main.ts",
+      );
+      assert.ok(
+        (await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{theme}", 2)).some((target) => target.startsWith("src/main.ts:")),
+        "{theme} -> main.ts",
+      );
+
+      // Inside the component the event it raises IS its declaration: ctrl+click stays, and VS Code then shows the references.
+      assert.ok(
+        (await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).some((target) => target.startsWith("src/theme-toggle.ts:")),
+        "toggle() -> where theme-toggle.ts declares it",
+      );
+
+      // References: every use, as a list.
+      assert.ok(
+        (await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "toggle()", 1)).includes(`src/layout.mprx:${callLine}`),
+        "references of the event: the handler in the layout",
+      );
+      assert.ok(
+        (await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "{theme ==", 2)).includes(`src/layout.mprx:${callLine}`),
+        "references of the prop: where it is passed",
+      );
+      assert.ok(
+        (await at("vscode.executeReferenceProvider", "src/layout.mprx", "toggleTheme", 2)).includes(`src/layout.mprx:${callLine}`),
+        "references of the command: where it runs",
+      );
+
+      // The framework's own names go to its documentation, not to the generated manifest.
+      const site = await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{site}", 2);
+
+      assert.ok(
+        site.some((target) => target.startsWith("cli/README.md:")),
+        `{site} -> ${text(site)}`,
+      );
+      assert.ok(!site.some((target) => target.includes("manifest.json")));
+    },
+  ],
+
+  [
+    "the template imports in the project's TypeScript are links to the files",
+    async () => {
+      const linksOf = async (file: string, template: string): Promise<ReadonlyArray<vscode.DocumentLink>> => {
+        const { document } = await open(file);
+
+        return waitFor(`links in ${file}`, async () => {
+          const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.DocumentLink>>("vscode.executeLinkProvider", document.uri);
+
+          return found.some((link) => link.target?.fsPath.endsWith(join("src", template))) ? found : undefined;
+        });
+      };
+
+      // main.ts imports the layout's template; theme-toggle.ts, where the component is defined, imports its own.
+      assert.ok((await linksOf("src/main.ts", "layout.mprx")).length > 0);
+      assert.ok((await linksOf("src/theme-toggle.ts", "theme-toggle.mprx")).length > 0);
+    },
+  ],
+
+  [
+    "CodeLens puts the other end of each connection beside this one",
+    async () => {
+      const titlesOf = async (file: string): Promise<string> => {
+        const { document } = await open(file);
+        const lenses = await waitFor(`code lenses in ${file}`, async () => {
+          const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.CodeLens>>("vscode.executeCodeLensProvider", document.uri);
+
+          return found.length > 0 ? found : undefined;
+        });
+
+        return lenses.map((lens) => lens.command?.title ?? "").join("\n");
+      };
+
+      assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+theme ← \{theme\}\s+·\s+on toggle ⇒ toggleTheme\(\)/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · declared in theme-toggle\.ts:\d+ · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · declared in theme-toggle\.ts:\d+ · passed from layout\.mprx:\d+ as \{theme\}/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /in layout\s+·\s+declared in theme-toggle\.ts:\d+\s+·\s+used in layout\.mprx:\d+/);
+      assert.match(await titlesOf("src/layout.mprx"), /the application's layout\s+·\s+declared in main\.ts:\d+/);
+      assert.match(await titlesOf("src/theme-toggle.ts"), /event toggle · raised in theme-toggle\.mprx:\d+ · handled in layout\.mprx:\d+/);
+      assert.match(await titlesOf("src/main.ts"), /command · run in layout\.mprx:\d+/);
+      assert.match(await titlesOf("src/main.ts"), /state · read in layout\.mprx/);
+    },
+  ],
+
+  [
+    "completion after < offers the project's components",
+    async () => {
+      const { document, editor, original } = await open("src/layout.mprx");
+      const line = original.split("\n").findIndex((each) => each.includes("<header"));
+
+      await editor.edit((builder) => {
+        builder.insert(new vscode.Position(line, 0), "<\n");
+      });
+
+      const items = await waitFor("completions that include theme-toggle", async () => {
+        const result = await vscode.commands.executeCommand<vscode.CompletionList>("vscode.executeCompletionItemProvider", document.uri, new vscode.Position(line, 1), "<");
+
+        return text(result.items.map((each) => each.label)).includes("theme-toggle") ? result.items : undefined;
+      });
+
+      assert.ok(items.length > 10);
+      await replaceAll(editor, original);
+    },
+  ],
+
+  [
+    "a broken link in Markdown is a valance diagnostic on its line after saving, and clears when fixed",
+    async () => {
+      const { document, editor, original } = await open("content/index.md");
+
+      await replaceAll(editor, `${original.trimEnd()}\n\n[gone](/nowhere)\n`);
       await document.save();
 
-      if (mainOriginalText !== undefined) {
-        const main = await open("src/main.ts");
+      const found = await waitFor(
+        "a link-broken diagnostic from valance",
+        () => vscode.languages.getDiagnostics(document.uri).find((each) => each.source === "valance" && codeOf(each) === "link-broken"),
+        60_000,
+      );
 
-        await replaceAll(main.editor, mainOriginalText);
-        await main.document.save();
+      assert.equal(document.lineAt(found.range.start.line).text, "[gone](/nowhere)");
+
+      await replaceAll(editor, original);
+      await document.save();
+      await waitFor("the valance diagnostics to clear", () => vscode.languages.getDiagnostics(document.uri).filter((each) => each.source === "valance").length === 0, 60_000);
+    },
+  ],
+
+  [
+    "a template the project does not know is marked, and the mark goes away once it is part of the project (a stale mapping is refreshed without a reload)",
+    async () => {
+      const badge = join(project(), "src", "badge.mprx");
+
+      writeFileSync(badge, '<span class="badge">{label}</span>\n');
+
+      let mainOriginalText: string | undefined;
+
+      try {
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(badge));
+
+        await vscode.window.showTextDocument(document);
+
+        const note = await waitFor("the note on a template the server does not know", () =>
+          vscode.languages.getDiagnostics(document.uri).find((each) => codeOf(each) === "valance-unmapped"),
+        );
+
+        assert.match(note.message, /vlx check/);
+
+        // Use it in the layout and save: the check rebuilds the project, `.valance/editor.json` changes, and the running server is told.
+        // The tree is declared: main.ts imports the template and lists it in the layout's `uses`, and the layout uses it.
+        const { document: mainDocument, editor: mainEditor, original: mainOriginal } = await open("src/main.ts");
+
+        mainOriginalText = mainOriginal;
+        await replaceAll(
+          mainEditor,
+          mainOriginal
+            .replace('import layout from "./layout.mprx";', 'import layout from "./layout.mprx";\nimport badge from "./badge.mprx";')
+            .replace("uses: [themeToggle]", "uses: [themeToggle, component(badge)]"),
+        );
+
+        const { document: layoutDocument, editor, original } = await open("src/layout.mprx");
+
+        await replaceAll(editor, original.replace('<header class="bar">', '<header class="bar">\n    <badge label={site} />'));
+        await mainDocument.save();
+        await layoutDocument.save();
+        await waitFor("the project to know the new template", () => api().known().includes("src/badge.mprx"), 60_000);
+        await waitFor("the note to go away", () => vscode.languages.getDiagnostics(document.uri).every((each) => codeOf(each) !== "valance-unmapped"));
+
+        // And the server now checks it: hover on the new tag in the layout answers with its contract.
+        const hovers = await waitFor(
+          "a hover on the new component",
+          async () => {
+            const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Hover>>(
+              "vscode.executeHoverProvider",
+              layoutDocument.uri,
+              positionOf(layoutDocument, "<badge", 2),
+            );
+
+            return found.length > 0 ? found : undefined;
+          },
+          60_000,
+        );
+
+        assert.match(hoverText(hovers), /component badge/);
+      } finally {
+        const { document, editor, original } = await open("src/layout.mprx");
+
+        await replaceAll(editor, original.replace(/\n    <badge label=\{site\} \/>/, ""));
+        await document.save();
+
+        if (mainOriginalText !== undefined) {
+          const main = await open("src/main.ts");
+
+          await replaceAll(main.editor, mainOriginalText);
+          await main.document.save();
+        }
+
+        if (existsSync(badge)) {
+          unlinkSync(badge);
+        }
+        execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
       }
+    },
+  ],
 
-      if (existsSync(badge)) { unlinkSync(badge); }
+  [
+    "a project without wiring data (built by an older vlx) is said to be partial, not ready, and recovers by itself when vlx writes it",
+    async () => {
+      const wiring = join(project(), ".valance", "wiring.json");
+
+      // The check a save started earlier (the previous case saved files) may still be running and write the wiring after it is removed: remove it until the window is without it.
+      const { document } = await open("src/layout.mprx");
+
+      let saved: Buffer | undefined;
+
+      await waitFor("the status to be ready", () => (api().status() === "ready" ? true : undefined), 60_000);
+      await waitFor(
+        "the definition to be the generated manifest, as the message says: navigation to the author's files is off",
+        async () => {
+          // Put it back and remove it again, so the window sees a deletion even if it missed the last one.
+          if (existsSync(wiring)) {
+            saved = readFileSync(wiring);
+          } else if (saved !== undefined) {
+            writeFileSync(wiring, saved);
+          }
+          if (existsSync(wiring)) {
+            unlinkSync(wiring);
+          }
+
+          // A late check may write the wiring straight back: then the status never shows partial, and the next round removes it again.
+          const partial = await waitFor("the status to become partial", () => (api().status() === "partial" ? true : undefined), 4_000).catch(() => false);
+
+          if (!partial) {
+            return undefined;
+          }
+
+          const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>(
+            "vscode.executeDefinitionProvider",
+            document.uri,
+            positionOf(document, "toggleTheme", 2),
+          );
+
+          return found.length === 0 || found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) ? true : undefined;
+        },
+        60_000,
+      );
+
+      // `vlx` writes the wiring again: the window notices, no reload.
       execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
-    }
-  }],
+      await waitFor(`the status to become ready again (it is ${api().status()})`, () => api().status() === "ready", 60_000);
 
-  ["a project without wiring data (built by an older vlx) is said to be partial, not ready, and recovers by itself when vlx writes it", async () => {
-    const wiring = join(project(), ".valance", "wiring.json");
+      const again = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>(
+        "vscode.executeDefinitionProvider",
+        document.uri,
+        positionOf(document, "toggleTheme", 2),
+      );
 
-    // The check a save started earlier (the previous case saved files) may still be running and write the wiring after it is removed: remove it until the window is without it.
-    const { document } = await open("src/layout.mprx");
+      assert.ok(
+        again.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith(join("src", "main.ts"))),
+        "with wiring data the definition is main.ts",
+      );
+    },
+  ],
 
-    let saved: Buffer | undefined;
+  [
+    "valance.json is validated against the schema the extension contributes",
+    async () => {
+      const { document, editor, original } = await open("valance.json");
 
-    await waitFor("the status to be ready", () => api().status() === "ready" ? true : undefined, 60_000);
-    await waitFor("the definition to be the generated manifest, as the message says: navigation to the author's files is off", async () => {
-      // Put it back and remove it again, so the window sees a deletion even if it missed the last one.
-      if (existsSync(wiring)) { saved = readFileSync(wiring); } else if (saved !== undefined) { writeFileSync(wiring, saved); }
-      if (existsSync(wiring)) { unlinkSync(wiring); }
+      await replaceAll(editor, original.replace('"name": "Notes"', '"name": "Notes",\n  "titel": "typo"'));
 
-      // A late check may write the wiring straight back: then the status never shows partial, and the next round removes it again.
-      const partial = await waitFor("the status to become partial", () => api().status() === "partial" ? true : undefined, 4_000).catch(() => false);
+      const found = await waitFor("a schema diagnostic about the unknown key", () =>
+        vscode.languages.getDiagnostics(document.uri).find((each) => /titel|not allowed/i.test(each.message)),
+      );
 
-      if (!partial) { return undefined; }
-
-      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
-
-      return found.length === 0 || found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) ? true : undefined;
-    }, 60_000);
-
-    // `vlx` writes the wiring again: the window notices, no reload.
-    execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
-    await waitFor(`the status to become ready again (it is ${api().status()})`, () => api().status() === "ready", 60_000);
-
-    const again = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
-
-    assert.ok(again.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith(join("src", "main.ts"))), "with wiring data the definition is main.ts");
-  }],
-
-  ["valance.json is validated against the schema the extension contributes", async () => {
-    const { document, editor, original } = await open("valance.json");
-
-    await replaceAll(editor, original.replace('"name": "Notes"', '"name": "Notes",\n  "titel": "typo"'));
-
-    const found = await waitFor("a schema diagnostic about the unknown key", () => vscode.languages.getDiagnostics(document.uri).find((each) => /titel|not allowed/i.test(each.message)));
-
-    assert.ok(found);
-    await replaceAll(editor, original);
-  }],
+      assert.ok(found);
+      await replaceAll(editor, original);
+    },
+  ],
 ];
 
 /** In a window opened above the project the editor features must work the same; the content and config cases need the project's own files at the root. */
-const IN_PARENT = ["the extension activates", "a .mprx file is the mprx language", "a template mistake is a diagnostic at its place, and it clears when fixed", "hover on a component shows its contract", "go to definition of a component opens its template, not the generated manifest"];
+const IN_PARENT = [
+  "the extension activates",
+  "a .mprx file is the mprx language",
+  "a template mistake is a diagnostic at its place, and it clears when fixed",
+  "hover on a component shows its contract",
+  "go to definition of a component opens its template, not the generated manifest",
+];
 const chosen = scenario === "parent" ? cases.filter(([name]) => IN_PARENT.includes(name)) : cases;
 
 /** The entry VS Code calls: runs every case, then fails with all the failures. */
@@ -329,5 +485,7 @@ export const run = async (): Promise<void> => {
     }
   }
 
-  if (failures.length > 0) { throw new Error(`${failures.length} of ${chosen.length} host cases failed:\n${failures.join("\n")}`); }
+  if (failures.length > 0) {
+    throw new Error(`${failures.length} of ${chosen.length} host cases failed:\n${failures.join("\n")}`);
+  }
 };

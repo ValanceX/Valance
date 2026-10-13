@@ -21,21 +21,23 @@ describe("a mount's Scope.close", () => {
       const m = await w.mountIn(app.handle);
 
       await run(app.handle.invoke("app/bump", []));
-      if (delay >= 0) { await sleep(delay); }
+      if (delay >= 0) {
+        await sleep(delay);
+      }
       await m.close();
       const atClose = [...m.ops];
 
       await sleep(60);
-      expect(m.ops).toEqual(atClose);                                                  // nothing after the close resolved
+      expect(m.ops).toEqual(atClose); // nothing after the close resolved
       expect(m.ops.filter((op) => op === "unmount")).toHaveLength(1);
-      expect(m.ops.at(-1)).toBe("unmount");                                             // unmount is the last operation the mount ever made
+      expect(m.ops.at(-1)).toBe("unmount"); // unmount is the last operation the mount ever made
       expect(m.container.innerHTML).toBe("");
 
-      await run(app.handle.invoke("app/bump", []));                                    // the mount's closure prevents no commit
+      await run(app.handle.invoke("app/bump", [])); // the mount's closure prevents no commit
       expect(await run(app.handle.state)).toEqual({ path: "/", n: 2 });
       const fresh = await w.mountIn(app.handle);
 
-      expect(fresh.text()).toBe("n2/");                                                // the authoritative state, not the closed mount's last presentation
+      expect(fresh.text()).toBe("n2/"); // the authoritative state, not the closed mount's last presentation
       await fresh.close();
       await app.close();
     }
@@ -50,7 +52,21 @@ describe("a mount's Scope.close", () => {
       const target: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
         const port = Web.target({ container, primitives })(report);
 
-        return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
+        return {
+          draw: (t) => {
+            port.draw(t);
+            ops.push("draw");
+          },
+          update: (t) => {
+            port.update(t);
+            ops.push("update");
+          },
+          hydrate: (t) => port.hydrate(t),
+          unmount: () => {
+            port.unmount();
+            ops.push("unmount");
+          },
+        };
       };
       const scope = await run(Scope.make());
       const mounting = Effect.runFork(Effect.exit(Valance.mount(app.handle, target).pipe(Scope.extend(scope))));
@@ -61,8 +77,8 @@ describe("a mount's Scope.close", () => {
 
       await Effect.runPromise(Fiber.join(mounting));
       await sleep(60);
-      expect(ops).toEqual(atClose);                                                    // no operation after the close resolved
-      expect(ops.length === 0 || (ops[0] === "draw" && ops.at(-1) === "unmount")).toBe(true);   // nothing, or a draw that was then unmounted: never a draw left behind
+      expect(ops).toEqual(atClose); // no operation after the close resolved
+      expect(ops.length === 0 || (ops[0] === "draw" && ops.at(-1) === "unmount")).toBe(true); // nothing, or a draw that was then unmounted: never a draw left behind
       expect(container.innerHTML).toBe("");
       await app.close();
     }
@@ -77,17 +93,48 @@ describe("a mount's Scope.close", () => {
     const scope = await run(Scope.make());
     const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }> & { hydrate: (tree: never) => unknown }> = (report) => {
       const port = Web.target({ container, primitives })(report);
-      const close = () => { void Effect.runPromise(Scope.close(scope, Exit.void)); };
+      const close = () => {
+        void Effect.runPromise(Scope.close(scope, Exit.void));
+      };
 
-      if (closeWhen === "sync") { close(); }
-      if (closeWhen === "microtask") { queueMicrotask(close); }
+      if (closeWhen === "sync") {
+        close();
+      }
+      if (closeWhen === "microtask") {
+        queueMicrotask(close);
+      }
 
-      return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => { ops.push("hydrate"); return port.hydrate(t); }, unmount: () => { port.unmount(); ops.push("unmount"); } };
+      return {
+        draw: (t) => {
+          port.draw(t);
+          ops.push("draw");
+        },
+        update: (t) => {
+          port.update(t);
+          ops.push("update");
+        },
+        hydrate: (t) => {
+          ops.push("hydrate");
+          return port.hydrate(t);
+        },
+        unmount: () => {
+          port.unmount();
+          ops.push("unmount");
+        },
+      };
     };
 
-    if (closeWhen === "already") { await run(Scope.close(scope, Exit.void)); }
+    if (closeWhen === "already") {
+      await run(Scope.close(scope, Exit.void));
+    }
     const effect = kind === "mount" ? Valance.mount(app.handle, factory) : Valance.hydrate(app.handle, factory as never);
-    const exit = await Effect.runPromise(effect.pipe(Scope.extend(scope), Effect.exit, Effect.timeoutTo({ duration: "1 seconds", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const })));
+    const exit = await Effect.runPromise(
+      effect.pipe(
+        Scope.extend(scope),
+        Effect.exit,
+        Effect.timeoutTo({ duration: "1 seconds", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const }),
+      ),
+    );
 
     await sleep(40);
     const html = container.innerHTML;
@@ -102,8 +149,8 @@ describe("a mount's Scope.close", () => {
       const { exit, ops, html } = await attempt(kind, "already");
 
       expect(exit).not.toBe("hung");
-      expect(exit !== "hung" && Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);   // the existing lifecycle signal: what closing a Scope during start already gives
-      expect(ops).toEqual([]);                                                          // no draw, update, hydrate or unmount
+      expect(exit !== "hung" && Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true); // the existing lifecycle signal: what closing a Scope during start already gives
+      expect(ops).toEqual([]); // no draw, update, hydrate or unmount
       expect(html).toBe("");
     });
 
@@ -115,7 +162,7 @@ describe("a mount's Scope.close", () => {
         if (exit !== "hung" && Exit.isFailure(exit)) {
           expect(Cause.isInterruptedOnly(exit.cause)).toBe(true);
         }
-        expect(ops.length === 0 || (ops[0] === (kind === "mount" ? "draw" : "hydrate") && ops.at(-1) === "unmount")).toBe(true);   // nothing, or a first render that was then unmounted
+        expect(ops.length === 0 || (ops[0] === (kind === "mount" ? "draw" : "hydrate") && ops.at(-1) === "unmount")).toBe(true); // nothing, or a first render that was then unmounted
         expect(html).toBe("");
       }
     });
@@ -144,19 +191,21 @@ describe("a history's Scope.close", () => {
       const history = await w.attachHistory(app.handle);
 
       await run(app.handle.invoke("app/navigate", [{ value: { path: "/a" } }]));
-      if (delay >= 0) { await sleep(delay); }
+      if (delay >= 0) {
+        await sleep(delay);
+      }
       await history.close();
       const writesAtClose = [...w.writes];
 
       await sleep(60);
-      expect(w.writes).toEqual(writesAtClose);                                         // nothing written after the close resolved
+      expect(w.writes).toEqual(writesAtClose); // nothing written after the close resolved
       expect(w.listeners.size).toBe(0);
       const before = await run(app.handle.state);
 
       w.win.history.back();
       await sleep(60);
-      expect(await run(app.handle.state)).toEqual(before);                             // no listener: the popstate reached nothing
-      await run(app.handle.invoke("app/navigate", [{ value: { path: "/b" } }]));       // application commands stay usable
+      expect(await run(app.handle.state)).toEqual(before); // no listener: the popstate reached nothing
+      await run(app.handle.invoke("app/navigate", [{ value: { path: "/b" } }])); // application commands stay usable
       expect(await run(app.handle.state)).toMatchObject({ path: "/b" });
       expect(w.writes).toEqual(writesAtClose);
       await app.close();
@@ -168,25 +217,25 @@ describe("a history's Scope.close", () => {
     const app = await w.startApp();
     const history = await w.attachHistory(app.handle, "app/gated-navigate");
 
-    await run(app.handle.invoke("app/navigate", [{ value: { path: "/a" } }]));        // an ordinary navigation (history's own key is the gated one, reached only by popstate)
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/a" } }])); // an ordinary navigation (history's own key is the gated one, reached only by popstate)
     await sleep(40);
     const written = [...w.writes];
 
     w.win.history.back();
     await until(() => w.log.some((entry) => entry.startsWith("gated-navigate started")));
     await history.close();
-    expect(w.log.at(-1)).toBe("gated-navigate interrupted");                           // interrupted before the close resolved
+    expect(w.log.at(-1)).toBe("gated-navigate interrupted"); // interrupted before the close resolved
     w.releaseHold();
     await sleep(60);
-    expect(w.log.filter((entry) => entry.startsWith("commit gated-navigate"))).toEqual([]);   // it never commits
+    expect(w.log.filter((entry) => entry.startsWith("commit gated-navigate"))).toEqual([]); // it never commits
     expect(await run(app.handle.state)).toMatchObject({ path: "/a" });
     expect(w.writes).toEqual(written);
     expect(w.listeners.size).toBe(0);
 
-    await run(app.handle.invoke("app/navigate", [{ value: { path: "/b" } }]));        // while no history is attached
+    await run(app.handle.invoke("app/navigate", [{ value: { path: "/b" } }])); // while no history is attached
     const fresh = await w.attachHistory(app.handle);
 
-    expect(w.writes).toEqual(written);                                                 // C30: the current state is the baseline, nothing is written at attach
+    expect(w.writes).toEqual(written); // C30: the current state is the baseline, nothing is written at attach
     await run(app.handle.invoke("app/navigate", [{ value: { path: "/c" } }]));
     await sleep(40);
     expect(w.writes).toEqual([...written, "/x/c"]);
@@ -208,9 +257,9 @@ describe("an event command admitted before the mount closes", () => {
     expect(w.log).not.toContain("gated interrupted");
     w.release();
     await until(() => w.log.includes("commit gated"));
-    expect(w.log).toEqual(["gated started", "mount close resolved", "commit gated"]);   // the commit followed the close's resolution: it is the application's, not the mount's
+    expect(w.log).toEqual(["gated started", "mount close resolved", "commit gated"]); // the commit followed the close's resolution: it is the application's, not the mount's
     await sleep(40);
-    expect(m.ops).toEqual(["draw n0/", "unmount"]);                                    // nothing was presented through the closed mount
+    expect(m.ops).toEqual(["draw n0/", "unmount"]); // nothing was presented through the closed mount
     expect(await run(app.handle.state)).toEqual({ path: "/", n: 100 });
     await app.close();
   });

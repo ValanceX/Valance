@@ -45,7 +45,11 @@ export interface Running<S, E> {
    * Dispatches an event against exactly the render it was reported on, through its own view's command table. It runs
    * in the application, whoever calls it: the caller needs no runtime.
    */
-  readonly dispatch: (viewed: Viewed, handler: string, payload?: Parameters<Nexus.Mesh.Host<never, never>["dispatch"]>[2]) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
+  readonly dispatch: (
+    viewed: Viewed,
+    handler: string,
+    payload?: Parameters<Nexus.Mesh.Host<never, never>["dispatch"]>[2],
+  ) => Effect.Effect<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDiagnostics | Nexus.Mesh.UnmappedCommand | E>;
   /** The application's state, read only. */
   readonly state: Effect.Effect<S>;
   /** The state current at subscription, then every later commit, with no gap (NEXUS `State.values`). Read only. */

@@ -30,7 +30,10 @@ const pageOf = (id: string): Page | undefined => pages.find((page) => page.id ==
 export const urlOf = ({ page }: AppState): string => pageOf(page)?.path ?? "/docs/";
 export const stateOf = (url: URL): { readonly id: string } => ({ id: pages.find((page) => page.path === url.pathname)?.id ?? "home" });
 /** The document's title for a state: `history` keeps the browser's in step (`titleOf`), and the server's document writes the same function's result for the state it rendered. */
-export const titleOf = ({ page }: AppState): string => { const title = pageOf(page)?.title; return title === undefined ? "Valance" : `${title} · Valance`; };
+export const titleOf = ({ page }: AppState): string => {
+  const title = pageOf(page)?.title;
+  return title === undefined ? "Valance" : `${title} · Valance`;
+};
 export const stateFor = (url: string): AppState => ({ ...initial, page: stateOf(new URL(url, "http://localhost")).id });
 
 // ---- what each view reads ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -70,11 +73,12 @@ export const commands = (searchDocs: SearchDocs) => (state: Valance.StateHandle<
   // The one command that waits. A newer search supersedes an older one on its own; `wanted` is the other question: is this answer still what the state is waiting for.
   const search = command.waiting(Schema.Struct({ query: Schema.String }), {
     begin: ({ query }, current) => ({ ...current, search: query.trim() === "" ? idle() : { query, status: "loading", results: [], message: "" } }),
-    work: ({ query }, signal) => query.trim() === "" ? Promise.resolve([]) : searchDocs(query, signal),
+    work: ({ query }, signal) => (query.trim() === "" ? Promise.resolve([]) : searchDocs(query, signal)),
     wanted: ({ query }, current) => current.search.query === query && current.search.status === "loading",
-    settle: (outcome, _input, current) => outcome.ok
-      ? { ...current, search: { ...current.search, status: "done", results: outcome.value.map(({ id, title }) => ({ id, label: title })) } }
-      : { ...current, search: { ...current.search, status: "failed", message: String(outcome.error) } },
+    settle: (outcome, _input, current) =>
+      outcome.ok
+        ? { ...current, search: { ...current.search, status: "done", results: outcome.value.map(({ id, title }) => ({ id, label: title })) } }
+        : { ...current, search: { ...current.search, status: "failed", message: String(outcome.error) } },
   });
 
   return {
@@ -93,45 +97,50 @@ export interface Programs {
 
 const row = (page: Page) => ({ id: page.id, label: page.title, href: page.path });
 
-export const application = (programs: Programs, searchDocs: SearchDocs) => Valance.define({
-  name: "docs",
-  state: { schema: AppState, initial },
-  views: {
-    home: {
-      program: programs.home,
-      scope: (): typeof HomeScope.Type => ({ site: "Valance", tagline: "Application state, in one place.", guides: pages.filter((page) => page.section === "Guides").map(row) }),
-    },
-    doc: {
-      program: programs.doc,
-      scope: (state: AppState): typeof DocScope.Type => {
-        const index = pages.findIndex((page) => page.id === state.page);
-        const page = pages[index]!;
-        const prev = pages[index - 1];
-        const next = pages[index + 1];
-        const { search } = state;
+export const application = (programs: Programs, searchDocs: SearchDocs) =>
+  Valance.define({
+    name: "docs",
+    state: { schema: AppState, initial },
+    views: {
+      home: {
+        program: programs.home,
+        scope: (): typeof HomeScope.Type => ({ site: "Valance", tagline: "Application state, in one place.", guides: pages.filter((page) => page.section === "Guides").map(row) }),
+      },
+      doc: {
+        program: programs.doc,
+        scope: (state: AppState): typeof DocScope.Type => {
+          const index = pages.findIndex((page) => page.id === state.page);
+          const page = pages[index]!;
+          const prev = pages[index - 1];
+          const next = pages[index + 1];
+          const { search } = state;
 
-        return {
-          site: "Valance",
-          query: search.query,
-          search: {
-            status: search.status,
-            message: search.message,
-            empty: search.status === "done" && search.results.length === 0,   // MPRX has no length operator: emptiness is the one condition the view cannot compute
-            results: search.results.map(({ id, label }) => ({ id, label, href: pageOf(id)?.path ?? "/docs/" })),
-          },
-          nav: pages.map((entry) => ({ ...row(entry), label: entry.section === "" ? entry.title : `${entry.section}: ${entry.title}`, mark: entry.id === state.page ? "›" : " " })),
-          title: page.title,
-          paragraphs: page.paragraphs.map((text, at) => ({ id: `${page.id}-${at}`, text })),
-          code: page.code ?? "",
-          detailsLabel: state.open ? "Hide details" : "Show details",
-          detailsOpen: state.open,
-          details: page.details,
-          prev: { href: prev?.path ?? "", label: prev === undefined ? "" : `← ${prev.title}` },
-          next: { href: next?.path ?? "", label: next === undefined ? "" : `${next.title} →` },
-        };
+          return {
+            site: "Valance",
+            query: search.query,
+            search: {
+              status: search.status,
+              message: search.message,
+              empty: search.status === "done" && search.results.length === 0, // MPRX has no length operator: emptiness is the one condition the view cannot compute
+              results: search.results.map(({ id, label }) => ({ id, label, href: pageOf(id)?.path ?? "/docs/" })),
+            },
+            nav: pages.map((entry) => ({
+              ...row(entry),
+              label: entry.section === "" ? entry.title : `${entry.section}: ${entry.title}`,
+              mark: entry.id === state.page ? "›" : " ",
+            })),
+            title: page.title,
+            paragraphs: page.paragraphs.map((text, at) => ({ id: `${page.id}-${at}`, text })),
+            code: page.code ?? "",
+            detailsLabel: state.open ? "Hide details" : "Show details",
+            detailsOpen: state.open,
+            details: page.details,
+            prev: { href: prev?.path ?? "", label: prev === undefined ? "" : `← ${prev.title}` },
+            next: { href: next?.path ?? "", label: next === undefined ? "" : `${next.title} →` },
+          };
+        },
       },
     },
-  },
-  view: (state) => state.page === "home" || pageOf(state.page) === undefined ? "home" : "doc",
-  commands: commands(searchDocs),
-});
+    view: (state) => (state.page === "home" || pageOf(state.page) === undefined ? "home" : "doc"),
+    commands: commands(searchDocs),
+  });

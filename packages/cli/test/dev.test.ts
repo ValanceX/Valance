@@ -48,7 +48,12 @@ describe("vlx dev", () => {
   it("starts even when the content is wrong, and reports it where it is", async () => {
     const lines: Array<string> = [];
     const root = project({ "content/index.md": PAGE("Home", "[x](/nowhere)") });
-    const running = await dev(root, { port: 5900 + Math.floor(Math.random() * 300), log: (line) => { lines.push(line); } });
+    const running = await dev(root, {
+      port: 5900 + Math.floor(Math.random() * 300),
+      log: (line) => {
+        lines.push(line);
+      },
+    });
 
     try {
       expect(lines.join("\n")).toContain("content/index.md:7 link-broken");

@@ -20,11 +20,11 @@ describe("the embedded payload", () => {
       const programs = await compilePrograms();
       const served = await Effect.runPromise(renderToHtml(application(programs), { primitives, state: stateFor(url) }));
 
-      expect(payload.programs).toEqual(programs);                                    // compiled by the server from the build's sources; the browser never compiles
-      expect(payload.state).toEqual(served.state);                                   // the state `renderToHtml` returned (the documented thing to embed) ...
-      expect(payload.state).toEqual(stateFor(url));                                  // ... which the application derives from the URL alone
-      expect(html).toContain(served.html);                                           // and the body in the document is that render
-      expect(await renderDocument(url)).toBe(html);                                  // deterministic: the same request gives the same document
+      expect(payload.programs).toEqual(programs); // compiled by the server from the build's sources; the browser never compiles
+      expect(payload.state).toEqual(served.state); // the state `renderToHtml` returned (the documented thing to embed) ...
+      expect(payload.state).toEqual(stateFor(url)); // ... which the application derives from the URL alone
+      expect(html).toContain(served.html); // and the body in the document is that render
+      expect(await renderDocument(url)).toBe(html); // deterministic: the same request gives the same document
     });
   }
 });

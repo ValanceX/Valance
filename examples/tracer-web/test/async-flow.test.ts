@@ -18,10 +18,22 @@ import { load, until } from "./helpers.js";
 const State = Schema.Struct({ value: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
 
-
-const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded"
-  : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : `other: ${exit.cause._tag}`;
-const yields = (n: number) => Effect.runPromise(Effect.forEach(Array.from({ length: n }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+const show = (exit: Exit.Exit<unknown, unknown>): string =>
+  Exit.isSuccess(exit)
+    ? "succeeded"
+    : Cause.isDieType(exit.cause)
+      ? `died: ${(exit.cause.defect as Error).message}`
+      : Cause.isInterruptedOnly(exit.cause)
+        ? "interrupted"
+        : `other: ${exit.cause._tag}`;
+const yields = (n: number) =>
+  Effect.runPromise(
+    Effect.forEach(
+      Array.from({ length: n }, (_, index) => index),
+      () => Effect.yieldNow(),
+      { discard: true },
+    ),
+  );
 
 /** The smallest application: one state `{ value }`, one view showing it, commands that suspend on a gate and then commit. */
 const boot = async (options: { readonly mount?: boolean } = {}) => {
@@ -39,7 +51,11 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
 
     return entry;
   };
-  const next = (label: string) => { const index = counts.get(label) ?? 0; counts.set(label, index + 1); return index; };
+  const next = (label: string) => {
+    const index = counts.get(label) ?? 0;
+    counts.set(label, index + 1);
+    return index;
+  };
 
   const app = Valance.define({
     name: "async-flow",
@@ -47,56 +63,105 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
     views: { only: { program: titleProgram, scope: (state: State) => ({ title: state.value }) } },
     view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
-      const commit = (label: string, value: string) => Effect.gen(function* () {
-        yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
-        events.push(`${label} committed ${value}`);
-      });
+      const commit = (label: string, value: string) =>
+        Effect.gen(function* () {
+          yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
+          events.push(`${label} committed ${value}`);
+        });
       /** Suspend on the gate of this invocation, then commit what the test released. */
-      const waitAndCommit = (label: string) => Effect.gen(function* () {
-        const { gate, started } = slot(label, next(label));
-        const name = `${label}#${(counts.get(label) ?? 1) - 1}`;
+      const waitAndCommit = (label: string) =>
+        Effect.gen(function* () {
+          const { gate, started } = slot(label, next(label));
+          const name = `${label}#${(counts.get(label) ?? 1) - 1}`;
 
-        events.push(`${name} started`);
-        yield* Deferred.succeed(started, undefined);
-        const value = yield* Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { events.push(`${name} gate wait interrupted`); })));
+          events.push(`${name} started`);
+          yield* Deferred.succeed(started, undefined);
+          const value = yield* Deferred.await(gate).pipe(
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                events.push(`${name} gate wait interrupted`);
+              }),
+            ),
+          );
 
-        events.push(`${name} resumed ${value}`);
-        yield* commit(name, value);
-      }).pipe(Effect.onExit((exit) => Effect.sync(() => { events.push(`${label} command exit: ${show(exit)}`); })));
-      const define = (label: string, body: Effect.Effect<void>) => Nexus.Mesh.bind(Nexus.Command.define(`t.${label}`, Schema.Struct({}), () => body), () => ({}));
+          events.push(`${name} resumed ${value}`);
+          yield* commit(name, value);
+        }).pipe(
+          Effect.onExit((exit) =>
+            Effect.sync(() => {
+              events.push(`${label} command exit: ${show(exit)}`);
+            }),
+          ),
+        );
+      const define = (label: string, body: Effect.Effect<void>) =>
+        Nexus.Mesh.bind(
+          Nexus.Command.define(`t.${label}`, Schema.Struct({}), () => body),
+          () => ({}),
+        );
       /** A command that forks the awaiting-and-committing work as a child and RETURNS (structured: `fork`; escaping: `forkDaemon`). */
-      const forking = (label: string, how: "fork" | "daemon") => define(label, Effect.gen(function* () {
-        const index = next(label);
-        const name = `${label}#${index}`;
-        const { gate, started } = slot(label, index);
-        const child = Effect.gen(function* () {
-          yield* Deferred.succeed(started, undefined);                                // the child is at its gate before the command returns
-          const value = yield* Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { events.push(`${name} child interrupted`); })));
+      const forking = (label: string, how: "fork" | "daemon") =>
+        define(
+          label,
+          Effect.gen(function* () {
+            const index = next(label);
+            const name = `${label}#${index}`;
+            const { gate, started } = slot(label, index);
+            const child = Effect.gen(function* () {
+              yield* Deferred.succeed(started, undefined); // the child is at its gate before the command returns
+              const value = yield* Deferred.await(gate).pipe(
+                Effect.onInterrupt(() =>
+                  Effect.sync(() => {
+                    events.push(`${name} child interrupted`);
+                  }),
+                ),
+              );
 
-          events.push(`${name} child resumed ${value}`);
-          yield* commit(name, value);
-        });
+              events.push(`${name} child resumed ${value}`);
+              yield* commit(name, value);
+            });
 
-        yield* how === "fork" ? Effect.fork(child) : Effect.forkDaemon(child);
-        yield* Deferred.await(started);
-        events.push(`${name} command returning (${how} child)`);
-      }).pipe(Effect.onExit((exit) => Effect.sync(() => { events.push(`${label} command exit: ${show(exit)}`); }))));
+            yield* how === "fork" ? Effect.fork(child) : Effect.forkDaemon(child);
+            yield* Deferred.await(started);
+            events.push(`${name} command returning (${how} child)`);
+          }).pipe(
+            Effect.onExit((exit) =>
+              Effect.sync(() => {
+                events.push(`${label} command exit: ${show(exit)}`);
+              }),
+            ),
+          ),
+        );
       /** A command that forks the child and WAITS for it (the child stays inside the command's lifetime). */
-      const joining = define("joinChild", Effect.gen(function* () {
-        const index = next("J");
-        const name = `J#${index}`;
-        const { gate, started } = slot("J", index);
-        const child = Effect.gen(function* () {
-          const value = yield* Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { events.push(`${name} child interrupted`); })));
+      const joining = define(
+        "joinChild",
+        Effect.gen(function* () {
+          const index = next("J");
+          const name = `J#${index}`;
+          const { gate, started } = slot("J", index);
+          const child = Effect.gen(function* () {
+            const value = yield* Deferred.await(gate).pipe(
+              Effect.onInterrupt(() =>
+                Effect.sync(() => {
+                  events.push(`${name} child interrupted`);
+                }),
+              ),
+            );
 
-          events.push(`${name} child resumed ${value}`);
-          yield* commit(name, value);
-        });
-        const fiber = yield* Effect.fork(child);
+            events.push(`${name} child resumed ${value}`);
+            yield* commit(name, value);
+          });
+          const fiber = yield* Effect.fork(child);
 
-        yield* Deferred.succeed(started, undefined);
-        yield* Fiber.join(fiber);
-      }).pipe(Effect.onExit((exit) => Effect.sync(() => { events.push(`J command exit: ${show(exit)}`); }))));
+          yield* Deferred.succeed(started, undefined);
+          yield* Fiber.join(fiber);
+        }).pipe(
+          Effect.onExit((exit) =>
+            Effect.sync(() => {
+              events.push(`J command exit: ${show(exit)}`);
+            }),
+          ),
+        ),
+      );
 
       return {
         "app/startA": define("A", waitAndCommit("A")),
@@ -114,30 +179,86 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return {
-      draw: (tree) => { port.draw(tree); events.push(`render draw: ${label()}`); },
-      update: (tree) => { port.update(tree); events.push(`render update: ${label()}`); },
+      draw: (tree) => {
+        port.draw(tree);
+        events.push(`render draw: ${label()}`);
+      },
+      update: (tree) => {
+        port.update(tree);
+        events.push(`render update: ${label()}`);
+      },
       hydrate: (tree) => port.hydrate(tree),
-      unmount: () => { port.unmount(); events.push("render unmounted"); },
+      unmount: () => {
+        port.unmount();
+        events.push("render unmounted");
+      },
     };
   };
   const scope = await Effect.runPromise(Scope.make());
 
-  await Effect.runPromise(Scope.addFinalizer(scope, Effect.sync(() => { events.push("platform resource released"); })));   // registered BEFORE start: runs after NEXUS terminates, as a platform resource would
+  await Effect.runPromise(
+    Scope.addFinalizer(
+      scope,
+      Effect.sync(() => {
+        events.push("platform resource released");
+      }),
+    ),
+  ); // registered BEFORE start: runs after NEXUS terminates, as a platform resource would
   const handle = await Effect.runPromise(Valance.start(app, { state: { value: "init" } }).pipe(Scope.extend(scope)));
 
-  Effect.runFork(Stream.runForEach(runningOf(handle).states, (state) => Effect.sync(() => { events.push(`values: ${state.value}`); })).pipe(Effect.onExit(() => Effect.sync(() => { events.push("values ended"); }))));
+  Effect.runFork(
+    Stream.runForEach(runningOf(handle).states, (state) =>
+      Effect.sync(() => {
+        events.push(`values: ${state.value}`);
+      }),
+    ).pipe(
+      Effect.onExit(() =>
+        Effect.sync(() => {
+          events.push("values ended");
+        }),
+      ),
+    ),
+  );
 
   if (options.mount !== false) {
     await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.extend(scope)));
   }
 
-  const invoke = (key: string) => Effect.runFork(Effect.onExit(handle.invoke(key, []), (exit) => Effect.sync(() => { events.push(`caller of ${key}: ${show(exit)}`); })));
-  const closeScope = () => Effect.runFork(Scope.close(scope, Exit.void).pipe(Effect.tap(() => Effect.sync(() => { events.push("scope closed"); }))));
+  const invoke = (key: string) =>
+    Effect.runFork(
+      Effect.onExit(handle.invoke(key, []), (exit) =>
+        Effect.sync(() => {
+          events.push(`caller of ${key}: ${show(exit)}`);
+        }),
+      ),
+    );
+  const closeScope = () =>
+    Effect.runFork(
+      Scope.close(scope, Exit.void).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            events.push("scope closed");
+          }),
+        ),
+      ),
+    );
 
   return {
-    events, handle, page, label, scope, invoke, closeScope,
-    started: (name: string) => { const [l, i] = name.split("#"); return Effect.runPromise(Deferred.await(slot(l!, Number(i)).started)); },
-    release: (name: string, value: string) => { const [l, i] = name.split("#"); return Effect.runPromise(Deferred.succeed(slot(l!, Number(i)).gate, value)); },
+    events,
+    handle,
+    page,
+    label,
+    scope,
+    invoke,
+    closeScope,
+    started: (name: string) => {
+      const [l, i] = name.split("#");
+      return Effect.runPromise(Deferred.await(slot(l!, Number(i)).started));
+    },
+    release: (name: string, value: string) => {
+      const [l, i] = name.split("#");
+      return Effect.runPromise(Deferred.succeed(slot(l!, Number(i)).gate, value));
+    },
     seen: (event: string) => until(() => events.includes(event)),
     state: async () => (await Effect.runPromise(handle.state)).value,
     poll: async (fiber: Fiber.RuntimeFiber<unknown, unknown>) => (await Effect.runPromise(Fiber.poll(fiber)))._tag === "Some",
@@ -155,7 +276,7 @@ describe("async data flow, observed", () => {
 
     await b.started("A#0");
     await yields(500);
-    expect(b.events).toEqual(["values: init", "render draw: init", "A#0 started"]);     // suspended: no commit, no emission, no render
+    expect(b.events).toEqual(["values: init", "render draw: init", "A#0 started"]); // suspended: no commit, no emission, no render
     expect(await b.state()).toBe("init");
 
     await b.release("A#0", "a1");
@@ -171,7 +292,10 @@ describe("async data flow, observed", () => {
 
     await b.seen("render draw: init");
 
-    for (const [index, value] of [[0, "a1"], [1, "a2"]] as const) {
+    for (const [index, value] of [
+      [0, "a1"],
+      [1, "a2"],
+    ] as const) {
       const caller = b.invoke("app/startA");
 
       await b.started(`A#${index}`);
@@ -184,7 +308,10 @@ describe("async data flow, observed", () => {
     expect(b.events.filter((event) => event.startsWith("render"))).toEqual(["render draw: init", "render update: a1", "render update: a2"]);
   });
 
-  for (const [order, first, second] of [["B then A", "B#0", "A#0"], ["A then B", "A#0", "B#0"]] as const) {
+  for (const [order, first, second] of [
+    ["B then A", "B#0", "A#0"],
+    ["A then B", "A#0", "B#0"],
+  ] as const) {
     it(`C/D: A and B started in that order, completed ${order}: completion order decides the state; the older start can overwrite the newer`, async () => {
       const b = await boot();
 
@@ -204,7 +331,7 @@ describe("async data flow, observed", () => {
 
       expect(b.events.filter((event) => event.startsWith("values:"))).toEqual(["values: init", `values: ${firstValue}`, `values: ${secondValue}`]);
       expect(b.events.filter((event) => event.startsWith("render"))).toEqual(["render draw: init", `render update: ${firstValue}`, `render update: ${secondValue}`]);
-      expect(await b.state()).toBe(secondValue);                         // the LAST COMPLETION wins; the invocation order is irrelevant
+      expect(await b.state()).toBe(secondValue); // the LAST COMPLETION wins; the invocation order is irrelevant
     });
   }
 
@@ -216,11 +343,11 @@ describe("async data flow, observed", () => {
 
     await b.started("A#0");
     await Effect.runPromise(Fiber.interrupt(caller));
-    await b.release("A#0", "late");                                       // too late: nobody is waiting
+    await b.release("A#0", "late"); // too late: nobody is waiting
     await yields(500);
 
     expect(b.events.slice(2)).toEqual(["A#0 started", "A#0 gate wait interrupted", "A command exit: interrupted", "caller of app/startA: interrupted"]);
-    expect(await b.state()).toBe("init");                                // no commit, no emission, no render
+    expect(await b.state()).toBe("init"); // no commit, no emission, no render
     expect(b.events.filter((event) => event.startsWith("values:") || event.startsWith("render"))).toEqual(["values: init", "render draw: init"]);
 
     // healthy: a new command runs end to end, and the Scope closes without waiting for the interrupted one
@@ -231,7 +358,7 @@ describe("async data flow, observed", () => {
     await Effect.runPromise(Fiber.join(again));
     await b.seen("render update: b1");
     await Effect.runPromise(Fiber.join(b.closeScope()));
-    expect(b.events.filter((event) => event.includes("command exit")).filter((event) => event.startsWith("A"))).toEqual(["A command exit: interrupted"]);   // exited once, not drained again
+    expect(b.events.filter((event) => event.includes("command exit")).filter((event) => event.startsWith("A"))).toEqual(["A command exit: interrupted"]); // exited once, not drained again
     expect(b.events.at(-1)).toBe("scope closed");
   });
 
@@ -285,8 +412,8 @@ describe("async data flow, observed", () => {
       }
 
       console.log(`G race (${order}) outcomes`, JSON.stringify([...outcomes]));
-      expect(outcomes.size).toBe(1);                                     // one deterministic outcome
-      expect([...outcomes.keys()][0]).toContain("exit before release: true");   // and the lifetime contract holds in it
+      expect(outcomes.size).toBe(1); // one deterministic outcome
+      expect([...outcomes.keys()][0]).toContain("exit before release: true"); // and the lifetime contract holds in it
     });
   }
 

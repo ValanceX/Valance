@@ -41,9 +41,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   let status: Status = "starting";
   let root: string | undefined;
   let workspace: string | undefined;
-  let served: LspSettings | undefined;                       // what the running server was last told, written from the workspace
-  let known = new Set<string>();                             // the templates the project compiled, from the project (not the workspace)
-  let wiringFile: string | undefined;                        // `.valance/wiring.json`, relative to the project
+  let served: LspSettings | undefined; // what the running server was last told, written from the workspace
+  let known = new Set<string>(); // the templates the project compiled, from the project (not the workspace)
+  let wiringFile: string | undefined; // `.valance/wiring.json`, relative to the project
   const lensesChanged = new vscode.EventEmitter<void>();
   let told = new Set<Status>();
 
@@ -60,7 +60,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     // Said once per kind: a warning on every refresh would be noise; a problem that is only in an output channel is not seen at all.
     if (next !== "ready" && next !== "starting" && !told.has(next)) {
       told.add(next);
-      void vscode.window.showWarningMessage(`VALANCE: ${detail}`, "Show details").then((choice) => { if (choice !== undefined) { output.show(true); } });
+      void vscode.window.showWarningMessage(`VALANCE: ${detail}`, "Show details").then((choice) => {
+        if (choice !== undefined) {
+          output.show(true);
+        }
+      });
     }
   };
 
@@ -68,14 +72,21 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   const markUnmapped = (): void => {
     notes.clear();
 
-    if (root === undefined || (status !== "ready" && status !== "partial")) { return; }
+    if (root === undefined || (status !== "ready" && status !== "partial")) {
+      return;
+    }
 
     for (const document of vscode.workspace.textDocuments) {
       const path = document.uri.fsPath;
 
-      if (document.languageId !== "mprx" || !path.startsWith(root)) { continue; }
+      if (document.languageId !== "mprx" || !path.startsWith(root)) {
+        continue;
+      }
 
-      const file = path.slice(root.length + 1).split("\\").join("/");
+      const file = path
+        .slice(root.length + 1)
+        .split("\\")
+        .join("/");
 
       if (file.startsWith("src/") && !known.has(file)) {
         const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, Number.MAX_SAFE_INTEGER), unmappedMessage(file), vscode.DiagnosticSeverity.Information);
@@ -98,17 +109,24 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     root = pick?.project;
     workspace = pick?.folder;
 
-    if (found.length > 1) { output.appendLine(`More than one VALANCE project here: ${found.map((each) => each.project).join(", ")}. Using ${root}. (One project per window is supported.)`); }
+    if (found.length > 1) {
+      output.appendLine(`More than one VALANCE project here: ${found.map((each) => each.project).join(", ")}. Using ${root}. (One project per window is supported.)`);
+    }
   };
 
   const manifestFile = (): string => join(root!, ".valance", "manifest.json");
 
   /** The lines of manifest.json that a definition answer points into. */
   const manifestLines = (answer: unknown): ReadonlyArray<number> => {
-    if (root === undefined || !existsSync(manifestFile())) { return []; }
+    if (root === undefined || !existsSync(manifestFile())) {
+      return [];
+    }
 
-    return ([] as Array<{ uri?: vscode.Uri; range?: vscode.Range; targetUri?: vscode.Uri; targetRange?: vscode.Range }>).concat((answer ?? []) as never)
-      .flatMap((item) => { const uri = item.targetUri ?? item.uri; const range = item.targetRange ?? item.range; return uri?.fsPath === manifestFile() && range !== undefined ? [range.start.line] : []; });
+    return ([] as Array<{ uri?: vscode.Uri; range?: vscode.Range; targetUri?: vscode.Uri; targetRange?: vscode.Range }>).concat((answer ?? []) as never).flatMap((item) => {
+      const uri = item.targetUri ?? item.uri;
+      const range = item.targetRange ?? item.range;
+      return uri?.fsPath === manifestFile() && range !== undefined ? [range.start.line] : [];
+    });
   };
 
   // ---- template language server -----------------------------------------------------------------------------------------------------------------------------------
@@ -173,7 +191,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     show("starting", "Starting the template language server…");
 
     // A path the author configured is started as it is (a native binary); the project's own server is its script, run by Node.
-    const server: ServerOptions = configured !== "" ? { command, args: [], options: { shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(command) } } : { command: process.execPath, args: [command], options: { env: NODE_ENV } };
+    const server: ServerOptions =
+      configured !== ""
+        ? { command, args: [], options: { shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(command) } }
+        : { command: process.execPath, args: [command], options: { env: NODE_ENV } };
     const options: LanguageClientOptions = {
       documentSelector: [{ language: "mprx" }, { language: "json", pattern: `${workspace}/${settings.model}` }],
       initializationOptions: settings,
@@ -184,7 +205,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
           configuration: async (params, token, next) => {
             const base = (await next(params, token)) as ReadonlyArray<unknown>;
 
-            return params.items.map((item, at) => item.section === "mesh" && served !== undefined ? served : base[at]);
+            return params.items.map((item, at) => (item.section === "mesh" && served !== undefined ? served : base[at]));
           },
         },
         // The server answers every definition with the manifest (generated JSON), because that is all MESH knows. `vlx` knows where each name was declared: translate to that one place.
@@ -197,10 +218,14 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
           for (const line of manifestLines(answer)) {
             const place = authoredPlace(wiring, readFileSync(manifestFile(), "utf8"), line);
 
-            if (place !== undefined) { translated.push(new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1))); }
+            if (place !== undefined) {
+              translated.push(new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1)));
+            }
           }
 
-          if (translated.length > 0) { return translated; }
+          if (translated.length > 0) {
+            return translated;
+          }
 
           // Without a record (a project built by an older `vlx`): a component's tag still goes to its template.
           const tag = document.getText(document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_-]*/));
@@ -229,11 +254,16 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   // ---- everything else the project can get wrong -------------------------------------------------------------------------------------------------------------------
 
   const check = async (): Promise<void> => {
-    if (root === undefined) { return; }
+    if (root === undefined) {
+      return;
+    }
 
     const command = script(root, "@valancex/cli", "bin/vlx.js");
 
-    if (!existsSync(command)) { output.appendLine(`vlx not found at ${command}: install @valancex/cli in the project to see content diagnostics.`); return; }
+    if (!existsSync(command)) {
+      output.appendLine(`vlx not found at ${command}: install @valancex/cli in the project to see content diagnostics.`);
+      return;
+    }
 
     try {
       const found = forTheCheck(await run(root, command), known).map(place);
@@ -251,7 +281,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
       collection.clear();
 
-      for (const [file, list] of byFile) { collection.set(vscode.Uri.file(join(root, file)), list); }
+      for (const [file, list] of byFile) {
+        collection.set(vscode.Uri.file(join(root, file)), list);
+      }
     } catch (error) {
       output.appendLine(`vlx check: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -262,25 +294,42 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   choose();
 
   const watcher = vscode.workspace.createFileSystemWatcher("**/.valance/editor.json");
-  const onProject = (): void => { choose(); void refresh(); };
+  const onProject = (): void => {
+    choose();
+    void refresh();
+  };
 
   // The other end of each connection, next to this one: where a component goes and what is passed, who handles an event, who reads a state field (see `lensesFor`).
   const lensProvider: vscode.CodeLensProvider = {
     onDidChangeCodeLenses: lensesChanged.event,
     provideCodeLenses: (document) => {
-      if (root === undefined || !vscode.workspace.getConfiguration("valance").get<boolean>("codeLens", true)) { return []; }
+      if (root === undefined || !vscode.workspace.getConfiguration("valance").get<boolean>("codeLens", true)) {
+        return [];
+      }
 
       const wiring = readWiring(root, wiringFile);
       const path = document.uri.fsPath;
 
-      if (wiring === undefined || !path.startsWith(root)) { return []; }
+      if (wiring === undefined || !path.startsWith(root)) {
+        return [];
+      }
 
-      return lensesFor(wiring, path.slice(root.length + 1).split("\\").join("/")).map((lens) => {
-        const where = (place: { readonly file: string; readonly line: number; readonly column: number }): vscode.Location => new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1));
+      return lensesFor(
+        wiring,
+        path
+          .slice(root.length + 1)
+          .split("\\")
+          .join("/"),
+      ).map((lens) => {
+        const where = (place: { readonly file: string; readonly line: number; readonly column: number }): vscode.Location =>
+          new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1));
         const range = new vscode.Range(lens.line, 0, lens.line, 0);
-        const command: vscode.Command = lens.targets.length === 0 ? { title: lens.title, command: "" }
-          : lens.targets.length === 1 ? { title: lens.title, command: "vscode.open", arguments: [where(lens.targets[0]!).uri, { selection: where(lens.targets[0]!).range }] }
-          : { title: lens.title, command: "editor.action.peekLocations", arguments: [document.uri, range.start, lens.targets.map(where), "peek"] };
+        const command: vscode.Command =
+          lens.targets.length === 0
+            ? { title: lens.title, command: "" }
+            : lens.targets.length === 1
+              ? { title: lens.title, command: "vscode.open", arguments: [where(lens.targets[0]!).uri, { selection: where(lens.targets[0]!).range }] }
+              : { title: lens.title, command: "editor.action.peekLocations", arguments: [document.uri, range.start, lens.targets.map(where), "peek"] };
 
         return new vscode.CodeLens(range, command);
       });
@@ -289,17 +338,24 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   // Find All References, from the name under the cursor. The server says which manifest key it is (its definition); `vlx` says everywhere that key is used.
   const referenceProvider: vscode.ReferenceProvider = {
     provideReferences: async (document, position, context) => {
-      if (root === undefined || client === undefined || !existsSync(manifestFile())) { return []; }
+      if (root === undefined || client === undefined || !existsSync(manifestFile())) {
+        return [];
+      }
 
-      const answer = await client.sendRequest("textDocument/definition", { textDocument: { uri: document.uri.toString() }, position: { line: position.line, character: position.character } });
+      const answer = await client.sendRequest("textDocument/definition", {
+        textDocument: { uri: document.uri.toString() },
+        position: { line: position.line, character: position.character },
+      });
       const wiring = readWiring(root, wiringFile);
       const asked = ([] as Array<{ uri: string; range: { start: { line: number } } }>).concat((answer ?? []) as never);
-      const places = asked.filter((item) => vscode.Uri.parse(item.uri).fsPath === manifestFile()).flatMap((item) => {
-        const text = readFileSync(manifestFile(), "utf8");
-        const declared = context.includeDeclaration ? [authoredPlace(wiring, text, item.range.start.line)] : [];
+      const places = asked
+        .filter((item) => vscode.Uri.parse(item.uri).fsPath === manifestFile())
+        .flatMap((item) => {
+          const text = readFileSync(manifestFile(), "utf8");
+          const declared = context.includeDeclaration ? [authoredPlace(wiring, text, item.range.start.line)] : [];
 
-        return [...declared, ...referencesOf(wiring, text, item.range.start.line)].filter((place): place is NonNullable<typeof place> => place !== undefined);
-      });
+          return [...declared, ...referencesOf(wiring, text, item.range.start.line)].filter((place): place is NonNullable<typeof place> => place !== undefined);
+        });
 
       return places.map((place) => new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1)));
     },
@@ -307,13 +363,14 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   const wiringWatcher = vscode.workspace.createFileSystemWatcher("**/.valance/wiring.json");
   // `import layout from "./layout.mprx"`: TypeScript resolves the specifier to its ambient declaration, so the specifier is made a link to the template itself.
   const importLinks: vscode.DocumentLinkProvider = {
-    provideDocumentLinks: (document) => templateImports(document.getText()).map((each) => {
-      const link = new vscode.DocumentLink(new vscode.Range(each.line, each.start, each.line, each.end), vscode.Uri.file(join(dirname(document.uri.fsPath), each.specifier)));
+    provideDocumentLinks: (document) =>
+      templateImports(document.getText()).map((each) => {
+        const link = new vscode.DocumentLink(new vscode.Range(each.line, each.start, each.line, each.end), vscode.Uri.file(join(dirname(document.uri.fsPath), each.specifier)));
 
-      link.tooltip = "Open the template";
+        link.tooltip = "Open the template";
 
-      return link;
-    }),
+        return link;
+      }),
   };
 
   context.subscriptions.push(
@@ -321,9 +378,17 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     vscode.languages.registerReferenceProvider({ language: "mprx" }, referenceProvider),
     vscode.languages.registerDocumentLinkProvider({ pattern: "**/src/**/*.ts" }, importLinks),
     wiringWatcher,
-    wiringWatcher.onDidChange(() => { lensesChanged.fire(); }),
-    wiringWatcher.onDidCreate(() => { lensesChanged.fire(); void refresh(); }),
-    wiringWatcher.onDidDelete(() => { lensesChanged.fire(); void refresh(); }),
+    wiringWatcher.onDidChange(() => {
+      lensesChanged.fire();
+    }),
+    wiringWatcher.onDidCreate(() => {
+      lensesChanged.fire();
+      void refresh();
+    }),
+    wiringWatcher.onDidDelete(() => {
+      lensesChanged.fire();
+      void refresh();
+    }),
     watcher,
     watcher.onDidCreate(onProject),
     watcher.onDidChange(onProject),
@@ -331,11 +396,27 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     vscode.workspace.onDidChangeWorkspaceFolders(onProject),
     vscode.workspace.onDidOpenTextDocument(markUnmapped),
     vscode.workspace.onDidCloseTextDocument(markUnmapped),
-    vscode.workspace.onDidSaveTextDocument((document) => { if (root !== undefined && /\.(md|mprx|ts|json)$/.test(document.fileName) && document.uri.fsPath.startsWith(root)) { void check(); } }),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (root !== undefined && /\.(md|mprx|ts|json)$/.test(document.fileName) && document.uri.fsPath.startsWith(root)) {
+        void check();
+      }
+    }),
     vscode.commands.registerCommand("valance.check", check),
-    vscode.commands.registerCommand("valance.showOutput", () => { output.show(true); }),
-    vscode.commands.registerCommand("valance.restart", async () => { await stop(); told = new Set(); choose(); await refresh(); await check(); }),
-    { dispose: () => { void stop(); } },
+    vscode.commands.registerCommand("valance.showOutput", () => {
+      output.show(true);
+    }),
+    vscode.commands.registerCommand("valance.restart", async () => {
+      await stop();
+      told = new Set();
+      choose();
+      await refresh();
+      await check();
+    }),
+    {
+      dispose: () => {
+        void stop();
+      },
+    },
   );
 
   await refresh();

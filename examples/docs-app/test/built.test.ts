@@ -30,9 +30,17 @@ const open = async (path: string): Promise<{ readonly page: Page; readonly error
   const errors: Array<string> = [];
   let loads = 0;
 
-  page.on("pageerror", (error) => { errors.push(error.message); });
-  page.on("console", (message) => { if (message.type() === "error" && !/status of 404/.test(message.text())) { errors.push(message.text()); } });
-  page.on("load", () => { loads += 1; });
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error" && !/status of 404/.test(message.text())) {
+      errors.push(message.text());
+    }
+  });
+  page.on("load", () => {
+    loads += 1;
+  });
   await page.goto(`${origin}${path}`);
   await page.waitForSelector('#app[data-valance="running"], #app[data-valance="failed"]');
 
@@ -41,7 +49,11 @@ const open = async (path: string): Promise<{ readonly page: Page; readonly error
 
 describe("the built site, in a browser", () => {
   it("loads every page directly, hydrated, with its own title, and draws the logo from public/", async () => {
-    for (const [path, title, heading] of [["/", "Notes", "Notes"], ["/guide/getting-started", "Getting started · Notes", "Getting started"], ["/guide/writing-pages/", "Writing pages · Notes", "Writing pages"]] as const) {
+    for (const [path, title, heading] of [
+      ["/", "Notes", "Notes"],
+      ["/guide/getting-started", "Getting started · Notes", "Getting started"],
+      ["/guide/writing-pages/", "Writing pages · Notes", "Writing pages"],
+    ] as const) {
       const { page, errors } = await open(path);
 
       expect(await page.getAttribute("#app", "data-valance")).toBe("running");

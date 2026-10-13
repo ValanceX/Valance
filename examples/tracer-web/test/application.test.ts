@@ -20,19 +20,34 @@ import { primitives } from "../src/catalog/web.js";
 import { readFileSync } from "node:fs";
 import { load, until } from "./helpers.js";
 
-const ONE: ReadonlyArray<Item> = [{ id: "A", name: "Alpha" }];
-const TWO: ReadonlyArray<Item> = [{ id: "A", name: "Alpha" }, { id: "B", name: "Beta" }];
-const THREE: ReadonlyArray<Item> = [{ id: "A", name: "Alpha" }, { id: "B", name: "Beta" }, { id: "C", name: "Gamma" }];
+const TWO: ReadonlyArray<Item> = [
+  { id: "A", name: "Alpha" },
+  { id: "B", name: "Beta" },
+];
+const THREE: ReadonlyArray<Item> = [
+  { id: "A", name: "Alpha" },
+  { id: "B", name: "Beta" },
+  { id: "C", name: "Gamma" },
+];
 
 type Operation = "draw" | "update";
-
 
 /** A platform whose one scoped resource counts acquisition and release: the NEXUS runtime's lifetime, observed. */
 const countingPlatform = () => {
   const counts = { acquired: 0, released: 0 };
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(Effect.acquireRelease(Effect.sync(() => { counts.acquired += 1; }), () => Effect.sync(() => { counts.released += 1; })))
+    Layer.scopedDiscard(
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          counts.acquired += 1;
+        }),
+        () =>
+          Effect.sync(() => {
+            counts.released += 1;
+          }),
+      ),
+    ),
   );
 
   return { platform, counts };
@@ -64,59 +79,91 @@ const steps: ReadonlyArray<Step> = [
 ];
 
 /** Runs the scenario against a target, counting how often the application's own definition was asked to build behavior. */
-const run = async (makeTarget: (operations: Array<Operation>) => Valance.TargetFactory<Valance.Target>, ctxOf: (handle: Valance.ApplicationHandle<AppState, unknown>) => Pick<Ctx, "openFirst" | "back">, observe?: (step: string, state: AppState) => void) => {
+const run = async (
+  makeTarget: (operations: Array<Operation>) => Valance.TargetFactory<Valance.Target>,
+  ctxOf: (handle: Valance.ApplicationHandle<AppState, unknown>) => Pick<Ctx, "openFirst" | "back">,
+  observe?: (step: string, state: AppState) => void,
+) => {
   const base = application(await compilePrograms());
   const built: Array<Nexus.State.StateHandle<AppState>> = [];
-  const app = { ...base, commands: (state: Nexus.State.StateHandle<AppState>) => { built.push(state); return base.commands(state); } };
+  const app = {
+    ...base,
+    commands: (state: Nexus.State.StateHandle<AppState>) => {
+      built.push(state);
+      return base.commands(state);
+    },
+  };
   const operations: Array<Operation> = [];
   const shown: Array<string> = [];
   const { platform, counts } = countingPlatform();
   const status: Array<string> = [];
   let ended!: { running: Running<AppState, unknown>; mounted: Valance.Mounted<unknown> };
 
-  await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-    const handle = (yield* Valance.start(app, { platform })) as unknown as Valance.ApplicationHandle<AppState, unknown>;
-    const running = runningOf(handle);
-    // Which view each rendered state selected, in order.
-    const watched = handleOf({ ...running, values: Stream.tap(running.values, (viewed) => Effect.sync(() => { shown.push(viewed.view); })) });
-    const mounted = yield* Valance.mount(watched, makeTarget(operations));
-    ended = { running, mounted: mounted as never };
-    const ctx: Ctx = {
-      invoke: (key, value) => Effect.runPromise(handle.invoke(key, value === undefined ? [] : [{ value }])).then(() => undefined),
-      ...ctxOf(handle),
-    };
-    const observeStatus = Effect.gen(function* () { status.push((yield* Nexus.Application.status(running.nexus))._tag); });
+  await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const handle = (yield* Valance.start(app, { platform })) as unknown as Valance.ApplicationHandle<AppState, unknown>;
+        const running = runningOf(handle);
+        // Which view each rendered state selected, in order.
+        const watched = handleOf({
+          ...running,
+          values: Stream.tap(running.values, (viewed) =>
+            Effect.sync(() => {
+              shown.push(viewed.view);
+            }),
+          ),
+        });
+        const mounted = yield* Valance.mount(watched, makeTarget(operations));
+        ended = { running, mounted: mounted as never };
+        const ctx: Ctx = {
+          invoke: (key, value) => Effect.runPromise(handle.invoke(key, value === undefined ? [] : [{ value }])).then(() => undefined),
+          ...ctxOf(handle),
+        };
+        const observeStatus = Effect.gen(function* () {
+          status.push((yield* Nexus.Application.status(running.nexus))._tag);
+        });
 
-    expect(operations).toEqual(["draw"]);
-    expect((yield* running.state).view).toBe("home");
-    yield* observeStatus;
+        expect(operations).toEqual(["draw"]);
+        expect((yield* running.state).view).toBe("home");
+        yield* observeStatus;
 
-    for (const [index, step] of steps.entries()) {
-      yield* Effect.promise(async () => { await step.act(ctx); await until(() => operations.length === index + 2); });
-      const state = yield* running.state;
+        for (const [index, step] of steps.entries()) {
+          yield* Effect.promise(async () => {
+            await step.act(ctx);
+            await until(() => operations.length === index + 2);
+          });
+          const state = yield* running.state;
 
-      // The selected view is the state's: the last thing rendered is the view the one state selects.
-      expect(state.view, step.name).toBe(step.view);
-      expect(shown.at(-1), step.name).toBe(state.view);
-      expect(operations.at(-1), step.name).toBe(step.operation);
-      observe?.(step.name, state);
-      yield* observeStatus;
-    }
+          // The selected view is the state's: the last thing rendered is the view the one state selects.
+          expect(state.view, step.name).toBe(step.view);
+          expect(shown.at(-1), step.name).toBe(state.view);
+          expect(operations.at(-1), step.name).toBe(step.operation);
+          observe?.(step.name, state);
+          yield* observeStatus;
+        }
 
-    // Data survived every transition: the one state is the only place it lives.
-    expect((yield* running.state).items).toEqual(THREE);
-    expect(counts).toEqual({ acquired: 1, released: 0 });
-  })));
+        // Data survived every transition: the one state is the only place it lives.
+        expect((yield* running.state).items).toEqual(THREE);
+        expect(counts).toEqual({ acquired: 1, released: 0 });
+      }),
+    ),
+  );
 
   return { built, operations, shown, counts, status, ended };
 };
 
 /** No target at all: PORT's contract as a recording, with no DOM, no window and no history. */
-const bare = (operations: Array<Operation>): Valance.TargetFactory<Valance.Target> => () => ({
-  draw: () => { operations.push("draw"); },
-  update: () => { operations.push("update"); },
-  unmount: () => undefined,
-});
+const bare =
+  (operations: Array<Operation>): Valance.TargetFactory<Valance.Target> =>
+  () => ({
+    draw: () => {
+      operations.push("draw");
+    },
+    update: () => {
+      operations.push("update");
+    },
+    unmount: () => undefined,
+  });
 
 const expectedOperations = ["draw", "update", "draw", "update", "draw", "draw", "draw"];
 const expectedViews = ["home", "home", "details", "details", "home", "not-found", "details"];
@@ -145,16 +192,33 @@ describe("the application model", () => {
     const page = load("");
     const sections: Array<Element | null> = [];
     const text: Array<string> = [];
-    const web = (operations: Array<Operation>): Valance.TargetFactory<Valance.Target> => (report) => {
-      const port = Web.target({ container: page.container, primitives })(report);
+    const web =
+      (operations: Array<Operation>): Valance.TargetFactory<Valance.Target> =>
+      (report) => {
+        const port = Web.target({ container: page.container, primitives })(report);
 
-      return {
-        draw: (tree) => { operations.push("draw"); port.draw(tree); sections.push(page.container.firstElementChild); text.push(page.container.textContent ?? ""); },
-        update: (tree) => { operations.push("update"); port.update(tree); sections.push(page.container.firstElementChild); text.push(page.container.textContent ?? ""); },
-        unmount: () => { port.unmount(); },
+        return {
+          draw: (tree) => {
+            operations.push("draw");
+            port.draw(tree);
+            sections.push(page.container.firstElementChild);
+            text.push(page.container.textContent ?? "");
+          },
+          update: (tree) => {
+            operations.push("update");
+            port.update(tree);
+            sections.push(page.container.firstElementChild);
+            text.push(page.container.textContent ?? "");
+          },
+          unmount: () => {
+            port.unmount();
+          },
+        };
       };
+    const press = (): Promise<void> => {
+      page.click(page.container.querySelector("button")!);
+      return Promise.resolve();
     };
-    const press = (): Promise<void> => { page.click(page.container.querySelector("button")!); return Promise.resolve(); };
     const result = await run(web, () => ({ openFirst: press, back: press }));
 
     expect(result.operations).toEqual(expectedOperations);
@@ -182,15 +246,19 @@ describe("the application model", () => {
 
   it("a data change can change the view, because the application decides view and data together", async () => {
     const app = application(await compilePrograms());
-    const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const running = yield* Valance.start(app);
-      const invoke = (key: string, value?: BoundaryValue) => running.invoke(key, value === undefined ? [] : [{ value }]).pipe(Effect.orDie);
+    const result = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const running = yield* Valance.start(app);
+          const invoke = (key: string, value?: BoundaryValue) => running.invoke(key, value === undefined ? [] : [{ value }]).pipe(Effect.orDie);
 
-      yield* invoke("app/open", "A");
-      yield* invoke("app/changeItems", [{ id: "B", name: "Beta" }] as never);              // A is gone
+          yield* invoke("app/open", "A");
+          yield* invoke("app/changeItems", [{ id: "B", name: "Beta" }] as never); // A is gone
 
-      return yield* running.state;
-    })));
+          return yield* running.state;
+        }),
+      ),
+    );
 
     expect(result).toEqual({ view: "not-found", items: [{ id: "B", name: "Beta" }] });
   });

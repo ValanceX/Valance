@@ -6,7 +6,8 @@ import * as Web from "@valancex/valance/web";
 import { Deferred, Effect, Schema } from "effect";
 
 export const manifest = JSON.stringify({
-  version: 1, types: {},
+  version: 1,
+  types: {},
   components: {
     page: { props: {}, events: {}, commands: {}, scope: {} },
     text: { props: {}, events: {}, commands: {}, scope: {} },
@@ -24,14 +25,19 @@ export const urlOf = ({ page }: State): string => `/app/${page}`;
 export const stateOf = (url: URL): { readonly page: string } => ({ page: url.pathname.slice("/app/".length) });
 
 /** `gate` makes the navigate command WAIT after committing, as a command that loads what its destination shows would. */
-export const application = (program: Parameters<typeof Valance.define>[0]["views"][string]["program"], gate?: Deferred.Deferred<void>) => Valance.define({
-  name: "links",
-  state: { schema: State, initial: { page: "home" } },
-  views: { shell: { program, scope: (state: State) => ({ title: `page ${state.page}` }) } },
-  view: () => "shell" as const,
-  commands: (state) => ({
-    // history's `navigate: "go"`: the navigation fact is this command's input
-    go: Nexus.Command.define("links.go", Schema.Struct({ page: Schema.String }), ({ page }) =>
-      Effect.zipRight(state.update((current) => Effect.succeed({ ...current, page })), gate === undefined ? Effect.void : Deferred.await(gate))),
-  }),
-});
+export const application = (program: Parameters<typeof Valance.define>[0]["views"][string]["program"], gate?: Deferred.Deferred<void>) =>
+  Valance.define({
+    name: "links",
+    state: { schema: State, initial: { page: "home" } },
+    views: { shell: { program, scope: (state: State) => ({ title: `page ${state.page}` }) } },
+    view: () => "shell" as const,
+    commands: (state) => ({
+      // history's `navigate: "go"`: the navigation fact is this command's input
+      go: Nexus.Command.define("links.go", Schema.Struct({ page: Schema.String }), ({ page }) =>
+        Effect.zipRight(
+          state.update((current) => Effect.succeed({ ...current, page })),
+          gate === undefined ? Effect.void : Deferred.await(gate),
+        ),
+      ),
+    }),
+  });

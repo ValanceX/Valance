@@ -25,13 +25,17 @@ beforeAll(async () => {
 
   const project = readProject(app);
 
-  if (project.kind !== "ready") { throw new Error(`the example is not ready: ${project.kind}`); }
+  if (project.kind !== "ready") {
+    throw new Error(`the example is not ready: ${project.kind}`);
+  }
 
   layout = readFileSync(join(app, "src/layout.mprx"), "utf8");
   client = await connect(process.execPath, app, project.settings, [server]);
 });
 
-afterAll(async () => { await client?.stop(); });
+afterAll(async () => {
+  await client?.stop();
+});
 
 const lineOf = (text: string, needle: string): { line: number; character: number } => {
   const lines = text.split("\n");
@@ -69,7 +73,11 @@ describe("the real language server on a real project", () => {
     expect(found.map((each) => each.code).sort()).toEqual(["missing-required-prop", "unknown-reference"]);
     expect(found.find((each) => each.code === "unknown-reference")!.range.start).toEqual({ line: lineOf(broken, "sitee").line, character: lineOf(broken, "sitee").character - 1 });
 
-    const actions = await client.request("textDocument/codeAction", { textDocument: { uri }, range: found.find((each) => each.code === "unknown-reference")!.range, context: { diagnostics: [found.find((each) => each.code === "unknown-reference")] } });
+    const actions = await client.request("textDocument/codeAction", {
+      textDocument: { uri },
+      range: found.find((each) => each.code === "unknown-reference")!.range,
+      context: { diagnostics: [found.find((each) => each.code === "unknown-reference")] },
+    });
 
     expect((actions.result as Array<{ title: string }>).map((each) => each.title)).toEqual(['Replace with "site"']);
 
@@ -109,7 +117,9 @@ describe("a project inside a larger workspace (the window opened on a folder abo
 
     const project = readProject(app);
 
-    if (project.kind !== "ready") { throw new Error("the example is not ready"); }
+    if (project.kind !== "ready") {
+      throw new Error("the example is not ready");
+    }
 
     const broken = layout.replace("{site}", "{sitee}");
     const ask = async (settings: unknown, file: string): Promise<ReadonlyArray<string>> => {
@@ -136,14 +146,16 @@ describe("a project that changes while the server runs", () => {
   it("is picked up through didChangeConfiguration: a file the server did not know becomes one it checks", async () => {
     const project = readProject(app);
 
-    if (project.kind !== "ready") { throw new Error("the example is not ready"); }
+    if (project.kind !== "ready") {
+      throw new Error("the example is not ready");
+    }
 
     const inner = await connect(process.execPath, app, { model: project.settings.model, components: {} }, [server]);
     const broken = layout.replace("{site}", "{sitee}");
 
     inner.open("src/layout.mprx", "mprx", broken);
     await new Promise((resolve) => setTimeout(resolve, 1200));
-    expect(inner.diagnostics.get(inner.uri("src/layout.mprx"))).toEqual([]);                  // not mapped to a component: checked without a model, so nothing to say
+    expect(inner.diagnostics.get(inner.uri("src/layout.mprx"))).toEqual([]); // not mapped to a component: checked without a model, so nothing to say
 
     inner.configure(project.settings);
     await inner.until(() => (inner.diagnostics.get(inner.uri("src/layout.mprx"))?.length ?? 0) > 0);
@@ -159,14 +171,21 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     const at = text.findIndex((each) => each.includes(line));
     const project = readProject(app);
 
-    if (project.kind !== "ready") { throw new Error("not ready"); }
+    if (project.kind !== "ready") {
+      throw new Error("not ready");
+    }
 
     client.open(file, "mprx", readFileSync(join(app, file), "utf8"));
 
-    const answer = await client.request("textDocument/definition", { textDocument: { uri: client.uri(file) }, position: { line: at, character: text[at]!.indexOf(needle) + shift } });
+    const answer = await client.request("textDocument/definition", {
+      textDocument: { uri: client.uri(file) },
+      position: { line: at, character: text[at]!.indexOf(needle) + shift },
+    });
     const location = ([] as Array<{ uri: string; range: { start: { line: number } } }>).concat(answer.result ?? [])[0];
 
-    return location === undefined || !location.uri.endsWith("/.valance/manifest.json") ? undefined : { manifest: readFileSync(join(app, ".valance/manifest.json"), "utf8"), line: location.range.start.line };
+    return location === undefined || !location.uri.endsWith("/.valance/manifest.json")
+      ? undefined
+      : { manifest: readFileSync(join(app, ".valance/manifest.json"), "utf8"), line: location.range.start.line };
   };
 
   /** Go to Definition: the one place. */
@@ -183,7 +202,9 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     const answered = await ask(file, line, needle, shift);
     const project = readProject(app);
 
-    return answered === undefined || project.kind !== "ready" ? [] : referencesOf(readWiring(app, project.wiring), answered.manifest, answered.line).map((place) => `${place.file}:${place.line}`);
+    return answered === undefined || project.kind !== "ready"
+      ? []
+      : referencesOf(readWiring(app, project.wiring), answered.manifest, answered.line).map((place) => `${place.file}:${place.line}`);
   };
 
   it("goes in from the layout: the tag to the component's template, its event and prop to where main.ts declares them, the state and the command to main.ts", async () => {
@@ -201,18 +222,21 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
   });
 
   it("is the same declaration from inside the component (where VS Code then shows the references), and the many uses are references, not a jump", async () => {
-    const layoutLine = readFileSync(join(app, "src/layout.mprx"), "utf8").split("\n").findIndex((each) => each.includes("<theme-toggle")) + 1;
+    const layoutLine =
+      readFileSync(join(app, "src/layout.mprx"), "utf8")
+        .split("\n")
+        .findIndex((each) => each.includes("<theme-toggle")) + 1;
 
     const wiring = readWiring(app, ".valance/wiring.json")!;
     const declared = wiring.tree!.find((each) => each.name === "theme-toggle")!.declared!;
     const event = wiring.definitions["components/theme-toggle/events/toggle"]!;
 
     expect(await where("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toBe(`${event.file}:${event.line}`);
-    expect(await uses("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toEqual(["src/theme-toggle.mprx:1", `src/layout.mprx:${layoutLine}`]);        // where it is raised, and every handler
-    expect(await uses("src/theme-toggle.mprx", "on.click", "{theme ==", 2)).toEqual(["src/theme-toggle.mprx:1", `src/layout.mprx:${layoutLine}`]);        // where it is read, and every place it is passed
-    expect(await uses("src/layout.mprx", "<theme-toggle", "toggleTheme", 2)).toEqual([`src/layout.mprx:${layoutLine}`]);        // every place the command runs
-    expect(await uses("src/layout.mprx", "<theme-toggle", "{theme}", 2)).toEqual([`src/layout.mprx:1`, `src/layout.mprx:${layoutLine}`]);   // every place the state is read
-    expect(await uses("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toEqual([`${declared.file}:${declared.line}`, `src/layout.mprx:${layoutLine}`]);       // where it is declared, and every use
+    expect(await uses("src/theme-toggle.mprx", "on.click", "toggle()", 1)).toEqual(["src/theme-toggle.mprx:1", `src/layout.mprx:${layoutLine}`]); // where it is raised, and every handler
+    expect(await uses("src/theme-toggle.mprx", "on.click", "{theme ==", 2)).toEqual(["src/theme-toggle.mprx:1", `src/layout.mprx:${layoutLine}`]); // where it is read, and every place it is passed
+    expect(await uses("src/layout.mprx", "<theme-toggle", "toggleTheme", 2)).toEqual([`src/layout.mprx:${layoutLine}`]); // every place the command runs
+    expect(await uses("src/layout.mprx", "<theme-toggle", "{theme}", 2)).toEqual([`src/layout.mprx:1`, `src/layout.mprx:${layoutLine}`]); // every place the state is read
+    expect(await uses("src/layout.mprx", "<theme-toggle", "theme-toggle", 2)).toEqual([`${declared.file}:${declared.line}`, `src/layout.mprx:${layoutLine}`]); // where it is declared, and every use
   });
 
   it("sends the framework's names and the elements to the README that explains them, and a built-in to its template", async () => {
@@ -231,9 +255,21 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     const wiring = readWiring(app, ".valance/wiring.json")!;
     const titles = (file: string): ReadonlyArray<string> => lensesFor(wiring, file).map((lens) => lens.title);
 
-    expect(titles("src/layout.mprx")).toEqual(["→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()", "→ blocks.mprx  ·  items ← {blocks}", "the application's layout  ·  declared in main.ts:9"]);
-    expect(titles("src/theme-toggle.mprx")).toEqual(["in layout  ·  declared in theme-toggle.ts:6  ·  used in layout.mprx:4", "prop theme · declared in theme-toggle.ts:7 · passed from layout.mprx:4 as {theme}", "event toggle · declared in theme-toggle.ts:8 · handled in layout.mprx:4 ⇒ toggleTheme()"]);
+    expect(titles("src/layout.mprx")).toEqual([
+      "→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()",
+      "→ blocks.mprx  ·  items ← {blocks}",
+      "the application's layout  ·  declared in main.ts:9",
+    ]);
+    expect(titles("src/theme-toggle.mprx")).toEqual([
+      "in layout  ·  declared in theme-toggle.ts:6  ·  used in layout.mprx:4",
+      "prop theme · declared in theme-toggle.ts:7 · passed from layout.mprx:4 as {theme}",
+      "event toggle · declared in theme-toggle.ts:8 · handled in layout.mprx:4 ⇒ toggleTheme()",
+    ]);
     expect(titles("src/main.ts")).toEqual(["→ layout.mprx  ·  uses theme-toggle", "state · read in layout.mprx:1, layout.mprx:4", "command · run in layout.mprx:4"]);
-    expect(titles("src/theme-toggle.ts")).toEqual(["→ theme-toggle.mprx  ·  in layout", "prop theme · read in theme-toggle.mprx:1 · passed from layout.mprx:4 as {theme}", "event toggle · raised in theme-toggle.mprx:1 · handled in layout.mprx:4 ⇒ toggleTheme()"]);
+    expect(titles("src/theme-toggle.ts")).toEqual([
+      "→ theme-toggle.mprx  ·  in layout",
+      "prop theme · read in theme-toggle.mprx:1 · passed from layout.mprx:4 as {theme}",
+      "event toggle · raised in theme-toggle.mprx:1 · handled in layout.mprx:4 ⇒ toggleTheme()",
+    ]);
   });
 });

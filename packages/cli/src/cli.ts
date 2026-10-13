@@ -41,7 +41,10 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         console.log(`vlx dev: ${running.url}`);
 
         // Until interrupted.
-        await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
+        await new Promise<void>((resolve) => {
+          process.once("SIGINT", resolve);
+          process.once("SIGTERM", resolve);
+        });
         await running.close();
 
         return 0;
@@ -57,7 +60,16 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
       case "check": {
         const result = await check(findRoot(cwd));
 
-        if (rest.includes("--json")) { console.log(JSON.stringify(result.diagnostics, null, 2)); } else if (result.diagnostics.length === 0) { console.log(`vlx check: ${result.pages} pages, ${result.components.length} components, no problems`); } else { result.diagnostics.forEach((each) => { console.error(format(each)); }); console.error(`vlx check: ${result.diagnostics.length} problem${result.diagnostics.length === 1 ? "" : "s"}`); }
+        if (rest.includes("--json")) {
+          console.log(JSON.stringify(result.diagnostics, null, 2));
+        } else if (result.diagnostics.length === 0) {
+          console.log(`vlx check: ${result.pages} pages, ${result.components.length} components, no problems`);
+        } else {
+          result.diagnostics.forEach((each) => {
+            console.error(format(each));
+          });
+          console.error(`vlx check: ${result.diagnostics.length} problem${result.diagnostics.length === 1 ? "" : "s"}`);
+        }
 
         return result.diagnostics.length === 0 ? 0 : 1;
       }
@@ -80,12 +92,14 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
     }
   } catch (error) {
     if (error instanceof AppError) {
-      error.diagnostics.forEach((each) => { console.error(format(each)); });
+      error.diagnostics.forEach((each) => {
+        console.error(format(each));
+      });
 
       return 1;
     }
 
-    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+    console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
 
     return 1;
   }

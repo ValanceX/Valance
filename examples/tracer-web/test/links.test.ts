@@ -14,7 +14,9 @@ import { application as fixtureApplication, manifest, primitives, source, stateO
 
 const compiled = await compileProgram({ model: { manifest, path: "components.json" }, root: "shell", components: [{ component: "shell", path: "shell.mprx", source }] });
 
-if (compiled.program === undefined) { throw new Error(JSON.stringify(compiled.assembly ?? compiled.components, null, 1)); }
+if (compiled.program === undefined) {
+  throw new Error(JSON.stringify(compiled.assembly ?? compiled.components, null, 1));
+}
 
 const program = compiled.program;
 const application = (gate?: Deferred.Deferred<void>) => fixtureApplication(program, gate);
@@ -23,7 +25,11 @@ const page = (url: string, html = "") => {
   const browserNavigations: Array<string> = [];
   const virtualConsole = new VirtualConsole();
 
-  virtualConsole.on("jsdomError", (error) => { if (String(error.message).includes("navigation")) { browserNavigations.push(String(error.message)); } });
+  virtualConsole.on("jsdomError", (error) => {
+    if (String(error.message).includes("navigation")) {
+      browserNavigations.push(String(error.message));
+    }
+  });
 
   const dom = new JSDOM(`<!doctype html><html><body><main>${html}</main></body></html>`, { url, virtualConsole });
   const win = dom.window as unknown as Window;
@@ -44,7 +50,9 @@ const page = (url: string, html = "") => {
     const element = dom.window.document.createElement("a");
 
     element.setAttribute("href", href);
-    for (const [name, value] of Object.entries(attributes)) { element.setAttribute(name, value); }
+    for (const [name, value] of Object.entries(attributes)) {
+      element.setAttribute(name, value);
+    }
     element.textContent = href;
     container.append(element);
 
@@ -55,7 +63,13 @@ const page = (url: string, html = "") => {
 };
 
 const run = async (p: ReturnType<typeof page>, gate?: Deferred.Deferred<void>, present: "mount" | "hydrate" = "mount", state?: State) =>
-  Web.run(application(gate), { container: p.container, primitives, present, ...(state === undefined ? {} : { state }), history: { window: p.win, urlOf, stateOf, navigate: "go" } });
+  Web.run(application(gate), {
+    container: p.container,
+    primitives,
+    present,
+    ...(state === undefined ? {} : { state }),
+    history: { window: p.win, urlOf, stateOf, navigate: "go" },
+  });
 
 describe("a plain left click on a link is the application's navigation", () => {
   it("runs navigate with stateOf(destination), draws the new state, pushes the URL, and the browser keeps nothing", async () => {
@@ -68,7 +82,7 @@ describe("a plain left click on a link is the application's navigation", () => {
     expect(p.win.location.pathname).toBe("/app/about");
     expect(p.browserNavigations).toEqual([]);
 
-    p.win.history.back();                                                   // Back and Forward are the existing popstate path
+    p.win.history.back(); // Back and Forward are the existing popstate path
     await until(() => p.title() === "page home");
     p.win.history.forward();
     await until(() => p.title() === "page about");
@@ -100,8 +114,12 @@ describe("a plain left click on a link is the application's navigation", () => {
 
 describe("the browser keeps every other click", () => {
   const cases: ReadonlyArray<readonly [string, MouseEventInit]> = [
-    ["Ctrl", { ctrlKey: true }], ["Meta (Cmd)", { metaKey: true }], ["Shift", { shiftKey: true }], ["Alt", { altKey: true }],
-    ["the middle button", { button: 1 }], ["the secondary button", { button: 2 }],
+    ["Ctrl", { ctrlKey: true }],
+    ["Meta (Cmd)", { metaKey: true }],
+    ["Shift", { shiftKey: true }],
+    ["Alt", { altKey: true }],
+    ["the middle button", { button: 1 }],
+    ["the secondary button", { button: 2 }],
   ];
 
   for (const [name, init] of cases) {
@@ -138,13 +156,13 @@ describe("the browser keeps every other click", () => {
     await host.stop();
   });
 
-  it("target=\"_self\", and a link to the current URL, are the application's (no push for an unchanged state)", async () => {
+  it('target="_self", and a link to the current URL, are the application\'s (no push for an unchanged state)', async () => {
     const p = page("http://localhost/app/home");
     const host = await run(p);
 
     expect(await p.click(p.raw("/app/about", { target: "_self" }))).toBe(true);
     await until(() => p.title() === "page about");
-    expect(await p.click(p.anchor("About"))).toBe(true);                     // the state does not change: nothing is pushed
+    expect(await p.click(p.anchor("About"))).toBe(true); // the state does not change: nothing is pushed
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(p.win.history.length).toBe(2);
     await host.stop();
@@ -154,7 +172,7 @@ describe("the browser keeps every other click", () => {
     const p = page("http://localhost/app/home");
     const host = await run(p);
 
-    p.container.addEventListener("click", (event) => event.preventDefault(), true);   // an earlier listener, before the application's
+    p.container.addEventListener("click", (event) => event.preventDefault(), true); // an earlier listener, before the application's
     await p.click(p.anchor("About"));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(p.title()).toBe("page home");
@@ -167,7 +185,7 @@ describe("the browser keeps every other click", () => {
     const handle = await Effect.runPromise(Valance.start(application()).pipe(Scope.extend(scope)));
 
     await Effect.runPromise(Valance.mount(handle, Web.target({ container: p.container, primitives })).pipe(Scope.extend(scope)));
-    await Effect.runPromise(Web.history(handle, { window: p.win, urlOf, stateOf, navigate: "go" }).pipe(Scope.extend(scope)));   // no `container`
+    await Effect.runPromise(Web.history(handle, { window: p.win, urlOf, stateOf, navigate: "go" }).pipe(Scope.extend(scope))); // no `container`
     expect(await p.click(p.anchor("About"))).toBe(false);
     expect(p.title()).toBe("page home");
     await Effect.runPromise(Scope.close(scope, Exit.void));
@@ -176,7 +194,7 @@ describe("the browser keeps every other click", () => {
     const host = await run(q);
 
     await host.stop();
-    expect(await q.click(q.raw("/app/about"))).toBe(false);                  // history's listener is gone with its Scope
+    expect(await q.click(q.raw("/app/about"))).toBe(false); // history's listener is gone with its Scope
   });
 });
 
@@ -186,7 +204,9 @@ describe("a plain link click starts at the top, as a page load does; the browser
     const asked: Array<readonly [number, number]> = [];
 
     Object.defineProperty(p.win, "scrollY", { value: y, configurable: true });
-    (p.win as unknown as { scrollTo: (x: number, y: number) => void }).scrollTo = (x, top) => { asked.push([x, top]); };
+    (p.win as unknown as { scrollTo: (x: number, y: number) => void }).scrollTo = (x, top) => {
+      asked.push([x, top]);
+    };
 
     return asked;
   };
@@ -220,7 +240,7 @@ describe("a plain link click starts at the top, as a page load does; the browser
     const host = await run(p);
 
     await p.click(p.anchor("About"), { ctrlKey: true });
-    await p.click(p.raw("/app/about#part"));                               // the application navigates; scrolling to a fragment is its own
+    await p.click(p.raw("/app/about#part")); // the application navigates; scrolling to a fragment is its own
     await until(() => p.title() === "page about");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(asked).toEqual([]);
@@ -232,7 +252,7 @@ describe("a plain link click starts at the top, as a page load does; the browser
 
     await q.click(q.anchor("About"));
     await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(q.title()).toBe("page home");                                    // UnmappedCommand: logged, nothing changed
+    expect(q.title()).toBe("page home"); // UnmappedCommand: logged, nothing changed
     expect(askedQ).toEqual([]);
     await failing.stop();
   });
@@ -249,7 +269,7 @@ describe("a plain link click starts at the top, as a page load does; the browser
     p.win.history.forward();
     await until(() => p.title() === "page about");
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(asked).toHaveLength(1);                                          // only the link click's
+    expect(asked).toHaveLength(1); // only the link click's
     await host.stop();
   });
 });

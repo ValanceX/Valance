@@ -6,7 +6,8 @@ import { compileProgram } from "@valancex/mesh-compiler";
 
 const prop = (kind: string) => ({ type: { kind }, required: true });
 const manifest = JSON.stringify({
-  version: 1, types: {},
+  version: 1,
+  types: {},
   components: {
     page: { props: { title: prop("string") }, events: {}, commands: {}, scope: {} },
     text: { props: {}, events: {}, commands: {}, scope: {} },
@@ -14,7 +15,8 @@ const manifest = JSON.stringify({
     button: { props: {}, events: { click: {} }, commands: {}, scope: {} },
     "mesh-if": { props: { when: prop("boolean") }, events: {}, commands: {}, scope: {} },
     branches: {
-      props: {}, events: {},
+      props: {},
+      events: {},
       commands: { turnOff: { parameters: [] }, turnOn: { parameters: [] }, showField: { parameters: [] }, hideField: { parameters: [] }, bump: { parameters: [] } },
       scope: { title: { kind: "string" }, on: { kind: "boolean" }, field: { kind: "boolean" }, tail: { kind: "string" } },
     },
@@ -36,7 +38,9 @@ const source = `<page title={title}>
 export default async function setup(project: TestProject): Promise<void> {
   const result = await compileProgram({ model: { manifest, path: "components.json" }, root: "branches", components: [{ component: "branches", source, path: "branches.mprx" }] });
 
-  if (result.program === undefined) { throw new Error(JSON.stringify(result.assembly ?? result.components)); }
+  if (result.program === undefined) {
+    throw new Error(JSON.stringify(result.assembly ?? result.components));
+  }
 
   project.provide("conditional", result.program);
 }

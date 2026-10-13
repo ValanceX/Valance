@@ -34,17 +34,19 @@ export interface RenderOptions<S> extends StartOptions<S> {
 /** Starts the application, renders it once, and ends it. No target object, no DOM. */
 export const renderToHtml = <S, E, R extends Ambient, V extends string>(
   app: ApplicationDefinition<S, E, R, V>,
-  options: RenderOptions<S>
+  options: RenderOptions<S>,
 ): Effect.Effect<Served<S>, StartError | Mesh.MeshDiagnostics> =>
   Effect.suspend(() => {
     // Composed before anything is acquired: a conflict fails the call with nothing started.
     const composed = compose<S>({ primitives: options.primitives, platform: options.platform, head: options.head }, options.plugins ?? []);
 
-    return Effect.scoped(Effect.gen(function* () {
-      const running = runningOf(yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) }));
-      const viewed = yield* running.render;
-      const state = yield* running.state;
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const running = runningOf(yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) }));
+        const viewed = yield* running.render;
+        const state = yield* running.state;
 
-      return { html: realizeHtml(viewed.render.tree, composed.primitives), state, head: composed.head?.(state) ?? {} };
-    }));
+        return { html: realizeHtml(viewed.render.tree, composed.primitives), state, head: composed.head?.(state) ?? {} };
+      }),
+    );
   });

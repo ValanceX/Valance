@@ -25,31 +25,36 @@ import { Cause, Effect, Exit, Scope } from "effect";
  * (`followed`, `settled`, `dispatched`), at the one moment the host has; it decides nothing about a failed event command beyond reporting it.
  */
 export const reportMountEnd = (mounted: Valance.Mounted<unknown>): Effect.Effect<void> => {
-  const report = (exit: Exit.Exit<void, unknown>) => Effect.gen(function* () {
-    if (Exit.isSuccess(exit)) {
-      yield* Effect.logWarning("the application ended; the page is inert");
-    } else if (Cause.isInterruptedOnly(exit.cause)) {
-      return;
-    } else {
-      yield* Effect.logError("the page stopped following the application", Cause.pretty(exit.cause));
-    }
+  const report = (exit: Exit.Exit<void, unknown>) =>
+    Effect.gen(function* () {
+      if (Exit.isSuccess(exit)) {
+        yield* Effect.logWarning("the application ended; the page is inert");
+      } else if (Cause.isInterruptedOnly(exit.cause)) {
+        return;
+      } else {
+        yield* Effect.logError("the page stopped following the application", Cause.pretty(exit.cause));
+      }
 
-    yield* mounted.settled;
-    const outcomes = mounted.dispatched;
-    const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.isInterruptedOnly(outcome.cause));
+      yield* mounted.settled;
+      const outcomes = mounted.dispatched;
+      const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.isInterruptedOnly(outcome.cause));
 
-    yield* Effect.logInfo(`event commands in this mount: ${outcomes.filter(Exit.isSuccess).length} succeeded, ${failed.length} failed, ${outcomes.length - outcomes.filter(Exit.isSuccess).length - failed.length} interrupted`);
+      yield* Effect.logInfo(
+        `event commands in this mount: ${outcomes.filter(Exit.isSuccess).length} succeeded, ${failed.length} failed, ${outcomes.length - outcomes.filter(Exit.isSuccess).length - failed.length} interrupted`,
+      );
 
-    for (const outcome of failed) {
-      yield* Effect.logError("event command failed", Exit.isFailure(outcome) ? Cause.pretty(outcome.cause) : "");
-    }
-  });
+      for (const outcome of failed) {
+        yield* Effect.logError("event command failed", Exit.isFailure(outcome) ? Cause.pretty(outcome.cause) : "");
+      }
+    });
 
   return Effect.flatMap(mounted.followed, report);
 };
 
 /** The same report, for a page that runs through `Web.run`: it starts watching the mount and returns. */
-export const watchMount = (mounted: Valance.Mounted<unknown>): void => { Effect.runFork(reportMountEnd(mounted)); };
+export const watchMount = (mounted: Valance.Mounted<unknown>): void => {
+  Effect.runFork(reportMountEnd(mounted));
+};
 
 /** What the page says when the application could not start (Stage 47): the existing failure itself (typed, or a defect), once. */
 export const reportStartFailure = (error: unknown): void => {
@@ -68,9 +73,15 @@ export interface RunOptions<S> {
   readonly history?: Web.HistoryOptions<S>;
 }
 
-export const run = <S, E, R extends Ambient, V extends string>(app: Valance.ApplicationDefinition<S, E, R, V>, options: RunOptions<S>): Effect.Effect<void, StartError | Mesh.MeshDiagnostics, Scope.Scope> =>
+export const run = <S, E, R extends Ambient, V extends string>(
+  app: Valance.ApplicationDefinition<S, E, R, V>,
+  options: RunOptions<S>,
+): Effect.Effect<void, StartError | Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.gen(function* () {
-    const running = yield* Valance.start(app, { ...(options.platform === undefined ? {} : { platform: options.platform }), ...(options.state === undefined ? {} : { state: options.state }) });
+    const running = yield* Valance.start(app, {
+      ...(options.platform === undefined ? {} : { platform: options.platform }),
+      ...(options.state === undefined ? {} : { state: options.state }),
+    });
     const target = Web.target({ container: options.container, primitives: options.primitives });
 
     const mounted = yield* options.hydrate === true ? Valance.hydrate(running, target) : Valance.mount(running, target);

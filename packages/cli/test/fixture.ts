@@ -22,6 +22,10 @@ export const project = (files: Readonly<Record<string, string>>): string => {
   return root;
 };
 
-export const cleanup = (): void => { for (const root of made.splice(0)) { rmSync(root, { recursive: true, force: true }); } };
+export const cleanup = (): void => {
+  for (const root of made.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+};
 
 export const PAGE = (title = "Home", body = ""): string => `---\ntitle: ${title}\n---\n\n# ${title}\n\n${body}\n`;

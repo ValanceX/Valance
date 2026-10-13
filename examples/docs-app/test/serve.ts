@@ -4,7 +4,14 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
 
-const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".wasm": "application/wasm", ".xml": "application/xml" };
+const TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".svg": "image/svg+xml",
+  ".wasm": "application/wasm",
+  ".xml": "application/xml",
+};
 
 export const serveStatic = async (dir: string): Promise<{ readonly origin: string; readonly server: Server }> => {
   const root = normalize(dir);
@@ -12,19 +19,27 @@ export const serveStatic = async (dir: string): Promise<{ readonly origin: strin
     void (async () => {
       const path = normalize(join(root, decodeURIComponent(new URL(request.url ?? "/", "http://x").pathname)));
 
-      if (path !== root && !path.startsWith(root + sep)) { response.writeHead(403).end(); return; }
+      if (path !== root && !path.startsWith(root + sep)) {
+        response.writeHead(403).end();
+        return;
+      }
 
       for (const candidate of [path, join(path, "index.html")]) {
         const body = await readFile(candidate).catch(() => undefined);
 
-        if (body !== undefined && !candidate.endsWith(sep)) { response.writeHead(200, { "content-type": TYPES[extname(candidate)] ?? "application/octet-stream" }).end(body); return; }
+        if (body !== undefined && !candidate.endsWith(sep)) {
+          response.writeHead(200, { "content-type": TYPES[extname(candidate)] ?? "application/octet-stream" }).end(body);
+          return;
+        }
       }
 
       response.writeHead(404, { "content-type": TYPES[".html"]! }).end(await readFile(join(root, "404.html")).catch(() => "not found"));
     })();
   });
 
-  await new Promise<void>((resolve) => { server.listen(0, "127.0.0.1", resolve); });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
 
   const address = server.address();
 

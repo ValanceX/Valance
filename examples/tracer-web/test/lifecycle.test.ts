@@ -25,19 +25,27 @@ describe("lifecycle", () => {
     const app = application(await compilePrograms());
     const page = load("");
     const callerClocks: Array<number> = [];
-    const observe = Effect.flatMap(Clock.currentTimeMillis, (t) => Effect.sync(() => { callerClocks.push(t); }));
+    const observe = Effect.flatMap(Clock.currentTimeMillis, (t) =>
+      Effect.sync(() => {
+        callerClocks.push(t);
+      }),
+    );
 
-    const stamp = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      yield* observe;
-      const running = yield* Valance.start(app, { platform });
-      const mounted = yield* Valance.mount(running, Web.target({ container: page.container, primitives }));
-      yield* observe;
-      page.click(page.container.querySelector("button")!);
-      yield* mounted.settled;
-      yield* observe;
+    const stamp = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* observe;
+          const running = yield* Valance.start(app, { platform });
+          const mounted = yield* Valance.mount(running, Web.target({ container: page.container, primitives }));
+          yield* observe;
+          page.click(page.container.querySelector("button")!);
+          yield* mounted.settled;
+          yield* observe;
 
-      return (yield* running.state).stamp;
-    })));
+          return (yield* running.state).stamp;
+        }),
+      ),
+    );
     await Effect.runPromise(observe);
 
     expect(stamp).toBe(42);
@@ -50,13 +58,17 @@ describe("lifecycle", () => {
     const page = load("");
     let out!: { running: Running<unknown, unknown>; mounted: Valance.Mounted<unknown> };
 
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(app);
-      const mounted = yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
-      out = { running: runningOf(handle) as never, mounted: mounted as never };
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(app);
+          const mounted = yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
+          out = { running: runningOf(handle) as never, mounted: mounted as never };
 
-      expect(page.container.querySelector("button")).not.toBeNull();
-    })));
+          expect(page.container.querySelector("button")).not.toBeNull();
+        }),
+      ),
+    );
 
     expect(page.container.innerHTML).toBe("");
     // Valance's own finalizer stopped the follower: interrupted, not completed.
@@ -71,41 +83,54 @@ describe("lifecycle", () => {
     const app = application(await compilePrograms());
     const page = load("");
 
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(app);
-      const mounted = yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(app);
+          const mounted = yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
 
-      yield* Nexus.Application.shutdown(runningOf(handle).nexus);
+          yield* Nexus.Application.shutdown(runningOf(handle).nexus);
 
-      expect(Exit.isSuccess(yield* mounted.followed)).toBe(true);
-      expect(page.container.querySelector("button")).not.toBeNull();
-    })));
+          expect(Exit.isSuccess(yield* mounted.followed)).toBe(true);
+          expect(page.container.querySelector("button")).not.toBeNull();
+        }),
+      ),
+    );
   });
 
   it("a commit between subscription and first render is not lost (NEXUS `values`)", async () => {
     const app = application(await compilePrograms());
     const page = load("");
 
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(app);
-      const running = runningOf(handle);
-      const initial = yield* running.render;
-      let committed = false;
-      // The host's first element arrives (subscription made, first render about to be produced), and a click commits.
-      const racing = handleOf({ ...running, values: Stream.tap(running.values, () => Effect.suspend(() => {
-        if (committed) {
-          return Effect.void;
-        }
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(app);
+          const running = runningOf(handle);
+          const initial = yield* running.render;
+          let committed = false;
+          // The host's first element arrives (subscription made, first render about to be produced), and a click commits.
+          const racing = handleOf({
+            ...running,
+            values: Stream.tap(running.values, () =>
+              Effect.suspend(() => {
+                if (committed) {
+                  return Effect.void;
+                }
 
-        committed = true;
+                committed = true;
 
-        return running.dispatch(initial, clickHandler(initial)).pipe(Effect.orDie, Effect.asVoid);
-      })) });
-      yield* Valance.mount(racing, Web.target({ container: page.container, primitives }));
-      yield* Effect.promise(() => until(() => page.container.textContent!.startsWith("1 clicks")));
+                return running.dispatch(initial, clickHandler(initial)).pipe(Effect.orDie, Effect.asVoid);
+              }),
+            ),
+          });
+          yield* Valance.mount(racing, Web.target({ container: page.container, primitives }));
+          yield* Effect.promise(() => until(() => page.container.textContent!.startsWith("1 clicks")));
 
-      expect((yield* running.state).count).toBe(1);
-    })));
+          expect((yield* running.state).count).toBe(1);
+        }),
+      ),
+    );
   });
 
   it("initial render + immediate state change never leaves state 1 and DOM 0 (repeated, at several offsets)", async () => {
@@ -117,26 +142,32 @@ describe("lifecycle", () => {
       for (let i = 0; i < 20; i += 1) {
         const page = load("");
         runs += 1;
-        await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-          const handle = yield* Valance.start(app);
-          const running = runningOf(handle);
-          const initial = yield* running.render;
-          const commit = () => { void Effect.runPromise(running.dispatch(initial, clickHandler(initial))); };
+        await Effect.runPromise(
+          Effect.scoped(
+            Effect.gen(function* () {
+              const handle = yield* Valance.start(app);
+              const running = runningOf(handle);
+              const initial = yield* running.render;
+              const commit = () => {
+                void Effect.runPromise(running.dispatch(initial, clickHandler(initial)));
+              };
 
-          if (offset < 0) {
-            commit();
-          } else {
-            setTimeout(commit, offset);
-          }
+              if (offset < 0) {
+                commit();
+              } else {
+                setTimeout(commit, offset);
+              }
 
-          yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
-          yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 25)));
-          const { count } = yield* running.state;
+              yield* Valance.mount(handle, Web.target({ container: page.container, primitives }));
+              yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 25)));
+              const { count } = yield* running.state;
 
-          if (!page.container.textContent!.startsWith(`${count} clicks`)) {
-            stale += 1;
-          }
-        })));
+              if (!page.container.textContent!.startsWith(`${count} clicks`)) {
+                stale += 1;
+              }
+            }),
+          ),
+        );
       }
     }
 

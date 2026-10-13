@@ -27,15 +27,21 @@ export type Readiness =
 
 /** Whether `root` is a VALANCE project, and if so what the language server should be told about it. */
 export const readProject = (root: string): Readiness => {
-  if (!existsSync(join(root, "valance.json"))) { return { kind: "not-a-project" }; }
+  if (!existsSync(join(root, "valance.json"))) {
+    return { kind: "not-a-project" };
+  }
 
   const file = join(root, ".valance", "editor.json");
 
-  if (!existsSync(file)) { return { kind: "not-generated" }; }
+  if (!existsSync(file)) {
+    return { kind: "not-generated" };
+  }
 
   const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<EditorFile>;
 
-  if (parsed.version !== 1 || typeof parsed.model !== "string" || typeof parsed.components !== "object" || parsed.components === null) { return { kind: "not-generated" }; }
+  if (parsed.version !== 1 || typeof parsed.model !== "string" || typeof parsed.components !== "object" || parsed.components === null) {
+    return { kind: "not-generated" };
+  }
 
   return { kind: "ready", settings: { model: parsed.model, components: parsed.components }, ...(typeof parsed.wiring === "string" ? { wiring: parsed.wiring } : {}) };
 };
@@ -52,7 +58,9 @@ const SKIP = new Set(["node_modules", ".git", "dist", ".valance", ".vscode-test"
  * project, on a repository that holds it, or on a parent of several.
  */
 export const findProjects = (folder: string, depth = 3): ReadonlyArray<string> => {
-  if (existsSync(join(folder, "valance.json"))) { return [folder]; }
+  if (existsSync(join(folder, "valance.json"))) {
+    return [folder];
+  }
 
   const found: Array<string> = [];
   let level: ReadonlyArray<string> = [folder];
@@ -63,16 +71,32 @@ export const findProjects = (folder: string, depth = 3): ReadonlyArray<string> =
     for (const dir of level) {
       let names: ReadonlyArray<string>;
 
-      try { names = readdirSync(dir).sort(); } catch { continue; }
+      try {
+        names = readdirSync(dir).sort();
+      } catch {
+        continue;
+      }
 
       for (const name of names) {
         const child = join(dir, name);
 
-        if (SKIP.has(name) || name.startsWith(".")) { continue; }
+        if (SKIP.has(name) || name.startsWith(".")) {
+          continue;
+        }
 
-        try { if (!statSync(child).isDirectory()) { continue; } } catch { continue; }
+        try {
+          if (!statSync(child).isDirectory()) {
+            continue;
+          }
+        } catch {
+          continue;
+        }
 
-        if (existsSync(join(child, "valance.json"))) { found.push(child); } else { next.push(child); }
+        if (existsSync(join(child, "valance.json"))) {
+          found.push(child);
+        } else {
+          next.push(child);
+        }
       }
     }
 
@@ -87,9 +111,14 @@ export const findProjects = (folder: string, depth = 3): ReadonlyArray<string> =
  * (`model` and each component's file) are written from the workspace, with `/`.
  */
 export const forWorkspace = (workspace: string, project: string, settings: LspSettings): LspSettings => {
-  const prefix = relative(workspace, project).split(sep).filter((part) => part !== "").join("/");
+  const prefix = relative(workspace, project)
+    .split(sep)
+    .filter((part) => part !== "")
+    .join("/");
 
-  if (prefix === "") { return settings; }
+  if (prefix === "") {
+    return settings;
+  }
 
   return { model: `${prefix}/${settings.model}`, components: Object.fromEntries(Object.entries(settings.components).map(([file, component]) => [`${prefix}/${file}`, component])) };
 };
@@ -97,10 +126,15 @@ export const forWorkspace = (workspace: string, project: string, settings: LspSe
 /** What to tell the author when the server is not running, and what to do about it. */
 export const explain = (readiness: Readiness | { readonly kind: "no-server"; readonly path: string } | { readonly kind: "partial" }): string => {
   switch (readiness.kind) {
-    case "ready": return "Language features are on.";
-    case "not-a-project": return "No valance.json was found in this folder or the folders below it (three levels). Open the project's folder, or the folder that contains it.";
-    case "not-generated": return "The project has not been built yet, so the editor does not know its components. Run `vlx check` (or `vlx dev`) in the project once; this window notices by itself.";
-    case "partial": return "The language server is running, but ctrl+click, references and the connection lenses cannot reach your files: this project's .valance/ has no wiring.json, so it was built by an older @valancex/cli (an installed tarball is a frozen copy). Install the CLI by path (npm install -D /path/to/Valance/packages/cli), or repack and reinstall it, then run `vlx check`: this window notices by itself.";
-    case "no-server": return `The template language server was not found at ${readiness.path}. Install it in the project: npm install -D @valancex/mesh-lsp@0.10.0`;
+    case "ready":
+      return "Language features are on.";
+    case "not-a-project":
+      return "No valance.json was found in this folder or the folders below it (three levels). Open the project's folder, or the folder that contains it.";
+    case "not-generated":
+      return "The project has not been built yet, so the editor does not know its components. Run `vlx check` (or `vlx dev`) in the project once; this window notices by itself.";
+    case "partial":
+      return "The language server is running, but ctrl+click, references and the connection lenses cannot reach your files: this project's .valance/ has no wiring.json, so it was built by an older @valancex/cli (an installed tarball is a frozen copy). Install the CLI by path (npm install -D /path/to/Valance/packages/cli), or repack and reinstall it, then run `vlx check`: this window notices by itself.";
+    case "no-server":
+      return `The template language server was not found at ${readiness.path}. Install it in the project: npm install -D @valancex/mesh-lsp@0.10.0`;
   }
 };

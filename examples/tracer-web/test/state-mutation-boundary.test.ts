@@ -21,44 +21,108 @@ type State = Schema.Schema.Type<typeof State>;
 const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** The stream is delivered asynchronously: wait for it to carry `count` elements (bounded), then it is safe to compare. */
-const delivered = async (w: { readonly stream: ReadonlyArray<unknown> }, count: number) => { await until(() => w.stream.length >= count); await sleep(20); };
-const kind = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "success" : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : Cause.isDieType(exit.cause) ? `die ${String((exit.cause.defect as Error).message).slice(0, 60)}` : Cause.isFailType(exit.cause) ? `fail ${typeof exit.cause.error === "string" ? exit.cause.error : (exit.cause.error as { _tag: string })._tag}` : "other";
+const delivered = async (w: { readonly stream: ReadonlyArray<unknown> }, count: number) => {
+  await until(() => w.stream.length >= count);
+  await sleep(20);
+};
+const kind = (exit: Exit.Exit<unknown, unknown>): string =>
+  Exit.isSuccess(exit)
+    ? "success"
+    : Cause.isInterruptedOnly(exit.cause)
+      ? "interrupted"
+      : Cause.isDieType(exit.cause)
+        ? `die ${String((exit.cause.defect as Error).message).slice(0, 60)}`
+        : Cause.isFailType(exit.cause)
+          ? `fail ${typeof exit.cause.error === "string" ? exit.cause.error : (exit.cause.error as { _tag: string })._tag}`
+          : "other";
 
 const world = async () => {
   const app = Valance.define({
-    name: "mutation", state: { schema: State, initial: { n: 0 } },
-    views: { only: { program: titleProgram, scope: (s: State) => ({ title: `n${s.n}` }) } }, view: () => "only" as const,
+    name: "mutation",
+    state: { schema: State, initial: { n: 0 } },
+    views: { only: { program: titleProgram, scope: (s: State) => ({ title: `n${s.n}` }) } },
+    view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
-      const bind = (name: string, schema: Schema.Schema<never, never>, body: (input: never) => Effect.Effect<unknown, unknown>, input: (args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => unknown) =>
-        Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, body as never), input as never);
-      const first = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => args[0] !== undefined && "value" in args[0] ? args[0].value : undefined;
+      const bind = (
+        name: string,
+        schema: Schema.Schema<never, never>,
+        body: (input: never) => Effect.Effect<unknown, unknown>,
+        input: (args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => unknown,
+      ) => Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, body as never), input as never);
+      const first = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => (args[0] !== undefined && "value" in args[0] ? args[0].value : undefined);
 
       return {
         // set: the value is `unknown` to the command, so an invalid one reaches `State.set`'s own validation
-        "app/set": bind("set", Schema.Struct({ value: Schema.Unknown }) as never, (({ value }: { value: unknown }) => Effect.asVoid(state.set({ n: value } as never))) as never, (args) => ({ value: first(args) })),
-        "app/update": bind("update", Schema.Struct({ value: Schema.Number }) as never, (({ value }: { value: number }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: value })))) as never, (args) => ({ value: first(args) })),
-        "app/updateFails": bind("updateFails", Schema.Struct({}) as never, (() => state.update((): Effect.Effect<State, string> => Effect.fail("update failed"))) as never, () => ({})),
-        "app/updateInvalid": bind("updateInvalid", Schema.Struct({}) as never, (() => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ n: "not a number" } as never)))) as never, () => ({})),
+        "app/set": bind(
+          "set",
+          Schema.Struct({ value: Schema.Unknown }) as never,
+          (({ value }: { value: unknown }) => Effect.asVoid(state.set({ n: value } as never))) as never,
+          (args) => ({ value: first(args) }),
+        ),
+        "app/update": bind(
+          "update",
+          Schema.Struct({ value: Schema.Number }) as never,
+          (({ value }: { value: number }) => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: value })))) as never,
+          (args) => ({ value: first(args) }),
+        ),
+        "app/updateFails": bind(
+          "updateFails",
+          Schema.Struct({}) as never,
+          (() => state.update((): Effect.Effect<State, string> => Effect.fail("update failed"))) as never,
+          () => ({}),
+        ),
+        "app/updateInvalid": bind(
+          "updateInvalid",
+          Schema.Struct({}) as never,
+          (() => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ n: "not a number" } as never)))) as never,
+          () => ({}),
+        ),
         "app/inc": bind("inc", Schema.Struct({}) as never, (() => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ n: c.n + 1 })))) as never, () => ({})),
-        "app/navigate": bind("navigate", Schema.Struct({ n: Schema.Number }) as never, (({ n }: { n: number }) => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ n })))) as never, (args) => first(args)),
+        "app/navigate": bind(
+          "navigate",
+          Schema.Struct({ n: Schema.Number }) as never,
+          (({ n }: { n: number }) => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ n })))) as never,
+          (args) => first(args),
+        ),
       } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
     },
   });
   const appScope = await run(Scope.make());
   const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
   const stream: Array<unknown> = [];
-  const watcher = Effect.runFork(Stream.runForEach(runningOf(handle).states, (s) => Effect.sync(() => { stream.push(s); })));
+  const watcher = Effect.runFork(
+    Stream.runForEach(runningOf(handle).states, (s) =>
+      Effect.sync(() => {
+        stream.push(s);
+      }),
+    ),
+  );
   const mount = async () => {
     const page = load("");
     const scope = await run(Scope.make());
 
-    await run(Valance.mount(handle, ((report) => Web.target({ container: page.container, primitives })(report)) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)));
+    await run(
+      Valance.mount(handle, ((report) => Web.target({ container: page.container, primitives })(report)) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(
+        Scope.extend(scope),
+      ),
+    );
 
     return { label: () => page.container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
   };
   const invoke = (key: string, value?: unknown) => Effect.runPromise(Effect.exit(handle.invoke(key, value === undefined ? [] : [{ value } as never])));
 
-  return { handle, appScope, stream, mount, invoke, state: () => run(handle.state), close: async () => { await run(Scope.close(appScope, Exit.void)); await Effect.runPromise(Fiber.interrupt(watcher)); } };
+  return {
+    handle,
+    appScope,
+    stream,
+    mount,
+    invoke,
+    state: () => run(handle.state),
+    close: async () => {
+      await run(Scope.close(appScope, Exit.void));
+      await Effect.runPromise(Fiber.interrupt(watcher));
+    },
+  };
 };
 
 describe("State.set and State.update", () => {
@@ -69,12 +133,12 @@ describe("State.set and State.update", () => {
     expect(kind(await w.invoke("app/set", 4))).toBe("success");
     expect(await w.state()).toEqual({ n: 4 });
     await until(() => m.label() === "n4");
-    expect(w.stream).toEqual([{ n: 0 }, { n: 4 }]);                      // the first element is the current state; then the commit
+    expect(w.stream).toEqual([{ n: 0 }, { n: 4 }]); // the first element is the current state; then the commit
     expect(kind(await w.invoke("app/set", "four"))).toBe("fail StateValidationFailed");
-    expect(await w.state()).toEqual({ n: 4 });                           // unchanged
+    expect(await w.state()).toEqual({ n: 4 }); // unchanged
     await sleep(40);
-    expect(w.stream).toEqual([{ n: 0 }, { n: 4 }]);                      // no commit reached the stream
-    expect(m.label()).toBe("n4");                                        // and the consumer is alive on the last good state
+    expect(w.stream).toEqual([{ n: 0 }, { n: 4 }]); // no commit reached the stream
+    expect(m.label()).toBe("n4"); // and the consumer is alive on the last good state
     expect(kind(await w.invoke("app/set", 6))).toBe("success");
     await until(() => m.label() === "n6");
     await m.close();
@@ -99,11 +163,11 @@ describe("State.set and State.update", () => {
   it("E. update is the trusted writer: a value it returns is committed without validation (it becomes the authoritative state); set on the same value is refused", async () => {
     const w = await world();
 
-    expect(kind(await w.invoke("app/updateInvalid"))).toBe("success");   // no validation guarantee beyond what `set` gives
+    expect(kind(await w.invoke("app/updateInvalid"))).toBe("success"); // no validation guarantee beyond what `set` gives
     expect(await w.state()).toEqual({ n: "not a number" });
     await delivered(w, 2);
     expect(w.stream).toEqual([{ n: 0 }, { n: "not a number" }]);
-    expect(kind(await w.invoke("app/set", "not a number"))).toBe("fail StateValidationFailed");   // the same value through `set` is refused
+    expect(kind(await w.invoke("app/set", "not a number"))).toBe("fail StateValidationFailed"); // the same value through `set` is refused
     await w.close();
   });
 
@@ -113,7 +177,7 @@ describe("State.set and State.update", () => {
     await Promise.all(Array.from({ length: 12 }, () => w.invoke("app/inc")));
     expect(await w.state()).toEqual({ n: 12 });
     await delivered(w, 13);
-    expect(w.stream.length).toBe(13);                                    // every commit is one stream element
+    expect(w.stream.length).toBe(13); // every commit is one stream element
     await w.close();
   });
 });
@@ -125,14 +189,21 @@ describe("who mutates", () => {
     const scope = await run(Scope.make());
     const m = await w.mount();
 
-    await run(Web.history(w.handle, { window: dom.window as unknown as Window, urlOf: (s: { readonly n: number }) => `/${s.n}`, stateOf: (url: URL) => ({ n: Number(url.pathname.slice(1)) }), navigate: "app/navigate" } as never).pipe(Scope.extend(scope)));
+    await run(
+      Web.history(w.handle, {
+        window: dom.window as unknown as Window,
+        urlOf: (s: { readonly n: number }) => `/${s.n}`,
+        stateOf: (url: URL) => ({ n: Number(url.pathname.slice(1)) }),
+        navigate: "app/navigate",
+      } as never).pipe(Scope.extend(scope)),
+    );
     await sleep(60);
-    expect(w.stream).toEqual([{ n: 0 }]);                                // attaching changed nothing; the presentation fed nothing back
+    expect(w.stream).toEqual([{ n: 0 }]); // attaching changed nothing; the presentation fed nothing back
     expect(m.label()).toBe("n0");
     dom.window.history.pushState(null, "", "/7");
-    dom.window.history.back();                                           // popstate to /5: history invokes `app/navigate` with it
+    dom.window.history.back(); // popstate to /5: history invokes `app/navigate` with it
     await until(() => w.stream.length === 2);
-    expect(await w.state()).toEqual({ n: 5 });                           // the command wrote the state, history only carried the URL's meaning
+    expect(await w.state()).toEqual({ n: 5 }); // the command wrote the state, history only carried the URL's meaning
     await run(Scope.close(scope, Exit.void));
     await m.close();
     await w.close();
@@ -168,14 +239,16 @@ describe("who mutates", () => {
   it("J. with no consumer every commit is authoritative; consumers attached later start from the current state and replay nothing", async () => {
     const w = await world();
 
-    for (const value of [1, 2, 3]) { await w.invoke("app/update", value); }
+    for (const value of [1, 2, 3]) {
+      await w.invoke("app/update", value);
+    }
     expect(await w.state()).toEqual({ n: 3 });
     await delivered(w, 4);
     expect(w.stream).toEqual([{ n: 0 }, { n: 1 }, { n: 2 }, { n: 3 }]);
     const m = await w.mount();
 
     expect(m.label()).toBe("n3");
-    expect(w.stream.length).toBe(4);                                     // attaching committed nothing
+    expect(w.stream.length).toBe(4); // attaching committed nothing
     await m.close();
     await w.close();
   });

@@ -7,7 +7,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { app, label, recording, run } from "./burst-fixture.js";
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
 
@@ -24,9 +26,20 @@ const start = async (mounts: number) => {
   const mounted = await Promise.all(roots.map((root, index) => run(Valance.mount(handle, recording(root, logs[index]!, timeline, index)).pipe(Scope.extend(scope)))));
 
   return {
-    roots, handle, logs, mounted, intents, timeline, scope,
+    roots,
+    handle,
+    logs,
+    mounted,
+    intents,
+    timeline,
+    scope,
     invoke: (key: string) => handle.invoke(key, []),
-    close: async () => { await run(Scope.close(scope, Exit.void)); roots.forEach((root) => { root.remove(); }); },
+    close: async () => {
+      await run(Scope.close(scope, Exit.void));
+      roots.forEach((root) => {
+        root.remove();
+      });
+    },
   };
 };
 
@@ -34,23 +47,49 @@ const start = async (mounts: number) => {
 const isSubsequence = (seen: ReadonlyArray<string>, all: ReadonlyArray<string>): boolean => {
   let position = 0;
 
-  return seen.every((entry) => { const found = all.indexOf(entry, position); position = found + 1; return found >= 0; });
+  return seen.every((entry) => {
+    const found = all.indexOf(entry, position);
+    position = found + 1;
+    return found >= 0;
+  });
 };
 
 describe("bursty commits: a mount presents the latest state (superseded intermediates may be skipped)", () => {
   it("same view: whatever is presented is in commit order, starts with the draw, ends at the final state; intermediates may be skipped", async () => {
     // Three ways to produce the burst: sequential invokes in one Effect, three invokes started in one turn, three commands from one host event.
     const ways: Array<[string, (t: Awaited<ReturnType<typeof start>>) => Promise<void>]> = [
-      ["sequential invokes", (t) => run(Effect.gen(function* () { yield* t.invoke("app/bump"); yield* t.invoke("app/bump"); yield* t.invoke("app/bump"); }))],
-      ["one turn", async (t) => { await Promise.all([run(t.invoke("app/bump")), run(t.invoke("app/bump")), run(t.invoke("app/bump"))]); }],
-      ["one host event", async (t) => {
-        const host = document.createElement("button");
+      [
+        "sequential invokes",
+        (t) =>
+          run(
+            Effect.gen(function* () {
+              yield* t.invoke("app/bump");
+              yield* t.invoke("app/bump");
+              yield* t.invoke("app/bump");
+            }),
+          ),
+      ],
+      [
+        "one turn",
+        async (t) => {
+          await Promise.all([run(t.invoke("app/bump")), run(t.invoke("app/bump")), run(t.invoke("app/bump"))]);
+        },
+      ],
+      [
+        "one host event",
+        async (t) => {
+          const host = document.createElement("button");
 
-        document.body.append(host);
-        host.onclick = () => { for (let count = 0; count < 3; count += 1) { void run(t.invoke("app/bump")); } };
-        await userEvent.click(host);
-        host.remove();
-      }],
+          document.body.append(host);
+          host.onclick = () => {
+            for (let count = 0; count < 3; count += 1) {
+              void run(t.invoke("app/bump"));
+            }
+          };
+          await userEvent.click(host);
+          host.remove();
+        },
+      ],
     ];
 
     for (const [name, burst] of ways) {
@@ -60,9 +99,9 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
       await settle();
       expect([name, isSubsequence(t.logs[0]!, ["draw A0", "update A1", "update A2", "update A3"])]).toEqual([name, true]);
       expect(t.logs[0]![0]).toBe("draw A0");
-      expect(t.logs[0]!.at(-1)).toBe("update A3");                                        // the last presentation is the last committed state
+      expect(t.logs[0]!.at(-1)).toBe("update A3"); // the last presentation is the last committed state
       expect(label(t.roots[0]!)).toBe("A3");
-      expect(await run(t.handle.state)).toEqual({ view: "a", n: 3 });                     // the application committed every one of them
+      expect(await run(t.handle.state)).toEqual({ view: "a", n: 3 }); // the application committed every one of them
       expect(t.timeline.filter((entry) => entry.startsWith("commit"))).toEqual(["commit bump", "commit bump", "commit bump"]);
       await t.close();
     }
@@ -71,12 +110,19 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
   it("across a view boundary (A1, B1, A1, A2): the final presentation is A2 and a skipped B1 is never an event target; two mounts converge independently", async () => {
     const t = await start(2);
 
-    await run(Effect.gen(function* () { yield* t.invoke("app/bump"); yield* t.invoke("app/toggle"); yield* t.invoke("app/toggle"); yield* t.invoke("app/bump"); }));
+    await run(
+      Effect.gen(function* () {
+        yield* t.invoke("app/bump");
+        yield* t.invoke("app/toggle");
+        yield* t.invoke("app/toggle");
+        yield* t.invoke("app/bump");
+      }),
+    );
     await settle();
 
     t.logs.forEach((log) => {
       expect(isSubsequence(log, ["draw A0", "update A1", "draw B1", "draw A1", "update A2"])).toBe(true);
-      expect(log.at(-1)).toMatch(/A2$/);                                                   // whichever intermediates were skipped, each mount ends on the final state
+      expect(log.at(-1)).toMatch(/A2$/); // whichever intermediates were skipped, each mount ends on the final state
     });
     expect(t.roots.map(label)).toEqual(["A2", "A2"]);
     expect(await run(t.handle.state)).toEqual({ view: "a", n: 2 });
@@ -94,16 +140,16 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
     const button = t.roots[0]!.querySelector("button")!;
 
     expect(label(t.roots[0]!)).toBe("A0");
-    const toggled = run(t.invoke("app/toggle"));                                           // commit toward B ...
-    button.click();                                                                        // ... while A's button is the drawn render's
+    const toggled = run(t.invoke("app/toggle")); // commit toward B ...
+    button.click(); // ... while A's button is the drawn render's
     await toggled;
     await settle();
 
-    expect(t.intents).toContain("back-on-a");                                              // A's table, by the render the click was reported on
+    expect(t.intents).toContain("back-on-a"); // A's table, by the render the click was reported on
     expect(t.intents).not.toContain("back-on-b");
     expect(t.mounted[0]!.dispatched.map((exit) => exit._tag)).toEqual(["Success"]);
-    expect(await run(t.handle.state)).toEqual({ view: "b", n: 10 });                       // its effect is on the one authoritative state
-    expect(label(t.roots[0]!)).toBe("B10");                                                // and the final DOM is the final state
+    expect(await run(t.handle.state)).toEqual({ view: "b", n: 10 }); // its effect is on the one authoritative state
+    expect(label(t.roots[0]!)).toBe("B10"); // and the final DOM is the final state
     await t.close();
   });
 
@@ -116,8 +162,10 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
     expect(await run(t.handle.state)).toEqual({ view: "a", n: 300 });
     expect(t.logs.every((log) => isSubsequence(log, ["draw A0", ...Array.from({ length: 300 }, (_, index) => `update A${index + 1}`)]))).toBe(true);
 
-    await run(Scope.close(t.scope, Exit.void));                                            // (the application's Scope also holds both mounts)
-    t.roots.forEach((root) => { root.remove(); });
+    await run(Scope.close(t.scope, Exit.void)); // (the application's Scope also holds both mounts)
+    t.roots.forEach((root) => {
+      root.remove();
+    });
   });
 
   it("DOM-resident state follows the PRESENTED sequence: a skipped round trip A→B→A keeps the elements (and focus); the same round trip presented step by step replaces them", async () => {
@@ -129,9 +177,9 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
     expect(document.activeElement).toBe(keep);
     await run(skipped.invoke("app/round-trip"));
     await settle();
-    expect(skipped.logs[0]).toEqual(["draw A0", "update A0"]);                           // B was never presented, so A→A is an update
-    expect(skipped.roots[0]!.querySelector("button")).toBe(keep);                        // same element ...
-    expect(document.activeElement).toBe(keep);                                           // ... so the focus the user had is still there
+    expect(skipped.logs[0]).toEqual(["draw A0", "update A0"]); // B was never presented, so A→A is an update
+    expect(skipped.roots[0]!.querySelector("button")).toBe(keep); // same element ...
+    expect(document.activeElement).toBe(keep); // ... so the focus the user had is still there
     expect(await run(skipped.handle.state)).toEqual({ view: "a", n: 0 });
     await skipped.close();
 
@@ -145,8 +193,8 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
     await run(presented.invoke("app/toggle"));
     await settle();
     expect(presented.logs[0]).toEqual(["draw A0", "draw B0", "draw A0"]);
-    expect(presented.roots[0]!.querySelector("button")).not.toBe(lost);                  // a different element ...
-    expect(document.activeElement).not.toBe(lost);                                       // ... and the focus did not survive the presented round trip
+    expect(presented.roots[0]!.querySelector("button")).not.toBe(lost); // a different element ...
+    expect(document.activeElement).not.toBe(lost); // ... and the focus did not survive the presented round trip
     await presented.close();
   });
 });

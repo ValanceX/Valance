@@ -11,7 +11,9 @@ import { primitives } from "./web.js";
 const read = (name: string): string => readFileSync(new URL(name, import.meta.url), "utf8");
 
 // The table is only read for the commands' names and input Schemas, so the fetch service is never called.
-const derived = JSON.stringify(manifest({ primitives, scopes: { list: ListScope, detail: DetailScope }, commands: commands(() => Promise.reject(new Error("never called while a manifest is derived"))) }));
+const derived = JSON.stringify(
+  manifest({ primitives, scopes: { list: ListScope, detail: DetailScope }, commands: commands(() => Promise.reject(new Error("never called while a manifest is derived"))) }),
+);
 
 const compileOne = async (root: "list" | "detail"): Promise<Programs[typeof root]> => {
   const result = await compileProgram({

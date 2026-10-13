@@ -17,11 +17,26 @@ import { load, until } from "./helpers.js";
 const State = Schema.Struct({ value: Schema.String, ticket: Schema.Number });
 type State = Schema.Schema.Type<typeof State>;
 
-const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded"
-  : Cause.isFailType(exit.cause) ? `failed ${JSON.stringify(exit.cause.error)}`
-  : Option.isSome(Cause.failureOption(exit.cause)) ? `failed ${JSON.stringify(Cause.failureOption(exit.cause).pipe(Option.getOrThrow))} (cause also records an interrupted sibling)` : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}`
-  : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : `other: ${exit.cause._tag}`;
-const yields = (n: number) => Effect.runPromise(Effect.forEach(Array.from({ length: n }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+const show = (exit: Exit.Exit<unknown, unknown>): string =>
+  Exit.isSuccess(exit)
+    ? "succeeded"
+    : Cause.isFailType(exit.cause)
+      ? `failed ${JSON.stringify(exit.cause.error)}`
+      : Option.isSome(Cause.failureOption(exit.cause))
+        ? `failed ${JSON.stringify(Cause.failureOption(exit.cause).pipe(Option.getOrThrow))} (cause also records an interrupted sibling)`
+        : Cause.isDieType(exit.cause)
+          ? `died: ${(exit.cause.defect as Error).message}`
+          : Cause.isInterruptedOnly(exit.cause)
+            ? "interrupted"
+            : `other: ${exit.cause._tag}`;
+const yields = (n: number) =>
+  Effect.runPromise(
+    Effect.forEach(
+      Array.from({ length: n }, (_, index) => index),
+      () => Effect.yieldNow(),
+      { discard: true },
+    ),
+  );
 const at = (events: ReadonlyArray<string>, event: string) => events.indexOf(event);
 
 const boot = async () => {
@@ -45,58 +60,111 @@ const boot = async () => {
     view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       /** One async operation: starts, suspends on its gate, yields what the test released (or fails with what it failed with). */
-      const op = (name: string): Effect.Effect<string, string> => Effect.gen(function* () {
-        const { gate, started } = gateOf(name);
+      const op = (name: string): Effect.Effect<string, string> =>
+        Effect.gen(function* () {
+          const { gate, started } = gateOf(name);
 
-        events.push(`${name} started`);
-        yield* Deferred.succeed(started, undefined);
-        const value = yield* Deferred.await(gate).pipe(
-          Effect.onInterrupt(() => Effect.sync(() => { events.push(`${name} interrupted`); })),
-          Effect.tapError((error) => Effect.sync(() => { events.push(`${name} failed ${error}`); }))
-        );
+          events.push(`${name} started`);
+          yield* Deferred.succeed(started, undefined);
+          const value = yield* Deferred.await(gate).pipe(
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                events.push(`${name} interrupted`);
+              }),
+            ),
+            Effect.tapError((error) =>
+              Effect.sync(() => {
+                events.push(`${name} failed ${error}`);
+              }),
+            ),
+          );
 
-        events.push(`${name} done ${value}`);
+          events.push(`${name} done ${value}`);
 
-        return value;
-      });
-      const commit = (value: string) => Effect.gen(function* () {
-        yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
-        events.push(`commit ${value}`);
-      });
+          return value;
+        });
+      const commit = (value: string) =>
+        Effect.gen(function* () {
+          yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
+          events.push(`commit ${value}`);
+        });
       const branch = (name: string) => Effect.flatMap(op(name), commit);
-      const define = (key: string, body: Effect.Effect<void, string>) => [`app/${key}`, Nexus.Mesh.bind(Nexus.Command.define(`t.${key}`, Schema.Struct({}), () =>
-        body.pipe(Effect.onExit((exit) => Effect.sync(() => { events.push(`${key} exit: ${show(exit)}`); })))), () => ({}))] as const;
+      const define = (key: string, body: Effect.Effect<void, string>) =>
+        [
+          `app/${key}`,
+          Nexus.Mesh.bind(
+            Nexus.Command.define(`t.${key}`, Schema.Struct({}), () =>
+              body.pipe(
+                Effect.onExit((exit) =>
+                  Effect.sync(() => {
+                    events.push(`${key} exit: ${show(exit)}`);
+                  }),
+                ),
+              ),
+            ),
+            () => ({}),
+          ),
+        ] as const;
 
       return Object.fromEntries([
-        define("seq", Effect.gen(function* () { yield* branch("A"); yield* branch("B"); })),                                           // A, commit, B, commit
-        define("par", Effect.all([branch("A"), branch("B")], { concurrency: "unbounded", discard: true })),                          // two owned branches, each commits
-        define("parJoin", Effect.flatMap(Effect.all([op("A"), op("B")], { concurrency: "unbounded" }), ([a, b]) => commit(`${a}+${b}`))),   // join, then one commit
-        define("parSettled", Effect.gen(function* () {                                                                               // failures caught, then one commit
-          const [a, b] = yield* Effect.all([Effect.either(op("A")), Effect.either(op("B"))], { concurrency: "unbounded" });
+        define(
+          "seq",
+          Effect.gen(function* () {
+            yield* branch("A");
+            yield* branch("B");
+          }),
+        ), // A, commit, B, commit
+        define("par", Effect.all([branch("A"), branch("B")], { concurrency: "unbounded", discard: true })), // two owned branches, each commits
+        define(
+          "parJoin",
+          Effect.flatMap(Effect.all([op("A"), op("B")], { concurrency: "unbounded" }), ([a, b]) => commit(`${a}+${b}`)),
+        ), // join, then one commit
+        define(
+          "parSettled",
+          Effect.gen(function* () {
+            // failures caught, then one commit
+            const [a, b] = yield* Effect.all([Effect.either(op("A")), Effect.either(op("B"))], { concurrency: "unbounded" });
 
-          yield* commit(`A:${a._tag === "Right" ? "ok" : "failed"},B:${b._tag === "Right" ? "ok" : "failed"}`);
-        })),
-        define("owned", Effect.gen(function* () { const child = yield* Effect.fork(branch("A")); yield* Fiber.join(child); })),         // structured child, awaited
-        define("detached", Effect.gen(function* () {                                                                                 // daemon child, command exits
-          yield* Effect.forkDaemon(branch("A"));
-          yield* Deferred.await(gateOf("A").started);
-          events.push("detached command returning");
-        })),
-        define("startA", branch("A")),                                                                                               // independent commands
+            yield* commit(`A:${a._tag === "Right" ? "ok" : "failed"},B:${b._tag === "Right" ? "ok" : "failed"}`);
+          }),
+        ),
+        define(
+          "owned",
+          Effect.gen(function* () {
+            const child = yield* Effect.fork(branch("A"));
+            yield* Fiber.join(child);
+          }),
+        ), // structured child, awaited
+        define(
+          "detached",
+          Effect.gen(function* () {
+            // daemon child, command exits
+            yield* Effect.forkDaemon(branch("A"));
+            yield* Deferred.await(gateOf("A").started);
+            events.push("detached command returning");
+          }),
+        ),
+        define("startA", branch("A")), // independent commands
         define("startB", branch("B")),
-        ...(["A", "B"] as const).map((name) => define(`tag${name}`, Effect.gen(function* () {                                         // APPLICATION policy, in ordinary state
-          const mine = (yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, ticket: current.ticket + 1 }))).ticket;
-          const value = yield* op(name);
-          const current = yield* state.get;
+        ...(["A", "B"] as const).map((name) =>
+          define(
+            `tag${name}`,
+            Effect.gen(function* () {
+              // APPLICATION policy, in ordinary state
+              const mine = (yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, ticket: current.ticket + 1 }))).ticket;
+              const value = yield* op(name);
+              const current = yield* state.get;
 
-          if (current.ticket !== mine) {
-            events.push(`${name} result dropped by the application (ticket ${mine}, now ${current.ticket})`);
+              if (current.ticket !== mine) {
+                events.push(`${name} result dropped by the application (ticket ${mine}, now ${current.ticket})`);
 
-            return;
-          }
+                return;
+              }
 
-          yield* commit(value);
-        }))),
+              yield* commit(value);
+            }),
+          ),
+        ),
       ]) as Record<string, Nexus.Mesh.Binding<string, never>>;
     },
   });
@@ -107,25 +175,73 @@ const boot = async () => {
     const port = Web.target({ container: page.container, primitives })(report);
 
     return {
-      draw: (tree) => { port.draw(tree); events.push(`render draw: ${label()}`); },
-      update: (tree) => { port.update(tree); events.push(`render update: ${label()}`); },
+      draw: (tree) => {
+        port.draw(tree);
+        events.push(`render draw: ${label()}`);
+      },
+      update: (tree) => {
+        port.update(tree);
+        events.push(`render update: ${label()}`);
+      },
       hydrate: (tree) => port.hydrate(tree),
-      unmount: () => { port.unmount(); events.push("render unmounted"); },
+      unmount: () => {
+        port.unmount();
+        events.push("render unmounted");
+      },
     };
   };
   const scope = await Effect.runPromise(Scope.make());
 
-  await Effect.runPromise(Scope.addFinalizer(scope, Effect.sync(() => { events.push("platform resource released"); })));   // runs after NEXUS terminates, as a resource would
-  const handle = await Effect.runPromise(Valance.start(app as never, { state: { value: "init", ticket: 0 } }).pipe(Scope.extend(scope))) as Valance.ApplicationHandle<State, string>;
+  await Effect.runPromise(
+    Scope.addFinalizer(
+      scope,
+      Effect.sync(() => {
+        events.push("platform resource released");
+      }),
+    ),
+  ); // runs after NEXUS terminates, as a resource would
+  const handle = (await Effect.runPromise(Valance.start(app as never, { state: { value: "init", ticket: 0 } }).pipe(Scope.extend(scope)))) as Valance.ApplicationHandle<
+    State,
+    string
+  >;
 
-  Effect.runFork(Stream.runForEach(runningOf(handle as never).states as Stream.Stream<State>, (state) => Effect.sync(() => { events.push(`values: ${state.value}${state.ticket > 0 ? ` t${state.ticket}` : ""}`); })).pipe(Effect.onExit(() => Effect.sync(() => { events.push("values ended"); }))));
+  Effect.runFork(
+    Stream.runForEach(runningOf(handle as never).states as Stream.Stream<State>, (state) =>
+      Effect.sync(() => {
+        events.push(`values: ${state.value}${state.ticket > 0 ? ` t${state.ticket}` : ""}`);
+      }),
+    ).pipe(
+      Effect.onExit(() =>
+        Effect.sync(() => {
+          events.push("values ended");
+        }),
+      ),
+    ),
+  );
   await Effect.runPromise(Valance.mount(handle as never, target).pipe(Scope.extend(scope)));
   await until(() => events.includes("render draw: init"));
 
   return {
-    events, label,
-    invoke: (key: string) => Effect.runFork(Effect.onExit(handle.invoke(`app/${key}`, []), (exit) => Effect.sync(() => { events.push(`caller of ${key}: ${show(exit)}`); }))),
-    closeScope: () => Effect.runFork(Scope.close(scope, Exit.void).pipe(Effect.tap(() => Effect.sync(() => { events.push("scope closed"); })))),
+    events,
+    label,
+    invoke: (key: string) =>
+      Effect.runFork(
+        Effect.onExit(handle.invoke(`app/${key}`, []), (exit) =>
+          Effect.sync(() => {
+            events.push(`caller of ${key}: ${show(exit)}`);
+          }),
+        ),
+      ),
+    closeScope: () =>
+      Effect.runFork(
+        Scope.close(scope, Exit.void).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              events.push("scope closed");
+            }),
+          ),
+        ),
+      ),
     started: (name: string) => Effect.runPromise(Deferred.await(gateOf(name).started)),
     release: (name: string, value: string) => Effect.runPromise(Deferred.succeed(gateOf(name).gate, value)),
     fail: (name: string, error: string) => Effect.runPromise(Deferred.fail(gateOf(name).gate, error)),
@@ -150,16 +266,25 @@ describe("A: sequential composition is ordinary sequencing", () => {
 
     await b.started("A");
     await yields(300);
-    expect(b.events.includes("B started")).toBe(false);                        // B has not begun: sequencing is the command's own order
+    expect(b.events.includes("B started")).toBe(false); // B has not begun: sequencing is the command's own order
     await b.release("A", "a");
-    await b.seen("render update: a");                                          // the test paces itself on the presentation: a mount may skip a superseded state (C32)
+    await b.seen("render update: a"); // the test paces itself on the presentation: a mount may skip a superseded state (C32)
     await b.started("B");
     expect(b.events.indexOf("commit a")).toBeLessThan(b.events.indexOf("B started"));
     await b.release("B", "b");
     await joinAll(caller);
     await b.seen("render update: b");
 
-    expect(slice(b, "A started").filter((event) => !event.startsWith("render") && !event.startsWith("values"))).toEqual(["A started", "A done a", "commit a", "B started", "B done b", "commit b", "seq exit: succeeded", "caller of seq: succeeded"]);
+    expect(slice(b, "A started").filter((event) => !event.startsWith("render") && !event.startsWith("values"))).toEqual([
+      "A started",
+      "A done a",
+      "commit a",
+      "B started",
+      "B done b",
+      "commit b",
+      "seq exit: succeeded",
+      "caller of seq: succeeded",
+    ]);
     expect(b.values()).toEqual(["values: init", "values: a", "values: b"]);
     expect(b.renders()).toEqual(["render draw: init", "render update: a", "render update: b"]);
     expect((await b.state()).value).toBe("b");
@@ -167,17 +292,20 @@ describe("A: sequential composition is ordinary sequencing", () => {
 });
 
 describe("B: parallel owned composition", () => {
-  for (const [order, first, second] of [["A then B", "A", "B"], ["B then A", "B", "A"]] as const) {
+  for (const [order, first, second] of [
+    ["A then B", "A", "B"],
+    ["B then A", "B", "A"],
+  ] as const) {
     it(`one command owns A and B, completed ${order}: it stays alive until both finish; each branch's commit is a state change; last completion wins`, async () => {
       const b = await boot();
       const caller = b.invoke("par");
 
       await b.started("A");
-      await b.started("B");                                                      // both are in flight at once
+      await b.started("B"); // both are in flight at once
       await b.release(first, first.toLowerCase());
       await b.seen(`commit ${first.toLowerCase()}`);
       await yields(300);
-      expect(await b.poll(caller)).toBe(false);                                  // one branch done: the command is still alive
+      expect(await b.poll(caller)).toBe(false); // one branch done: the command is still alive
       expect(b.events.some((event) => event.startsWith("par exit"))).toBe(false);
       await b.release(second, second.toLowerCase());
       expect(await b.exit(caller)).toBe("succeeded");
@@ -203,12 +331,12 @@ describe("B: parallel owned composition", () => {
       await b.started("B");
       await b.release(first, first.toLowerCase());
       await yields(300);
-      expect(b.events.some((event) => event.startsWith("commit"))).toBe(false);   // nothing is state until the composition completes
+      expect(b.events.some((event) => event.startsWith("commit"))).toBe(false); // nothing is state until the composition completes
       await b.release(second, second.toLowerCase());
       expect(await b.exit(caller)).toBe("succeeded");
       await b.seen("render update: a+b");
 
-      expect(b.values()).toEqual(["values: init", "values: a+b"]);                // one transition, whichever finished first
+      expect(b.values()).toEqual(["values: init", "values: a+b"]); // one transition, whichever finished first
       expect((await b.state()).value).toBe("a+b");
     });
   }
@@ -219,8 +347,10 @@ describe("C: partial failure is ordinary Effect failure", () => {
     const b = await boot();
     const caller = b.invoke("par");
 
-    await b.started("A"); await b.started("B");
-    await b.release("A", "a"); await b.release("B", "b");
+    await b.started("A");
+    await b.started("B");
+    await b.release("A", "a");
+    await b.release("B", "b");
     expect(await b.exit(caller)).toBe("succeeded");
   });
 
@@ -228,7 +358,8 @@ describe("C: partial failure is ordinary Effect failure", () => {
     const b = await boot();
     const caller = b.invoke("par");
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.release("A", "a");
     await b.seen("commit a");
     await b.fail("B", "boom-B");
@@ -236,7 +367,7 @@ describe("C: partial failure is ordinary Effect failure", () => {
     await b.seen("render update: a");
     await yields(300);
 
-    expect(b.events.filter((event) => event.startsWith("commit"))).toEqual(["commit a"]);   // the partial result is state: Effect does not roll it back
+    expect(b.events.filter((event) => event.startsWith("commit"))).toEqual(["commit a"]); // the partial result is state: Effect does not roll it back
     expect(b.values()).toEqual(["values: init", "values: a"]);
     expect((await b.state()).value).toBe("a");
   });
@@ -245,7 +376,8 @@ describe("C: partial failure is ordinary Effect failure", () => {
     const b = await boot();
     const caller = b.invoke("par");
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.fail("A", "boom-A");
     expect(await b.exit(caller)).toBe('failed "boom-A" (cause also records an interrupted sibling)');
     await b.release("B", "late-b");
@@ -261,7 +393,8 @@ describe("C: partial failure is ordinary Effect failure", () => {
     const b = await boot();
     const caller = b.invoke("par");
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.release("B", "b");
     await b.seen("commit b");
     await b.fail("A", "boom-A");
@@ -275,10 +408,11 @@ describe("C: partial failure is ordinary Effect failure", () => {
     const b = await boot();
     const caller = b.invoke("parSettled");
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.fail("B", "boom-B");
     await yields(300);
-    expect(await b.poll(caller)).toBe(false);                                    // A is still running: a caught failure does not stop it
+    expect(await b.poll(caller)).toBe(false); // A is still running: a caught failure does not stop it
     expect(b.events).not.toContain("A interrupted");
     await b.release("A", "a");
     expect(await b.exit(caller)).toBe("succeeded");
@@ -339,9 +473,11 @@ describe("E: a composed workflow during drain", () => {
     const b = await boot();
     const caller = b.invoke("par");
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await Effect.runPromise(Fiber.join(b.closeScope()));
-    await b.release("A", "a"); await b.release("B", "b");
+    await b.release("A", "a");
+    await b.release("B", "b");
     await yields(300);
 
     expect(b.events).toContain("A interrupted");
@@ -355,7 +491,8 @@ describe("E: a composed workflow during drain", () => {
     const b = await boot();
     const caller = b.invoke("par");
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.release("A", "a");
     await b.seen("render update: a");
     await Effect.runPromise(Fiber.join(b.closeScope()));
@@ -378,7 +515,8 @@ describe("F: completion race against drain, composed", () => {
       const b = await boot();
       const caller = b.invoke("par");
 
-      await b.started("A"); await b.started("B");
+      await b.started("A");
+      await b.started("B");
       const released = Promise.all([b.release("A", "a"), b.release("B", "b")]);
       const closing = b.closeScope();
 
@@ -388,7 +526,10 @@ describe("F: completion race against drain, composed", () => {
       const e = b.events;
       const exitAt = e.findIndex((event) => event.startsWith("par exit"));
 
-      outcomes.set(`${exit}; commits: ${e.filter((event) => event.startsWith("commit")).join(",") || "none"}; exit before release: ${exitAt < at(e, "platform resource released")}; values: ${b.values().length - 1}; renders after draw: ${b.renders().length - 1}`, (outcomes.get(`${exit}`) ?? 0) + 1);
+      outcomes.set(
+        `${exit}; commits: ${e.filter((event) => event.startsWith("commit")).join(",") || "none"}; exit before release: ${exitAt < at(e, "platform resource released")}; values: ${b.values().length - 1}; renders after draw: ${b.renders().length - 1}`,
+        (outcomes.get(`${exit}`) ?? 0) + 1,
+      );
     }
 
     console.log("F race outcomes", JSON.stringify([...outcomes.keys()]));
@@ -398,12 +539,16 @@ describe("F: completion race against drain, composed", () => {
 });
 
 describe("G: one command owning A+B vs two independent commands", () => {
-  for (const [order, first, second] of [["A then B", "A", "B"], ["B then A", "B", "A"]] as const) {
+  for (const [order, first, second] of [
+    ["A then B", "A", "B"],
+    ["B then A", "B", "A"],
+  ] as const) {
     it(`two commands, ${order}: the same states, emissions and renders as one command owning both (B); two exits, two callers`, async () => {
       const b = await boot();
       const callers = [b.invoke("startA"), b.invoke("startB")];
 
-      await b.started("A"); await b.started("B");
+      await b.started("A");
+      await b.started("B");
       await b.release(first, first.toLowerCase());
       await b.seen(`commit ${first.toLowerCase()}`);
       await b.release(second, second.toLowerCase());
@@ -425,7 +570,8 @@ describe("G: one command owning A+B vs two independent commands", () => {
     const b = await boot();
     const [a, bb] = [b.invoke("startA"), b.invoke("startB")];
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.fail("B", "boom-B");
     expect(await b.exit(bb)).toBe('failed "boom-B"');
     expect(b.events).not.toContain("A interrupted");
@@ -439,7 +585,8 @@ describe("G: one command owning A+B vs two independent commands", () => {
     const b = await boot();
     const [a, bb] = [b.invoke("startA"), b.invoke("startB")];
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await Effect.runPromise(Fiber.interrupt(a));
     expect(b.events).toContain("A interrupted");
     expect(b.events).not.toContain("B interrupted");
@@ -449,7 +596,8 @@ describe("G: one command owning A+B vs two independent commands", () => {
     const c = await boot();
     const owner = c.invoke("par");
 
-    await c.started("A"); await c.started("B");
+    await c.started("A");
+    await c.started("B");
     await Effect.runPromise(Fiber.interrupt(owner));
     expect(c.events).toContain("A interrupted");
     expect(c.events).toContain("B interrupted");
@@ -461,7 +609,8 @@ describe("H: stale results", () => {
     const b = await boot();
     const callers = [b.invoke("startA"), b.invoke("startB")];
 
-    await b.started("A"); await b.started("B");
+    await b.started("A");
+    await b.started("B");
     await b.release("B", "b");
     await b.seen("render update: b");
     await b.release("A", "a");
@@ -475,7 +624,8 @@ describe("H: stale results", () => {
     const b = await boot();
     const callers = [b.invoke("tagA"), b.invoke("tagB")];
 
-    await b.started("A"); await b.started("B");                                  // A took ticket 1, B took ticket 2
+    await b.started("A");
+    await b.started("B"); // A took ticket 1, B took ticket 2
     await b.release("B", "b");
     await b.seen("render update: b");
     await b.release("A", "a");

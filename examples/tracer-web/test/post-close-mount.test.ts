@@ -16,7 +16,10 @@ import { load } from "./helpers.js";
 
 type Booted = Awaited<ReturnType<typeof boot>>;
 const closeApp = (b: Booted) => Effect.runPromise(Scope.close(b.appScope, Exit.void));
-const message = (exit: unknown): string => Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.isDieType((exit as { cause: Cause.Cause<unknown> }).cause) ? ((exit as { cause: { defect: Error } }).cause.defect).message : "not a defect";
+const message = (exit: unknown): string =>
+  Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.isDieType((exit as { cause: Cause.Cause<unknown> }).cause)
+    ? (exit as { cause: { defect: Error } }).cause.defect.message
+    : "not a defect";
 /** A plain `mount` over a recording target, settled with its Exit (the fixture's `mountOn` throws on failure). */
 const attempt = async (b: Booted) => {
   const page = load("");
@@ -25,9 +28,29 @@ const attempt = async (b: Booted) => {
   const factory: Valance.TargetFactory<Valance.HydratableTarget<{ readonly adopted: boolean }>> = (report) => {
     const port = Web.target({ container: page.container, primitives })(report);
 
-    return { draw: (t) => { port.draw(t); ops.push("draw"); }, update: (t) => { port.update(t); ops.push("update"); }, hydrate: (t) => port.hydrate(t), unmount: () => { port.unmount(); ops.push("unmount"); } };
+    return {
+      draw: (t) => {
+        port.draw(t);
+        ops.push("draw");
+      },
+      update: (t) => {
+        port.update(t);
+        ops.push("update");
+      },
+      hydrate: (t) => port.hydrate(t),
+      unmount: () => {
+        port.unmount();
+        ops.push("unmount");
+      },
+    };
   };
-  const exit = await Effect.runPromise(Valance.mount(b.handle, factory).pipe(Scope.extend(scope), Effect.exit, Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<Valance.Mounted<never>, unknown> | "hung", onTimeout: () => "hung" as const })));
+  const exit = await Effect.runPromise(
+    Valance.mount(b.handle, factory).pipe(
+      Scope.extend(scope),
+      Effect.exit,
+      Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<Valance.Mounted<never>, unknown> | "hung", onTimeout: () => "hung" as const }),
+    ),
+  );
 
   return { exit, ops, page, scope };
 };
@@ -39,19 +62,21 @@ describe("mounting after the application closed", () => {
 
     await b.invoke("app/bump");
     await closeApp(b);
-    scopeHook.current = (s) => { renders.push(s.n); };
+    scopeHook.current = (s) => {
+      renders.push(s.n);
+    };
     const before = await b.state();
     const r = await attempt(b);
 
     scopeHook.current = undefined;
     expect(r.exit).not.toBe("hung");
     expect(message(r.exit)).toBe("the application ended before its first render");
-    expect(renders).toEqual([]);                                         // MESH was never asked to render
-    expect(r.ops).toEqual([]);                                           // the target was never drawn on
+    expect(renders).toEqual([]); // MESH was never asked to render
+    expect(r.ops).toEqual([]); // the target was never drawn on
     expect(r.page.container.innerHTML).toBe("");
     await run(Scope.close(r.scope, Exit.void));
-    expect(r.ops).toEqual([]);                                           // no finalizer: nothing is unmounted either
-    expect(await b.state()).toEqual(before);                             // readable, unchanged: the mount committed nothing and restarted nothing
+    expect(r.ops).toEqual([]); // no finalizer: nothing is unmounted either
+    expect(await b.state()).toEqual(before); // readable, unchanged: the mount committed nothing and restarted nothing
     expect(before.n).toBe(1);
   });
 
@@ -61,9 +86,11 @@ describe("mounting after the application closed", () => {
     await closeApp(b);
     await attempt(b);
     await attempt(b);
-    const seen = await Effect.runPromise(Stream.runCollect(runningOf(b.handle).states).pipe(Effect.timeoutTo({ duration: "500 millis", onSuccess: (chunk) => [...chunk], onTimeout: () => "hung" as const })));
+    const seen = await Effect.runPromise(
+      Stream.runCollect(runningOf(b.handle).states).pipe(Effect.timeoutTo({ duration: "500 millis", onSuccess: (chunk) => [...chunk], onTimeout: () => "hung" as const })),
+    );
 
-    expect(seen).toEqual([]);                                            // no element, and it ends (not "hung")
+    expect(seen).toEqual([]); // no element, and it ends (not "hung")
     expect((await b.state()).n).toBe(0);
   });
 
@@ -95,7 +122,7 @@ describe("mounting after the application closed", () => {
     expect(message(mounted.exit)).toBe("the application ended before its first render");
     expect(message(hydrated.exit)).toBe("the application ended before its first render");
     expect(Exit.isFailure(unknown) && Cause.isFailType(unknown.cause)).toBe(true);
-    expect((await b.state()).n).toBe(0);                                 // and the state is readable throughout
+    expect((await b.state()).n).toBe(0); // and the state is readable throughout
   });
 });
 
@@ -106,16 +133,23 @@ describe("mounting while the application drains", () => {
     let release!: () => void;
 
     await b.invoke("app/bump");
-    b.gate.byId.set("A", new Promise<void>((resolve) => { release = resolve; }));
+    b.gate.byId.set(
+      "A",
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
     b.gate.uninterruptible = true;
-    holder.page.click(holder.rowEls()[0]!.querySelector("button")!);     // an admitted uninterruptible command holds the drain open
+    holder.page.click(holder.rowEls()[0]!.querySelector("button")!); // an admitted uninterruptible command holds the drain open
     await sleep(40);
     let closed = false;
-    const closing = closeApp(b).then(() => { closed = true; });
+    const closing = closeApp(b).then(() => {
+      closed = true;
+    });
 
     await sleep(40);
     expect(closed).toBe(false);
-    const m = await b.mountOn();                                         // during the drain
+    const m = await b.mountOn(); // during the drain
     const h = await hydrateOn(b, await served(b, A0));
 
     expect(m.ops).toEqual(["draw"]);
@@ -125,7 +159,7 @@ describe("mounting while the application drains", () => {
     release();
     await closing;
     await sleep(60);
-    expect(await m.standing()).toBe("ended");                             // the follower ends with the application's stream
+    expect(await m.standing()).toBe("ended"); // the follower ends with the application's stream
     expect(m.ops).toEqual(["draw"]);
     await Promise.all([m.close(), h.close(), holder.close()]);
   });
@@ -135,12 +169,12 @@ describe("recovering a mount versus recovering an application", () => {
   it("D. a fresh mount recovers an inert mount while the application lives; once the application is closed no mount can be created, and what is already there stays as it was", async () => {
     const b = await boot();
     let throws = false;
-    const inert = await b.mountOn({ updateThrows: () => throws ? "after" : undefined });
+    const inert = await b.mountOn({ updateThrows: () => (throws ? "after" : undefined) });
 
     throws = true;
     await b.invoke("app/bump");
     await sleep(40);
-    const fresh = await b.mountOn();                                     // mount recovery: needs only a live application
+    const fresh = await b.mountOn(); // mount recovery: needs only a live application
 
     expect(fresh.ops).toEqual(["draw"]);
     await b.invoke("app/bump");
@@ -148,11 +182,11 @@ describe("recovering a mount versus recovering an application", () => {
     expect(fresh.ops).toEqual(["draw", "update"]);
     await closeApp(b);
     await sleep(40);
-    const after = await attempt(b);                                      // application recovery: not a mount's to give
+    const after = await attempt(b); // application recovery: not a mount's to give
 
     expect(message(after.exit)).toBe("the application ended before its first render");
     expect(await fresh.standing()).toBe("ended");
-    expect(inert.ops).toEqual(["draw"]);                                 // the inert mount is as it was
+    expect(inert.ops).toEqual(["draw"]); // the inert mount is as it was
     expect((await b.state()).n).toBe(2);
     await Promise.all([inert.close(), fresh.close()]);
   });

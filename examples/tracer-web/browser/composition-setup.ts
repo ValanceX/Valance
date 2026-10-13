@@ -6,7 +6,8 @@ import { compileProgram } from "@valancex/mesh-compiler";
 
 const prop = (kind: string) => ({ type: { kind }, required: true });
 const manifest = JSON.stringify({
-  version: 1, types: {},
+  version: 1,
+  types: {},
   components: {
     page: { props: { title: prop("string") }, events: {}, commands: {}, scope: {} },
     text: { props: {}, events: {}, commands: {}, scope: {} },
@@ -14,12 +15,22 @@ const manifest = JSON.stringify({
     field: { props: {}, events: {}, commands: {}, scope: {} },
     button: { props: {}, events: { click: {} }, commands: {}, scope: {} },
     "mesh-if": { props: { when: prop("boolean") }, events: {}, commands: {}, scope: {} },
-    "mesh-each": { props: { items: { type: { kind: "list", element: { kind: "any" } }, required: true }, as: prop("string"), key: { type: { kind: "any" }, required: true } }, events: {}, commands: {}, scope: {} },
+    "mesh-each": {
+      props: { items: { type: { kind: "list", element: { kind: "any" } }, required: true }, as: prop("string"), key: { type: { kind: "any" }, required: true } },
+      events: {},
+      commands: {},
+      scope: {},
+    },
     board: {
-      props: {}, events: {},
+      props: {},
+      events: {},
       commands: { select: { parameters: [{ name: "id", type: { kind: "string" } }] } },
       scope: {
-        title: { kind: "string" }, loading: { kind: "boolean" }, failed: { kind: "boolean" }, selected: { kind: "string" }, result: { kind: "string" },
+        title: { kind: "string" },
+        loading: { kind: "boolean" },
+        failed: { kind: "boolean" },
+        selected: { kind: "string" },
+        result: { kind: "string" },
         items: { kind: "list", element: { kind: "record", fields: { id: prop("string"), label: prop("string") } } },
       },
     },
@@ -34,7 +45,9 @@ const source = `<page title={title}>
 export default async function setup(project: TestProject): Promise<void> {
   const result = await compileProgram({ model: { manifest, path: "components.json" }, root: "board", components: [{ component: "board", source, path: "board.mprx" }] });
 
-  if (result.program === undefined) { throw new Error(JSON.stringify(result.assembly ?? result.components)); }
+  if (result.program === undefined) {
+    throw new Error(JSON.stringify(result.assembly ?? result.components));
+  }
 
   project.provide("composition", result.program);
 }
