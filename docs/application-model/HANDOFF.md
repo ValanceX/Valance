@@ -1,0 +1,89 @@
+# Handoff and decision record: application model cycle
+
+Branch `claude/fervent-ptolemy-gbtc8u`. Newest entries at the bottom of each phase block.
+
+## Phase 0 — baseline (done)
+- Evidence: [`BASELINE.md`](BASELINE.md).
+- Decision: `PROJECT_SOURCE_OF_TRUTH.md`/`TASK_HANDOFF.md` are absent; use V1_CONTRACT/CONSTRAINTS/docs-verifier docs; this file is the handoff.
+- Code changed: none.
+- Validation: verifier build, typecheck, unit (3 pre-existing failures), Chromium smoke (14 pass), workspace build.
+- Uncertainty: none material.
+
+## Phase 1 — model (done)
+- Evidence: [`CANDIDATES.md`](CANDIDATES.md).
+- Decision: Candidate B; tooling lives in new package `packages/cli` (`@valancex/cli`, private, bin `valance`), because the core forbids a CLI.
+- Rejected: A (not an application), C (leaves mechanisms exposed), putting the CLI in `@valancex/valance` (contradicts CONSTRAINTS), rewriting docs-verifier in place (its kit is four sites of i18n/versions/search — out of scope; see Phase 2 notes).
+- Code changed: none.
+
+## Phase 2 — tracer bullet (done)
+- Evidence: [`FINDINGS.md`](FINDINGS.md) (failures F1–F8, blockers D1–D6, measurements). Browser evidence: `examples/docs-app/test/{built,dev}.test.ts` (Chromium, 14 checks).
+- Decision: the tracer is a **new example**, `examples/docs-app`, not a rewrite of `docs-verifier`. The verifier is four sites with versions, languages, search, tabs and callouts; moving it onto the new workflow needs the library mechanism (D4), capabilities in `defineApp` and per-page payloads. Rejected: rewriting it in place (would have made the cycle about the verifier's features, not the model); forking its kit into the new package (duplication).
+- Model revisions forced by the experiment: the entry is *generated* and the wasm import moved into the package (F1); narrow tag table (D1); `public/` is a convention checked from Markdown (D3); style edits bypass the rebuild (F3).
+- Code: `packages/cli` (new), `examples/docs-app` (new).
+
+## Phase 3 — substrate (done, minimal)
+- 3A config: `valance.json`, `valance.web.json`, schemas, `.valance/` with its own `.gitignore`, `dist/` separate. Proof: `test/config.test.ts`, `pipeline.test.ts` (project root holds only authored files, `.valance/`, `dist/`).
+- 3B commands: `vlx dev|build|check`. Proof: `cli.test.ts`, `pipeline.test.ts`, example smoke.
+- 3C content/assets: `content.ts`, `markdown.ts`, `public/`. Proof: 13 tests (4 Markdown, 9 content: nav order, links, fragments, images, errors with lines).
+- 3D routing: content-derived `RouteTable` through the existing `Plugin.routes`; hydration/history are Valance's. Proof: browser tests (direct load, in-place navigation, Back/Forward, fragment, 404 page and status).
+- 3E components/styles: templates discovered by file name; built-ins replaceable; every stylesheet loaded. No registry. Proof: pipeline test "replace a built-in by name", dev test (component and style edits).
+- 3F dev updates: watch, 60 ms quiet period, reload/style/overlay/restart. Proof: `dev.test.ts` (8 browser checks), `test/dev.test.ts` (base path, error at startup).
+- Not done on purpose: HMR for templates (D6), per-page payloads, server adapter, `preview`, new primitives (D4).
+- Rejected alternatives: virtual modules instead of generated entries (an author could not read what runs); a hand-rolled bundler/dev server instead of Vite (reimplements solved problems, adds nothing VALANCE-specific); putting the commands in `@valancex/valance` (forbidden by CONSTRAINTS); a content directory setting (no evidence).
+
+## Phase 4 — external boundaries (done)
+- [`EXTERNALS.md`](../../examples/docs-verifier/docs/EXTERNALS.md) now opens with the re-checked matrix, ownership map and plan. Result: X3 and X4 are implemented in the app tooling; X1, X2 and X6 are partly implemented there; X5 and X7 remain stand-ins.
+
+## Phase 5 — editor foundation (done)
+- [`EDITOR.md`](EDITOR.md). Implemented: one diagnostic shape, `check --json`, schemas, derived manifest. Not built: any server or extension.
+
+## Phase 6 — regression, documentation, decision (done)
+- [`REPORT.md`](REPORT.md): final report (what the cycle proved, structure, commands, status, API changes, validation, decisions, blockers). Run from a fresh clone of the pushed commit.
+
+## Editor integration feasibility (follow-up cycle)
+- Evidence: [`EDITOR-FEASIBILITY.md`](EDITOR-FEASIBILITY.md). Verdict: feasible; the template language server and a Tree-sitter grammar already exist upstream, so the new work is a TextMate grammar and a thin extension.
+- Decision: the extension is a spike in `editors/vscode`, its own pnpm root (like `docs-verifier`), outside the workspace and CI. It reads only `.valance/editor.json`, so Valance's conventions are not copied into the editor. Rejected: re-implementing diagnostics in the extension (the server is the compiler's own); a Valance-specific language server now (the gap is columns/unsaved buffers for Markdown, not worth a server yet); bundling native binaries in the VSIX (the project's `@valancex/mesh-lsp` keeps server and compiler versions together).
+- Code: `packages/cli` (enriched `manifest.json`, new `editor.json`, one test); `editors/vscode` (new, 15 tests).
+- Not done / unproven: VS Code host never run (download host unreachable from the sandbox).
+
+## Editor integration: decisions and CI (second follow-up)
+- Decisions (rationale and precedent table in `EDITOR-FEASIBILITY.md`): the MPRX grammar lives in **MESH** (`editors/vscode`, with a corpus test and its own CI job), by the Svelte/Vue/Astro/Angular pattern of keeping the grammar with the language's tooling and tests; `@valancex/mesh-lsp` is a **project dev dependency** (Angular pattern); the marketplace publisher is **deferred**.
+- Added: `vscode` CI job in `.github/workflows/ci.yml` (VS Code 1.90.0 and stable, `xvfb-run`), `editors/vscode/host/{run,suite}.ts` (8 cases in a real host), `sync-grammar` plus a drift test, `@valancex/mesh-lsp` in `examples/docs-app`.
+- Verified here: the editor's unit/e2e tests (16), the host code compiles, the launcher's setup runs against a scratch workspace, the real server starts through the pnpm shim.
+- **Host suite, first CI run (38065379029):** 7 of 8 cases passed in a real VS Code on both 1.90.0 and stable. The hover case failed on a test bug (`JSON.stringify` of a `MarkdownString` prints `{}`), fixed in the following commit.
+
+## Rename: `@valancex/app` -> `@valancex/cli`, `valance` -> `vlx`
+- The package directory is `packages/cli`, the npm name `@valancex/cli`, the command `vlx` (after `npx`, `bunx`). `valance.json`, `valance.web.json`, `.valance/` and the product name are unchanged. The core is untouched.
+- Names inside the tooling follow: log prefixes are `vlx:`, the extension runs `node_modules/.bin/vlx`, the author-definition brand is `Symbol.for("valancex.cli")`. Historical entries above keep their words but the replaced names were updated mechanically.
+- Verified: build, typecheck 0 errors, `packages/cli` 43 tests, docs-app 14 browser checks, extension 16 tests and host compile, and the walkthrough in [`TRY-IT.md`](TRY-IT.md) executed from a fresh clone.
+
+## First human use of the VS Code extension: no hover
+- Cause and fixes in `EDITOR-FEASIBILITY.md` ("Found by trying it"): the extension read `editor.json` once; a project that started on the built-in layout then gained its own never reached the running server, and every failure was invisible.
+- Changes: `editors/vscode/src/extension.ts` (project discovery, watch + live settings, status bar, warnings, restart/details commands, unmapped-template note, Windows shell), `project.ts` (`findProjects`, `forWorkspace`, `explain`), `diagnostics.ts` (`forTheCheck` keeps the check's voice for templates the server does not know). Tests: 22 unit/e2e (including the real server with workspace-relative paths and live reconfiguration); host suite now two scenarios (`project`, `parent`) and a stale-mapping case.
+- Not verified until CI runs: the new host cases.
+
+## Navigation from the generated manifest to the author's files
+- Cause (`EDITOR-FEASIBILITY.md`, "Navigation"): the server's answer to every definition is the generated manifest; only `vlx` knows provenance.
+- `packages/cli`: `src/wiring.ts` writes `.valance/wiring.json` (declarations, bindings, uses, per-component props and events with who passes or handles them, state and commands with who reads or runs them); `editor.json` points to it. A first version also wrote a readable `wiring.md` and `vlx wiring`; both were removed at the author's request (they want the connection at the token). Tests: 52.
+- `editors/vscode`: definition is the one declaration (translated), references are the many uses (a provider), CodeLens shows the other end, `valance.codeLens` setting. A design correction mid-way: a first version jumped from a component's event to its caller on ctrl+click; an author pointed out a handler may be bound to many events, so jumping cannot choose; that became references. Tests: 32 (unit, plus the real server and the real wiring in both directions of the example).
+- Host suite (CI): two new cases (definition and references, CodeLens). Not verified until CI runs.
+
+## Tarball lesson: ctrl+click still went to the manifest
+- Cause: the author's project used `@valancex/cli` from an older packed tarball (a frozen copy), so `.valance/wiring.json` was never written and the extension fell back silently. My instructions omitted the repack step.
+- Changes: the extension shows a visible `partial` status with the reason when `wiring.json` is missing and recovers when it appears; TRY-IT now installs the CLI by path and says to `pnpm build` after pulling. Tests: 2 unit, 1 host case (delete `wiring.json`, expect partial, rerun `vlx check`, expect ready). Host case not verified until CI runs.
+
+## The application as an explicit component tree
+- Trigger: the author starts reading at `main.ts` and cannot see where `layout.mprx` is consumed or where the `toggle` event is declared; they want Angular-style module/standalone imports or React-style static imports as an architecture they can trace, with code splitting in mind.
+- Decision: templates are no longer found by convention. `src/main.ts` imports them (`import layout from "./layout.mprx"`) and declares the tree: `defineApp({ layout: component(layout, { uses: [component(themeToggle, { props: ["theme"], events: ["toggle"] })] }) })`. A component lists the components its template uses (Angular standalone `imports`), and the props and events it takes and raises (`@Input`/`@Output`). Each is checked against the template in both directions with a diagnostic at the line that is wrong: `component-undeclared`, `component-unused`, `template-unused`, `prop-/event-undeclared`, `prop-/event-unknown`, `layout-name`, `override-unknown`.
+- Mechanism: a `.mprx` import is a bundler module that is only the file's address (`vlx-templates` plugin in `vite.ts`, `*.mprx` ambient type in `types/mprx.d.ts`); the browser bundle carries no template text, and a template edit does not hot-update the module (the rebuild reloads once, or shows the overlay). Built-in components are the framework's and need no declaration; `override` replaces one.
+- Editor: Go to Definition of an event or prop is its declaration in `main.ts` (as `@Output` is); Find All References lists where the template raises or reads it and every handler or passer; the tag still goes to its template. Lenses show the tree from both ends (a template: "in layout · declared in main.ts:9 · used in layout.mprx:4"; `main.ts`: what each declaration is and who raises, handles, passes it). The `*.mprx` import specifier in `main.ts` is a link to the file (TypeScript alone would land on the ambient declaration).
+- Rejected: a flat `components: []` list (names the files but not the tree, so "where is this used" has no answer in `main.ts`); strings instead of imports (no rename/move support from TypeScript, no import graph for code splitting); keeping convention discovery beside the declarations (two sources of truth).
+- Not done: lazy loading and per-route code splitting. The declaration is where it would go (a `component` loaded by `import()`), but today a page ships one program; the tree is the thing a split would be cut from. Props are listed by name, not by type (types are inferred by MESH from the template).
+- Breaking for the example and tests only: nothing outside this cycle uses the package. Tests: cli 58, extension 35; the host suite gains one case (links in `main.ts`) and changes three; not verified until CI runs.
+
+## Control-flow blocks, typed component contracts, Windows support
+- **Blocks (MESH 0.11).** `{#if}`/`{:else if}`/`{:else}`/`{/if}` and `{#each items as item (key)}`/`{/each}` replace `mesh-if`, `mesh-each` and `mesh-switch`/`mesh-case`/`mesh-default`, which MESH now rejects as `retired-element` naming the block to write. Every template, example, the verifier and fixtures were rewritten; the scanner that builds `wiring.json` counts only block expressions as reads (the keyword and the `as` name are not reads). The derived model (`packages/valance/src/web-manifest.ts`) no longer declares the conditional and repeat elements and refuses the retired names ("is not an element"). The `@valancex/*` ranges move to the MESH 0.11 line together.
+- **Contracts.** A state field is `field(schema, default)`; `schema` + `initial` still works and a clash is the same definition error. `component(template, { props, events, uses })` declares the interface where the component is defined; use sites name only what they use. Neither side declared: inferred. Either: exactly what was written (omitted side none), overriding inference. Schemas go through the same conversion as state; a schema with no MESH type is a `component-schema` diagnostic, an unsupported state type `state-type`. The name-list comparison diagnostics (`prop-undeclared`, `prop-unknown`, `event-undeclared`, `event-unknown`) are gone; MESH reports undeclared, missing and mistyped props and undeclared handlers. `declarationsOf` (a text scan) finds `component(` calls in any `src/**/*.ts`, so the editor's lenses, links and definitions land in the file that declares the component.
+- **Typed imports.** `.valance/types/<template>.d.mprx.ts` gives each import `Template<props, events>`; it needs `allowArbitraryExtensions` and `rootDirs: ["src", ".valance/types"]`. A wildcard ambient declaration lost to the package's own `*.mprx` fallback, which is why this is file-based. Stale until the next `check`/`dev`/`build`; the project root is resolved to its real path so a symlinked checkout generates in one place.
+- **Windows.** LF checkouts (`.gitattributes`), junctions instead of directory symlinks, child tools started with Node (`process.execPath` and the package's script, with `ELECTRON_RUN_AS_NODE` in the extension host) rather than `.bin` shims, `fileURLToPath` for file URLs, repo scripts in Node (`scripts/copy-into.mjs`, `build-packs.mjs`).
+- Verified against a local MESH 0.11 build: cli 71, valance core, tracer-web 553, docs-site and docs-app builds and smoke, extension 35. Not run: the VS Code host suite and the browser suites.

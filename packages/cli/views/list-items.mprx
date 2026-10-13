@@ -1,0 +1,3 @@
+<mesh-fragment>
+  {#each items as i (i.id)}<item><runs spans={i.spans} /></item>{/each}
+</mesh-fragment>

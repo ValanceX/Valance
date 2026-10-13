@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schemas/valance.schema.json",
+  "title": "valance.json",
+  "description": "The project: what the application is called. Settings for a target are in valance.<target>.json (valance.web.json for the web).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1, "description": "The version of this file's format." },
+    "name": { "type": "string", "minLength": 1, "description": "The application's name: the site's title in navigation and in every page's <title>." }
+  }
+}

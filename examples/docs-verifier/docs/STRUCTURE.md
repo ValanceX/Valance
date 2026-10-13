@@ -234,7 +234,7 @@ Behaviour is unchanged where it was not meant to change. Built from the commit b
 ## Remaining work
 
 **Public API (Valance):**
-- No build or dev command that owns the stages (`valance build`, `valance dev`), so the four stages (compile tools, prepare, `vite build`, site) remain and `pnpm build` is a chain of them. This is `docs/EXTERNALS.md` X2 and X3; it is the reason P3.2 is only partly met.
+- No build or dev command that owns the stages (`vlx build`, `vlx dev`), so the four stages (compile tools, prepare, `vite build`, site) remain and `pnpm build` is a chain of them. This is `docs/EXTERNALS.md` X2 and X3; it is the reason P3.2 is only partly met.
 - No project configuration file that Valance reads, so `valance.json` / `valance.web.json` cannot exist yet; `site.json` carries both project and web-deploy settings (`base`, `url`).
 - No static-asset convention (`public/`): a site cannot ship an image or a favicon (F-7).
 - No watch mode or development server.

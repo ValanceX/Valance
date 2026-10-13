@@ -1,0 +1,3 @@
+<mesh-fragment>
+  {#if kind == "strong"}<strong>{text}</strong>{:else if kind == "emphasis"}<em>{text}</em>{:else if kind == "code"}<code>{text}</code>{:else if kind == "link"}<a href={href}>{text}</a>{:else}<mesh-fragment>{text}</mesh-fragment>{/if}
+</mesh-fragment>

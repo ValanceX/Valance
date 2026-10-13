@@ -17,7 +17,7 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "test:browser": "pnpm --filter @valancex/tracer-web run test:browser",
-    "test:examples": "pnpm --filter @valancex/docs-site run test:smoke"
+    "test:examples": "pnpm --filter @valancex/docs-site run test:smoke && pnpm --filter @valancex/docs-app run test:smoke"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

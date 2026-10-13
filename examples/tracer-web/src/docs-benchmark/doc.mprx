@@ -2,36 +2,36 @@
   <header>
     <heading>{site}</heading>
     <field value={query} on.input={search($event)} />
-    <mesh-if when={search.status == "loading"}><text>Searching…</text></mesh-if>
-    <mesh-if when={search.status == "failed"}><text>Search failed: {search.message}</text></mesh-if>
-    <mesh-if when={search.empty}><text>No results</text></mesh-if>
+    {#if search.status == "loading"}<text>Searching…</text>{/if}
+    {#if search.status == "failed"}<text>Search failed: {search.message}</text>{/if}
+    {#if search.empty}<text>No results</text>{/if}
     <list>
-      <mesh-each items={search.results} as="r" key={r.id}>
+      {#each search.results as r (r.id)}
         <item><link href={r.href}>{r.label}</link></item>
-      </mesh-each>
+      {/each}
     </list>
   </header>
   <nav>
     <list>
-      <mesh-each items={nav} as="n" key={n.id}>
+      {#each nav as n (n.id)}
         <item><text>{n.mark}</text><link href={n.href}>{n.label}</link></item>
-      </mesh-each>
+      {/each}
     </list>
   </nav>
   <main>
     <heading>{title}</heading>
-    <mesh-each items={paragraphs} as="p" key={p.id}><para>{p.text}</para></mesh-each>
-    <mesh-if when={code != ""}><code>{code}</code></mesh-if>
+    {#each paragraphs as p (p.id)}<para>{p.text}</para>{/each}
+    {#if code != ""}<code>{code}</code>{/if}
     <button on.click={toggle()}>{detailsLabel}</button>
-    <mesh-if when={detailsOpen}>
+    {#if detailsOpen}
       <shell>
         <para>{details}</para>
-        <mesh-if when={code != ""}><text>This page has an example.</text></mesh-if>
+        {#if code != ""}<text>This page has an example.</text>{/if}
       </shell>
-    </mesh-if>
+    {/if}
     <nav>
-      <mesh-if when={prev.href != ""}><link href={prev.href}>{prev.label}</link></mesh-if>
-      <mesh-if when={next.href != ""}><link href={next.href}>{next.label}</link></mesh-if>
+      {#if prev.href != ""}<link href={prev.href}>{prev.label}</link>{/if}
+      {#if next.href != ""}<link href={next.href}>{next.label}</link>{/if}
     </nav>
   </main>
   <footer><text>Valance documentation benchmark</text></footer>

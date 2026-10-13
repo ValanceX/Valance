@@ -1,0 +1,26 @@
+<shell class="layout" theme="light">
+  <header class="bar">
+    <link class="brand" href={home} current="false">{site}</link>
+  </header>
+  <div class="frame">
+    <nav class="sidebar" label="Pages">
+      {#each sections as s (s.id)}
+        <section>
+          {#if s.title != ""}<para class="nav-title">{s.title}</para>{/if}
+          <list class="nav-list">
+            {#each s.items as n (n.id)}
+              <item><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></item>
+            {/each}
+          </list>
+        </section>
+      {/each}
+    </nav>
+    <main id="content" tabindex="-1">
+      <blocks items={blocks} />
+      <nav class="pager" label="Previous and next page">
+        {#if prev.href != ""}<link class="pager-link" href={prev.href} current="false">{prev.label}</link>{/if}
+        {#if next.href != ""}<link class="pager-link" href={next.href} current="false">{next.label}</link>{/if}
+      </nav>
+    </main>
+  </div>
+</shell>

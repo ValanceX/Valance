@@ -6,8 +6,8 @@
  *   what a view may read              the view's scope Schema, which also types its `scope` function
  *   what a view may run               the command table: each bare command's input Schema gives its parameters, in field order (the order `start` already binds arguments in)
  *
- * What is fixed plumbing and never written by anyone: the format version, the (empty) named types, the (empty) commands and scope of a primitive, and the two reserved
- * structural tags, `mesh-if` and `mesh-each`.
+ * What is fixed plumbing and never written by anyone: the format version, the (empty) named types, the (empty) commands and scope of a primitive. Conditional and repeated
+ * structure are blocks (`{#if}`, `{#each}`) that lower to built-in constructs, so the manifest declares no element for them.
  *
  * What is NOT derived, and why (each is an error here, not a silent default):
  *   - an exact `"component/name"` command key: `entry`'s adapter turns an event's arguments into the command's input with an opaque function, so the parameters a template
@@ -200,6 +200,9 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
   return commands;
 };
 
+/** The names MESH reserved as elements for control flow and then retired for blocks: a view or a primitive may not take one. */
+const RETIRED = new Set(["mesh-if", "mesh-each", "mesh-switch", "mesh-case", "mesh-default"]);
+
 const noState = new Proxy({}, { get: (_target, property) => { throw new ManifestError("commands", `the table read state.${String(property)} while it was being built; a table is built without reading state (commands read it when they RUN)`); } }) as Nexus.State.StateHandle<any>;
 
 /** The manifest of an application, derived from its Web primitives table, its views' scope Schemas and its command table. Pass it to `compileProgram` as JSON. */
@@ -209,8 +212,8 @@ export const manifest = (given: ManifestOptions): Manifest => {
   const commands = commandsOf(options.commands(noState), views);
 
   for (const name of [...Object.keys(options.primitives), ...views]) {
-    if (name === "mesh-if" || name === "mesh-each") {
-      throw new ManifestError(name, "is reserved by MESH for conditional and repeated structure, and is declared for you");
+    if (RETIRED.has(name)) {
+      throw new ManifestError(name, "is not an element: conditional and repeated structure are blocks (`{#if}`, `{#each}`), and the constructs they lower to are built in");
     }
   }
 
@@ -225,8 +228,6 @@ export const manifest = (given: ManifestOptions): Manifest => {
     types: {},
     components: {
       ...Object.fromEntries(Object.entries(options.primitives).map(([tag, primitive]) => [tag, tagOf(tag, primitive)])),
-      "mesh-if": { props: { when: { type: { kind: "boolean" }, required: true } }, events: {}, commands: {}, scope: {} },
-      "mesh-each": { props: { items: { type: { kind: "list", element: { kind: "any" } }, required: true }, as: { type: { kind: "string" }, required: true }, key: { type: { kind: "any" }, required: true } }, events: {}, commands: {}, scope: {} },
       ...Object.fromEntries(Object.entries(options.scopes).map(([view, schema]) => [view, {
         props: {},
         events: {},

@@ -26,9 +26,9 @@ const manifest = JSON.stringify({
   },
 });
 const source = `<page title={title}>
-  <mesh-if when={loading}><text>loading {selected}</text><text>result: {result}</text></mesh-if>
-  <mesh-if when={failed}><text>error {selected}</text></mesh-if>
-  <mesh-each items={items} as="item" key={item.id}><row><field /><button on.click={select(item.id)}>{item.label}</button></row></mesh-each>
+  {#if loading}<text>loading {selected}</text>{:else}<text>result: {result}</text>{/if}
+  {#if failed}<text>error {selected}</text>{/if}
+  {#each items as item (item.id)}<row><field /><button on.click={select(item.id)}>{item.label}</button></row>{/each}
 </page>`;
 
 export default async function setup(project: TestProject): Promise<void> {

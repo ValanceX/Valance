@@ -117,24 +117,28 @@ No adapter is needed. The input is checked by the command's schema like any othe
 
 A text field is a primitive too. Put `Web.textField` in your `primitives` and write `<field value={query} on.input={search($event)} />`: the box shows the application's `query`, and what the person types arrives as a string. The box always shows what the state says: if a command resets the query (the reader went to another page), the box empties; if a command declines an edit, the next time the screen is redrawn it shows the application's value again. The server writes the value into the page, so a reload keeps it.
 
-## Repeated and conditional parts (provisional)
+## Repeated and conditional parts
 
-A list of items and a part that shows only sometimes are written in the view description with two reserved tags. They are MESH's, and MESH calls their spelling provisional: they have not changed since they were introduced (MESH 0.7, through 0.9), but they are not promised.
+A list of items and a part that shows only sometimes are written in the view description as **blocks**: syntax of the template language, not elements. The block syntax is stable (MESH 0.11); how the runtime treats a repeated or conditional part (identity, ordering) is provisional.
 
 ```
-<mesh-each items={nav} as="n" key={n.id}>      repeat the child for each item; `key` is the item's identity
+{#each nav as n (n.id)}                         repeat the body for each item; (n.id) is the item's identity
   <item><link href={n.href}>{n.label}</link></item>
-</mesh-each>
+{/each}
 
-<mesh-if when={search.status == "failed"}>      one child: shown when `when` is true
+{#if search.status == "failed"}                 shown when the condition is true
   <text>Search failed</text>
-</mesh-if>
+{:else if search.status == "idle"}
+  <text>Type to search</text>
+{:else}
+  <text>Searching</text>
+{/if}
 ```
 
-- **`key` is the identity.** An item keeps its on-screen element through reordering and removal; an item that leaves and returns is new. A `mesh-each` without a `key` is refused when the view is compiled.
-- **`mesh-if` has one or two children, by position**: the first when `when` is true, the second when it is false. With one, a false `when` shows nothing. A `mesh-if` may not be a *direct* child of another; wrap the inner one in an element.
-- **`when` and `items` are ordinary expressions** over what `scope` supplies: `search.status == "failed"`, `code != ""`, `!loading`. There is no length operator, so "the list is empty" is a value your `scope` computes.
-- You declare nothing else: the compiler is told these tags for you.
+- **The key is the identity.** An item keeps its on-screen element through reordering and removal; an item that leaves and returns is new. A `{#each}` without a key is refused when the view is compiled (`missing-repeat-key`).
+- **A branch or a body is one element**; several are wrapped in a fragment for you. A block cannot be the whole document, and text cannot contain `{#`, `{:` or `{/`.
+- **The condition and the list are ordinary expressions** over what `scope` supplies: `search.status == "failed"`, `code != ""`, `!loading`. There is no length operator, so "the list is empty" is a value your `scope` computes. `as n` names the item inside the body.
+- You declare nothing: the blocks are built in. The elements `mesh-if`, `mesh-each`, `mesh-switch`, `mesh-case` and `mesh-default` are retired and rejected with the block to write instead.
 
 ## What to take away
 

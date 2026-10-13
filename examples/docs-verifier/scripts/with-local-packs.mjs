@@ -2,7 +2,7 @@
 //
 //   node scripts/with-local-packs.mjs [packs] [--smoke] [--only a,b,c] [--fresh]
 //
-//   packs     the directory holding the .tgz packs (default ./.packs, made by scripts/build-packs.sh). A package with a pack is taken from it, overrides included so only one
+//   packs     the directory holding the .tgz packs (default ./.packs, made by scripts/build-packs.mjs). A package with a pack is taken from it, overrides included so only one
 //             copy of each resolves; a package without one stays at the version in package.json (the registry).
 //   --smoke   also run the Chromium smoke tests.
 //   --only    run just these package scripts, in order (default: typecheck,build,test).
@@ -56,7 +56,7 @@ const stamp = `${JSON.stringify([manifest.dependencies, manifest.devDependencies
 const stampFile = join(work, ".packs-stamp");
 const run = (script) => {
   try {
-    execFileSync("pnpm", ["run", script], { cwd: work, stdio: "inherit" });
+    execFileSync("pnpm", ["run", script], { cwd: work, stdio: "inherit", shell: process.platform === "win32" });
   } catch {
     console.error(`\n\`pnpm run ${script}\` failed in ${work}`);
     process.exit(1);
@@ -66,7 +66,7 @@ const run = (script) => {
 if (!existsSync(join(work, "node_modules")) || !existsSync(stampFile) || readFileSync(stampFile, "utf8") !== stamp) {
   rmSync(join(work, "node_modules", "@valancex"), { recursive: true, force: true });
   rmSync(join(work, "pnpm-lock.yaml"), { force: true });
-  execFileSync("pnpm", ["install", "--ignore-scripts", "--force"], { cwd: work, stdio: "inherit" });
+  execFileSync("pnpm", ["install", "--ignore-scripts", "--force"], { cwd: work, stdio: "inherit", shell: process.platform === "win32" });
   writeFileSync(stampFile, stamp);
 }
 

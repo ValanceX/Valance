@@ -1,0 +1,6 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "build the extension", "type": "shell", "command": "pnpm build", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": "$tsc" }
+  ]
+}

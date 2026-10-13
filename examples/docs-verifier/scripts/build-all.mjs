@@ -4,5 +4,5 @@ import { readdirSync } from "node:fs";
 
 for (const site of readdirSync("sites").sort()) {
   console.log(`\n== ${site}`);
-  execFileSync("pnpm", ["run", "build"], { stdio: "inherit", env: { ...process.env, SITE: site } });
+  execFileSync("pnpm", ["run", "build"], { stdio: "inherit", env: { ...process.env, SITE: site }, shell: process.platform === "win32" });
 }

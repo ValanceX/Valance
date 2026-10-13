@@ -1,0 +1,3 @@
+<mesh-fragment>
+  {#if level == 1}<h1 id={anchor}><runs spans={spans} /></h1>{:else if level == 2}<h2 id={anchor}><runs spans={spans} /></h2>{:else}<h3 id={anchor}><runs spans={spans} /></h3>{/if}
+</mesh-fragment>

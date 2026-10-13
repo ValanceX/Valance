@@ -35,8 +35,8 @@ const manifest = JSON.stringify({
 });
 // Both views have the SAME structure: a conditional, then a keyed repeat.
 const source = `<page title={title}>
-  <mesh-if when={show}><text>shown</text></mesh-if>
-  <mesh-each items={items} as="item" key={item.id}><row><text>{item.id}</text><button on.click={tap(item.tag)}>x</button></row></mesh-each>
+  {#if show}<text>shown</text>{/if}
+  {#each items as item (item.id)}<row><text>{item.id}</text><button on.click={tap(item.tag)}>x</button></row>{/each}
 </page>`;
 const program = async (root: "va" | "vb") => {
   const result = await compileProgram({ model: { manifest, path: "components.json" }, root, components: [{ component: root, source, path: `${root}.mprx` }] });

@@ -8,6 +8,8 @@ record where composing it is awkward (`docs/FINDINGS.md`).
 When the features are mature enough, this grows into the polished docs site.
 After that, a more complex specialised app takes over as the verifier.
 
+> **Not the model for writing an application.** This is the evidence base: a kit that composes the engines by hand, four sites, and the friction record. The proposed way to *write* a VALANCE application, with `vlx dev` and `vlx build`, is [`examples/docs-app`](../docs-app) (see [`docs/application-model/`](../../docs/application-model/)); `docs/EXTERNALS.md` says which of this verifier's stand-ins that work has replaced and which remain.
+
 See `docs/ROADMAP.md` for where this is going (a complete, styled, statically generated documentation site) and `docs/EXTERNALS.md` for the pieces that are deliberately outside VALANCE and plug in through its seams.
 
 ## Sites
@@ -26,6 +28,8 @@ SITE=blog pnpm build        # the static site in dist/blog (default SITE=docs)
 SITE=blog pnpm start        # serve dist/blog as a static host does (start:ssr renders per request)
 pnpm build:all              # every site in sites/
 ```
+
+On Windows (PowerShell) set the variable first: `$env:SITE = "blog"; pnpm build`, `$env:SITE = "blog"; pnpm start`. `pnpm build:all` and the local-pack scripts are Node scripts and need nothing else.
 
 `site.json`:
 
@@ -109,7 +113,7 @@ pnpm test:visual      # screenshots of each site against the last run (baselines
 To verify a set of packages that is prepared but not yet on the registry, build packs of the sibling checkouts and install against them (`../../../Nexus` and `../../../Port` relative to this directory):
 
 ```
-scripts/build-packs.sh                      # packs Nexus, Port Web and Valance into ./.packs
+scripts/build-packs.mjs                     # packs Nexus, Port Web and Valance into ./.packs
 node scripts/with-local-packs.mjs           # copies the project to ./.work, installs against the packs, then: typecheck, build, test
 node scripts/with-local-packs.mjs --only build --smoke
 ```

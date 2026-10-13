@@ -44,7 +44,7 @@ Not yet done in phase A: the verifier itself still runs on the **released** 0.7.
 
 ### B. Verifier on the seams: **done** (verified against local packs of Nexus 0.12.2, Port Web 0.4.1 and Valance 0.8.0)
 
-Delivered: `app/` (state with `theme` and `menu`, four commands, structured navigation scope, a route table with `navigate`/`paths`/`canonicalOf`); `web/kit.ts`, `router.ts`, `seo.ts`, `plugins.ts`; `document.ts` writes `renderHead` of the plugins' head and links the hashed stylesheet; `styles/site.css` (tokens, three themes, sticky bar, sidebar, callout tones, small-screen menu); primitives with `class`/`data-*`/`aria-*`; `scripts/build-packs.sh` and a persistent `with-local-packs.mjs`; principle probes P1 and O1 confirmed fixed. 33 unit tests, 6 Chromium tests, 20 principle probes. Friction F12–F16 logged in `FINDINGS.md`.
+Delivered: `app/` (state with `theme` and `menu`, four commands, structured navigation scope, a route table with `navigate`/`paths`/`canonicalOf`); `web/kit.ts`, `router.ts`, `seo.ts`, `plugins.ts`; `document.ts` writes `renderHead` of the plugins' head and links the hashed stylesheet; `styles/site.css` (tokens, three themes, sticky bar, sidebar, callout tones, small-screen menu); primitives with `class`/`data-*`/`aria-*`; `scripts/build-packs.mjs` and a persistent `with-local-packs.mjs`; principle probes P1 and O1 confirmed fixed. 33 unit tests, 6 Chromium tests, 20 principle probes. Friction F12–F16 logged in `FINDINGS.md`.
 
 Plan as written:
 

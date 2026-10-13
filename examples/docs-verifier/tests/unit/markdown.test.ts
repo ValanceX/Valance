@@ -1,5 +1,5 @@
 // Build time: the markdown subset becomes typed blocks, the content directory becomes the site, and a mistake in the content fails the build with the file and the line.
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -209,7 +209,9 @@ describe("the content directory is the site", () => {
   it.each(SITES)("%s: every example in its snippets/ is used by a page, and every page example is a snippet (nothing is dead, nothing is unchecked)", (name) => {
     const content = join(siteDir(name), "content");
     const used = new Set(readdirSync(content, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".md")).flatMap((file) => [...readFileSync(join(content, file), "utf8").matchAll(/file=snippets\/(\S+)/g)].map((found) => found[1]!)));
-    const present = readdirSync(join(siteDir(name), "snippets")).filter((file) => file.endsWith(".ts"));
+    // A site with no examples has no snippets/ at all (git does not keep an empty directory).
+    const snippets = join(siteDir(name), "snippets");
+    const present = existsSync(snippets) ? readdirSync(snippets).filter((file) => file.endsWith(".ts")) : [];
 
     // `counter-views.ts` is shown on the getting-started page, and imported by `counter.ts`.
     expect(present.filter((file) => !used.has(file))).toEqual([]);

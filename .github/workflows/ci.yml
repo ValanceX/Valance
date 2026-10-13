@@ -33,3 +33,43 @@ jobs:
       - run: pnpm --filter @valancex/tracer-web exec playwright install chromium
       - run: pnpm test:browser
       - run: pnpm test:examples
+
+  # The VS Code extension (editors/vscode), in a real VS Code: the oldest version it supports and the current one. The unit tests use VS Code's grammar engine and the real mesh-lsp and
+  # valance; the host suite launches VS Code (under a virtual display) with the extension and drives it on a copy of examples/docs-app. Its own pnpm root, so the workspace jobs above do
+  # not depend on it.
+  vscode:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vscode: ["1.90.0", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # The example and the packages it needs (valance, mesh-lsp) are built by the workspace.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install the extension's dependencies
+        working-directory: editors/vscode
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: editors/vscode
+        run: pnpm typecheck
+      - name: Unit tests (grammar, project, real mesh-lsp, real valance)
+        working-directory: editors/vscode
+        run: pnpm test
+      - uses: actions/cache@v4
+        with:
+          path: editors/vscode/.vscode-test
+          key: vscode-${{ matrix.vscode }}-${{ hashFiles('editors/vscode/pnpm-lock.yaml') }}
+      - name: Host tests (VS Code ${{ matrix.vscode }})
+        working-directory: editors/vscode
+        env:
+          VSCODE_VERSION: ${{ matrix.vscode }}
+        run: xvfb-run -a pnpm test:host

@@ -33,8 +33,8 @@ const manifest = JSON.stringify({
 const sources = {
   quiet: `<page title="q"><text>nothing is declared here</text></page>`,
   home: `<page title="h"><button on.click={go()}>go</button></page>`,
-  conditional: `<page title="c"><mesh-if when={show}><button on.click={go()}>go</button></mesh-if></page>`,
-  repeated: `<page title="r"><mesh-each items={ids} as="i" key={i}><button on.click={go()}>a</button></mesh-each><button on.click={go()}>b</button></page>`,
+  conditional: `<page title="c">{#if show}<button on.click={go()}>go</button>{/if}</page>`,
+  repeated: `<page title="r">{#each ids as i (i)}<button on.click={go()}>a</button>{/each}<button on.click={go()}>b</button></page>`,
   titled: "<page title={title}><text>t</text></page>",
 };
 const program = async (root: keyof typeof sources): Promise<Mesh.Program> => {

@@ -23,11 +23,10 @@ const manifest = JSON.stringify({
 // A conditional with two alternatives of the SAME component in the same place (A/B), then a one-alternative conditional holding a stateful element, between static siblings.
 const source = `<page title={title}>
   <text>head</text>
-  <mesh-if when={on}>
-    <button on.click={turnOff()}>A</button>
-    <button on.click={turnOn()}>B</button>
-  </mesh-if>
-  <mesh-if when={field}><field /></mesh-if>
+  {#if on}
+    <button on.click={turnOff()}>A</button>{:else}
+    <button on.click={turnOn()}>B</button>{/if}
+  {#if field}<field />{/if}
   <button on.click={showField()}>show field</button>
   <button on.click={hideField()}>hide field</button>
   <button on.click={bump()}>bump</button>
