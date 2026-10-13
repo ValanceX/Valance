@@ -233,6 +233,31 @@ describe("wiring: both ends of each connection", () => {
     expect(lensesFor(wiring, "src/other.mprx")).toEqual([]);
   });
 
+  it("summary lenses are counts: short however many bindings a component has, with the places one click away", async () => {
+    const { lensesFor } = await import("../src/wiring");
+
+    expect(lensesFor(wiring, "src/layout.mprx", "summary").map((lens) => lens.title)).toEqual(["→ theme-toggle.mprx  ·  1 prop, 1 event"]);
+    expect(lensesFor(wiring, "src/theme-toggle.mprx", "summary").map((lens) => lens.title)).toEqual(["used in 1 place", "prop theme · 1 pass", "event toggle · 1 handler"]);
+    expect(lensesFor(wiring, "src/main.ts", "summary").map((lens) => lens.title)).toEqual(["state · read in 2 places", "command · not run by any template"]);
+
+    // The click still reaches every place: the targets are the same as in full.
+    expect(lensesFor(wiring, "src/theme-toggle.mprx", "summary").map((lens) => lens.targets)).toEqual(
+      lensesFor(wiring, "src/theme-toggle.mprx", "full").map((lens) => lens.targets),
+    );
+
+    // A component with many bindings: still one short lens each.
+    const component = wiring.components[0]!;
+    const props = ["a", "b", "c", "d", "e", "f", "g", "h"].map((name) => ({
+      ...component.props[0]!,
+      name,
+      passedBy: [component.props[0]!.passedBy[0]!, component.props[0]!.passedBy[0]!],
+    }));
+    const wide = { ...wiring, components: [{ ...component, props }] };
+    const titles = lensesFor(wide, "src/theme-toggle.mprx", "summary").map((lens) => lens.title);
+
+    expect(Math.max(...titles.map((title) => title.length))).toBeLessThan(40);
+  });
+
   it("says plainly when nothing connects to a prop or an event", async () => {
     const { lensesFor } = await import("../src/wiring");
     const lonely = {

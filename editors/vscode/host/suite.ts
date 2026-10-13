@@ -239,8 +239,10 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
   ],
 
   [
-    "CodeLens puts the other end of each connection beside this one",
+    "CodeLens puts the other end of each connection beside this one (written out, with `valance.codeLens: full`)",
     async () => {
+      await vscode.workspace.getConfiguration("valance").update("codeLens", "full", vscode.ConfigurationTarget.Global);
+
       const titlesOf = async (file: string): Promise<string> => {
         const { document } = await open(file);
         const lenses = await waitFor(`code lenses in ${file}`, async () => {
@@ -260,6 +262,29 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       assert.match(await titlesOf("src/theme-toggle.ts"), /event toggle · raised in theme-toggle\.mprx:\d+ · handled in layout\.mprx:\d+/);
       assert.match(await titlesOf("src/main.ts"), /command · run in layout\.mprx:\d+/);
       assert.match(await titlesOf("src/main.ts"), /state · read in layout\.mprx/);
+    },
+  ],
+
+  [
+    "CodeLens is short by default: a count above each end, and the places one click away",
+    async () => {
+      await vscode.workspace.getConfiguration("valance").update("codeLens", undefined, vscode.ConfigurationTarget.Global);
+
+      const titlesOf = async (file: string): Promise<string> => {
+        const { document } = await open(file);
+        const lenses = await waitFor(`code lenses in ${file}`, async () => {
+          const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.CodeLens>>("vscode.executeCodeLensProvider", document.uri);
+
+          return found.length > 0 && found.every((lens) => !/ ⇒ /.test(lens.command?.title ?? "")) ? found : undefined;
+        });
+
+        return lenses.map((lens) => lens.command?.title ?? "").join("\n");
+      };
+
+      assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+1 prop, 1 event/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · 1 pass/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · 1 handler/);
+      assert.match(await titlesOf("src/theme-toggle.mprx"), /1 prop · 1 event/);
     },
   ],
 

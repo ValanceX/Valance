@@ -303,7 +303,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   const lensProvider: vscode.CodeLensProvider = {
     onDidChangeCodeLenses: lensesChanged.event,
     provideCodeLenses: (document) => {
-      if (root === undefined || !vscode.workspace.getConfiguration("valance").get<boolean>("codeLens", true)) {
+      // `summary` (the default), `full`, or `off`; the earlier boolean setting still reads as `summary` (true) or `off` (false).
+      const setting = vscode.workspace.getConfiguration("valance").get<string | boolean>("codeLens", "summary");
+      const detail = setting === false || setting === "off" ? undefined : setting === "full" ? "full" : "summary";
+
+      if (root === undefined || detail === undefined) {
         return [];
       }
 
@@ -320,6 +324,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
           .slice(root.length + 1)
           .split("\\")
           .join("/"),
+        detail,
       ).map((lens) => {
         const where = (place: { readonly file: string; readonly line: number; readonly column: number }): vscode.Location =>
           new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1));
@@ -377,6 +382,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     vscode.languages.registerCodeLensProvider([{ language: "mprx" }, { pattern: "**/src/**/*.ts" }], lensProvider),
     vscode.languages.registerReferenceProvider({ language: "mprx" }, referenceProvider),
     vscode.languages.registerDocumentLinkProvider({ pattern: "**/src/**/*.ts" }, importLinks),
+    vscode.workspace.onDidChangeConfiguration((change) => {
+      if (change.affectsConfiguration("valance.codeLens")) {
+        lensesChanged.fire();
+      }
+    }),
     wiringWatcher,
     wiringWatcher.onDidChange(() => {
       lensesChanged.fire();

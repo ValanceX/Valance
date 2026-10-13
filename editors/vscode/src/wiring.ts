@@ -150,6 +150,9 @@ export const referencesOf = (wiring: Wiring | undefined, manifestText: string, l
 
 // ---- CodeLens ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+/** How much a lens says: a count and where to click (`summary`), or the places and what is passed (`full`). */
+export type LensDetail = "summary" | "full";
+
 export interface Lens {
   /** Zero-based line the lens sits above. */
   readonly line: number;
@@ -173,13 +176,20 @@ const listing = (places: ReadonlyArray<Place>): string => (places.length <= MAX 
  *   src/main.ts              each component: its template and its place in the tree; each prop and event it lists: where the template reads or raises it, who passes or handles it;
  *                            each state field and command: who reads or runs it
  */
-export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => {
+export const lensesFor = (wiring: Wiring, file: string, detail: LensDetail = "full"): ReadonlyArray<Lens> => {
   const found: Array<Lens> = [];
+  const brief = detail === "summary";
+  const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
+  const passes = (count: number): string => (count === 1 ? "1 pass" : `${count} passes`);
 
   for (const use of wiring.uses.filter((each) => each.at.file === file)) {
     const parts = [...use.props.map((prop) => `${prop.name} ← ${prop.from}`), ...use.events.map((event) => `on ${event.name} ⇒ ${event.to}`)];
 
-    found.push({ line: use.at.line - 1, title: `→ ${base(use.target.file)}${parts.length === 0 ? "" : `  ·  ${parts.join("  ·  ")}`}`, targets: [use.target] });
+    const title = brief
+      ? `→ ${base(use.target.file)}${parts.length === 0 ? "" : `  ·  ${plural(use.props.length, "prop")}, ${plural(use.events.length, "event")}`}`
+      : `→ ${base(use.target.file)}${parts.length === 0 ? "" : `  ·  ${parts.join("  ·  ")}`}`;
+
+    found.push({ line: use.at.line - 1, title, targets: [use.target] });
   }
 
   const callersOf = (target: string): ReadonlyArray<Place> =>
@@ -191,9 +201,13 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
     const role = node.parents.includes("(application)") ? (node.name === "layout" ? "the application's layout" : "replaces a built-in") : `in ${node.parents.join(", ")}`;
     const where = node.declared === undefined ? [] : [node.declared];
 
+    const interface_ = wiring.components.find((each) => each.name === node.name);
+    const counts = brief && interface_ !== undefined ? [plural(interface_.props.length, "prop"), plural(interface_.events.length, "event")] : [];
+    const used = callers.length === 0 ? [] : [`used in ${brief ? plural(callers.length, "place") : listing(callers)}`];
+
     found.push({
       line: 0,
-      title: [role, ...(node.declared === undefined ? [] : [`declared in ${at(node.declared)}`]), ...(callers.length === 0 ? [] : [`used in ${listing(callers)}`])].join("  ·  "),
+      title: [role, ...(node.declared === undefined ? [] : [`declared in ${at(node.declared)}`]), ...used, ...counts].join("  ·  "),
       targets: [...where, ...callers],
     });
   }
@@ -203,7 +217,7 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
 
     found.push({
       line: node.declared!.line - 1,
-      title: `→ ${base(node.file)}${node.parents.includes("(application)") ? "" : `  ·  in ${node.parents.join(", ")}`}${node.uses.length === 0 ? "" : `  ·  uses ${node.uses.join(", ")}`}`,
+      title: `→ ${base(node.file)}${node.parents.includes("(application)") ? "" : `  ·  in ${node.parents.join(", ")}`}${node.uses.length === 0 ? "" : `  ·  uses ${brief ? plural(node.uses.length, "component") : node.uses.join(", ")}`}`,
       targets: [{ file: node.file, line: 1, column: 1 }],
     });
 
@@ -212,7 +226,9 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
 
       found.push({
         line: where.line - 1,
-        title: `prop ${prop.name} · read in ${at(prop.at)}${prop.passedBy.length === 0 ? " · not passed by any template" : ` · passed from ${prop.passedBy.map((each) => `${at(each.at)} as ${each.from}`).join(", ")}`}`,
+        title: brief
+          ? `prop ${prop.name} · ${prop.passedBy.length === 0 ? "not passed" : passes(prop.passedBy.length)}`
+          : `prop ${prop.name} · read in ${at(prop.at)}${prop.passedBy.length === 0 ? " · not passed by any template" : ` · passed from ${prop.passedBy.map((each) => `${at(each.at)} as ${each.from}`).join(", ")}`}`,
         targets: [prop.at, ...prop.passedBy.map((each) => each.at)],
       });
     }
@@ -222,7 +238,9 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
 
       found.push({
         line: where.line - 1,
-        title: `event ${event.name} · raised in ${at(event.at)}${event.handledBy.length === 0 ? " · not handled by any template" : ` · handled in ${event.handledBy.map((each) => `${at(each.at)} ⇒ ${each.to}`).join(", ")}`}`,
+        title: brief
+          ? `event ${event.name} · ${event.handledBy.length === 0 ? "not handled" : plural(event.handledBy.length, "handler")}`
+          : `event ${event.name} · raised in ${at(event.at)}${event.handledBy.length === 0 ? " · not handled by any template" : ` · handled in ${event.handledBy.map((each) => `${at(each.at)} ⇒ ${each.to}`).join(", ")}`}`,
         targets: [event.at, ...event.handledBy.map((each) => each.at)],
       });
     }
@@ -232,14 +250,15 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
     const callers = callersOf(file);
 
     if (wiring.tree === undefined && callers.length > 0) {
-      found.push({ line: 0, title: `used in ${listing(callers)}`, targets: callers });
+      found.push({ line: 0, title: `used in ${brief ? plural(callers.length, "place") : listing(callers)}`, targets: callers });
     }
 
     for (const prop of component.props) {
       found.push({
         line: prop.at.line - 1,
-        title:
-          prop.passedBy.length === 0
+        title: brief
+          ? `prop ${prop.name} · ${prop.passedBy.length === 0 ? "not passed" : passes(prop.passedBy.length)}`
+          : prop.passedBy.length === 0
             ? `prop ${prop.name}${declaredIn(prop.declared)} · not passed by any template`
             : `prop ${prop.name}${declaredIn(prop.declared)} · passed from ${prop.passedBy.map((each) => `${at(each.at)} as ${each.from}`).join(", ")}`,
         targets: prop.passedBy.map((each) => each.at),
@@ -249,8 +268,9 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
     for (const event of component.events) {
       found.push({
         line: event.at.line - 1,
-        title:
-          event.handledBy.length === 0
+        title: brief
+          ? `event ${event.name} · ${event.handledBy.length === 0 ? "not handled" : plural(event.handledBy.length, "handler")}`
+          : event.handledBy.length === 0
             ? `event ${event.name}${declaredIn(event.declared)} · not handled by any template`
             : `event ${event.name}${declaredIn(event.declared)} · handled in ${event.handledBy.map((each) => `${at(each.at)} ⇒ ${each.to}`).join(", ")}`,
         targets: event.handledBy.map((each) => each.at),
@@ -261,7 +281,7 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
   for (const state of wiring.state.filter((each) => each.source.file === file)) {
     found.push({
       line: state.source.line - 1,
-      title: state.readBy.length === 0 ? `state · not read by any template` : `state · read in ${listing(state.readBy)}`,
+      title: state.readBy.length === 0 ? `state · not read by any template` : `state · read in ${brief ? plural(state.readBy.length, "place") : listing(state.readBy)}`,
       targets: state.readBy,
     });
   }
@@ -269,7 +289,7 @@ export const lensesFor = (wiring: Wiring, file: string): ReadonlyArray<Lens> => 
   for (const command of wiring.commands.filter((each) => each.source.file === file)) {
     found.push({
       line: command.source.line - 1,
-      title: command.runBy.length === 0 ? `command · not run by any template` : `command · run in ${listing(command.runBy)}`,
+      title: command.runBy.length === 0 ? `command · not run by any template` : `command · run in ${brief ? plural(command.runBy.length, "place") : listing(command.runBy)}`,
       targets: command.runBy,
     });
   }
