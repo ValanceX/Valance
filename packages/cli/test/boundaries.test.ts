@@ -58,6 +58,34 @@ describe("what the application package depends on", () => {
     }
   });
 
+  it("draws with Ink only from src/ui, which nothing but the command loads, and only when it is going to draw", () => {
+    const ui = join(src, "ui");
+    const uiFiles = readdirSync(ui).filter((name) => name.endsWith(".tsx") || name.endsWith(".ts"));
+    const outside = files.filter((file) => importsOf(read(join(src, file))).some((name) => name === "ink" || name === "react" || name.startsWith("react/")));
+
+    expect(outside).toEqual([]);
+    expect(uiFiles.length).toBeGreaterThan(3);
+
+    for (const file of uiFiles) {
+      const names = importsOf(read(join(ui, file))).filter((name) => !name.startsWith("."));
+
+      expect(
+        names.filter((name) => !["ink", "react", "node:path"].includes(name)),
+        file,
+      ).toEqual([]);
+    }
+
+    // The command reaches the interface through a dynamic import, so a plain run never loads Ink; the author API, the browser entry and the other commands never reach it at all.
+    const cli = read(join(src, "cli.ts"));
+
+    expect(cli).not.toMatch(/^import .* from "\.\/ui\//m);
+    expect(cli).toContain('import("./ui/run.js")');
+
+    for (const entry of ["index.ts", "client.ts"]) {
+      expect([...closure(entry)].filter((file) => file.startsWith("ui"))).toEqual([]);
+    }
+  });
+
   it("is not known to the core: VALANCE's package and sources never mention it", () => {
     expect(read(join(core, "package.json"))).not.toContain("@valancex/cli");
 

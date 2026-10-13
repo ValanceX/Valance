@@ -34,10 +34,24 @@ export const fileOf = (pathname: string, base: string): string => {
 const sitemap = (content: Content): string =>
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${content.pages.map((page) => `  <url><loc>${content.site.url}${content.site.base}${page.path.replace(/^\//, "")}</loc></url>`).join("\n")}\n</urlset>\n`;
 
-export const build = async (root: string): Promise<Built> => {
+/** The stages of a build, in order, as `onStage` reports them. */
+export type BuildStage = "configuration" | "content" | "templates" | "bundle" | "pages";
+
+export interface BuildOptions {
+  /** Called as each stage begins. */
+  readonly onStage?: (stage: BuildStage) => void;
+}
+
+export const build = async (root: string, options: BuildOptions = {}): Promise<Built> => {
+  const stage = options.onStage ?? (() => undefined);
+
+  stage("configuration");
+
   const config = loadConfig(root);
 
   generateEntries(root);
+
+  stage("content");
 
   const content = generateContent(root, config);
   const loader = await createLoader(root, config);
@@ -47,11 +61,15 @@ export const build = async (root: string): Promise<Built> => {
   };
 
   try {
+    stage("templates");
+
     const author = await loadAuthor(loader, root);
 
     await generateProgram(root, author);
 
     // The browser bundle first: it empties dist/, and the documents are written into it after.
+    stage("bundle");
+
     await bundle({ ...baseConfig(root, config), mode: "production" });
 
     rendered = (await loader.ssrLoadModule(SERVER_ENTRY)) as typeof rendered;
@@ -80,6 +98,8 @@ export const build = async (root: string): Promise<Built> => {
       files.push(relative);
     };
     const pages = rendered.paths();
+
+    stage("pages");
 
     for (const pathname of pages) {
       write(fileOf(pathname, config.web.base), (await rendered.render(pathname, built)).html);

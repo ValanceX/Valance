@@ -5,10 +5,65 @@
 The VALANCE application model and the commands that run it: you write **content**, a **layout**, **components** and **styles**; `vlx dev` serves them as you edit and `vlx build` produces a website. You do not write a compiler step, a manifest, a server, a hydration script or a bundler config.
 
 ```console
+$ vlx init my-app --web   # make a new application (asks what you leave out)
 $ vlx dev       # serve the project, rebuild as files change
 $ vlx build     # write the site to dist/
 $ vlx check     # find mistakes in your files without building (--json for tools)
 ```
+
+## Install `vlx` once, use it everywhere
+
+`vlx` is a global command, like Angular's `ng`. Once `@valancex/cli` is published:
+
+```console
+$ npm install -g @valancex/cli      # or: pnpm add -g @valancex/cli
+$ vlx --version
+```
+
+Until then, link this package from a clone (after `pnpm install && pnpm build`):
+
+```console
+$ cd packages/cli
+$ pnpm link --global                # or: npm link        (pnpm needs PNPM_HOME on your PATH: `pnpm setup`)
+$ vlx --version
+```
+
+Either puts a `vlx` shim in your package manager's global bin directory, which has to be on your `PATH` (`npm config get prefix` shows npm's; on Windows the shim is `vlx.cmd` and works in PowerShell and cmd).
+
+Inside a project, a global `vlx` does not build with its own copy: **`dev`, `build` and `check` run the `@valancex/cli` installed in that project** (the version its `package.json` names, with the MESH compiler and runtime that go with it), so the project builds the same wherever it is run from. `init` and `--help` need no project and are the global command's own. A project with no local install is run by the global one.
+
+## Making an application: `vlx init`
+
+```console
+$ vlx init my-app --web          # the web target, every other question asked
+$ vlx init                       # asks for the name and the targets too
+$ vlx init my-app --yes          # no questions: every target, every default
+```
+
+In a terminal it asks (Ink), skipping whatever a flag already answered:
+
+1. **the name** (`my-app`, or a path; it is made in a directory of that name, which must be empty or absent)
+2. **the targets**: a multi-select of every target VALANCE supports (Space toggles, Enter confirms). Today that is the **web**; a target that arrives later is one more line in the list and one more flag
+3. **web settings**: the base path (`/`, or `/docs/`) and where it will be published (optional; adds canonical links and a sitemap)
+4. **the package manager** (npm, pnpm, yarn or bun; the one that ran `vlx` is preselected), whether to **install** the dependencies, and whether to **make a git repository**
+
+Then it writes the project (the same files as `examples/docs-app`: a layout, a component with its stated contract, a stylesheet, two pages, typed template imports configured in `tsconfig.json`), installs, runs `git init`, and prints what to type next. An install that fails (no network, a package that is not published yet) is a note, not an error: the project is written and the next step says what to run.
+
+| Option | |
+|---|---|
+| `--web` | develop for the web (one flag per target) |
+| `-y`, `--yes` | take every default, ask nothing (all targets) |
+| `--pm <npm\|pnpm\|yarn\|bun>` | the package manager |
+| `--no-install`, `--no-git` | skip those steps |
+| `--base <path>`, `--url <address>` | the web target's settings |
+| `--cli <spec>` | what to write for `@valancex/cli` in `package.json` (default: `^<version>` once published; until then the path of this package) |
+| `--plain` | no interface: plain text and never a question |
+
+Without a terminal (a pipe, CI) it cannot ask, so it needs a name and a target: `vlx init my-app --web`.
+
+## What the terminal shows
+
+In a terminal `dev`, `build`, `check` and `init` draw an interface with [Ink](https://github.com/vadimdemedes/ink): `check` groups mistakes by file with line, code and message; `build` shows its stages and ends with what it wrote; `dev` shows the address, whether the project is sound, the mistakes that are open (the last good build keeps serving) and the latest changes. Anywhere else (a pipe, `CI`, `TERM=dumb`, `check --json`, or `--plain`) they print the plain text they always have, so scripts and editors read the same output as before.
 
 Try it locally: [`docs/application-model/TRY-IT.md`](../../docs/application-model/TRY-IT.md). The worked example is [`examples/docs-app`](../../examples/docs-app): about 200 lines of authored files.
 

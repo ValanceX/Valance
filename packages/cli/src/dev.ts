@@ -29,6 +29,8 @@ export interface DevOptions {
   readonly host?: string;
   /** Called with each report (a rebuild, a mistake); defaults to the console. */
   readonly log?: (line: string) => void;
+  /** Called with every mistake still open, after the first build and after each rebuild: empty when the project is sound. */
+  readonly onStatus?: (open: ReadonlyArray<Diagnostic>) => void;
 }
 
 export interface Dev {
@@ -169,6 +171,8 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
     const open = [...failed.values()].flat();
 
+    options.onStatus?.(open);
+
     // A generated file that changes reloads the page by itself (the bundler watches `.valance/`). What it cannot know: a fix that rebuilds to the same files still has to clear the overlay,
     // and a public file is not part of any module.
     if (open.length > 0) {
@@ -251,6 +255,8 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
       });
     }
   }
+
+  options.onStatus?.([...failed.values()].flat());
 
   // The server's own address already includes the base.
   const address = server.resolvedUrls?.local[0] ?? `http://${options.host ?? "127.0.0.1"}:${options.port ?? 5173}${config.web.base}`;
