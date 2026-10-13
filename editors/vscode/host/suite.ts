@@ -2,7 +2,7 @@
 // features to answer. No test framework: a case throws, and `run` reports every failure at once.
 import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -116,14 +116,14 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     const { document: layout } = await open("src/layout.mprx");
     const callLine = layout.getText().split("\n").findIndex((line) => line.includes("<theme-toggle")) + 1;
 
-    // Definition: one declaration. The event, the prop, the command and the state go to main.ts; the tag goes to its template.
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/main.ts:")), "on.toggle -> where main.ts declares it");
+    // Definition: one declaration. The event and the prop go to where the component is defined (theme-toggle.ts), the command and the state to main.ts; the tag goes to its template.
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "on.toggle", 4)).some((target) => target.startsWith("src/theme-toggle.ts:")), "on.toggle -> where theme-toggle.ts declares it");
     assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "<theme-toggle", 2)).some((target) => target.startsWith("src/theme-toggle.mprx:")), "<theme-toggle> -> its template");
     assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "toggleTheme", 2)).some((target) => target.startsWith("src/main.ts:")), "toggleTheme -> main.ts");
     assert.ok((await at("vscode.executeDefinitionProvider", "src/layout.mprx", "{theme}", 2)).some((target) => target.startsWith("src/main.ts:")), "{theme} -> main.ts");
 
     // Inside the component the event it raises IS its declaration: ctrl+click stays, and VS Code then shows the references.
-    assert.ok((await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).some((target) => target.startsWith("src/main.ts:")), "toggle() -> where main.ts declares it");
+    assert.ok((await at("vscode.executeDefinitionProvider", "src/theme-toggle.mprx", "toggle()", 1)).some((target) => target.startsWith("src/theme-toggle.ts:")), "toggle() -> where theme-toggle.ts declares it");
 
     // References: every use, as a list.
     assert.ok((await at("vscode.executeReferenceProvider", "src/theme-toggle.mprx", "toggle()", 1)).includes(`src/layout.mprx:${callLine}`), "references of the event: the handler in the layout");
@@ -137,15 +137,20 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     assert.ok(!site.some((target) => target.includes("manifest.json")));
   }],
 
-  ["the template imports in src/main.ts are links to the files", async () => {
-    const { document } = await open("src/main.ts");
-    const links = await waitFor("links in src/main.ts", async () => {
-      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.DocumentLink>>("vscode.executeLinkProvider", document.uri);
+  ["the template imports in the project's TypeScript are links to the files", async () => {
+    const linksOf = async (file: string, template: string): Promise<ReadonlyArray<vscode.DocumentLink>> => {
+      const { document } = await open(file);
 
-      return found.some((link) => link.target?.fsPath.endsWith(join("src", "layout.mprx"))) ? found : undefined;
-    });
+      return waitFor(`links in ${file}`, async () => {
+        const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.DocumentLink>>("vscode.executeLinkProvider", document.uri);
 
-    assert.ok(links.some((link) => link.target?.fsPath.endsWith(join("src", "theme-toggle.mprx"))), `links: ${text(links.map((link) => link.target?.fsPath))}`);
+        return found.some((link) => link.target?.fsPath.endsWith(join("src", template))) ? found : undefined;
+      });
+    };
+
+    // main.ts imports the layout's template; theme-toggle.ts, where the component is defined, imports its own.
+    assert.ok((await linksOf("src/main.ts", "layout.mprx")).length > 0);
+    assert.ok((await linksOf("src/theme-toggle.ts", "theme-toggle.mprx")).length > 0);
   }],
 
   ["CodeLens puts the other end of each connection beside this one", async () => {
@@ -161,11 +166,11 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     };
 
     assert.match(await titlesOf("src/layout.mprx"), /→ theme-toggle\.mprx\s+·\s+theme ← \{theme\}\s+·\s+on toggle ⇒ toggleTheme\(\)/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · declared in main\.ts:\d+ · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · declared in main\.ts:\d+ · passed from layout\.mprx:\d+ as \{theme\}/);
-    assert.match(await titlesOf("src/theme-toggle.mprx"), /in layout\s+·\s+declared in main\.ts:\d+\s+·\s+used in layout\.mprx:\d+/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /event toggle · declared in theme-toggle\.ts:\d+ · handled in layout\.mprx:\d+ ⇒ toggleTheme\(\)/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /prop theme · declared in theme-toggle\.ts:\d+ · passed from layout\.mprx:\d+ as \{theme\}/);
+    assert.match(await titlesOf("src/theme-toggle.mprx"), /in layout\s+·\s+declared in theme-toggle\.ts:\d+\s+·\s+used in layout\.mprx:\d+/);
     assert.match(await titlesOf("src/layout.mprx"), /the application's layout\s+·\s+declared in main\.ts:\d+/);
-    assert.match(await titlesOf("src/main.ts"), /event toggle · raised in theme-toggle\.mprx:\d+ · handled in layout\.mprx:\d+/);
+    assert.match(await titlesOf("src/theme-toggle.ts"), /event toggle · raised in theme-toggle\.mprx:\d+ · handled in layout\.mprx:\d+/);
     assert.match(await titlesOf("src/main.ts"), /command · run in layout\.mprx:\d+/);
     assert.match(await titlesOf("src/main.ts"), /state · read in layout\.mprx/);
   }],
@@ -207,6 +212,8 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
 
     writeFileSync(badge, '<span class="badge">{label}</span>\n');
 
+    let mainOriginalText: string | undefined;
+
     try {
       const document = await vscode.workspace.openTextDocument(vscode.Uri.file(badge));
 
@@ -217,9 +224,16 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       assert.match(note.message, /vlx check/);
 
       // Use it in the layout and save: the check rebuilds the project, `.valance/editor.json` changes, and the running server is told.
+      // The tree is declared: main.ts imports the template and lists it in the layout's `uses`, and the layout uses it.
+      const { document: mainDocument, editor: mainEditor, original: mainOriginal } = await open("src/main.ts");
+
+      mainOriginalText = mainOriginal;
+      await replaceAll(mainEditor, mainOriginal.replace('import layout from "./layout.mprx";', 'import layout from "./layout.mprx";\nimport badge from "./badge.mprx";').replace("uses: [themeToggle]", "uses: [themeToggle, component(badge)]"));
+
       const { document: layoutDocument, editor, original } = await open("src/layout.mprx");
 
       await replaceAll(editor, original.replace('<header class="bar">', '<header class="bar">\n    <badge label={site} />'));
+      await mainDocument.save();
       await layoutDocument.save();
       await waitFor("the project to know the new template", () => api().known().includes("src/badge.mprx"), 60_000);
       await waitFor("the note to go away", () => vscode.languages.getDiagnostics(document.uri).every((each) => codeOf(each) !== "valance-unmapped"));
@@ -237,6 +251,14 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
 
       await replaceAll(editor, original.replace(/\n    <badge label=\{site\} \/>/, ""));
       await document.save();
+
+      if (mainOriginalText !== undefined) {
+        const main = await open("src/main.ts");
+
+        await replaceAll(main.editor, mainOriginalText);
+        await main.document.save();
+      }
+
       if (existsSync(badge)) { unlinkSync(badge); }
       execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
     }
@@ -245,15 +267,26 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
   ["a project without wiring data (built by an older vlx) is said to be partial, not ready, and recovers by itself when vlx writes it", async () => {
     const wiring = join(project(), ".valance", "wiring.json");
 
-    assert.equal(api().status(), "ready");
-    unlinkSync(wiring);
-    await waitFor(`the status to become partial (it is ${api().status()})`, () => api().status() === "partial");
-
-    // Navigation to the author's files is off, as the message says: the server's answer is the generated manifest again.
+    // The check a save started earlier (the previous case saved files) may still be running and write the wiring after it is removed: remove it until the window is without it.
     const { document } = await open("src/layout.mprx");
-    const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
 
-    assert.ok(found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) || found.length === 0, "without wiring data the definition is the manifest");
+    let saved: Buffer | undefined;
+
+    await waitFor("the status to be ready", () => api().status() === "ready" ? true : undefined, 60_000);
+    await waitFor("the definition to be the generated manifest, as the message says: navigation to the author's files is off", async () => {
+      // Put it back and remove it again, so the window sees a deletion even if it missed the last one.
+      if (existsSync(wiring)) { saved = readFileSync(wiring); } else if (saved !== undefined) { writeFileSync(wiring, saved); }
+      if (existsSync(wiring)) { unlinkSync(wiring); }
+
+      // A late check may write the wiring straight back: then the status never shows partial, and the next round removes it again.
+      const partial = await waitFor("the status to become partial", () => api().status() === "partial" ? true : undefined, 4_000).catch(() => false);
+
+      if (!partial) { return undefined; }
+
+      const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
+
+      return found.length === 0 || found.some((each) => ("targetUri" in each ? each.targetUri : each.uri).fsPath.endsWith("manifest.json")) ? true : undefined;
+    }, 60_000);
 
     // `vlx` writes the wiring again: the window notices, no reload.
     execFileSync(process.execPath, [join("node_modules", "@valancex", "cli", "bin", "vlx.js"), "check"], { cwd: project() });
