@@ -1,15 +1,3 @@
 <mesh-fragment>
-  <mesh-switch>
-    <mesh-case when={b.kind == "heading"}><heading level={b.level} anchor={b.anchor} hash={b.hash} linkLabel={b.linkLabel} spans={b.spans} /></mesh-case>
-    <mesh-case when={b.kind == "callout"}><callout tone={b.tone} title={b.title}><runs spans={b.spans} /></callout></mesh-case>
-    <mesh-case when={b.kind == "code"}><code-block title={b.title} tokens={b.tokens} blockId={b.id} copyLabel={b.copyLabel} on.copy={copy($event)} /></mesh-case>
-    <mesh-case when={b.kind == "codegroup"}><code-tabs tabs={b.tabs} panels={b.panels} label={b.alternatives} on.copy={copy($event)} on.choose={choose($event)} /></mesh-case>
-    <mesh-case when={b.kind == "list"}><list-block ordered={b.ordered} items={b.items} /></mesh-case>
-    <mesh-case when={b.kind == "table"}><table-block head={b.head} rows={b.rows} /></mesh-case>
-    <mesh-case when={b.kind == "hero"}><hero-block b={b} /></mesh-case>
-    <mesh-case when={b.kind == "cards"}><cards-block b={b} /></mesh-case>
-    <mesh-case when={b.kind == "postlist"}><post-list b={b} /></mesh-case>
-    <mesh-case when={b.kind == "image"}><image class="picture" src={b.src} alt={b.alt} loading="lazy" /></mesh-case>
-    <mesh-default><para class="prose"><runs spans={b.spans} /></para></mesh-default>
-  </mesh-switch>
+  {#if b.kind == "heading"}<heading level={b.level} anchor={b.anchor} hash={b.hash} linkLabel={b.linkLabel} spans={b.spans} />{:else if b.kind == "callout"}<callout tone={b.tone} title={b.title}><runs spans={b.spans} /></callout>{:else if b.kind == "code"}<code-block title={b.title} tokens={b.tokens} blockId={b.id} copyLabel={b.copyLabel} on.copy={copy($event)} />{:else if b.kind == "codegroup"}<code-tabs tabs={b.tabs} panels={b.panels} label={b.alternatives} on.copy={copy($event)} on.choose={choose($event)} />{:else if b.kind == "list"}<list-block ordered={b.ordered} items={b.items} />{:else if b.kind == "table"}<table-block head={b.head} rows={b.rows} />{:else if b.kind == "hero"}<hero-block b={b} />{:else if b.kind == "cards"}<cards-block b={b} />{:else if b.kind == "postlist"}<post-list b={b} />{:else if b.kind == "image"}<image class="picture" src={b.src} alt={b.alt} loading="lazy" />{:else}<para class="prose"><runs spans={b.spans} /></para>{/if}
 </mesh-fragment>

@@ -1,7 +1,3 @@
 <mesh-fragment>
-  <mesh-switch>
-    <mesh-case when={level == 1}><h1 id={anchor}><runs spans={spans} /></h1></mesh-case>
-    <mesh-case when={level == 2}><h2 id={anchor}><runs spans={spans} /></h2></mesh-case>
-    <mesh-default><h3 id={anchor}><runs spans={spans} /></h3></mesh-default>
-  </mesh-switch>
+  {#if level == 1}<h1 id={anchor}><runs spans={spans} /></h1>{:else if level == 2}<h2 id={anchor}><runs spans={spans} /></h2>{:else}<h3 id={anchor}><runs spans={spans} /></h3>{/if}
 </mesh-fragment>

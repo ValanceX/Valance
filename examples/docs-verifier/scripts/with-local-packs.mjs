@@ -56,7 +56,7 @@ const stamp = `${JSON.stringify([manifest.dependencies, manifest.devDependencies
 const stampFile = join(work, ".packs-stamp");
 const run = (script) => {
   try {
-    execFileSync("pnpm", ["run", script], { cwd: work, stdio: "inherit" });
+    execFileSync("pnpm", ["run", script], { cwd: work, stdio: "inherit", shell: process.platform === "win32" });
   } catch {
     console.error(`\n\`pnpm run ${script}\` failed in ${work}`);
     process.exit(1);
@@ -66,7 +66,7 @@ const run = (script) => {
 if (!existsSync(join(work, "node_modules")) || !existsSync(stampFile) || readFileSync(stampFile, "utf8") !== stamp) {
   rmSync(join(work, "node_modules", "@valancex"), { recursive: true, force: true });
   rmSync(join(work, "pnpm-lock.yaml"), { force: true });
-  execFileSync("pnpm", ["install", "--ignore-scripts", "--force"], { cwd: work, stdio: "inherit" });
+  execFileSync("pnpm", ["install", "--ignore-scripts", "--force"], { cwd: work, stdio: "inherit", shell: process.platform === "win32" });
   writeFileSync(stampFile, stamp);
 }
 

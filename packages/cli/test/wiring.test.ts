@@ -9,13 +9,15 @@ import { cleanup, PAGE, project } from "./fixture.js";
 
 afterEach(cleanup);
 
-const MAIN = `import { component, defineApp, Schema } from "@valancex/cli";
+const MAIN = `import { component, defineApp, field, Schema } from "@valancex/cli";
 import counter from "./counter.mprx";
 import layout from "./layout.mprx";
 
+const counterComponent = component(counter, { props: { n: Schema.Number, label: Schema.String }, events: { bump: Schema.Void } });
+
 export default defineApp({
-  layout: component(layout, { uses: [component(counter, { props: ["n", "label"], events: ["bump"] })] }),
-  state: { schema: Schema.Struct({ count: Schema.Number }), initial: { count: 0 } },
+  layout: component(layout, { uses: [counterComponent] }),
+  state: { count: field(Schema.Number, 0) },
   commands: (command) => ({
     bump: command((state) => ({ ...state, count: state.count + 1 })),
   }),
@@ -50,9 +52,22 @@ describe("reading a template", () => {
     expect(reads.map((read) => `${read.name}${read.call ? "()" : ""}`)).toEqual(["count", "bump()", "user", "ok", "yes", "no"]);
   });
 
+  it("reads only a block's expressions: the keyword and the name `as` binds are not reads, and the name is not a read of state inside the block", () => {
+    const text = '{#if ready}{#each rows as row (row.id)}<i n={row.n} m={count} />{/each}{:else if count > 1}{row}{:else}x{/if}{row}';
+    const { reads } = scan(text);
+
+    expect(reads.map((read) => read.name)).toEqual(["ready", "rows", "count", "count", "row", "row"]);
+    expect(reads[0]).toMatchObject({ at: text.indexOf("ready") });
+    // `row` after the block is state, not the binding; `row` inside it never counts.
+    expect(reads.at(-1)).toMatchObject({ name: "row", at: text.lastIndexOf("row") });
+    expect(reads.map((read) => read.name)).not.toContain("if");
+    expect(reads.map((read) => read.name)).not.toContain("each");
+    expect(reads.map((read) => read.name)).not.toContain("as");
+  });
+
   it("finds the key a name is declared with, and says top of file when it cannot", () => {
-    expect(locateKey(MAIN, "count")).toMatchObject({ file: "src/main.ts", line: 7 });
-    expect(locateKey(MAIN, "bump")).toMatchObject({ line: 9 });
+    expect(locateKey(MAIN, "count")).toMatchObject({ file: "src/main.ts", line: 9 });
+    expect(locateKey(MAIN, "bump")).toMatchObject({ line: 11 });
     expect(locateKey(MAIN, "missing")).toMatchObject({ line: 1, column: 1 });
   });
 });
@@ -61,11 +76,11 @@ describe("both ends of each connection", () => {
   it("declares your state and command in src/main.ts, and a component's prop and event where it declares them", async () => {
     const { definitions: at } = await wiringOf();
 
-    expect(at["components/layout/scope/count"]).toMatchObject({ file: "src/main.ts", line: 7 });
-    expect(at["components/layout/commands/bump"]).toMatchObject({ file: "src/main.ts", line: 9 });
+    expect(at["components/layout/scope/count"]).toMatchObject({ file: "src/main.ts", line: 9 });
+    expect(at["components/layout/commands/bump"]).toMatchObject({ file: "src/main.ts", line: 11 });
     expect(at["components/counter"]).toMatchObject({ file: "src/counter.mprx", line: 1 });
-    expect(at["components/counter/props/n"]).toMatchObject({ file: "src/main.ts", line: 6 });
-    expect(at["components/counter/events/bump"]).toMatchObject({ file: "src/main.ts", line: 6 });
+    expect(at["components/counter/props/n"]).toMatchObject({ file: "src/main.ts", line: 5 });
+    expect(at["components/counter/events/bump"]).toMatchObject({ file: "src/main.ts", line: 5 });
     expect(at["components/counter/events/bump"]!.column).toBeGreaterThan(at["components/counter/props/n"]!.column);   // the words in the list, not the start of the call
   });
 
@@ -85,7 +100,7 @@ describe("both ends of each connection", () => {
     expect(counter.file).toBe("src/counter.mprx");
     expect(counter.props.find((prop) => prop.name === "n")!.passedBy).toEqual([{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), from: "{count}" }]);
     expect(counter.props.find((prop) => prop.name === "label")!.passedBy).toEqual([{ at: expect.objectContaining({ line: 2 }), from: '"clicks"' }]);
-    expect(counter.events).toEqual([{ name: "bump", at: expect.objectContaining({ file: "src/counter.mprx", line: 1 }), declared: expect.objectContaining({ file: "src/main.ts", line: 6 }), handledBy: [{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), to: "bump()" }] }]);
+    expect(counter.events).toEqual([{ name: "bump", at: expect.objectContaining({ file: "src/counter.mprx", line: 1 }), declared: expect.objectContaining({ file: "src/main.ts", line: 5 }), handledBy: [{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), to: "bump()" }] }]);
   });
 
   it("records who uses what: the call site, the target, what is passed (with where) and what is done on an event", async () => {
@@ -98,16 +113,16 @@ describe("both ends of each connection", () => {
       props: [{ name: "n", from: "{count}", at: { file: "src/layout.mprx", line: 2, column: 12 } }, { name: "label", from: '"clicks"', at: { file: "src/layout.mprx", line: 2, column: 22 } }],
       events: [{ name: "bump", to: "bump()", at: { file: "src/layout.mprx", line: 2, column: 37 } }],
     }]);
-    expect(state).toEqual([{ name: "count", source: expect.objectContaining({ line: 7 }), readBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
-    expect(commands).toEqual([{ name: "bump", source: expect.objectContaining({ line: 9 }), runBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
+    expect(state).toEqual([{ name: "count", source: expect.objectContaining({ line: 9 }), readBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
+    expect(commands).toEqual([{ name: "bump", source: expect.objectContaining({ line: 11 }), runBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
   });
 
   it("records the component tree as declared: who declares each, where, and what it lists", async () => {
     const { tree } = await wiringOf();
 
     expect(tree).toEqual([
-      { name: "layout", file: "src/layout.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 6 }), parents: ["(application)"], uses: ["counter"] },
-      { name: "counter", file: "src/counter.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 6 }), parents: ["layout"], uses: [] },
+      { name: "layout", file: "src/layout.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 8 }), parents: ["(application)"], uses: ["counter"] },
+      { name: "counter", file: "src/counter.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 5 }), parents: ["layout"], uses: [] },
     ]);
   });
 

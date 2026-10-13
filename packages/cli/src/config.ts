@@ -1,7 +1,7 @@
 // Project configuration. `valance.json` is the project's (what it is called); `valance.web.json` is the web target's (where it is served). Nothing else is configurable, on purpose: a setting
 // is added when something needs it. Unknown keys are errors with the line, because a misspelt key that is ignored is a setting the author thinks they have. The JSON Schemas in
 // `schemas/` describe the same files for editors; this is the check the tools make.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import type { Diagnostic } from "./diagnostics.js";
@@ -89,12 +89,15 @@ export const loadConfig = (root: string): Config => {
 
 export const siteInfo = (config: Config): SiteInfo => ({ name: config.name, base: config.web.base, url: config.web.url });
 
-/** The nearest directory at or above `from` that holds a `valance.json`. */
+/**
+ * The nearest directory at or above `from` that holds a `valance.json`, as its real path. The bundler names a file by its real path, so a project reached through a symlink, or by a short
+ * Windows name (`RUNNER~1`), must be called the same thing here or a file is not the file the bundler means.
+ */
 export const findRoot = (from: string): string => {
   let at = from;
 
   for (;;) {
-    if (existsSync(join(at, PROJECT_FILE))) { return at; }
+    if (existsSync(join(at, PROJECT_FILE))) { return realpathSync.native(at); }
 
     const parent = dirname(at);
 

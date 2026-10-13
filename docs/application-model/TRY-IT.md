@@ -73,11 +73,11 @@ That is a complete application: a built-in layout, no `src/`. Now take over a pa
 
 ```console
 $ mkdir src public
-$ cp ~/path/to/Valance/examples/docs-app/src/{layout.mprx,theme-toggle.mprx,styles.css,main.ts} src/
+$ cp ~/path/to/Valance/examples/docs-app/src/{layout.mprx,theme-toggle.mprx,theme-toggle.ts,styles.css,main.ts} src/
 $ cp ~/path/to/Valance/examples/docs-app/public/logo.svg public/
 ```
 
-These four files go together: `main.ts` imports `layout.mprx` and `theme-toggle.mprx` and declares them as the application's component tree, so copy all of them. Edit them; `npm run dev` picks everything up. Start reading at `src/main.ts`: it names every template, and in VS Code ctrl+click on an import opens the file. The conventions are in [`packages/cli/README.md`](../../packages/cli/README.md).
+These files go together: `main.ts` imports `layout.mprx` and `theme-toggle.ts` (which defines `<theme-toggle>` and states its props and events) and declares the application's component tree, so copy all of them. Copy `tsconfig.json` too, or add `allowArbitraryExtensions` and `rootDirs: ["src", ".valance/types"]` to yours, to have the template imports typed. Edit them; `npm run dev` picks everything up. Start reading at `src/main.ts`: it names every template, and in VS Code ctrl+click on an import opens the file. The conventions are in [`packages/cli/README.md`](../../packages/cli/README.md).
 
 After pulling new code: `pnpm build` in the Valance clone, then `npx vlx check` in your project (it rewrites `.valance/`). If you installed from a tarball earlier, remove it and install by path: `npm uninstall @valancex/cli && npm install -D ~/path/to/Valance/packages/cli`.
 
@@ -94,7 +94,7 @@ $ pnpm build
 and in the project you want to open (the example already has both; for `~/my-notes` run these two):
 
 ```console
-$ npm install -D @valancex/mesh-lsp@0.10.0     # the template language server, in your project
+$ npm install -D @valancex/mesh-lsp@0.11.0     # the template language server, in your project
 $ npx vlx check                                # writes .valance/editor.json, which the extension reads
 ```
 
@@ -105,6 +105,20 @@ $ code --extensionDevelopmentPath=$HOME/path/to/Valance/editors/vscode ~/my-note
 ```
 
 or open `editors/vscode` in VS Code and press **F5** ("Run the extension on examples/docs-app").
+
+### On Windows (PowerShell)
+
+The commands are the same except for the shell syntax. Clone with LF endings (`git clone --config core.autocrlf=false …`), then:
+
+```powershell
+PS> mkdir src, public
+PS> Copy-Item ~\path\to\Valance\examples\docs-app\src\* src\
+PS> Copy-Item ~\path\to\Valance\examples\docs-app\public\logo.svg public\
+PS> Set-Content valance.json '{ "name": "My notes" }'
+PS> code --extensionDevelopmentPath="$HOME\path\to\Valance\editors\vscode" $HOME\my-notes
+```
+
+Install the CLI by path (`npm install -D ~\path\to\Valance\packages\cli`); `npx vlx check` and `npm run dev` work unchanged. The extension starts `vlx` and `mesh-lsp` through Node, so no `.cmd` shim or shell is involved.
 
 In that window, open a `.mprx` file and check:
 

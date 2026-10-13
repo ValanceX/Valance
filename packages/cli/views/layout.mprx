@@ -4,22 +4,22 @@
   </header>
   <div class="frame">
     <nav class="sidebar" label="Pages">
-      <mesh-each items={sections} as="s" key={s.id}>
+      {#each sections as s (s.id)}
         <section>
-          <mesh-if when={s.title != ""}><para class="nav-title">{s.title}</para></mesh-if>
+          {#if s.title != ""}<para class="nav-title">{s.title}</para>{/if}
           <list class="nav-list">
-            <mesh-each items={s.items} as="n" key={n.id}>
+            {#each s.items as n (n.id)}
               <item><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></item>
-            </mesh-each>
+            {/each}
           </list>
         </section>
-      </mesh-each>
+      {/each}
     </nav>
     <main id="content" tabindex="-1">
       <blocks items={blocks} />
       <nav class="pager" label="Previous and next page">
-        <mesh-if when={prev.href != ""}><link class="pager-link" href={prev.href} current="false">{prev.label}</link></mesh-if>
-        <mesh-if when={next.href != ""}><link class="pager-link" href={next.href} current="false">{next.label}</link></mesh-if>
+        {#if prev.href != ""}<link class="pager-link" href={prev.href} current="false">{prev.label}</link>{/if}
+        {#if next.href != ""}<link class="pager-link" href={next.href} current="false">{next.label}</link>{/if}
       </nav>
     </main>
   </div>

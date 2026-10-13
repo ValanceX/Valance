@@ -22,6 +22,7 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 | `ValanceErrorCode` `plugin-conflict` and `invalid-head` | **Unreleased** (0.8) |
 | `command(state).waiting`: `work` may return an `Effect` that requires the application's environment (a capability), as well as a Promise | **Unreleased** (0.8) |
 | `@valancex/cli` (private, unpublished): `defineApp`, `Schema`, the `valance` command (`dev`, `build`, `check`), `valance.json` / `valance.web.json`, the project layout and the layout scope (`docs/application-model/`) | **Provisional**: a proposal proved by `examples/docs-app`; not a contract, not in any release |
+| Deriving a manifest declares no element for conditional or repeated structure (blocks `{#if}`, `{#each}` are MESH's, built in); the retired names `mesh-if`, `mesh-each`, `mesh-switch`, `mesh-case`, `mesh-default` are refused when derived | **Unreleased** (0.9) |
 | `@valancex/valance/internal` | **Internal**: the composition protocol for binding authors and tests, unstable by design |
 | `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` (the defects' stable `code`s) (since 0.6.0) | Stable |
 | A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`, with the whole cause) (since 0.6.0) | Stable |

@@ -3,9 +3,9 @@
   <main>
     <para>{tagline}</para>
     <list>
-      <mesh-each items={guides} as="g" key={g.id}>
+      {#each guides as g (g.id)}
         <item><link href={g.href}>{g.label}</link></item>
-      </mesh-each>
+      {/each}
     </list>
   </main>
 </shell>

@@ -16,18 +16,18 @@ const expand = (pattern) => {
     return [pattern];
   }
 
-	const matcher = new RegExp(`^${basename(pattern).split("*").map(escape).join(".*")}$`);
-	const found = readdirSync(dirname(pattern)).filter((name) => matcher.test(name)).map((name) => join(dirname(pattern), name));
+  const matcher = new RegExp(`^${basename(pattern).split("*").map(escape).join(".*")}$`);
+  const found = readdirSync(dirname(pattern)).filter((name) => matcher.test(name)).map((name) => join(dirname(pattern), name));
 
-	if (found.length === 0) {
-		throw new Error(`${pattern} matches no file`);
-	}
+  if (found.length === 0) {
+    throw new Error(`${pattern} matches no file`);
+  }
 
-	return found;
+  return found;
 };
 
 mkdirSync(into, { recursive: true });
 
 for (const file of patterns.flatMap(expand)) {
-	cpSync(file, join(into, basename(file)), { recursive: true });
+  cpSync(file, join(into, basename(file)), { recursive: true });
 }

@@ -10,7 +10,9 @@
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowArbitraryExtensions": true,
+    "rootDirs": ["src", ".valance/types"]
   },
   "include": ["src", "test", "vitest.config.ts"]
 }

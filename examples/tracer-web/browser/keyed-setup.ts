@@ -22,7 +22,7 @@ const manifest = JSON.stringify({
 });
 // One repeated row per item: a stateful element (an input) and a button that shows the item's data and names the item in its command.
 const source = `<page title={title}>
-  <mesh-each items={items} as="item" key={item.id}><row><field /><button on.click={pick(item.id)}>{item.value}</button></row></mesh-each>
+  {#each items as item (item.id)}<row><field /><button on.click={pick(item.id)}>{item.value}</button></row>{/each}
 </page>`;
 
 export default async function setup(project: TestProject): Promise<void> {

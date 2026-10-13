@@ -46,8 +46,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@valancex/mesh-compiler": "^0.10.0",
-    "@valancex/mesh-runtime": "^0.10.0",
+    "@valancex/mesh-compiler": "^0.11.0",
+    "@valancex/mesh-runtime": "^0.11.0",
     "@valancex/port-web": "^0.4.0",
     "@valancex/valance": "workspace:*",
     "effect": "^3.10.0",

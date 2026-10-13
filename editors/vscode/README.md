@@ -13,4 +13,6 @@ $ xvfb-run -a pnpm test:host   # a real VS Code (downloaded) with the extension,
 $ pnpm typecheck
 ```
 
+On Windows the same commands run in PowerShell, without `xvfb-run` (the host suite opens a window): `$env:VSCODE_VERSION = "1.90.0"; pnpm test:host`. The extension starts the project's `vlx` and `mesh-lsp` through Node (`node_modules/@valancex/cli/bin/vlx.js`, `node_modules/@valancex/mesh-lsp/dist/cli.js`), never through the `.cmd` shims in `node_modules/.bin`. `valance.meshLsp.path` may name a native `mesh-lsp.exe`. Check out with LF endings (`.gitattributes`).
+
 `src/project.ts` and `src/diagnostics.ts` are pure and tested; `src/extension.ts` is the thin `vscode` shell, exercised only by `host/suite.ts` in a real VS Code. That suite has not been run yet by the author (VS Code could not be downloaded in the authoring sandbox); the CI job is its first run.

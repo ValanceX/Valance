@@ -29,6 +29,8 @@ SITE=blog pnpm start        # serve dist/blog as a static host does (start:ssr r
 pnpm build:all              # every site in sites/
 ```
 
+On Windows (PowerShell) set the variable first: `$env:SITE = "blog"; pnpm build`, `$env:SITE = "blog"; pnpm start`. `pnpm build:all` and the local-pack scripts are Node scripts and need nothing else.
+
 `site.json`:
 
 | Field | Meaning |

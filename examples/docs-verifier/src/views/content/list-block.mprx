@@ -1,6 +1,7 @@
 <mesh-fragment>
-  <mesh-if when={ordered}>
+  {#if ordered}
     <olist class="list"><list-items items={items} /></olist>
+  {:else}
     <list class="list"><list-items items={items} /></list>
-  </mesh-if>
+  {/if}
 </mesh-fragment>

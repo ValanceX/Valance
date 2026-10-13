@@ -8,6 +8,8 @@ $ pnpm --filter @valancex/docs-site build     # the browser bundle (vite) and th
 $ pnpm --filter @valancex/docs-site start     # http://127.0.0.1:4173/   (PORT=… to change)
 ```
 
+On Windows (PowerShell) the commands are the same; set the port with `$env:PORT = "4174"; pnpm --filter @valancex/docs-site start`. The build copies the templates with a Node script (`scripts/copy-into.mjs`), not `cp`.
+
 ## What to read
 
 Read the files in this order; together they are about 360 lines.

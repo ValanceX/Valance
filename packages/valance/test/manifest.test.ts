@@ -63,14 +63,13 @@ describe("what is derived", () => {
       search: { parameters: [{ name: "query", type: { kind: "string" } }] },
       reset: { parameters: [] },
     });                                                                                                        // "app/navigate" is no template's
-    expect(Object.keys(c).sort()).toEqual(["board", "button", "field", "link", "mesh-each", "mesh-if", "page", "row", "text"]);
+    expect(Object.keys(c).sort()).toEqual(["board", "button", "field", "link", "page", "row", "text"]);
   });
 
-  it("the plumbing nobody writes: version, no named types, reserved mesh-if and mesh-each with the key required", () => {
+  it("the plumbing nobody writes: version, no named types, and nothing for control flow (blocks lower to constructs MESH has built in)", () => {
     expect(derived.version).toBe(1);
     expect(derived.types).toEqual({});
-    expect(derived.components["mesh-each"]!.props["key"]).toEqual({ type: { kind: "any" }, required: true });
-    expect(derived.components["mesh-if"]!.props["when"]).toEqual({ type: { kind: "boolean" }, required: true });
+    expect(Object.keys(derived.components).filter((name) => name.startsWith("mesh-"))).toEqual([]);
   });
 
   it("Schema → MESH type: optional, unions of one kind, nested structs, arrays, any, and the TYPE side of a transformation", () => {
@@ -98,7 +97,7 @@ describe("what is derived", () => {
 });
 
 describe("MESH still validates against the derived manifest, with the same diagnostics", () => {
-  const good = page(`<mesh-each items={items} as="item" key={item.id}><row><button on.click={select(item.id)}>{item.label}</button><link href={item.href}>{item.label}</link></row></mesh-each><mesh-if when={loading}><text>loading</text></mesh-if><field value={query} on.input={search($event)} />`);
+  const good = page(`{#each items as item (item.id)}<row><button on.click={select(item.id)}>{item.label}</button><link href={item.href}>{item.label}</link></row>{/each}{#if loading}<text>loading</text>{/if}<field value={query} on.input={search($event)} />`);
 
   it("a view written against it compiles", async () => {
     expect((await compile(good)).program).toBeDefined();
@@ -124,14 +123,14 @@ describe("MESH still validates against the derived manifest, with the same diagn
     expect((await compile(page("<field value={query} on.input={search($event)} />"))).program).toBeDefined();
   });
 
-  it("a required prop must be written, a tag that is not declared is refused, and mesh-each requires its key", async () => {
+  it("a required prop must be written, a tag that is not declared is refused, and {#each} requires its key", async () => {
     expect((await compile("<page><text>x</text></page>")).program).toBeUndefined();                                          // page's `title`
     expect((await compile(page("<unknown-tag />"))).program).toBeUndefined();
-    expect((await compile(page(`<mesh-each items={items} as="item"><text>{item.label}</text></mesh-each>`))).program).toBeUndefined();   // no key: no identity
+    expect((await compile(page(`{#each items as item}<text>{item.label}</text>{/each}`))).program).toBeUndefined();   // no key: no identity
   });
 
   it("a scope field of the wrong type is a type error in the template", async () => {
-    expect((await compile(page("<mesh-if when={title}><text>x</text></mesh-if>"))).program).toBeUndefined();                // title is a string, `when` needs a boolean
+    expect((await compile(page("{#if title}<text>x</text>{/if}"))).program).toBeUndefined();                // title is a string, `when` needs a boolean
   });
 });
 
@@ -166,8 +165,8 @@ describe("what is refused instead of defaulted", () => {
     refuses(() => manifest({ primitives: {}, scopes: { v: Schema.String as never }, commands: () => ({}) }), /^v$/, /Schema\.Struct/);
   });
 
-  it("a name MESH reserves, a view that is also a tag, and a table that reads state while it is built", () => {
-    refuses(() => manifest({ primitives: { "mesh-if": { element: "div" } }, scopes: {}, commands: () => ({}) }), /^mesh-if$/, /reserved/);
+  it("a name that was an element for control flow, a view that is also a tag, and a table that reads state while it is built", () => {
+    refuses(() => manifest({ primitives: { "mesh-if": { element: "div" } }, scopes: {}, commands: () => ({}) }), /^mesh-if$/, /not an element/);
     refuses(() => manifest({ primitives, scopes: { page: Board }, commands }), /^page$/, /both a view and a primitive/);
     refuses(() => manifest({ primitives, scopes: { board: Board }, commands: (state) => { void Effect.runSync(state.get); return {}; } }), /^commands$/, /while it was being built/);
   });

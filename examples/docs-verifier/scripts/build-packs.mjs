@@ -1,5 +1,5 @@
-// Build and packs the packages this verifier runs against when they are prepared but not published, into <directory> (default: ./.packs).
-// Onlythe packages that changed are packed; with-local-packs.mjs take the rest from the registry.
+// Builds and packs the packages this verifier runs against when they are prepared but not published, into <directory> (default: ./.packs).
+// Only the packages that changed are packed; with-local-packs.mjs takes the rest from the registry.
 //
 //  node scripts/build-packs.mjs [directory]
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
@@ -19,12 +19,13 @@ for (const name of readdirSync(out)) {
 }
 
 const run = (cwd, command, args) => {
-	const { status} = spawnSync(command, args, { cwd, stdio: ["ignore", "ignore", "inherit"], shell: process.platform === 'win32' });
+  // pnpm is a `.cmd` shim on Windows, which only a shell starts.
+  const { status } = spawnSync(command, args, { cwd, stdio: ["ignore", "ignore", "inherit"], shell: process.platform === "win32" });
 
   if (status !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed in ${cwd}`);
   }
-}
+};
 
 for (const dir of ["../../../Nexus", "../../../Port/packages/port-web", "../../packages/valance"]) {
   const cwd = resolve(here, dir);

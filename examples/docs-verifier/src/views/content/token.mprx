@@ -1,6 +1,3 @@
 <mesh-fragment>
-  <mesh-switch>
-    <mesh-case when={kind == "plain"}><mesh-fragment>{text}</mesh-fragment></mesh-case>
-    <mesh-default><span class={cls}>{text}</span></mesh-default>
-  </mesh-switch>
+  {#if kind == "plain"}<mesh-fragment>{text}</mesh-fragment>{:else}<span class={cls}>{text}</span>{/if}
 </mesh-fragment>

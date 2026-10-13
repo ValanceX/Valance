@@ -29,7 +29,7 @@ const program = async (root: string, source: string): Promise<Mesh.Mesh.Program>
 
   return result.program;
 };
-const main = await program("main", `<list><text>{title}</text><mesh-each items={items} as="item" key={item.id}><text>{item.label}</text></mesh-each></list>`);
+const main = await program("main", `<list><text>{title}</text>{#each items as item (item.id)}<text>{item.label}</text>{/each}</list>`);
 const other = await program("other", "<text>other</text>");
 
 const State = Schema.Struct({ page: Schema.String, title: Schema.String, items: Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String })) });

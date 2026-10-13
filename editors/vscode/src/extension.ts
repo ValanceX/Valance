@@ -25,7 +25,11 @@ export interface Api {
   readonly project: () => string | undefined;
 }
 
-const binary = (root: string, name: string): string => join(root, "node_modules", ".bin", process.platform === "win32" ? `${name}.cmd` : name);
+/** A tool the project installed, as the script Node runs: the package's own entry, not the `.bin` shim (a `.cmd` file on Windows, which only a shell can start). */
+const script = (root: string, pkg: string, entry: string): string => join(root, "node_modules", ...pkg.split("/"), entry);
+
+/** Node for a child process: in the extension host, VS Code's own executable running as Node. */
+const NODE_ENV = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
 
 export const activate = async (context: vscode.ExtensionContext): Promise<Api> => {
   const output = vscode.window.createOutputChannel("VALANCE");
@@ -158,7 +162,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     }
 
     const configured = vscode.workspace.getConfiguration("valance").get<string>("meshLsp.path", "");
-    const command = configured !== "" ? configured : binary(root, "mesh-lsp");
+    const command = configured !== "" ? configured : script(root, "@valancex/mesh-lsp", "dist/cli.js");
 
     if (!existsSync(command)) {
       show("no-server", explain({ kind: "no-server", path: command }));
@@ -168,7 +172,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
     show("starting", "Starting the template language server…");
 
-    const server: ServerOptions = { command, args: [], options: { shell: process.platform === "win32" } };
+    // A path the author configured is started as it is (a native binary); the project's own server is its script, run by Node.
+    const server: ServerOptions = configured !== "" ? { command, args: [], options: { shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(command) } } : { command: process.execPath, args: [command], options: { env: NODE_ENV } };
     const options: LanguageClientOptions = {
       documentSelector: [{ language: "mprx" }, { language: "json", pattern: `${workspace}/${settings.model}` }],
       initializationOptions: settings,
@@ -226,7 +231,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   const check = async (): Promise<void> => {
     if (root === undefined) { return; }
 
-    const command = binary(root, "vlx");
+    const command = script(root, "@valancex/cli", "bin/vlx.js");
 
     if (!existsSync(command)) { output.appendLine(`vlx not found at ${command}: install @valancex/cli in the project to see content diagnostics.`); return; }
 
@@ -312,9 +317,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   };
 
   context.subscriptions.push(
-    vscode.languages.registerCodeLensProvider([{ language: "mprx" }, { pattern: "**/src/main.ts" }], lensProvider),
+    vscode.languages.registerCodeLensProvider([{ language: "mprx" }, { pattern: "**/src/**/*.ts" }], lensProvider),
     vscode.languages.registerReferenceProvider({ language: "mprx" }, referenceProvider),
-    vscode.languages.registerDocumentLinkProvider({ pattern: "**/src/main.ts" }, importLinks),
+    vscode.languages.registerDocumentLinkProvider({ pattern: "**/src/**/*.ts" }, importLinks),
     wiringWatcher,
     wiringWatcher.onDidChange(() => { lensesChanged.fire(); }),
     wiringWatcher.onDidCreate(() => { lensesChanged.fire(); void refresh(); }),

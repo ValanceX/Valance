@@ -39,8 +39,8 @@ Build a counter and run it in your browser in about five minutes.
 ```console
 $ mkdir my-app && cd my-app
 $ pnpm init && pnpm pkg set type=module
-$ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.10.0 @valancex/port-web@^0.4.0 effect@^3.10.0
-$ pnpm add -D @valancex/mesh-compiler@^0.10.0 vite typescript
+$ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.11.0 @valancex/port-web@^0.4.0 effect@^3.10.0
+$ pnpm add -D @valancex/mesh-compiler@^0.11.0 vite typescript
 ```
 
 ### 2. Describe the screen
@@ -176,6 +176,8 @@ Bug reports and pull requests are welcome on [GitHub](https://github.com/Valance
 $ pnpm install && pnpm build && pnpm typecheck && pnpm test
 $ pnpm test:browser          # Chromium via Playwright
 ```
+
+**On Windows** the same `pnpm` commands run in PowerShell or cmd. Git should check files out with LF endings (this repository's `.gitattributes` asks for it; tests compare file text, so `core.autocrlf=true` would otherwise hand them CRLF). Workspace links are directory junctions, which need no administrator rights. Scripts in the repository are Node scripts, not shell scripts; set an environment variable for one command with `$env:NAME = "value"; pnpm …` in PowerShell (`NAME=value pnpm …` in a POSIX shell).
 
 ## License
 

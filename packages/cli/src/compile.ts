@@ -12,9 +12,10 @@ import { commandTable, scopeSchema } from "./app.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "./index.js";
-import { asComponent } from "./index.js";
 import type { Node, Place } from "./tree.js";
-import { nameOf, siteOf, treeOf } from "./tree.js";
+import { declarationsOf, nameOf, treeOf } from "./tree.js";
+import { entryOf } from "./contract.js";
+import { locateKey } from "./wiring.js";
 import { primitives } from "./primitives.js";
 import { ENTRY_FILE } from "./project.js";
 
@@ -54,7 +55,7 @@ export interface Templates {
 
 /**
  * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout` and, under it, each component's `uses`. A file under `src/` that is not in that
- * tree is an error, not a guess; a tag a template uses without declaring it is an error; so is declaring one it does not use. A name that is a built-in's replaces it only through `override`.
+ * tree is an error, not a guess; a tag a template uses without listing it in `uses` is an error; so is listing one it does not use. A name that is a built-in's replaces it only through `override`.
  */
 export const templatesOf = (root: string, author: DefinedApp | undefined): Templates => {
   const found = new Map<string, Template>();
@@ -65,13 +66,17 @@ export const templatesOf = (root: string, author: DefinedApp | undefined): Templ
     found.set(component, { component, path: `@valancex/cli/views/${file}`, source: readFileSync(join(BUILT_IN, file), "utf8"), builtIn: true });
   }
 
-  const layout = author?.layout === undefined ? undefined : asComponent(author.layout);
-  const overrides = (author?.override ?? []).map(asComponent);
+  const layout = author?.layout;
+  const overrides = author?.override ?? [];
   const tree = treeOf(layout, overrides);
-  const text = entryText(root);
+  const declarations = declarationsOf(root);
   const problems: Array<Diagnostic> = [];
-  const at = (file: string): Place => siteOf(text, file).imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+  /** Where a template's component is defined: its `component(…)` call, else where it is imported, else the top of the entry file. */
+  const at = (file: string): Place => { const site = declarations.get(file); return site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 }; };
   const problem = (place: Place, code: string, message: string): void => { problems.push(diagnostic(place.file, place.line, code, message, place.column)); };
+
+  // The layout's inputs are the state and the commands, so it has no props or events of its own to declare.
+  if (layout !== undefined && (layout.props !== undefined || layout.events !== undefined)) { problem(at(layout.template.mprx), "layout-contract", "the layout takes no props and raises no events: its inputs are the state and the commands. Declare state fields and commands in defineApp instead"); }
 
   if (layout !== undefined && nameOf(layout.template.mprx) !== ROOT) { problem(at(layout.template.mprx), "layout-name", `the layout's template must be named ${ROOT}.mprx, not ${basename(layout.template.mprx)}`); }
 
@@ -116,12 +121,12 @@ export const templatesOf = (root: string, author: DefinedApp | undefined): Templ
 
     for (const [tag, offset] of written) {
       if (files.has(tag) && !node.uses.includes(tag) && tag !== node.name) {
-        problems.push(diagnostic(node.file, lineAndColumn(template.source, offset).line, "component-undeclared", `<${tag}> is used here but ${node.name === ROOT ? "the layout" : `<${node.name}>`} does not declare it: add it to \`uses\` where ${node.name} is declared in ${ENTRY_FILE}`, lineAndColumn(template.source, offset).column));
+        problems.push(diagnostic(node.file, lineAndColumn(template.source, offset).line, "component-undeclared", `<${tag}> is used here but ${node.name === ROOT ? "the layout" : `<${node.name}>`} does not declare it: add it to \`uses\` where ${node.name} is defined`, lineAndColumn(template.source, offset).column));
       }
     }
 
     for (const used of node.uses) {
-      if (!written.has(used)) { problem(siteOf(text, node.file).call ?? at(node.file), "component-unused", `${node.name} declares <${used}> in uses, but ${node.file} never uses it`); }
+      if (!written.has(used)) { problem(at(node.file), "component-unused", `${node.name} declares <${used}> in uses, but ${node.file} never uses it`); }
     }
   }
 
@@ -156,6 +161,54 @@ export const manifestOf = (author: DefinedApp | undefined) => manifest({
   commands: commandTable(author) as never,
 });
 
+const isManifestError = (error: unknown): error is Error & { readonly path: string } => error instanceof Error && (error as { readonly _tag?: string })._tag === "ManifestError";
+
+/**
+ * The model the templates are checked against: the derived one (the tags, the layout's scope, the commands), and an entry for each component that declares its interface. A declared interface is
+ * exactly what was written, an omitted side being none, and it overrides inference; a component that declares neither props nor events keeps the contract MESH infers from its template and its
+ * uses. MESH checks every use against it (an undeclared prop, a missing one, a wrong type, an undeclared event in a handler), at the use or in the template. A schema with no model type is a
+ * diagnostic at the declaration, not a crash.
+ */
+const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArray<Node>): unknown => {
+  const problems: Array<Diagnostic> = [];
+  const mainText = entryText(root);
+  let derived: ReturnType<typeof manifestOf> | undefined;
+
+  try {
+    derived = manifestOf(author);
+  } catch (error) {
+    if (!isManifestError(error)) { throw error; }
+
+    // `layout.theme.deep`: a state field (the layout's scope) names where; anything else is the commands.
+    const field = /^layout\.([^.[]+)/.exec(error.path)?.[1];
+    const place = field === undefined ? { file: ENTRY_FILE, line: 1, column: 1 } : locateKey(mainText, field);
+
+    problems.push(diagnostic(place.file, place.line, "state-type", `${field === undefined ? error.path : `the state field "${field}"`} has no type the model can hold: ${error.message.replace(/^[\w.[\]]+: /, "")}`, place.column));
+  }
+
+  const declarations = declarationsOf(root);
+  const entries: Record<string, unknown> = {};
+
+  for (const node of tree) {
+    if (node.interface === undefined || node.name === ROOT) { continue; }
+
+    const { entry, problems: bad } = entryOf(node.interface);
+    const site = declarations.get(node.file);
+
+    for (const each of bad) {
+      const place = site?.member(each.kind, each.name) ?? site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+
+      problems.push(diagnostic(place.file, place.line, "component-schema", `${node.name}'s ${each.kind === "props" ? "prop" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`, place.column));
+    }
+
+    entries[node.name] = entry;
+  }
+
+  if (problems.length > 0 || derived === undefined) { throw new AppError(problems); }
+
+  return { ...derived, components: { ...derived.components, ...entries } };
+};
+
 export interface Compiled {
   readonly program: Valance.Program;
   /**
@@ -177,7 +230,7 @@ export interface Compiled {
 export const compileViews = async (root: string, author: DefinedApp | undefined): Promise<Compiled> => {
   const { all, tree } = templatesOf(root, author);
   const used = reachable(all);
-  const model = manifestOf(author);
+  const model = modelOf(root, author, tree);
 
   if (!used.some((template) => template.component === ROOT)) { throw new AppError([diagnostic(`${SOURCE_DIR}/${ROOT}.mprx`, 0, "layout-missing", "there is no layout")]); }
 
@@ -199,34 +252,6 @@ export const compileViews = async (root: string, author: DefinedApp | undefined)
   const program = result.program as unknown as Valance.Program;
   const enriched = (program as unknown as { readonly model: unknown }).model;
   const manifestOfProgram = typeof enriched === "string" ? JSON.parse(enriched) : enriched;
-
-  // What each component declared it takes and raises, against what its template does.
-  const text = entryText(root);
-  const mismatches: Array<Diagnostic> = [];
-
-  for (const node of tree) {
-    const entry = (manifestOfProgram as { readonly components: Readonly<Record<string, { readonly props: Record<string, unknown>; readonly events: Record<string, unknown> }>> }).components[node.name];
-    const site = siteOf(text, node.file);
-    const where = (kind: "props" | "events", name: string): Place => site.member(kind, name) ?? site.call ?? site.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
-
-    for (const [kind, declared, actual] of [["props", node.props, Object.keys(entry?.props ?? {})], ["events", node.events, Object.keys(entry?.events ?? {})]] as const) {
-      const noun = kind === "props" ? "prop" : "event";
-
-      for (const name of actual.filter((each) => !declared.includes(each))) {
-        const place = site.call ?? site.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
-
-        mismatches.push(diagnostic(place.file, place.line, `${noun}-undeclared`, `<${node.name}> has the ${noun} "${name}" (see ${node.file}) but ${ENTRY_FILE} does not declare it: add "${name}" to ${kind} of ${node.name}`, place.column));
-      }
-
-      for (const name of declared.filter((each) => !actual.includes(each))) {
-        const place = where(kind, name);
-
-        mismatches.push(diagnostic(place.file, place.line, `${noun}-unknown`, `${node.name} declares the ${noun} "${name}" but ${node.file} has no such ${noun}`, place.column));
-      }
-    }
-  }
-
-  if (mismatches.length > 0) { throw new AppError(mismatches); }
 
   return {
     program,

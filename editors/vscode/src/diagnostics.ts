@@ -49,10 +49,10 @@ export const parse = (stdout: string): ReadonlyArray<ValanceDiagnostic> => {
   return value as ReadonlyArray<ValanceDiagnostic>;
 };
 
-/** Runs the project's own `vlx check --json`. Exit code 1 means "there are diagnostics", which is the normal reason to run it. */
-export const run = (root: string, command: string): Promise<ReadonlyArray<ValanceDiagnostic>> =>
+/** Runs the project's own `vlx check --json`: `script` is its `bin/vlx.js`, started by Node (no shell, no `.cmd` shim). Exit code 1 means "there are diagnostics", which is the normal reason to run it. */
+export const run = (root: string, script: string): Promise<ReadonlyArray<ValanceDiagnostic>> =>
   new Promise((resolve, reject) => {
-    const child = spawn(command, ["check", "--json"], { cwd: root, shell: process.platform === "win32" });
+    const child = spawn(process.execPath, [script, "check", "--json"], { cwd: root, env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" } });
     let out = "";
     let err = "";
 

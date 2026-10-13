@@ -10,6 +10,7 @@ import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
 import { primitives } from "./primitives.js";
 import { normalize, routes } from "./routes.js";
+import { badDefaults, stateOf } from "./state.js";
 
 export type AppState = PageState & Record<string, unknown>;
 
@@ -31,7 +32,7 @@ export class AppDefinitionError extends Error {
   }
 }
 
-const authorFields = (author: DefinedApp | undefined): ReadonlyArray<string> => author?.state === undefined ? [] : Object.keys(author.state.schema.fields);
+const authorFields = (author: DefinedApp | undefined): ReadonlyArray<string> => Object.keys(stateOf(author)?.schema.fields ?? {});
 
 /** Checks the author's definition against the names the framework owns. */
 export const checkDefinition = (author: DefinedApp | undefined): void => {
@@ -39,6 +40,8 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
     if (RESERVED.includes(name)) { throw new AppDefinitionError(`src/main.ts: the state field "${name}" is a name the layout already reads from the framework (${RESERVED.join(", ")}); choose another`); }
     if (name === "page") { throw new AppDefinitionError('src/main.ts: the state field "page" is the framework\'s (which page is shown); choose another'); }
   }
+
+  for (const name of badDefaults(author)) { throw new AppDefinitionError(`src/main.ts: the default of the state field "${name}" is not a value of its type`); }
 
   // Building the table reads no state (a command reads it when it runs), so it can be built here, with nothing, to see its names.
   if ("go" in (author?.commands?.(Valance.command({} as never) as never) ?? {})) { throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name'); }
@@ -51,11 +54,17 @@ export const ownNames = (author: DefinedApp | undefined): { readonly state: Read
 });
 
 /** The scope schema a layout is compiled against: the framework's names and the author's state fields. */
-export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> =>
-  author?.state === undefined ? FrameScope : (Schema.extend(FrameScope, author.state.schema) as unknown as Schema.Schema<any, any, never>);
+export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
+  const state = stateOf(author);
 
-export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> =>
-  author?.state === undefined ? PageSchema : (Schema.extend(PageSchema, author.state.schema) as unknown as Schema.Schema<any, any, never>);
+  return state === undefined ? FrameScope : (Schema.extend(FrameScope, state.schema) as unknown as Schema.Schema<any, any, never>);
+};
+
+export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
+  const state = stateOf(author);
+
+  return state === undefined ? PageSchema : (Schema.extend(PageSchema, state.schema) as unknown as Schema.Schema<any, any, never>);
+};
 
 /** The command table: the framework's `go`, then the author's. */
 export const commandTable = (author: DefinedApp | undefined) => (state: Parameters<typeof Valance.command>[0]): Valance.CommandTable<any, Valance.Ambient> => {
@@ -67,7 +76,7 @@ export const commandTable = (author: DefinedApp | undefined) => (state: Paramete
   return { go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })), ...own };
 };
 
-export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", ...((author?.state?.initial ?? {}) as Record<string, unknown>) });
+export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", ...(stateOf(author)?.initial ?? {}) });
 
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);

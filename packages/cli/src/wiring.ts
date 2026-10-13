@@ -9,7 +9,7 @@ import type { Compiled } from "./compile.js";
 import type { DefinedApp } from "./index.js";
 import { ENTRY_FILE } from "./project.js";
 import type { Place } from "./tree.js";
-import { placeIn, siteOf } from "./tree.js";
+import { declarationsOf, placeIn } from "./tree.js";
 
 export type { Place };
 
@@ -68,6 +68,11 @@ interface Scanned { readonly reads: ReadonlyArray<Read>; readonly elements: Read
 
 const KEYWORDS = new Set(["true", "false", "null"]);
 
+/** What a block's braces start with: its keyword. */
+const BLOCK = /^\s*(#if|#each|:else if|:else|\/if|\/each)(?![\w-])/;
+/** The `as item (key)` of an `{#each}`: the name it binds and, if written, its key. */
+const EACH = /\s+as\s+([A-Za-z_]\w*)\s*(?:\(([\s\S]*)\))?\s*$/;
+
 /** The identifiers an expression reads (and the commands it calls), with their offsets; strings and member names are not reads. */
 const identifiers = (expression: string, base: number): ReadonlyArray<Read> => {
   const plain = expression.replace(/"([^"\\]|\\.)*"/g, (found) => " ".repeat(found.length));
@@ -106,6 +111,10 @@ const balanced = (text: string, from: number): number => {
 export const scan = (text: string): Scanned => {
   const reads: Array<Read> = [];
   const elements: Array<Element> = [];
+  /** The names the enclosing `{#each}` blocks bind, innermost last, and the kind of each open block. */
+  const bound: Array<string> = [];
+  const kinds: Array<"if" | "each"> = [];
+  const read = (expression: string, base: number): void => { reads.push(...identifiers(expression, base).filter((each) => !bound.includes(each.name))); };
   let at = 0;
 
   while (at < text.length) {
@@ -113,8 +122,35 @@ export const scan = (text: string): Scanned => {
 
     if (char === "{") {
       const end = balanced(text, at);
+      const inner = text.slice(at + 1, end);
+      const block = BLOCK.exec(inner);
 
-      reads.push(...identifiers(text.slice(at + 1, end), at + 1));
+      if (block === null) {
+        read(inner, at + 1);
+      } else if (block[1] === "#each") {
+        // `{#each items as item (key)}`: the list is read where the block is; the key and the body see the name it binds, which is a binding, not a read of state.
+        const head = EACH.exec(inner);
+
+        if (head !== null) {
+          const items = inner.slice(block[0].length, head.index);
+
+          read(items, at + 1 + block[0].length);
+          bound.push(head[1]!);
+          kinds.push("each");
+
+          if (head[2] !== undefined) { read(head[2], at + 1 + head.index + head[0].indexOf("(") + 1); }
+        } else {
+          kinds.push("each");
+        }
+      } else if (block[1] === "#if") {
+        kinds.push("if");
+        read(inner.slice(block[0].length), at + 1 + block[0].length);
+      } else if (block[1] === ":else if") {
+        read(inner.slice(block[0].length), at + 1 + block[0].length);
+      } else if (block[1] === "/each" || block[1] === "/if") {
+        if (kinds.pop() === "each") { bound.pop(); }
+      }
+
       at = end + 1;
     } else if (char === "<" && text[at + 1] === "/") {
       at = text.indexOf(">", at) + 1 || text.length;
@@ -156,7 +192,7 @@ export const scan = (text: string): Scanned => {
         } else if (text[cursor] === "{") {
           const end = balanced(text, cursor);
 
-          reads.push(...identifiers(text.slice(cursor + 1, end), cursor + 1));
+          read(text.slice(cursor + 1, end), cursor + 1);
           attributes.push({ name: attribute[0], string: false, text: text.slice(cursor + 1, end).trim(), at: attributeAt });
           cursor = end + 1;
         }
@@ -174,7 +210,22 @@ export const scan = (text: string): Scanned => {
 
 /** The first place a key `name:` is written in `src/main.ts`: where a state field or a command is declared. A text search, not a parse: it is for pointing, and falls back to the top of the file. */
 export const locateKey = (text: string, name: string): Place => {
-  const found = new RegExp(`(^|[\\s{,(])(${name})\\s*:`, "m").exec(text);
+  // The keys of a component's `props: { … }` and `events: { … }` are not state fields or commands: blank them out, keeping every offset.
+  let masked = text;
+
+  for (const contract of text.matchAll(/\b(?:props|events)\s*:\s*\{/g)) {
+    const open = contract.index + contract[0].length - 1;
+    let depth = 0;
+    let end = open;
+
+    for (; end < text.length; end += 1) {
+      if (text[end] === "{") { depth += 1; } else if (text[end] === "}") { depth -= 1; if (depth === 0) { break; } }
+    }
+
+    masked = masked.slice(0, open) + text.slice(open, end).replace(/[^\n]/g, " ") + masked.slice(end);
+  }
+
+  const found = new RegExp(`(^|[\\s{,(])(${name})\\s*:`, "m").exec(masked);
 
   return found === null ? { file: ENTRY_FILE, line: 1, column: 1 } : placeIn(text, found.index + found[1]!.length, ENTRY_FILE);
 };
@@ -202,7 +253,8 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
   const bindings: Record<string, Array<Place>> = {};
   const define = (path: ReadonlyArray<string>, place: Place | undefined): void => { if (place !== undefined) { definitions[path.join("/")] = place; } };
   const placeOf = (component: string, offset: number): Place => { const found = scanned.get(component)!; return placeIn(found.template.source, offset, found.template.file); };
-  const sites = new Map(compiled.tree.map((node) => [node.name, siteOf(mainText, node.file)]));
+  const declarations = declarationsOf(root);
+  const sites = new Map(compiled.tree.map((node) => [node.name, declarations.get(node.file)]));
   const declaredAt = (name: string): Place | undefined => { const site = sites.get(name); return site?.call ?? site?.imported; };
   const top = (component: string): Place => ({ file: scanned.get(component)!.template.file, line: 1, column: 1 });
 

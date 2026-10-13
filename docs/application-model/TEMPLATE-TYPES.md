@@ -9,9 +9,9 @@ The MESH compiler checks every template against the manifest and **infers each c
 | Probe | Result |
 |---|---|
 | `{count + "x"}` (number + string) | `type-mismatch: an operand of + needs number, found string` |
-| `<mesh-if when={count}>` (number as boolean) | `type-mismatch: the prop "when" … needs boolean, found number` |
+| `{#if count}` (number as boolean) | `type-mismatch: the condition needs boolean, found number` |
 | `{user.nme}` on `Struct({ name })` | `unknown-member: … has no member "nme" (did you mean "name"?)` |
-| `<mesh-each items={user}>` over a record | `type-mismatch … needs list<any>` |
+| `{#each user as u (u.id)}` over a record | `type-mismatch … needs list<any>` |
 | a component's prop type | **inferred from how its template uses it** (`{n + 1}` makes `n` a `number`); a use that passes a string is an error at that use |
 | two uses of one component that disagree | error at the second |
 | an event's payload | inferred from the raise (`pick(n)` → `number`); a handler `setCount($event)` is checked against it, `setCount(name)` is an error |
@@ -22,6 +22,16 @@ The MESH compiler checks every template against the manifest and **infers each c
 The inferred contract is written to `.valance/manifest.json` (`components.badge.props`, `.events.pick.payload`) and the editor shows it: hovering `<theme-toggle>` gives `component theme-toggle { theme: string  on.toggle }`; hovering `{theme}` gives `theme: string`; an event says "with no payload".
 
 On the TypeScript side `state`, `initial` and every command's `state` are typed by the Effect schema (`defineApp`'s `F`), so `main.ts` is checked by `tsc`.
+
+## Update: contracts are declared, and templates are typed from them
+
+Item 1 below describes the design this note was written against. Since then:
+
+- A state field is its type and default in one declaration: `field(Schema.Number, 0)`. The hand-built `schema` + `initial` pair is still accepted; naming both is the same definition error as a clash.
+- A component states its interface where it is defined: `component(template, { props: { n: Schema.Number }, events: { pick: Schema.Number }, uses: [...] })`. Declaring either side declares the contract exactly (an omitted side is none) and overrides inference; declaring neither keeps the inferred contract. A prop is optional when its schema admits `undefined`; an event's schema is its payload, and an empty schema (`Schema.Void`) is no payload. Props have no defaults. MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use or the template. The layout's contract is not declared (an error).
+- `vlx check`, `dev` and `build` write `.valance/types/<template>.d.mprx.ts`, so `import x from "./x.mprx"` has the type `Template<"props", "events">` when the project's `tsconfig.json` has `allowArbitraryExtensions` and `rootDirs: ["src", ".valance/types"]`; a declaration that disagrees with the template's names is a compile-time error. Without the configuration the import is untyped; the types are stale until the next `check`, `dev` or `build`.
+
+Still not covered: value-level agreement between a template and its component, literals as types, exposing derived values, and unused props or events.
 
 ## What is lost or missing
 
