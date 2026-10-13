@@ -2,7 +2,7 @@
 // features to answer. No test framework: a case throws, and `run` reports every failure at once.
 import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -270,11 +270,18 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
     // The check a save started earlier (the previous case saved files) may still be running and write the wiring after it is removed: remove it until the window is without it.
     const { document } = await open("src/layout.mprx");
 
+    let saved: Buffer | undefined;
+
     await waitFor("the status to be ready", () => api().status() === "ready" ? true : undefined, 60_000);
     await waitFor("the definition to be the generated manifest, as the message says: navigation to the author's files is off", async () => {
+      // Put it back and remove it again, so the window sees a deletion even if it missed the last one.
+      if (existsSync(wiring)) { saved = readFileSync(wiring); } else if (saved !== undefined) { writeFileSync(wiring, saved); }
       if (existsSync(wiring)) { unlinkSync(wiring); }
 
-      await waitFor(`the status to become partial (it is ${api().status()})`, () => api().status() === "partial" ? true : undefined);
+      // A late check may write the wiring straight back: then the status never shows partial, and the next round removes it again.
+      const partial = await waitFor("the status to become partial", () => api().status() === "partial" ? true : undefined, 4_000).catch(() => false);
+
+      if (!partial) { return undefined; }
 
       const found = await vscode.commands.executeCommand<ReadonlyArray<vscode.Location | vscode.LocationLink>>("vscode.executeDefinitionProvider", document.uri, positionOf(document, "toggleTheme", 2));
 
