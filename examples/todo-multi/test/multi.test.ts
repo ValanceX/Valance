@@ -76,9 +76,34 @@ describe("the web target, in a browser", () => {
   });
 });
 
+describe("the system's colors, in the browser", () => {
+  it("follows the system until the person chooses, then keeps the choice", async () => {
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ colorScheme: "dark" });
+
+    try {
+      await page.goto(`${origin}/`);
+      await page.waitForSelector('#app[data-valance="running"]');
+      await page.waitForFunction(() => document.querySelector("#app > [data-theme]")?.getAttribute("data-theme") === "dark");
+
+      await page.emulateMedia({ colorScheme: "light" });
+      await page.waitForFunction(() => document.querySelector("#app > [data-theme]")?.getAttribute("data-theme") === "light");
+
+      await page.click(".theme-toggle"); // the person chooses: dark, whatever the system says
+      await page.waitForFunction(() => document.querySelector("#app > [data-theme]")?.getAttribute("data-theme") === "dark");
+      await page.emulateMedia({ colorScheme: "dark" });
+      await page.emulateMedia({ colorScheme: "light" });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(await page.getAttribute("#app > [data-theme]", "data-theme")).toBe("dark");
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
 type Message = { readonly op: string; readonly [key: string]: unknown };
 
-const engine = (dataHome?: string) => {
+const engine = (dataHome: string = mkdtempSync(join(tmpdir(), "vlx-data-"))) => {
   const child = spawn(process.execPath, [join(root, "dist/desktop/engine.mjs")], {
     stdio: ["pipe", "pipe", "inherit"],
     env: { ...process.env, ...(dataHome === undefined ? {} : { XDG_DATA_HOME: dataHome }) },
@@ -149,6 +174,29 @@ describe("the desktop target", () => {
       await window.until(() => named(window.seen, "checkbox")[0]?.props?.["checked"] === true);
       window.send({ op: "event", handler: buttonLabelled(window.seen, "Clear done")!.events!["click"]! });
       await window.until(() => named(window.seen, "checkbox").length === 0);
+    } finally {
+      await window.close();
+    }
+  });
+});
+
+describe("the system's colors, in the window", () => {
+  it("are told to the application, and the application's appearance is asked of the window", async () => {
+    const window = engine();
+
+    try {
+      await window.until(() => window.seen.some((message) => message.op === "draw") && window.seen.some((message) => message.op === "appearance"));
+      expect(window.seen.find((message) => message.op === "appearance")).toMatchObject({ appearance: "system" });
+      expect(window.seen.findIndex((message) => message.op === "appearance")).toBeLessThan(window.seen.findIndex((message) => message.op === "draw"));
+
+      // the window tells the engine the system is dark; the application's state follows (it is `colorScheme` to a layout), and nothing is drawn differently here, so ask for it
+      window.send({ op: "scheme", scheme: "dark" });
+      await window.until(() => buttonLabelled(window.seen, "Appearance: system") !== undefined);
+      window.send({ op: "event", handler: buttonLabelled(window.seen, "Appearance: system")!.events!["click"]! });
+      await window.until(() => window.seen.some((message) => message.op === "appearance" && message["appearance"] === "light"));
+      await window.until(() => buttonLabelled(window.seen, "Appearance: light") !== undefined); // the screen follows the appearance message
+      window.send({ op: "event", handler: buttonLabelled(window.seen, "Appearance: light")!.events!["click"]! });
+      await window.until(() => window.seen.some((message) => message.op === "appearance" && message["appearance"] === "dark"));
     } finally {
       await window.close();
     }

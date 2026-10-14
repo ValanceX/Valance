@@ -33,7 +33,15 @@ export interface PageState {
   readonly page: string;
   /** How much room the page has: `compact` (under 600 px wide: a phone), `medium` (600 to 839) or `expanded` (840 and up). The framework keeps it current as the window changes; a layout reads it as `viewport`. */
   readonly viewport: Viewport;
+  /** The colors the person's system asks for: `light` or `dark`. The framework keeps it current (the page's `prefers-color-scheme`, the window's system theme); a layout reads it as `colorScheme`. The server renders `light`; the page corrects it as it starts. */
+  readonly colorScheme: ColorScheme;
 }
+
+/** The system's color preference. */
+export type ColorScheme = "light" | "dark";
+
+/** What an application asks its window to look like: a scheme, or `system` for the person's own. */
+export type Appearance = ColorScheme | "system";
 
 /** Window size classes, the ones Material Design and iOS size classes agree on closely enough to design for. */
 export type Viewport = "compact" | "medium" | "expanded";
@@ -179,6 +187,11 @@ export interface AppDefinition<S extends StateInput = {}> {
    * Used by the page; the server makes no requests.
    */
   readonly http?: { readonly interceptors?: ReadonlyArray<Interceptor> };
+  /**
+   * The appearance this application asks of its window, for a state: `appearance: (state) => state.theme` (`"light"`, `"dark"` or `"system"`). A page draws its own colors, so it is the desktop
+   * window's: the window follows the system's theme unless this says otherwise. Absent: the system's.
+   */
+  readonly appearance?: (state: PageState & StateOf<S>) => Appearance;
   /**
    * The state fields that outlive a run: `persist: ["items", "theme"]`. They are loaded when the application starts and saved when they change, through the platform's `Store` (the page's
    * storage on the web, a file in the user's data directory on the desktop), under the application's name. What was stored and no longer fits a field's type is ignored, not loaded. Where a

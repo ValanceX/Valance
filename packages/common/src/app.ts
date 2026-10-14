@@ -22,7 +22,7 @@ export interface Built {
   readonly styles: ReadonlyArray<string>;
 }
 
-const PageSchema = Schema.Struct({ page: Schema.String, viewport: Schema.Literal("compact", "medium", "expanded") });
+const PageSchema = Schema.Struct({ page: Schema.String, viewport: Schema.Literal("compact", "medium", "expanded"), colorScheme: Schema.Literal("light", "dark") });
 
 /** A mistake in `src/main.ts`, reported with what to change. */
 export class AppDefinitionError extends Error {
@@ -81,6 +81,7 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
   for (const [name, what] of [
     ["go", "shows a page"],
     ["resize", "tells the layout how much room the page has"],
+    ["colorScheme", "tells the layout which colors the system asks for"],
     ["persist", "keeps the fields named in `persist` between runs"],
   ] as const) {
     if (name in own) {
@@ -169,7 +170,7 @@ export const commandTable =
     const command = Valance.command(state as never) as Valance.CommandMaker<AppState>;
     const own = author?.commands?.(command as never) ?? {};
 
-    for (const name of ["go", "resize", "persist"]) {
+    for (const name of ["go", "resize", "colorScheme", "persist"]) {
       if (name in own) {
         throw new AppDefinitionError(`src/main.ts: "${name}" is the framework's command; choose another name`);
       }
@@ -180,11 +181,13 @@ export const commandTable =
       go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })),
       // The window changed size: the browser tells the application, which tells the layout (`viewport`).
       resize: command(Schema.Struct({ viewport: Schema.Literal("compact", "medium", "expanded") }), ({ viewport }, current) => ({ ...current, viewport })),
+      // The person's system changed colors: the page or the window tells the application, which tells the layout (`colorScheme`).
+      colorScheme: command(Schema.Struct({ scheme: Schema.Literal("light", "dark") }), ({ scheme }, current) => ({ ...current, colorScheme: scheme })),
       ...own,
     };
   };
 
-export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", viewport: "expanded", ...stateOf(author)?.initial });
+export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", viewport: "expanded", colorScheme: "light", ...stateOf(author)?.initial });
 
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);
@@ -198,7 +201,7 @@ export const application = (content: Content, program: Valance.Program, author?:
         scope: (state: AppState) => {
           const { page, ...own } = state;
 
-          return { ...frame(content, page, state.viewport), ...own, ...derivedValues(author, state) };
+          return { ...frame(content, page, state.viewport, state.colorScheme), ...own, ...derivedValues(author, state) };
         },
       },
     },

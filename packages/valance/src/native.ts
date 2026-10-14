@@ -24,6 +24,8 @@ export type Outbound =
   | { readonly op: "unmount" }
   /** What the window is called. Sent before the first screen and whenever it changes: the window is the host's, so the application says its title, not a template. */
   | { readonly op: "title"; readonly title: string }
+  /** How the application asks the window to look: `light` or `dark`, or `system` for the person's own. Sent before the first screen and whenever it changes. */
+  | { readonly op: "appearance"; readonly appearance: "light" | "dark" | "system" }
   /** The answer to `closeRequested`. When `allowed`, the engine is closing and `unmount` follows; when not, the window stays open. */
   | { readonly op: "closeAnswer"; readonly allowed: boolean };
 
@@ -34,6 +36,8 @@ export type Inbound =
   | { readonly op: "close" }
   /** The person activated a link. A link is an address, not an event: the tree has its `href` and no handler, so the PORT says which address and the application decides what it means. */
   | { readonly op: "link"; readonly href: string }
+  /** The system's colors, as the window sees them: sent when the window opens and whenever they change. The application learns them as state (`colorScheme`). */
+  | { readonly op: "scheme"; readonly scheme: "light" | "dark" }
   /** The person asked to close the window. The engine decides (unsaved edits), and answers with `closeAnswer`. */
   | { readonly op: "closeRequested" };
 
@@ -77,7 +81,13 @@ export const parseInbound = (line: string): Inbound | undefined => {
     return undefined;
   }
 
-  const { op, handler, payload, href } = message as { readonly op?: unknown; readonly handler?: unknown; readonly payload?: unknown; readonly href?: unknown };
+  const { op, handler, payload, href, scheme } = message as {
+    readonly op?: unknown;
+    readonly handler?: unknown;
+    readonly payload?: unknown;
+    readonly href?: unknown;
+    readonly scheme?: unknown;
+  };
 
   if (op === "ready" || op === "close" || op === "closeRequested") {
     return { op };
@@ -85,6 +95,9 @@ export const parseInbound = (line: string): Inbound | undefined => {
   // oxlint-disable-next-line no-control-regex -- refusing control characters in an address is the point
   if (op === "link" && typeof href === "string" && href.length <= MAX_HREF && !/[\u0000-\u001f\u007f]/.test(href)) {
     return { op, href };
+  }
+  if (op === "scheme" && (scheme === "light" || scheme === "dark")) {
+    return { op, scheme };
   }
   if (op === "event" && typeof handler === "string" && handler.length <= 256 && (payload === undefined || jsonValue(payload))) {
     return payload === undefined ? { op, handler } : { op, handler, payload };
@@ -94,6 +107,10 @@ export const parseInbound = (line: string): Inbound | undefined => {
 };
 
 export interface HostOptions<S, E = unknown> {
+  /** What the application asks the window to look like for a state. Absent: the window follows the system. */
+  readonly appearanceOf?: (state: S) => "light" | "dark" | "system";
+  /** The system's colors changed (or were first told): what that means to the application. Called with the scheme and the application's handle; absent: ignored. */
+  readonly onScheme?: (scheme: "light" | "dark", handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** What a link means. Called with the address the person activated and the application's handle; absent: links do nothing. The address is untrusted text from another program. */
   readonly onLink?: (href: string, handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** The window's title for a state. Absent: the window keeps its own. */
@@ -139,9 +156,18 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
 
       send({ op: "hello", protocol: PROTOCOL, app: app.name }); // before the first screen: a renderer checks the protocol before it draws anything
 
+      let appearance: string | undefined;
       let titled: string | undefined;
       // The title follows the state a screen is drawn for; sent only when it changed, and before the screen that goes with it.
       const retitle = (): void => {
+        if (options.appearanceOf !== undefined) {
+          const asked = options.appearanceOf(Effect.runSync(handle.state));
+
+          if (asked !== appearance) {
+            appearance = asked;
+            send({ op: "appearance", appearance: asked });
+          }
+        }
         if (options.titleOf !== undefined) {
           const title = options.titleOf(Effect.runSync(handle.state));
 
@@ -178,6 +204,10 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
             done();
           } else if (message.op === "event" && report !== undefined) {
             report(message.handler, message.payload);
+          } else if (message.op === "scheme") {
+            if (options.onScheme !== undefined) {
+              void Effect.runPromise(options.onScheme(message.scheme, handle)).catch(() => undefined);
+            }
           } else if (message.op === "link") {
             if (options.onLink !== undefined) {
               void Effect.runPromise(options.onLink(message.href, handle)).catch(() => undefined);

@@ -8,6 +8,7 @@ import * as Web from "@valancex/valance/web";
 import { Effect } from "effect";
 
 import { webPlatform } from "./http.js";
+import { watchColorScheme } from "./color-scheme.js";
 import { watchViewport } from "./viewport.js";
 
 import type { AppState, Built } from "./app.js";
@@ -41,6 +42,10 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
     });
 
     // The server rendered for a wide window; tell the application how wide this one is (and keep telling it).
+    const unwatchScheme = watchColorScheme(window, (scheme) => {
+      container.dataset["colorScheme"] = scheme; // for a stylesheet or a test; the layout reads the state's own `colorScheme`
+      void Effect.runPromise(host.handle.invoke("app/colorScheme", [{ value: scheme }])).catch(() => undefined);
+    });
     const unwatch = watchViewport(window, (viewport) => {
       container.dataset["viewport"] = viewport; // for a stylesheet or a test; the layout reads the state's own `viewport`
       void Effect.runPromise(host.handle.invoke("app/resize", [{ value: viewport }])).catch(() => undefined);
@@ -50,6 +55,7 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
     addEventListener("pagehide", (event) => {
       if (!event.persisted) {
         unwatch();
+        unwatchScheme();
         void host.stop();
       }
     });

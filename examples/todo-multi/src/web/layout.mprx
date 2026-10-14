@@ -1,7 +1,7 @@
-<shell class="layout" theme={theme}>
+<shell class="layout" theme={theme == "system" ? colorScheme : theme}>
   <header class="bar">
     <link class="brand" href={home} current="false">{site}</link>
-    <theme-toggle theme={theme} on.toggle={toggleTheme()} />
+    <theme-toggle theme={theme == "system" ? colorScheme : theme} on.toggle={toggleTheme()} />
   </header>
   <div class="frame">
     <nav class="sidebar" label="Pages">

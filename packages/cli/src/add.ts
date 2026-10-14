@@ -274,6 +274,11 @@ export const generateTarget = (root: string, given: string): Generated => {
     }
   }
 
+  // Where the site goes changes with the second target: say so now, not when a deploy step fails.
+  if (config.targets.length === 1 && config.targets[0] === "web") {
+    notes.push("the web site is now built to dist/web/ (it was dist/), and the desktop to dist/desktop/: point a deploy step or a test that serves dist/ at dist/web/");
+  }
+
   notes.push(`the ${id} target is drawn with its own vocabulary: write its templates in ${SOURCE_DIR}/${id}/, and the state, the commands and the content are shared`);
 
   return { created, changed, notes };

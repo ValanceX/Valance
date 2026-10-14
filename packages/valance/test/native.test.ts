@@ -136,11 +136,39 @@ describe("Native.run", () => {
   });
 });
 
+describe("the window's colors", () => {
+  it("asks the window for the appearance the application wants, before the screen and when it changes, and learns the system's colors as the application's own business", async () => {
+    const w = wire();
+    const told: Array<string> = [];
+    const served = Effect.runPromise(
+      serve(
+        await app(),
+        { input: w.toEngine, output: w.fromEngine },
+        {
+          appearanceOf: (state) => (state.n > 0 ? "dark" : "system"),
+          onScheme: (scheme) => Effect.sync(() => void told.push(scheme)),
+        },
+      ),
+    );
+
+    await until(() => w.seen.some((message) => message.op === "draw"));
+    expect(w.seen.map((message) => message.op)).toEqual(["hello", "appearance", "draw"]);
+    expect(w.seen[1]).toEqual({ op: "appearance", appearance: "system" });
+
+    w.send({ op: "scheme", scheme: "dark" });
+    w.send({ op: "scheme", scheme: "purple" });
+    w.send({ op: "close" });
+    expect((await served).ignored).toBe(1);
+    expect(told).toEqual(["dark"]);
+  });
+});
+
 describe("what the engine accepts from a renderer", () => {
   it("takes the messages of the protocol, with plain data", () => {
     expect(parseInbound('{"op":"ready"}')).toEqual({ op: "ready" });
     expect(parseInbound('{"op":"close"}')).toEqual({ op: "close" });
     expect(parseInbound('{"op":"closeRequested"}')).toEqual({ op: "closeRequested" });
+    expect(parseInbound('{"op":"scheme","scheme":"dark"}')).toEqual({ op: "scheme", scheme: "dark" });
     expect(parseInbound('{"op":"link","href":"/guide/start"}')).toEqual({ op: "link", href: "/guide/start" });
     expect(parseInbound('{"op":"event","handler":"h1","payload":{"x":1,"y":[true,null]}}')).toEqual({ op: "event", handler: "h1", payload: { x: 1, y: [true, null] } });
   });

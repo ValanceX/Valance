@@ -132,7 +132,7 @@ describe("vlx build", () => {
     expect(home).toContain("<title>Home · Test</title>");
     expect(home).toContain('<meta name="description" content="The start."');
     expect(home).toContain('href="/guide/a"');
-    expect(home).toContain('"state":{"page":"/","viewport":"expanded"}');
+    expect(home).toContain('"state":{"page":"/","viewport":"expanded","colorScheme":"light"}');
     expect(readFileSync(join(root, "dist/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
     expect(readFileSync(join(root, "dist/404.html"), "utf8")).toContain("Page not found");
   });

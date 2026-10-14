@@ -74,7 +74,7 @@ A project has the targets whose settings file it has; `vlx init my-app --web --d
 
 ## Adding a target: `vlx generate target desktop`
 
-A web project becomes a project of two targets without moving anything: `vlx generate target desktop` writes `valance.desktop.json` (and `valance.web.json`, which a project needs once it has another target's), a layout of its own in `src/desktop/`, and registers it in `targets` in `src/main.ts`. The layout the project has stays the default for a target with none of its own. See `docs/application-model/MULTI-TARGET.md`.
+A web project becomes a project of two targets without moving anything: `vlx generate target desktop` writes `valance.desktop.json` (and `valance.web.json`, which a project needs once it has another target's), a layout of its own in `src/desktop/`, and registers it in `targets` in `src/main.ts`. The layout the project has stays the default for a target with none of its own. **The site moves**: a project of one web target builds to `dist/`, one of several to `dist/<target>/` (`dist/web/`, `dist/desktop/`), so a deploy step that serves `dist/` is pointed at `dist/web/` when the second target is added (the command says so). See `docs/application-model/MULTI-TARGET.md`.
 
 ## Adding to an application: `vlx generate`
 

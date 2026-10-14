@@ -15,9 +15,11 @@ export default defineApp({
     items: field(Schema.Array(Item), []),
     entry: field(Schema.String, ""), // what is typed in the new-item field, until it is added
     seq: field(Schema.Number, 1), // the next item's number
-    theme: field(Schema.Literal("light", "dark"), "light"), // the web layout's
+    theme: field(Schema.Literal("system", "light", "dark"), "system"), // the colors: the system's unless the person chose
     navigation: field(Schema.Boolean, true), // the desktop layout's
   },
+  // What the window looks like: the person's choice, or the system's colors when they have not made one.
+  appearance: (state) => state.theme,
   // What outlives a run, on every target: the items and the counter that numbers them, and the web's theme. (`navigation` is the desktop's own and `entry` is a draft: neither is kept.)
   persist: ["items", "seq", "theme"],
   // Worked out from the state, on every target: a layout reads `summary` as it reads a field.
@@ -37,7 +39,10 @@ export default defineApp({
     })),
     removeItem: command(Schema.Struct({ id: Schema.String }), ({ id }, state) => ({ ...state, items: state.items.filter((item) => item.id !== id) })),
     clearDone: command((state) => ({ ...state, items: state.items.filter((item) => !item.done) })),
-    toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
+    // flips what is shown (the system's colors, when the person has not chosen)
+    toggleTheme: command((state) => ({ ...state, theme: (state.theme === "system" ? state.colorScheme : state.theme) === "light" ? "dark" : "light" })),
+    // the window's: system, then light, then dark
+    cycleTheme: command((state) => ({ ...state, theme: state.theme === "system" ? "light" : state.theme === "light" ? "dark" : "system" })),
     toggleNavigation: command((state) => ({ ...state, navigation: !state.navigation })),
   }),
   targets: {

@@ -75,6 +75,9 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
   const opener = systemOpen();
 
   await Native.run(application(content, program, author), {
+    // The window follows the system's colors unless the application asks otherwise (`appearance` in `defineApp`), and the application learns the system's (`colorScheme`).
+    appearanceOf: (state) => author?.appearance?.(state as never) ?? "system",
+    onScheme: (scheme, handle) => handle.invoke("app/colorScheme", [{ value: scheme }]),
     // What the desktop supplies: a store, in the user's data directory for the application.
     platform: platformOf([
       [Store, fileStore(userDataDir(content.site.name))],
