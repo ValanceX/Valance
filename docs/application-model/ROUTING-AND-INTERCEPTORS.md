@@ -175,13 +175,13 @@ Size: large. It is the one feature in this document that is a new concept, and Â
 | I2 | Let `defineApp` take a `platform` (tests, other targets) | Yes |
 | T1 | Route titles via the route declaration plus one `titleStrategy` | Yes, after R1 |
 
-## Outcome (0.11.0)
+## Outcome: router (0.12.0)
 
 Built: `@valancex/router` (route definitions, Schema'd params and query, `canMatch`/`canActivate`/`canDeactivate`/`beforeEach`, redirects by route name, `safeNext`, per-route titles, `go`/`replace`/`navigate`), plus the engine seams `RouteTable.modeOf` and `RouteTable.guard` with position tracking and undo via `history.go`.
 
 Deferred: CLI `defineApp({ routes })` integration; the `go` normalization bug in the CLI framework `go`; a `Navigation` capability for back/forward; typed `Transport` interceptors and `defineApp({ platform })`; a `beforeunload` guard; nested routes.
 
-## Outcome: interceptors (0.11.0)
+## Outcome: interceptors (0.12.0)
 
 Built in `@valancex/common/http` (decision I1, shape as proposed):
 

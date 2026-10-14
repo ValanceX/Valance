@@ -1,6 +1,6 @@
 {
   "name": "@valancex/common",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "The author's side of a VALANCE application (defineApp, component, field) and the runtime the vlx build runs: the browser and server entries. What src/main.ts imports; @valancex/cli builds what it describes.",
   "keywords": [
     "valance",
