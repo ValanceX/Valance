@@ -15,7 +15,7 @@ describe("one run at a time, none missed", () => {
     let active = 0;
     let most = 0;
     let release: () => void = () => undefined;
-    const work = vi.fn(async () => {
+    const work = vi.fn<() => Promise<void>>(async () => {
       active += 1;
       most = Math.max(most, active);
       await new Promise<void>((resolve) => {
