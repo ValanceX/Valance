@@ -4,7 +4,7 @@ import type { Diagnostic } from "./diagnostics.js";
 import { AppError } from "./diagnostics.js";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
-import { generateContent, generateEntries, generateProgram } from "./generate.js";
+import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import { createLoader } from "./vite.js";
 
 export interface Checked {

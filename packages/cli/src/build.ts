@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { AppError } from "./diagnostics.js";
-import { generateContent, generateEntries, generateProgram } from "./generate.js";
+import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "./model.js";
 import { OUTPUT_DIR } from "./project.js";
 import { baseConfig, createLoader, SERVER_ENTRY } from "./vite.js";

@@ -2,8 +2,8 @@
 // No Node and no Vite: the browser entry loads this too.
 import { Schema } from "effect";
 
-import type { DefinedApp, Field } from "./index.js";
-import { FIELD } from "./index.js";
+import type { DefinedApp, Field } from "@valancex/common";
+import { FIELD } from "@valancex/common";
 
 export interface State {
   /** The struct of the state's fields. */

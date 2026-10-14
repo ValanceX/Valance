@@ -123,3 +123,22 @@ In TypeScript the template is **an address only**: `Template = { mprx: string }`
 | D6 | Add a read-only parse/outline to the JS compiler package | Yes, in Mesh's next minor, read-only |
 
 Suggested order: D1/D2 (mechanical, one commit, grep-able), D6 then D5 (so `generate component` is safe), D4, then the README rewrite lands with D3.
+
+## Outcome (2026-10-14)
+
+Done on this branch, following the decisions above with the changes noted.
+
+| # | Decision | Result |
+|---|---|---|
+| D1 | Split the authoring API out of the CLI | **`@valancex/common`** (not `@valancex/app`): `defineApp`, `component`, `field`, `Template` and the `*.mprx` module declaration. `@valancex/cli` no longer exports `.`. A new project depends on `@valancex/common` and `effect`, with `@valancex/cli` as a dev dependency. |
+| D2 | No `Schema` re-export | Done; templates, tests, docs and the scaffold import it from `effect`. |
+| D3 | Prepare publication | Both packages are public with provenance and version 0.1.0; `release-cli.yml` publishes them on a `cli-v*` tag, `common` first, and refuses to publish unless `@valancex/valance@^0.10.0` is on npm. Release notes: `docs/releases/cli-v0.1.md`. Verified from `pnpm pack` tarballs: `vlx init`, install, `check`, `build`, `generate` and `tsc --noEmit` in a fresh project. **Nothing was tagged or published.** |
+| README | CLI-first | Root README is about 60 lines and starts with `vlx init`; the hand-built counter stays in `docs/learn/first-application.md`; contributor and Windows notes moved to `CONTRIBUTING.md`. |
+| D4 | `vlx generate`, `vlx help` | `generate page <path>`, `generate component <name>` (alias `g`), `help [command]` and `--help` for every command. `src/generate.ts` was renamed `src/emit.ts`. |
+| D5 | Infer what a template uses | `components` on `defineApp` replaces every `uses`; the uses are read from the template. **Changed from the proposal:** a registered component that no template writes is allowed rather than an error (`generate component` would otherwise leave a project failing `vlx check`). `template-unused` still catches a file that is not registered. |
+| D6 | Read-only template model | `src/outline.ts` (tags, slots, fills; skips expressions, quoted values and comments). **Changed from the proposal:** it lives in the CLI, not in MESH's compiler package, since the JS package wraps WebAssembly and a parser there is a MESH release. It is the one place in Valance that reads template text, and the thing to move into MESH. |
+| Slots | Documented | Verified through the CLI (default and named slots, `mesh-fill`) and described in the CLI guide. |
+
+Found on the way: `vlx init` documented a `tsconfig.json` for typed template imports and did not write one; it does now.
+
+**Not done, and why.** The generated entries still import `@valancex/cli/client` and `/server`, so a project still needs the CLI installed (as a dev dependency) to build; moving the browser and server runtime into `@valancex/common` would move most of the CLI's source (the content model, routes, scope, built-in views) and is a separate change. The VS Code extension's own suite was not run here (its dependencies are not installed in this checkout); only a string in one of its tests changed.

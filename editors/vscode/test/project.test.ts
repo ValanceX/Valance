@@ -305,7 +305,8 @@ describe("a project built by an older vlx", () => {
 describe("the imports in src/main.ts", () => {
   it("makes each template import a link to the file, and nothing else", async () => {
     const { templateImports } = await import("../src/wiring");
-    const text = 'import { component, defineApp } from "@valancex/cli";\nimport layout from "./layout.mprx";\nimport chip from \'../shared/chip.mprx\';\nimport x from "./x.ts";\n';
+    const text =
+      'import { component, defineApp } from "@valancex/common";\nimport layout from "./layout.mprx";\nimport chip from \'../shared/chip.mprx\';\nimport x from "./x.ts";\n';
     const found = templateImports(text);
 
     expect(found.map((each) => each.specifier)).toEqual(["./layout.mprx", "../shared/chip.mprx"]);

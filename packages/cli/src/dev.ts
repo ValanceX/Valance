@@ -20,7 +20,7 @@ import type { Config } from "./config.js";
 import { loadConfig, PROJECT_FILE, WEB_FILE } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, format } from "./diagnostics.js";
-import { generateContent, generateEntries, generateProgram } from "./generate.js";
+import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 import { baseConfig, SERVER_ENTRY } from "./vite.js";
 

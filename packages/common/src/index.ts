@@ -1,13 +1,15 @@
 /// <reference path="../types/mprx.d.ts" preserve="true" />
-// The author's side of the application model: what `src/main.ts` may export. It is optional. An application with no `src/main.ts` has the page-per-Markdown-file behaviour and nothing else;
+// @valancex/common: the author's side of the application model. What `src/main.ts` may export. It is optional. An application with no `src/main.ts` has the page-per-Markdown-file behaviour and nothing else;
 // `defineApp` adds what only code can say: the component tree, state of the application's own, and the commands that change it. A layout reads the state's fields by name and runs the commands
 // by name.
 //
+//   import { Schema } from "effect";
 //   import layout from "./layout.mprx";
 //   import themeToggle from "./theme-toggle";           // theme-toggle.ts: export default component(template, { props, events })
 //
 //   export default defineApp({
-//     layout: component(layout, { uses: [themeToggle] }),
+//     layout: component(layout),
+//     components: [themeToggle],
 //     state: { theme: field(Schema.Literal("light", "dark"), "light") },
 //     commands: (command) => ({ toggleTheme: command((s) => ({ ...s, theme: s.theme === "light" ? "dark" : "light" })) }),
 //   });
@@ -15,6 +17,7 @@
 // A component owns its interface and states it once, in types, where it is defined:
 //
 //   // theme-toggle.ts
+//   import { Schema } from "effect";
 //   import template from "./theme-toggle.mprx";
 //   export default component(template, {
 //     props: { theme: Schema.Literal("light", "dark") },
@@ -23,8 +26,6 @@
 import type * as Valance from "@valancex/valance";
 import { Schema } from "effect";
 
-export { Schema };
-
 /** The part of the application's state the framework owns: which page is shown. A command's `state` always has it. */
 export interface PageState {
   readonly page: string;
@@ -32,7 +33,7 @@ export interface PageState {
 
 // ---- state -------------------------------------------------------------------------------------------------------------------------------------------------
 
-export const FIELD = Symbol.for("valancex.cli.field");
+export const FIELD = Symbol.for("valancex.common.field");
 
 /** A state field: its type and its default, declared together. */
 export interface Field<A = unknown> {
@@ -73,16 +74,15 @@ export interface Template<P extends string = string, E extends string = string> 
   readonly "~events"?: E;
 }
 
-export const COMPONENT = Symbol.for("valancex.cli.component");
+export const COMPONENT = Symbol.for("valancex.common.component");
 
-/** One node of the component tree: a template, the interface it declares if it declares one, and the components its template uses. */
+/** One component: a template, and the interface it declares if it declares one. Which components its template uses is read from the template; nothing is written twice. */
 export interface Component {
   readonly [COMPONENT]: true;
   readonly template: Template;
   /** Present when the component declares its props (an omitted side of a declared interface is none). Absent: the contract is inferred from the template and its uses. */
   readonly props?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
   readonly events?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
-  readonly uses: ReadonlyArray<Component>;
 }
 
 export interface Contract<P extends string, E extends string> {
@@ -93,12 +93,10 @@ export interface Contract<P extends string, E extends string> {
   readonly props?: { readonly [K in P]: Schema.Schema<any, any, never> };
   /** The events the template raises, each with its payload's schema; `Schema.Void` is no payload. */
   readonly events?: { readonly [K in E]: Schema.Schema<any, any, never> };
-  /** The components its template uses, and only those. */
-  readonly uses?: ReadonlyArray<Component>;
 }
 
 /**
- * Defines a component: its template, an optional contract, and the components its template uses. Use sites name only what they use (`uses: [themeToggle]`); nothing about the interface is
+ * Defines a component: its template and an optional contract. Register it once, in `defineApp`'s `components`; the templates that write its tag use it, and nothing about its interface is
  * written again there. Where the toolchain has generated the template's type, a contract that disagrees with the template's keys is a compile-time error.
  */
 export function component<P extends string = string, E extends string = string>(template: Template<P, E>, contract: Contract<NoInfer<P>, NoInfer<E>> = {}): Component {
@@ -107,15 +105,16 @@ export function component<P extends string = string, E extends string = string>(
     template,
     ...(contract.props === undefined ? {} : { props: contract.props }),
     ...(contract.events === undefined ? {} : { events: contract.events }),
-    uses: contract.uses ?? [],
   };
 }
 
 // ---- the application ---------------------------------------------------------------------------------------------------------------------------------------
 
 export interface AppDefinition<S extends StateInput = {}> {
-  /** The page's shell, and under it every component of the application. Omit it to use the built-in layout. Its template must be named `layout.mprx`, and it has no props or events: its inputs are the state and the commands. */
+  /** The page's shell. Omit it to use the built-in layout. Its template must be named `layout.mprx`, and it has no props or events: its inputs are the state and the commands. */
   readonly layout?: Component;
+  /** Every component of the application besides the layout and the overrides. A template uses one by writing its tag; one that no template writes yet is not part of the program. */
+  readonly components?: ReadonlyArray<Component>;
   /** Built-in components (`heading`, `runs`, …) you replace with your own template of the same name. */
   readonly override?: ReadonlyArray<Component>;
   /**
@@ -128,7 +127,7 @@ export interface AppDefinition<S extends StateInput = {}> {
 }
 
 /** The brand that says a value came from `defineApp`. */
-export const APP = Symbol.for("valancex.cli");
+export const APP = Symbol.for("valancex.common");
 
 export interface DefinedApp extends AppDefinition<any> {
   readonly [APP]: true;

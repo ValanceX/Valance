@@ -11,9 +11,10 @@ import { fileURLToPath } from "node:url";
 import { commandTable, scopeSchema } from "./app.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
-import type { DefinedApp } from "./index.js";
+import type { DefinedApp } from "@valancex/common";
 import type { Node, Place } from "./tree.js";
-import { declarationsOf, nameOf, treeOf } from "./tree.js";
+import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
+import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
 import { primitives } from "./primitives.js";
@@ -42,14 +43,6 @@ const mprxIn = (dir: string): ReadonlyArray<string> =>
         .sort()
     : [];
 
-const TAG = /<([a-z][a-z0-9-]*)[\s/>]/g;
-
-const lineAndColumn = (source: string, offset: number): { readonly line: number; readonly column: number } => {
-  const before = source.slice(0, offset).split("\n");
-
-  return { line: before.length, column: before[before.length - 1]!.length + 1 };
-};
-
 const entryText = (root: string): string => {
   try {
     return readFileSync(join(root, ENTRY_FILE), "utf8");
@@ -65,8 +58,8 @@ export interface Templates {
 }
 
 /**
- * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout` and, under it, each component's `uses`. A file under `src/` that is not in that
- * tree is an error, not a guess; a tag a template uses without listing it in `uses` is an error; so is listing one it does not use. A name that is a built-in's replaces it only through `override`.
+ * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout`, `components` and `override`. A file under `src/` that is not declared is an error, not
+ * a guess; a registered component that no template writes is allowed (it is not part of the program until one does). Which components a template uses is read from the template. A name that is a built-in's replaces it only through `override`.
  */
 export const templatesOf = (root: string, author: DefinedApp | undefined): Templates => {
   const found = new Map<string, Template>();
@@ -79,7 +72,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined): Templ
 
   const layout = author?.layout;
   const overrides = author?.override ?? [];
-  const tree = treeOf(layout, overrides);
+  const declared = treeOf(layout, overrides, author?.components ?? []);
   const declarations = declarationsOf(root);
   const problems: Array<Diagnostic> = [];
   /** Where a template's component is defined: its `component(…)` call, else where it is imported, else the top of the entry file. */
@@ -120,7 +113,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined): Templ
 
   const files = new Map<string, string>();
 
-  for (const node of tree) {
+  for (const node of declared) {
     const place = at(node.file);
 
     if (files.has(node.name) && files.get(node.name) !== node.file) {
@@ -154,48 +147,14 @@ export const templatesOf = (root: string, author: DefinedApp | undefined): Templ
           path,
           0,
           "template-unused",
-          `${path} is not in the component tree: import it in ${ENTRY_FILE} and ${basename(file) === `${ROOT}.mprx` ? "pass it as `layout`" : "list it in the `uses` of the component that uses it"}`,
+          `${path} is not in the component tree: import it in ${ENTRY_FILE} and ${basename(file) === `${ROOT}.mprx` ? "pass it as `layout`" : "list it in `components`"}`,
         ),
       );
     }
   }
 
-  // The tags each template uses, against the components it declared.
-  for (const node of tree) {
-    const template = found.get(node.name);
-
-    if (template === undefined || template.builtIn) {
-      continue;
-    }
-
-    const written = new Map<string, number>();
-
-    for (const tag of template.source.matchAll(TAG)) {
-      if (!written.has(tag[1]!)) {
-        written.set(tag[1]!, tag.index!);
-      }
-    }
-
-    for (const [tag, offset] of written) {
-      if (files.has(tag) && !node.uses.includes(tag) && tag !== node.name) {
-        problems.push(
-          diagnostic(
-            node.file,
-            lineAndColumn(template.source, offset).line,
-            "component-undeclared",
-            `<${tag}> is used here but ${node.name === ROOT ? "the layout" : `<${node.name}>`} does not declare it: add it to \`uses\` where ${node.name} is defined`,
-            lineAndColumn(template.source, offset).column,
-          ),
-        );
-      }
-    }
-
-    for (const used of node.uses) {
-      if (!written.has(used)) {
-        problem(at(node.file), "component-unused", `${node.name} declares <${used}> in uses, but ${node.file} never uses it`);
-      }
-    }
-  }
+  // Who uses whom is what the templates write: a component's uses are the declared components whose tags its template has.
+  const tree = linked(declared, layout, overrides, (name) => [...tagsOf(found.get(name)?.source ?? "").keys()]);
 
   if (problems.length > 0) {
     throw new AppError(problems);
@@ -220,8 +179,8 @@ const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
 
     seen.add(name);
 
-    for (const tag of template.source.matchAll(TAG)) {
-      queue.push(tag[1]!);
+    for (const tag of tagsOf(template.source).keys()) {
+      queue.push(tag);
     }
   }
 

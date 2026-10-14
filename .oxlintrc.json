@@ -42,7 +42,7 @@
   "overrides": [
     {
       "files": [
-        "packages/cli/src/index.ts"
+        "packages/common/src/index.ts"
       ],
       "rules": {
         "typescript/triple-slash-reference": "off"

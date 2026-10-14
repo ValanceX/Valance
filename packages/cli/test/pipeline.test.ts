@@ -17,7 +17,7 @@ const BASIC = { "content/index.md": PAGE("Home", "See [the guide](/guide/a)."), 
 const entry = (uses: Record<string, string> = {}, rest = ""): string => {
   const names = Object.keys(uses);
 
-  return `import { component, defineApp, field, Schema } from "@valancex/cli";\nimport layout from "./layout.mprx";\n${names.map((name) => `import ${name} from "./${name}.mprx";\n`).join("")}\n${names.map((name) => `const ${name}Component = component(${name}${uses[name] === "" ? "" : `, ${uses[name]}`});\n`).join("")}\nexport default defineApp({\n  layout: component(layout, { uses: [${names.map((name) => `${name}Component`).join(", ")}] }),\n${rest}});\n`;
+  return `import { component, defineApp, field } from "@valancex/common";\nimport { Schema } from "effect";\nimport layout from "./layout.mprx";\n${names.map((name) => `import ${name} from "./${name}.mprx";\n`).join("")}\n${names.map((name) => `const ${name}Component = component(${name}${uses[name] === "" ? "" : `, ${uses[name]}`});\n`).join("")}\nexport default defineApp({\n  layout: component(layout),\n  components: [${names.map((name) => `${name}Component`).join(", ")}],\n${rest}});\n`;
 };
 
 const codes = async (files: Record<string, string>): Promise<ReadonlyArray<string>> =>
@@ -59,7 +59,7 @@ describe("vlx check", () => {
     expect(
       await codes({
         ...BASIC,
-        "src/main.ts": 'import { component, defineApp } from "@valancex/cli";\nimport link from "./link.mprx";\nexport default defineApp({ override: [component(link)] });\n',
+        "src/main.ts": 'import { component, defineApp } from "@valancex/common";\nimport link from "./link.mprx";\nexport default defineApp({ override: [component(link)] });\n',
         "src/link.mprx": "<para />",
       }),
     ).toContain("src/main.ts:3 template-primitive");
@@ -67,7 +67,9 @@ describe("vlx check", () => {
 
   it("reads src/main.ts: state fields become names a layout may read, and a clash is an error", async () => {
     const main = (fields: string, layout = false): string =>
-      layout ? entry({}, `  state: { ${fields} },\n`) : `import { defineApp, field, Schema } from "@valancex/cli";\nexport default defineApp({ state: { ${fields} } });\n`;
+      layout
+        ? entry({}, `  state: { ${fields} },\n`)
+        : `import { defineApp, field } from "@valancex/common";\nimport { Schema } from "effect";\nexport default defineApp({ state: { ${fields} } });\n`;
 
     expect(
       (
@@ -85,7 +87,7 @@ describe("vlx check", () => {
     expect(
       await codes({
         ...BASIC,
-        "src/main.ts": 'import { defineApp } from "@valancex/cli";\nexport default defineApp({ commands: (command) => ({ go: command((state) => state) }) });\n',
+        "src/main.ts": 'import { defineApp } from "@valancex/common";\nexport default defineApp({ commands: (command) => ({ go: command((state) => state) }) });\n',
       }),
     ).toEqual(["src/main.ts:1 entry-definition"]);
   });
@@ -158,7 +160,7 @@ describe("vlx build", () => {
   it("lets a template replace a built-in by name", async () => {
     const root = project({
       ...BASIC,
-      "src/main.ts": 'import { component, defineApp } from "@valancex/cli";\nimport runs from "./runs.mprx";\nexport default defineApp({ override: [component(runs)] });\n',
+      "src/main.ts": 'import { component, defineApp } from "@valancex/common";\nimport runs from "./runs.mprx";\nexport default defineApp({ override: [component(runs)] });\n',
       "src/runs.mprx": "<mesh-fragment>{#each spans as s (s.id)}<em>{s.text}</em>{/each}</mesh-fragment>",
     });
 
@@ -175,29 +177,34 @@ describe("the component tree declared in src/main.ts", () => {
   const NESTED = "<mesh-fragment><chip label={count} /></mesh-fragment>";
   const CHIP = '<span class="c">{label}</span>';
   const NESTED_MAIN =
-    'import { component, defineApp } from "@valancex/cli";\nimport layout from "./layout.mprx";\nimport badge from "./badge.mprx";\nimport chip from "./chip.mprx";\nconst chipComponent = component(chip);\nconst badgeComponent = component(badge, { uses: [chipComponent] });\nexport default defineApp({ layout: component(layout, { uses: [badgeComponent] }) });\n';
+    'import { component, defineApp } from "@valancex/common";\nimport layout from "./layout.mprx";\nimport badge from "./badge.mprx";\nimport chip from "./chip.mprx";\nconst chipComponent = component(chip);\nconst badgeComponent = component(badge);\nexport default defineApp({ layout: component(layout), components: [badgeComponent, chipComponent] });\n';
 
-  it("builds a tree of any depth: each component lists the components its template uses", async () => {
+  it("builds a tree of any depth: which components a template uses is read from the template", async () => {
     expect(await codes({ ...BASIC, "src/main.ts": NESTED_MAIN, "src/layout.mprx": LAYOUT('<badge count="1" />'), "src/badge.mprx": NESTED, "src/chip.mprx": CHIP })).toEqual([]);
   });
 
-  it("refuses a tag the template uses without listing, at the tag", async () => {
+  it("needs no listing of what a template uses, and refuses a component file that is not registered", async () => {
     expect(
       await codes({ ...BASIC, "src/main.ts": NESTED_MAIN, "src/layout.mprx": LAYOUT('<badge count="1" /><chip label="x" />'), "src/badge.mprx": NESTED, "src/chip.mprx": CHIP }),
-    ).toEqual(["src/layout.mprx:1 component-undeclared"]);
+    ).toEqual([]);
     expect(await codes({ ...BASIC, "src/main.ts": entry(), "src/layout.mprx": LAYOUT('<badge count="1" />'), "src/badge.mprx": BADGE })).toEqual([
       "src/badge.mprx:0 template-unused",
     ]);
   });
 
-  it("refuses a component listed in uses that the template does not use, at its definition", async () => {
-    expect(await codes({ ...BASIC, "src/main.ts": entry({ badge: "" }), "src/layout.mprx": LAYOUT('<para class="y">x</para>'), "src/badge.mprx": BADGE })).toEqual([
-      "src/main.ts:8 component-unused",
-    ]);
+  it("allows a registered component that no template writes yet: it is not part of the program until one does", async () => {
+    expect(await codes({ ...BASIC, "src/main.ts": entry({ badge: "" }), "src/layout.mprx": LAYOUT('<para class="y">x</para>'), "src/badge.mprx": BADGE })).toEqual([]);
+  });
+
+  it("lets a component place its caller's children, in a default slot and in named ones", async () => {
+    const card = '<div class="c"><mesh-slot name="head" /><mesh-slot /></div>';
+    const layout = LAYOUT('<card><mesh-fill slot="head"><para class="h">title</para></mesh-fill><para class="y">body</para></card>');
+
+    expect(await codes({ ...BASIC, "src/main.ts": entry({ card: "" }), "src/layout.mprx": layout, "src/card.mprx": card })).toEqual([]);
   });
 
   it("wants the layout's template named layout, and a template that exists", async () => {
-    const main = 'import { component, defineApp } from "@valancex/cli";\nimport shell from "./shell.mprx";\nexport default defineApp({ layout: component(shell) });\n';
+    const main = 'import { component, defineApp } from "@valancex/common";\nimport shell from "./shell.mprx";\nexport default defineApp({ layout: component(shell) });\n';
 
     expect(await codes({ ...BASIC, "src/main.ts": main, "src/shell.mprx": LAYOUT("") })).toContain("src/main.ts:3 layout-name");
   });
@@ -206,9 +213,9 @@ describe("the component tree declared in src/main.ts", () => {
     const files = {
       ...BASIC,
       "src/main.ts":
-        'import { component, defineApp } from "@valancex/cli";\nimport layout from "./layout.mprx";\nimport badge from "./badge.js";\nexport default defineApp({ layout: component(layout, { uses: [badge] }) });\n',
+        'import { component, defineApp } from "@valancex/common";\nimport layout from "./layout.mprx";\nimport badge from "./badge.js";\nexport default defineApp({ layout: component(layout), components: [badge] });\n',
       "src/badge.ts":
-        'import { component, Schema } from "@valancex/cli";\nimport template from "./badge.mprx";\nexport default component(template, { props: { count: Schema.Number } });\n',
+        'import { component } from "@valancex/common";\nimport { Schema } from "effect";\nimport template from "./badge.mprx";\nexport default component(template, { props: { count: Schema.Number } });\n',
       "src/layout.mprx": LAYOUT("<badge count={1} />"),
       "src/badge.mprx": BADGE,
     };
@@ -303,9 +310,9 @@ describe("a component's contract: declared once, in types, where it is defined",
 
   it("refuses a contract on the layout: its inputs are the state and the commands", async () => {
     const main =
-      'import { component, defineApp, Schema } from "@valancex/cli";\nimport layout from "./layout.mprx";\nexport default defineApp({ layout: component(layout, { props: { x: Schema.String } }) });\n';
+      'import { component, defineApp } from "@valancex/common";\nimport { Schema } from "effect";\nimport layout from "./layout.mprx";\nexport default defineApp({ layout: component(layout, { props: { x: Schema.String } }) });\n';
 
-    expect(await codes({ ...BASIC, "src/main.ts": main, "src/layout.mprx": LAYOUT("") })).toEqual(["src/main.ts:3 layout-contract"]);
+    expect(await codes({ ...BASIC, "src/main.ts": main, "src/layout.mprx": LAYOUT("") })).toEqual(["src/main.ts:4 layout-contract"]);
   });
 });
 
@@ -344,13 +351,15 @@ describe("state declared field by field", () => {
     expect(
       await codes({
         ...BASIC,
-        "src/main.ts": 'import { defineApp, field, Schema } from "@valancex/cli";\nexport default defineApp({ state: { schema: field(Schema.String, "") } });\n',
+        "src/main.ts":
+          'import { defineApp, field } from "@valancex/common";\nimport { Schema } from "effect";\nexport default defineApp({ state: { schema: field(Schema.String, "") } });\n',
       }),
     ).toEqual([]);
     expect(
       await codes({
         ...BASIC,
-        "src/main.ts": 'import { defineApp, field, Schema } from "@valancex/cli";\nexport default defineApp({ state: { title: field(Schema.String, "") } });\n',
+        "src/main.ts":
+          'import { defineApp, field } from "@valancex/common";\nimport { Schema } from "effect";\nexport default defineApp({ state: { title: field(Schema.String, "") } });\n',
       }),
     ).toEqual(["src/main.ts:1 entry-definition"]);
   });

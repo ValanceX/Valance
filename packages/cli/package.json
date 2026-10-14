@@ -1,11 +1,26 @@
 {
   "name": "@valancex/cli",
-  "version": "0.0.0",
-  "private": true,
-  "description": "The VALANCE application model and its commands (`vlx dev`, `vlx build`, `vlx check`): content, layout, components and styles in, a website out. Provisional name; unpublished.",
-  "type": "module",
+  "version": "0.1.0",
+  "description": "vlx, the VALANCE command: make an application (vlx init), serve it as you edit (vlx dev), build it to a static site (vlx build), check it (vlx check). Content, layout, components and styles in, a website out.",
+  "keywords": [
+    "valance",
+    "cli",
+    "vlx",
+    "static-site",
+    "scaffold"
+  ],
+  "homepage": "https://github.com/ValanceX/Valance/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/ValanceX/Valance/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ValanceX/Valance.git",
+    "directory": "packages/cli"
+  },
   "license": "MIT",
   "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "type": "module",
   "engines": {
     "node": ">=22"
   },
@@ -14,10 +29,6 @@
   },
   "sideEffects": false,
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
     "./client": {
       "types": "./dist/client.d.ts",
       "default": "./dist/client.js"
@@ -37,20 +48,25 @@
     "dist",
     "bin",
     "views",
-    "types",
     "schemas",
     "templates"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.typecheck.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@valancex/common": "workspace:^",
     "@valancex/mesh-compiler": "^0.11.0",
     "@valancex/mesh-runtime": "^0.11.0",
     "@valancex/port-web": "^0.4.0",
-    "@valancex/valance": "workspace:*",
+    "@valancex/valance": "workspace:^",
     "effect": "^3.10.0",
     "ink": "7.1.1",
     "react": "19.2.8",

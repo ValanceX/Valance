@@ -25,161 +25,72 @@
 
 > Valance is pre-1.0. The API may change between minor releases; every change is listed in the [release notes](docs/releases/).
 
-## Quick start
+## Start
 
-Build a counter and run it in your browser in about five minutes.
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org) 22 or newer
-- [pnpm](https://pnpm.io/installation)
-
-### 1. Install
+You need [Node.js](https://nodejs.org) 22 or newer. The `vlx` command makes, runs and builds Valance applications:
 
 ```console
-$ mkdir my-app && cd my-app
-$ pnpm init && pnpm pkg set type=module
-$ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.11.0 @valancex/port-web@^0.4.0 effect@^3.10.0
-$ pnpm add -D @valancex/mesh-compiler@^0.11.0 vite typescript
+$ npm install -g @valancex/cli
+$ vlx init my-app --web
+$ cd my-app && npm run dev
 ```
 
-### 2. Describe the screen
+Open the address it prints. Edit a Markdown file in `content/` and save: the page reloads with your change. `npm run build` writes the finished site to `dist/`, for any host that serves files.
 
-**`counter.mprx`** is what the user sees:
+`vlx init` asks for what it needs, installs the dependencies and makes this:
 
-```
-<page>
-  <text>Count: {count}</text>
-  <button on.click={increment()}>Add one</button>
-</page>
-```
+| | |
+|---|---|
+| `content/` | Your pages, in Markdown. A file's path is its address. |
+| `src/layout.mprx` | The shell around every page, in a small markup language. |
+| `src/main.ts` | Your components, your state and the commands that change it. |
+| `src/styles.css` | The look. |
 
-**`components.json`** lists the tags the screen may use. (It is written by hand here to keep the first example small. In a real application you do not write it: [`manifest`](docs/learn/README.md#common-tasks) derives it from your primitives, scopes and commands, as in [`examples/docs-site`](examples/docs-site).) `counter` is the screen itself: it reads `count` and runs `increment`.
+You write no compiler step, server, hydration script or bundler configuration.
 
-```json
-{
-  "version": 1,
-  "types": {},
-  "components": {
-    "page":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
-    "text":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
-    "button":  { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
-    "counter": { "props": {}, "events": {}, "commands": { "increment": { "parameters": [] } }, "scope": { "count": { "kind": "number" } } }
-  }
-}
-```
+## The `vlx` command
 
-### 3. Compile the screen
+Everything you do to a Valance application starts here.
 
-**`build-views.js`** checks the screen and turns it into JSON. If something is wrong, you find out here, not in the browser.
+| Command | Does |
+|---|---|
+| `vlx init [name]` | Makes a new application |
+| `vlx dev` | Serves it and rebuilds as you edit |
+| `vlx build` | Writes the site to `dist/` |
+| `vlx check` | Finds mistakes in your files without building |
+| `vlx generate page <path>` | Adds a Markdown page |
+| `vlx generate component <name>` | Adds a component and registers it |
+| `vlx help [command]` | Says what a command does |
 
-```js
-import { compileProgram } from "@valancex/mesh-compiler";
-import { readFileSync, writeFileSync } from "node:fs";
-
-const built = await compileProgram({
-  model: { manifest: readFileSync("components.json", "utf8"), path: "components.json" },
-  root: "counter",
-  components: [{ component: "counter", source: readFileSync("counter.mprx", "utf8"), path: "counter.mprx" }],
-});
-
-if (built.program === undefined) throw new Error(JSON.stringify(built.assembly ?? built.components, null, 2));
-writeFileSync("counter.program.json", JSON.stringify(built.program));
-```
-
-### 4. Write the app
-
-**`main.ts`**:
-
-```ts
-import * as Valance from "@valancex/valance";
-import * as Web from "@valancex/valance/web";
-import { init } from "@valancex/mesh-runtime";
-import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
-import { Schema } from "effect";
-import program from "./counter.program.json";
-
-const State = Schema.Struct({ count: Schema.Number });
-
-const app = Valance.define({
-  name: "counter",
-  state: { schema: State, initial: { count: 0 } },
-  views: { counter: { program, scope: ({ count }) => ({ count }) } },
-  view: () => "counter",
-  commands: (state) => {
-    const command = Valance.command(state);
-    return {
-      increment: command((current) => ({ count: current.count + 1 })),   // the screen's increment() runs this
-    };
-  },
-});
-
-await init(wasmUrl);
-await Web.run(app, {
-  container: document.getElementById("root")!,
-  primitives: {
-    page: { element: "main" },
-    text: { element: "p" },
-    button: { element: "button", events: { click: { type: "click" } } },
-  },
-  present: "mount",
-});
-```
-
-**`index.html`**:
-
-```html
-<div id="root"></div>
-<script type="module" src="/main.ts"></script>
-```
-
-### 5. Run
-
-```console
-$ node build-views.js && pnpm vite
-```
-
-Open the URL Vite prints and click **Add one**. 🎉 You've built your first Valance app.
+[**The CLI guide**](packages/cli/README.md) covers the project layout, components, state and commands.
 
 ## Learning path
 
-Follow these in order. Each one builds on the last.
-
 | | Step | You'll learn |
 |---|---|---|
-| **1** | [Your first application](docs/learn/first-application.md) | The counter above, line by line, plus running it on a server and in tests |
-| **2** | [State, views and events](docs/learn/state-views-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
-| **3** | [Async work](docs/learn/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
-| **4** | [Startup work](docs/learn/startup-work.md) | Work the application starts by itself, and how its failures show |
-| **5** | [Mounting and hydration](docs/learn/mounting-and-hydration.md) | Drawing the application, taking over server HTML, what a server render does |
-| **6** | [Common tasks](docs/learn/README.md#common-tasks) | Recipes: adding screens and commands, syncing the URL, server rendering |
-| **7** | [API reference](docs/use/README.md) | Every export, by name |
-| **8** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
+| **1** | [The CLI guide](packages/cli/README.md) | Pages, a layout, components, state and commands: the application model |
+| **2** | [Your first application](docs/learn/first-application.md) | The counter written without the CLI, line by line: the engines Valance composes, running in a browser, on a server and in tests |
+| **3** | [State, views and events](docs/learn/state-views-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
+| **4** | [Async work](docs/learn/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
+| **5** | [API reference](docs/use/README.md) | Every export, by name |
+| **6** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
 
-**Going deeper:** [how Valance is built](docs/understand/README.md) covers the architecture and design decisions. You don't need it to build apps.
+The [full learning path](docs/learn/README.md) has startup work, mounting and hydration and a table of common tasks. How Valance is built is in [`docs/understand`](docs/understand/README.md); you do not need it to build applications.
+
+## Packages
+
+| Package | Is |
+|---|---|
+| [`@valancex/cli`](packages/cli) | The `vlx` command |
+| [`@valancex/common`](packages/common) | What `src/main.ts` imports: `defineApp`, `component`, `field` |
+| [`@valancex/valance`](packages/valance) | The composition boundary over NEXUS, MESH and PORT, for embedding Valance in an application of your own |
 
 ## Examples
 
-- [`examples/docs-app`](examples/docs-app): **the application model**: content, a layout, a component, a stylesheet and `vlx dev` / `vlx build`, with none of the compiler, server or hydration plumbing in sight. Provisional: see [`docs/application-model/`](docs/application-model/) and [`packages/cli`](packages/cli).
-- [`examples/docs-site`](examples/docs-site): a real, runnable app on the **published** package: a documentation site with links, a search box (a command that waits), URLs and document titles, server rendering and hydration. Start here.
-- [`examples/tracer-web`](examples/tracer-web): VALANCE's contract test suite (lifetimes, hydration, history, failure), with small fixture apps. It is the evidence behind the contract, not a model application.
+- [`examples/docs-app`](examples/docs-app): the application model in about 200 authored lines: content, a layout, a component, a stylesheet.
+- [`examples/docs-site`](examples/docs-site): a runnable app on the published `@valancex/valance` package, without the CLI: links, search, URLs, server rendering and hydration.
+- [`examples/tracer-web`](examples/tracer-web): the contract test suite (lifetimes, hydration, history, failure), with small fixture apps. It is the evidence behind the contract, not a model application.
 
-## Releases
+## Releases, contributing, license
 
-Release notes for every version are in [`docs/releases/`](docs/releases/).
-
-## Contributing
-
-Bug reports and pull requests are welcome on [GitHub](https://github.com/ValanceX/Valance/issues). To work on Valance itself:
-
-```console
-$ pnpm install && pnpm build && pnpm typecheck && pnpm test
-$ pnpm test:browser          # Chromium via Playwright
-$ pnpm lint                  # oxlint (OXC); `pnpm format` writes the style, `pnpm format:check` is what CI runs
-```
-
-**On Windows** the same `pnpm` commands run in PowerShell or cmd. Git should check files out with LF endings (this repository's `.gitattributes` asks for it; tests compare file text, so `core.autocrlf=true` would otherwise hand them CRLF). Workspace links are directory junctions, which need no administrator rights. Scripts in the repository are Node scripts, not shell scripts; set an environment variable for one command with `$env:NAME = "value"; pnpm …` in PowerShell (`NAME=value pnpm …` in a POSIX shell).
-
-## License
-
-[MIT](packages/valance/package.json)
+Release notes for every version are in [`docs/releases/`](docs/releases/). Bug reports and pull requests are welcome on [GitHub](https://github.com/ValanceX/Valance/issues); to work on Valance itself, read [CONTRIBUTING.md](CONTRIBUTING.md). [MIT](packages/valance/package.json).

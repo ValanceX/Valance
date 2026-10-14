@@ -5,7 +5,7 @@ import * as Valance from "@valancex/valance";
 import type { Plugin } from "@valancex/valance/web/plugin";
 import { Schema } from "effect";
 
-import type { DefinedApp, PageState } from "./index.js";
+import type { DefinedApp, PageState } from "@valancex/common";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
 import { primitives } from "./primitives.js";

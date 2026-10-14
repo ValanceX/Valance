@@ -1,0 +1,148 @@
+name: Release CLI
+
+# Publishes the application tooling: @valancex/common (what src/main.ts imports) and then
+# @valancex/cli (the `vlx` command), which depends on it. Both are packed from the tagged
+# commit, with `workspace:` ranges written as real ones, after all of CI.
+#
+# - A pushed `cli-v*` tag publishes. Its tag must be `cli-v` + @valancex/cli's version
+#   (packages/cli/package.json). Tagging the release commit is the maintainer's step.
+# - @valancex/valance, which both packages depend on, must already be on npm at the range
+#   they name (this workflow checks). Release it first (release.yml).
+# - A manual run publishes only with `publish` set, and only from a tag; otherwise it's a dry
+#   run: everything but the publishing.
+# - A pull request that changes this workflow or either package's version runs the dry run.
+#
+# The release notes are docs/releases/cli-vX.Y.md. Publishing needs the `NPM_ACCESS_TOKEN`
+# secret (see release.yml); it expires.
+
+on:
+  push:
+    tags: ["cli-v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to npm and make the GitHub release (only from a tag)"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - .github/workflows/release-cli.yml
+      - packages/cli/package.json
+      - packages/common/package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-cli-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  pack:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build and pack
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          mkdir -p out
+          pnpm --filter @valancex/common pack --pack-destination "$PWD/out"
+          pnpm --filter @valancex/cli pack --pack-destination "$PWD/out"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-cli-packages
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the GitHub release
+      id-token: write # npm provenance
+    env:
+      PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-cli-packages
+          path: out
+      - name: Check what is being released
+        run: |
+          ls -l out
+          cli="$(node -p 'require("./packages/cli/package.json").version')"
+          common="$(node -p 'require("./packages/common/package.json").version')"
+          tag="cli-v${cli}"
+          echo "TAG=${tag}" >> "$GITHUB_ENV"
+          echo "CLI=${cli}" >> "$GITHUB_ENV"
+          echo "COMMON=${common}" >> "$GITHUB_ENV"
+          for tarball in "out/valancex-common-${common}.tgz" "out/valancex-cli-${cli}.tgz"; do
+            [ -f "$tarball" ] || { echo "::error::Expected $tarball"; exit 1; }
+          done
+          if [ "$(ls out/*.tgz | wc -l)" != "2" ]; then
+            echo "::error::Expected exactly two tarballs"
+            exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::The tag is ${GITHUB_REF_NAME}, but @valancex/cli is ${cli}: tag ${tag}"
+            exit 1
+          fi
+          if [ "$PUBLISH" = "true" ] && [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::Publishing needs a tag: push ${tag}"
+            exit 1
+          fi
+          notes="docs/releases/cli-v$(echo "$cli" | cut -d. -f1,2).md"
+          [ -f "$notes" ] || { echo "::error::No release notes at ${notes}"; exit 1; }
+          echo "NOTES=${notes}" >> "$GITHUB_ENV"
+          # What the tarballs ask of @valancex/valance must be on the registry already.
+          range="$(tar -xzOf "out/valancex-cli-${cli}.tgz" package/package.json | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).dependencies["@valancex/valance"]')"
+          if [ -z "$(npm view "@valancex/valance@${range}" version 2>/dev/null)" ]; then
+            if [ "$PUBLISH" = "true" ]; then
+              echo "::error::@valancex/valance@${range} is not on npm: release it first"
+              exit 1
+            fi
+            echo "::warning::@valancex/valance@${range} is not on npm yet; publishing needs it"
+          fi
+          for spec in "@valancex/common@${common}" "@valancex/cli@${cli}"; do
+            if npm view "$spec" version > /dev/null 2>&1; then
+              if [ "$PUBLISH" = "true" ]; then
+                echo "::error::${spec} is already on npm"
+                exit 1
+              fi
+              echo "::warning::${spec} is already on npm; a release needs a version bump"
+            fi
+          done
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: |
+          # Absolute, so npm reads the tarball as a file, not a GitHub spec. common first: cli depends on it.
+          for tarball in "$PWD/out/valancex-common-${COMMON}.tgz" "$PWD/out/valancex-cli-${CLI}.tgz"; do
+            if [ "$PUBLISH" = "true" ]; then
+              npm publish "$tarball" --access public --provenance
+            else
+              npm publish "$tarball" --access public --provenance=false --dry-run
+            fi
+          done
+      - name: GitHub release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" --title "vlx ${TAG#cli-}" --notes-file "$NOTES" --verify-tag out/*.tgz

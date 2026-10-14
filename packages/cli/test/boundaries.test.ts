@@ -42,11 +42,11 @@ describe("what the application package depends on", () => {
         .map((name) => (name.startsWith("node:") ? "node" : name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0]!)),
     );
 
-    expect([...names].sort()).toEqual(["@valancex/cli", "@valancex/mesh-compiler", "@valancex/mesh-runtime", "@valancex/valance", "effect", "node", "vite"]);
+    expect([...names].sort()).toEqual(["@valancex/common", "@valancex/mesh-compiler", "@valancex/mesh-runtime", "@valancex/valance", "effect", "node", "vite"]);
   });
 
-  it("keeps Node and Vite out of everything the browser or an author's main.ts loads", () => {
-    for (const entry of ["index.ts", "client.ts"]) {
+  it("keeps Node and Vite out of everything the browser loads", () => {
+    for (const entry of ["client.ts"]) {
       for (const file of closure(entry)) {
         const names = importsOf(read(join(src, file)));
 
@@ -75,13 +75,13 @@ describe("what the application package depends on", () => {
       ).toEqual([]);
     }
 
-    // The command reaches the interface through a dynamic import, so a plain run never loads Ink; the author API, the browser entry and the other commands never reach it at all.
+    // The command reaches the interface through a dynamic import, so a plain run never loads Ink; the browser entry and the other commands never reach it at all.
     const cli = read(join(src, "cli.ts"));
 
     expect(cli).not.toMatch(/^import .* from "\.\/ui\//m);
     expect(cli).toContain('import("./ui/run.js")');
 
-    for (const entry of ["index.ts", "client.ts"]) {
+    for (const entry of ["client.ts"]) {
       expect([...closure(entry)].filter((file) => file.startsWith("ui"))).toEqual([]);
     }
   });
@@ -94,10 +94,10 @@ describe("what the application package depends on", () => {
     }
   });
 
-  it("owns the command the core is forbidden to have (a CLI), and publishes none of itself yet", () => {
+  it("owns the command the core is forbidden to have (a CLI), and is published (the core never mentions it)", () => {
     const manifest = JSON.parse(read(join(src, "..", "package.json"))) as { private?: boolean; bin?: Record<string, string> };
 
     expect(manifest.bin).toEqual({ vlx: "./bin/vlx.js" });
-    expect(manifest.private).toBe(true);
+    expect(manifest.private).toBeUndefined();
   });
 });

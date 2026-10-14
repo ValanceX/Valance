@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,6 +46,12 @@ const answers = (dir: string, patch: Partial<Answers> = {}): Answers => ({
 const linked = (dir: string): string => {
   mkdirSync(join(dir, "node_modules", "@valancex"), { recursive: true });
   symlinkSync(PACKAGE, join(dir, "node_modules", "@valancex", "cli"), process.platform === "win32" ? "junction" : "dir");
+  symlinkSync(fileURLToPath(new URL("../../common", import.meta.url)), join(dir, "node_modules", "@valancex", "common"), process.platform === "win32" ? "junction" : "dir");
+  symlinkSync(
+    realpathSync(fileURLToPath(new URL("../node_modules/effect", import.meta.url))),
+    join(dir, "node_modules", "effect"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
 
   return dir;
 };
@@ -148,7 +154,9 @@ describe("the scaffold", () => {
 
     expect(manifest["name"]).toBe("my-notes");
     expect(manifest["scripts"]).toMatchObject({ dev: "vlx dev", build: "vlx build", check: "vlx check" });
-    expect(manifest["dependencies"]).toEqual({ "@valancex/cli": "^1.2.3" });
+    expect(manifest["dependencies"]).toMatchObject({ effect: expect.stringMatching(/^\^\d/) });
+    expect(Object.keys(manifest["dependencies"]).sort()).toEqual(["@valancex/common", "effect"]);
+    expect(manifest["devDependencies"]["@valancex/cli"]).toBe("^1.2.3");
     expect(manifest["devDependencies"]["@valancex/mesh-lsp"]).toMatch(/^\^\d/);
   });
 
