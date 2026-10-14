@@ -1,7 +1,8 @@
 // One application, two targets: build both from this project, then use the site's page and the desktop engine the way a person would. The state and the commands are written once (src/main.ts);
 // the checks below are what each target makes of them.
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -58,6 +59,12 @@ describe("the web target, in a browser", () => {
       expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
       expect(await page.textContent(".todo-list li")).toContain("Milk");
 
+      // the items outlive the page: reloaded, they are back (the page's storage, through the Store capability)
+      await page.reload();
+      await page.waitForSelector('#app[data-valance="running"]');
+      await page.waitForSelector(".todo-list li");
+      expect(await page.textContent(".todo-list li")).toContain("Milk");
+
       await page.check('.todo-list input[type="checkbox"]');
       await page.waitForFunction(() => document.querySelector(".todo-summary")?.textContent === "0 of 1 open");
       await page.click('button:text-is("Clear done")');
@@ -71,8 +78,11 @@ describe("the web target, in a browser", () => {
 
 type Message = { readonly op: string; readonly [key: string]: unknown };
 
-const engine = () => {
-  const child = spawn(process.execPath, [join(root, "dist/desktop/engine.mjs")], { stdio: ["pipe", "pipe", "inherit"] });
+const engine = (dataHome?: string) => {
+  const child = spawn(process.execPath, [join(root, "dist/desktop/engine.mjs")], {
+    stdio: ["pipe", "pipe", "inherit"],
+    env: { ...process.env, ...(dataHome === undefined ? {} : { XDG_DATA_HOME: dataHome }) },
+  });
   const seen: Array<Message> = [];
 
   createInterface({ input: child.stdout }).on("line", (line) => void seen.push(JSON.parse(line) as Message));
@@ -141,6 +151,35 @@ describe("the desktop target", () => {
       await window.until(() => named(window.seen, "checkbox").length === 0);
     } finally {
       await window.close();
+    }
+  });
+});
+
+describe("what outlives a run", () => {
+  it("is kept by the web's storage and by the desktop's data directory alike: an item added to the window is there when the engine starts again", async () => {
+    const dataHome = mkdtempSync(join(tmpdir(), "vlx-data-"));
+    const first = engine(dataHome);
+
+    try {
+      await first.until(() => buttonLabelled(first.seen, "Clear done") !== undefined);
+      first.send({ op: "event", handler: named(first.seen, "textfield")[0]!.events!["change"]!, payload: "Eggs" });
+      await first.until(() => named(first.seen, "textfield")[0]?.props?.["value"] === "Eggs");
+      first.send({ op: "event", handler: buttonLabelled(first.seen, "Add")!.events!["click"]! });
+      await first.until(() => all(treeOf(first.seen)).some((node) => node.text === "Eggs"));
+      await first.until(() => existsSync(join(dataHome, "todo-multi", "state.json")));
+    } finally {
+      await first.close();
+    }
+
+    expect(JSON.parse(readFileSync(join(dataHome, "todo-multi", "state.json"), "utf8"))).toMatchObject({ items: [{ title: "Eggs", done: false }] });
+
+    const second = engine(dataHome);
+
+    try {
+      await second.until(() => all(treeOf(second.seen)).some((node) => node.text === "Eggs"));
+      expect(named(second.seen, "textfield")[0]?.props?.["value"]).toBe(""); // the draft is not kept
+    } finally {
+      await second.close();
     }
   });
 });

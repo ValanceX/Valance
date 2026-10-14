@@ -18,6 +18,8 @@ export default defineApp({
     theme: field(Schema.Literal("light", "dark"), "light"), // the web layout's
     navigation: field(Schema.Boolean, true), // the desktop layout's
   },
+  // What outlives a run, on every target: the items and the counter that numbers them, and the web's theme. (`navigation` is the desktop's own and `entry` is a draft: neither is kept.)
+  persist: ["items", "seq", "theme"],
   // Worked out from the state, on every target: a layout reads `summary` as it reads a field.
   derived: (derive) => ({
     summary: derive(Schema.String, (state) => `${state.items.filter((item) => !item.done).length} of ${state.items.length} open`),

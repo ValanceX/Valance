@@ -103,6 +103,8 @@ export interface HostOptions<S, E = unknown> {
    * application does not (the desktop's host turns an image's address into the file it shipped beside the engine). Absent: the tree as it is.
    */
   readonly present?: (tree: RenderTree) => RenderTree;
+  /** What the platform supplies the application: its capabilities (a store, a client), as the web's page supplies the browser's. Absent: none. */
+  readonly platform?: Valance.StartOptions<S>["platform"];
   /** May the application close now? Asked when the renderer says the person wants to close the window. Absent: always. */
   readonly mayClose?: (state: S) => Effect.Effect<boolean>;
 }
@@ -133,7 +135,7 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
       const send = (message: Outbound): void => void streams.output.write(`${JSON.stringify(message)}\n`);
       let report: Report | undefined;
       let ignored = 0;
-      const handle = yield* Valance.start(app);
+      const handle = yield* Valance.start(app, options.platform === undefined ? {} : { platform: options.platform });
 
       send({ op: "hello", protocol: PROTOCOL, app: app.name }); // before the first screen: a renderer checks the protocol before it draws anything
 

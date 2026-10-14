@@ -10,6 +10,8 @@ import { resolve, sep } from "node:path";
 import type * as Valance from "@valancex/valance";
 
 import { application, titleFor } from "./app.js";
+import { storePlatform } from "./store.js";
+import { fileStore, userDataDir } from "./store-file.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { routes } from "./routes.js";
@@ -69,6 +71,8 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
   const table = routes(content);
 
   await Native.run(application(content, program, author), {
+    // What the desktop supplies: a store, in the user's data directory for the application.
+    platform: storePlatform(fileStore(userDataDir(content.site.name))),
     ...(assets === undefined ? {} : { present: (tree: RenderTree) => withAssets(tree, assets) }),
     // The window's title follows the page, in the project's format (`valance.json`), or whatever the author's `title` function says.
     titleOf: (state) => titleFor(content, pageAt(content, state.page), state, author),

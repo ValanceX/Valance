@@ -180,6 +180,12 @@ export interface AppDefinition<S extends StateInput = {}> {
    */
   readonly http?: { readonly interceptors?: ReadonlyArray<Interceptor> };
   /**
+   * The state fields that outlive a run: `persist: ["items", "theme"]`. They are loaded when the application starts and saved when they change, through the platform's `Store` (the page's
+   * storage on the web, a file in the user's data directory on the desktop), under the application's name. What was stored and no longer fits a field's type is ignored, not loaded. Where a
+   * platform has no store the application runs as it would without this. A field not listed is not kept (a `navigation` flag on one target should not follow the person to another).
+   */
+  readonly persist?: ReadonlyArray<Extract<keyof StateOf<S>, string>>;
+  /**
    * Values worked out from the state, for a template to read: `derived: (derive) => ({ open: derive(Schema.Number, (state) => state.items.filter((item) => !item.done).length) })`. Each has its
    * type, as a state field does. They are computed from the state each time it changes, on every target, and a command cannot change one (change the state they come from). The function must
    * be pure and must not throw.

@@ -9,3 +9,4 @@ export * from "./scope.js";
 export * from "./state.js";
 export * from "./vocabulary.js";
 export * from "./targets.js";
+export * from "./store.js";

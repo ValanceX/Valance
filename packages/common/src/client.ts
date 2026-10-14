@@ -1,4 +1,5 @@
 // The browser half, for the generated entry (`.valance/client.ts`): start the MESH runtime and run the application, taking over the HTML the server wrote. An author never imports this.
+import { webStore } from "./store.js";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import type * as Valance from "@valancex/valance";
@@ -35,7 +36,7 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       state: boot.state,
       plugins: [plugin(content, boot.built, author)],
       // What the application's commands may ask the page for: the backend (`Http`), at `api.base` of valance.web.json.
-      platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [] }),
+      platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [], store: webStore(content.site.name) }),
       shutdown: { grace: "250 millis" },
     });
 
