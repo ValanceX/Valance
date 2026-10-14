@@ -50,4 +50,10 @@ describe("the Markdown a page is written in", () => {
   it("counts lines from the file, not from the text after the front matter", () => {
     expect(() => parseMarkdown("<b>\n", "content/x.md", 4)).toThrow("content/x.md:5 md-html");
   });
+
+  it("reads a link address with balanced parentheses whole, so a check that names it quotes all of it", () => {
+    const { links } = parseMarkdown("[a](javascript:alert(1)) and [b](/x_(y)) and [c](/plain)\n", "content/x.md", 0);
+
+    expect(links.map((link) => link.href)).toEqual(["javascript:alert(1)", "/x_(y)", "/plain"]);
+  });
 });

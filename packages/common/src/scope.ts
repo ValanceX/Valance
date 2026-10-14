@@ -2,6 +2,7 @@
 // are added to it by name (see ./app.ts), so a layout reads `theme` if the application's state has a `theme`.
 import { Schema } from "effect";
 
+import type { TitleParts, Viewport } from "./index.js";
 import type { Block, Content, Page, Span } from "./model.js";
 
 const SpanView = Schema.Struct({ id: Schema.String, kind: Schema.String, text: Schema.String, href: Schema.String });
@@ -42,6 +43,8 @@ export const FrameScope = Schema.Struct({
   /** The `##` and `###` headings of the current page; `hasToc` is false when there are none. */
   hasToc: Schema.Boolean,
   toc: Schema.Array(Schema.Struct({ id: Schema.String, href: Schema.String, label: Schema.String, level: Schema.Number })),
+  /** How much room the page has: `"compact"`, `"medium"` or `"expanded"` (see `Viewport`). `{#if viewport == "compact"}` chooses a layout for a phone. The server renders `expanded`; the browser corrects it after it starts. */
+  viewport: Schema.Literal("compact", "medium", "expanded"),
   /** The page's body. Draw it with `<blocks items={blocks} />`, or draw each block yourself. */
   blocks: Schema.Array(BlockView),
   /** Neighbours in navigation order; `href` is empty when there is none. */
@@ -106,17 +109,19 @@ export const notFoundPage = (content: Content): Page =>
 
 export const pageAt = (content: Content, path: string): Page | undefined => content.pages.find((page) => page.path === path);
 
-/** The text of the document's `<title>` for a page. */
-export const documentTitle = (content: Content, page: Page | undefined): string =>
-  page === undefined
-    ? `${notFoundPage(content).title} · ${content.site.name}`
-    : page.path === "/"
-      ? page.title === content.site.name
-        ? page.title
-        : `${page.title} · ${content.site.name}`
-      : `${page.title} · ${content.site.name}`;
+/**
+ * The text of the document's `<title>` for a page: the project's format (`{page} · {site}`) with the parts filled in, and the status first, in parentheses. A page whose title is the site's name
+ * (the home page, usually) is that name alone. The author's `title` function may replace the parts; the caller cleans the result (control and direction-override characters out, length limited).
+ */
+export const documentTitle = (content: Content, page: Page | undefined, parts: TitleParts = {}): string => {
+  const shown = parts.page ?? (page === undefined ? notFoundPage(content).title : page.title);
+  const app = parts.app ?? content.site.name;
+  const body = shown === app ? shown : content.site.title.replaceAll("{page}", shown).replaceAll("{site}", app);
 
-export const frame = (content: Content, path: string): typeof FrameScope.Type => {
+  return parts.status === undefined || parts.status === "" ? body : `(${parts.status}) ${body}`;
+};
+
+export const frame = (content: Content, path: string, viewport: Viewport = "expanded"): typeof FrameScope.Type => {
   const page = pageAt(content, path);
   const shown = page ?? notFoundPage(content);
   const at = page === undefined ? -1 : content.pages.indexOf(page);
@@ -136,6 +141,7 @@ export const frame = (content: Content, path: string): typeof FrameScope.Type =>
 
   return {
     site: content.site.name,
+    viewport,
     home: withBase(content.site.base, "/"),
     title: shown.title,
     description: shown.description,

@@ -26,7 +26,8 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 | Deriving a manifest declares no element for conditional or repeated structure (blocks `{#if}`, `{#each}` are MESH's, built in); the retired names `mesh-if`, `mesh-each`, `mesh-switch`, `mesh-case`, `mesh-default` are refused when derived | Stable (since 0.9.0) |
 | `@valancex/valance/internal` | **Internal**: the composition protocol for binding authors and tests, unstable by design |
 | `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` (the defects' stable `code`s) (since 0.6.0) | Stable |
-| A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`, with the whole cause) (since 0.6.0) | Stable |
+| A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`) (since 0.6.0); *since 0.11.0* with the failure's identity only (annotation `failure`), the whole cause going to `StartOptions.onStartFailure` | Stable (the log's content changed in 0.11.0: it no longer carries the cause) |
+| A document title, meta `content` and link `title` are plain text: control and bidirectional override/isolate characters removed, whitespace collapsed, a title cut at 200 characters; `cleanTitle`, `plainText` and `TITLE_LIMIT` from `./web/plugin` (since 0.11.0) | Stable (since 0.11.0) |
 | A finished event dispatch leaves a mount's `pending` list at once (since 0.6.0) | Stable (observable only through memory and the tracer tests) |
 | `StartOptions.shutdown` (`grace`) of `start` and `Web.run` (since 0.7.0) | Stable |
 | `Target.patch` (optional): a later render of the same view reaches a target that has it as MESH's patches, and `update` otherwise (since 0.7.0) | Stable |

@@ -184,3 +184,37 @@ The point of the table: "the title" is not one string. It is at least a **screen
 | T1 | A neutral `title(state) → { page, app, status }` replacing the single string | Yes |
 | T2 | Strip control and bidirectional characters from titles at the head boundary | Yes (a minor-release behavior change) |
 | T3 | Announce page changes and move focus by default in the CLI client | Yes, with an off switch |
+
+## Outcome (2026-10-14)
+
+The recommendations were followed in the order suggested above. What was built, what was measured, and what was left.
+
+| # | Work | Result |
+|---|---|---|
+| 1 | CSP documented; headers file from `vlx build` | `_headers` written beside the site (CSP with `'wasm-unsafe-eval'`, `nosniff`, referrer, permissions and opener policies); `"headers": false` turns it off; the CLI guide explains it. The docs-app browser suite now runs **under the written policy**, which found a violation in this very work (the announcer's inline `style` attribute, refused by `style-src 'self'`); it now sets properties through the style object, and a test pins that. |
+| 2 | Title boundary; `link-scheme` message | `cleanTitle`/`plainText`/`TITLE_LIMIT` in `@valancex/valance`; applied to title, meta content and link titles in `renderHead` and `applyHead`; a title already in place is not rewritten. Link addresses with balanced parentheses are read whole. |
+| 3 | Announce page changes, manage focus | After an in-place change a polite live region says the title and focus moves to a focusable `#content`; hash links are left to the browser; `"announce": false` turns it off. Browser-tested. |
+| 4 | `title(state)` projection and format | `defineApp({ title })` returning `{ page?, app?, status? }`; `valance.json` `title` format. A throwing function falls back to the default. |
+| 5 | `Http` capability | `@valancex/common/http`: the contract, the web implementation and the secure defaults; `valance.web.json` `api.base` and the `vlx dev` proxy (tested against a real backend). The client passes `credentials`, abort, size, content-type and path checks that are each tested. |
+| 6 | Web parts named as web; build parameterized | `Vocabulary` value in `@valancex/common`; `compileViews`, `manifestOf` and `templatesOf` take one; each target carries one. |
+| 7 | Second target | `packages/cli/test/second-target.test.ts` (below). |
+| 8 | Adaptive layouts | The part that was missing was the *value*, not the mechanism (a layout can already branch with `{#if}`): `viewport` (`compact`/`medium`/`expanded`) is a reserved scope name kept current by a reserved `resize` command and `matchMedia`. **Not done:** several root layouts chosen by state (it needs one compiled program per root); the `{#if}` form covers the case. |
+| H3 | P2 | The start-failure log carries the failure's identity only; `StartOptions.onStartFailure` receives the cause. Tested with a secret in the error. |
+| 9 | Window capability, webview shell | **Not done** (large, and the next step is a shell to run it in). |
+
+### The second target
+
+A correction first: the claim near the top, that no other target has ever used the `Target` seam, is out of date. `examples/tracer-web/test/non-dom-target.ts` is a text target that already exercises it with hand-written MESH views, and `docs/FINDINGS.md:91` predates it. What had not been done was to run the **application model** (the project `vlx init` makes) on one. It now has, on a text target written for the tests:
+
+- **Portable, unchanged:** content, layout, the component with its stated contract, the state, the `toggleTheme` command and the `go` navigation. The scaffolded app draws, an activation of the theme button reaches the command, and the state and the redrawn text change. No line of the project was edited.
+- **The web's, measured:** compiling the same project against the web vocabulary *minus* its styling and accessibility hooks gives 33 diagnostics, **every one `unknown-prop`**, on exactly eight props: `class`, `theme` (styling), `tabindex` (focus), `label`, `current`, `pressed`, `id` (accessibility) and `loading`. No complaint was about state, commands, slots, content or the component model. Even a layout written with none of them fails while the **built-in views** (`blocks`, `heading`, …) still use them: the built-ins are the target's side of the line.
+- **A finding about the framework itself:** `manifest()` takes the web's realization table type (`WebPrimitives`), so a second target must express its vocabulary as one to get a MESH manifest. The second target needed its own table type or a neutral one.
+
+What that says for the decision between a semantic vocabulary and per-target templates (Option 1/3 vs 2): the hooks that leak are few, named and mostly *hooks* (style, focus, accessibility) rather than structure, which favors a small semantic core with per-target realization of the hooks, with `override` as the per-target escape for the built-in views.
+
+### Left, and why
+
+- **Native `Http`, `SecureStore` and the window capability** need a platform to run in; the contract and the web implementation exist, the others wait for a webview shell.
+- **`vlx check --target`** needs a second real vocabulary to be more than the test; the compile path is ready for it.
+- **The dev server sends no security headers** (the bundler's client needs inline scripts); the built site does.
+- **Server rendering of commands that wait, and build-time data**, remain outside the model.

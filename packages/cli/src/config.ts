@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic, lineOf } from "./diagnostics.js";
+import { DEFAULT_TITLE } from "@valancex/common/internal";
 import type { SiteInfo } from "@valancex/common/internal";
 
 export const PROJECT_FILE = "valance.json";
@@ -15,7 +16,18 @@ export const CONFIG_VERSION = 1;
 
 export interface Config {
   readonly name: string;
-  readonly web: { readonly base: string; readonly url: string };
+  /** How the document's title is written from a page's title and the site's name: `{page}` and `{site}`. */
+  readonly title: string;
+  readonly web: {
+    readonly base: string;
+    readonly url: string;
+    /** Write the security headers file beside the built site. */
+    readonly headers: boolean;
+    /** Announce a page change made in place to assistive technology. */
+    readonly announce: boolean;
+  };
+  /** The application's backend: the address its requests are made to (a path on the site's own origin, or an absolute https address), and, for `vlx dev`, where a path is proxied to. */
+  readonly api: { readonly base: string; readonly proxy: string };
 }
 
 const read = (root: string, file: string): { readonly text: string; readonly value: unknown } | undefined => {
@@ -89,6 +101,40 @@ const url = (value: unknown): string | undefined => {
   }
 };
 
+const title = (value: unknown): string | undefined =>
+  typeof value === "string" && value.includes("{page}") && value.length <= 120 && !/[{}]/.test(value.replaceAll("{page}", "").replaceAll("{site}", ""))
+    ? undefined
+    : 'must contain "{page}" and may use "{site}", for example "{page} · {site}" (at most 120 characters)';
+const flag = (value: unknown): string | undefined => (typeof value === "boolean" ? undefined : "must be true or false");
+const api = (value: unknown): string | undefined => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return 'must be an object such as { "base": "/api" }';
+  }
+
+  const given = value as Record<string, unknown>;
+  const unknown = Object.keys(given).filter((key) => key !== "base" && key !== "proxy");
+
+  if (unknown.length > 0) {
+    return `has unknown settings ${unknown.map((key) => `"${key}"`).join(", ")} (known: base, proxy)`;
+  }
+  if (typeof given["base"] !== "string" || !/^(\/([\w.~-]+\/?)*|https:\/\/[^\s/]+(\/[^\s]*)?)$/.test(given["base"]) || given["base"].endsWith("//")) {
+    return '"base" must be a path on the site ("/api") or an absolute https address ("https://api.example.com")';
+  }
+  if (given["proxy"] !== undefined) {
+    try {
+      const target = new URL(String(given["proxy"]));
+
+      if (!target.protocol.startsWith("http") || !given["base"].startsWith("/")) {
+        return '"proxy" is an http(s) address that a path "base" is forwarded to while you run vlx dev';
+      }
+    } catch {
+      return '"proxy" must be an absolute address such as http://localhost:3000';
+    }
+  }
+
+  return undefined;
+};
+
 /** Reads and validates the project's configuration. Every problem in both files is reported together. */
 export const loadConfig = (root: string): Config => {
   const project = read(root, PROJECT_FILE);
@@ -99,20 +145,39 @@ export const loadConfig = (root: string): Config => {
 
   const web = read(root, WEB_FILE);
   const problems = [
-    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text }, ["name"]),
-    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url }, [])),
+    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
+    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
   ];
 
   if (problems.length > 0) {
     throw new AppError(problems);
   }
 
-  const given = (web?.value ?? {}) as { readonly base?: string; readonly url?: string };
+  const given = (web?.value ?? {}) as {
+    readonly base?: string;
+    readonly url?: string;
+    readonly headers?: boolean;
+    readonly announce?: boolean;
+    readonly api?: { readonly base: string; readonly proxy?: string };
+  };
+  const named = project.value as { readonly name: string; readonly title?: string };
 
-  return { name: (project.value as { readonly name: string }).name, web: { base: given.base ?? "/", url: given.url ?? "" } };
+  return {
+    name: named.name,
+    title: named.title ?? DEFAULT_TITLE,
+    web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
+    api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },
+  };
 };
 
-export const siteInfo = (config: Config): SiteInfo => ({ name: config.name, base: config.web.base, url: config.web.url });
+export const siteInfo = (config: Config): SiteInfo => ({
+  name: config.name,
+  base: config.web.base,
+  url: config.web.url,
+  title: config.title,
+  api: config.api.base,
+  announce: config.web.announce,
+});
 
 /**
  * The nearest directory at or above `from` that holds a `valance.json`, as its real path. The bundler names a file by its real path, so a project reached through a symlink, or by a short

@@ -25,7 +25,7 @@ export default defineApp({
 
 | Export | Is |
 |---|---|
-| `defineApp({ layout?, components?, override?, state?, commands? })` | The application: its shell, its components, its state and the commands that change it. It starts nothing. |
+| `defineApp({ layout?, components?, override?, state?, title?, commands? })` | The application: its shell, its components, its state, the title it wants for a state, and the commands that change it. It starts nothing. |
 | `component(template, { props?, events? })` | A component: a `.mprx` template and, optionally, the interface it states (Effect Schemas). Which components its template uses is read from the template. |
 | `field(schema, initial)` | One field of the state: its type and its default, together. |
 
@@ -34,6 +34,7 @@ export default defineApp({
 | Entry | Is |
 |---|---|
 | `@valancex/common` | The three exports above. No Node, bundler or terminal import: `src/main.ts` is loaded in the browser as well as at build time. |
+| `@valancex/common/http` | The `Http` capability (`request({ path, response })`), its error type and the web's implementation. Imported by the commands that call a backend; it holds no `fetch` until the page supplies one. |
 | `@valancex/common/client`, `/server` | The browser and server halves of a built application: `start` takes over the server's HTML, `createRenderer` turns a path into a document. The files `vlx` generates import these; you do not. |
 | `@valancex/common/internal` | What the build tools share with the runtime (content model, tag table, the scope a layout reads). For `@valancex/cli`, not for applications. |
 

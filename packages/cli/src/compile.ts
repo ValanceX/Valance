@@ -17,7 +17,8 @@ import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
-import { primitives } from "@valancex/common/internal";
+import { webVocabulary } from "@valancex/common/internal";
+import type { Vocabulary } from "@valancex/common/internal";
 import { ENTRY_FILE } from "./project.js";
 
 export const SOURCE_DIR = "src";
@@ -61,7 +62,7 @@ export interface Templates {
  * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout`, `components` and `override`. A file under `src/` that is not declared is an error, not
  * a guess; a registered component that no template writes is allowed (it is not part of the program until one does). Which components a template uses is read from the template. A name that is a built-in's replaces it only through `override`.
  */
-export const templatesOf = (root: string, author: DefinedApp | undefined): Templates => {
+export const templatesOf = (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary): Templates => {
   const found = new Map<string, Template>();
 
   for (const file of mprxIn(BUILT_IN)) {
@@ -120,7 +121,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined): Templ
       problem(place, "template-duplicate", `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`);
       continue;
     }
-    if (node.name in primitives) {
+    if (node.name in vocabulary.tags) {
       problem(place, "template-primitive", `<${node.name}> is already a tag the framework draws as an element; name the file something else`);
       continue;
     }
@@ -187,9 +188,9 @@ const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
   return all.filter((template) => seen.has(template.component));
 };
 
-export const manifestOf = (author: DefinedApp | undefined) =>
+export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary) =>
   manifest({
-    primitives,
+    primitives: vocabulary.tags,
     scopes: { [ROOT]: scopeSchema(author) },
     commands: commandTable(author) as never,
   });
@@ -202,13 +203,13 @@ const isManifestError = (error: unknown): error is Error & { readonly path: stri
  * uses. MESH checks every use against it (an undeclared prop, a missing one, a wrong type, an undeclared event in a handler), at the use or in the template. A schema with no model type is a
  * diagnostic at the declaration, not a crash.
  */
-const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArray<Node>): unknown => {
+const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArray<Node>, vocabulary: Vocabulary): unknown => {
   const problems: Array<Diagnostic> = [];
   const mainText = entryText(root);
   let derived: ReturnType<typeof manifestOf> | undefined;
 
   try {
-    derived = manifestOf(author);
+    derived = manifestOf(author, vocabulary);
   } catch (error) {
     if (!isManifestError(error)) {
       throw error;
@@ -281,11 +282,11 @@ export interface Compiled {
   readonly templates: ReadonlyArray<{ readonly component: string; readonly file: string; readonly source: string; readonly builtIn: boolean }>;
 }
 
-/** Compiles the application's templates. Fails with every diagnostic, each pointing into the file it is about. */
-export const compileViews = async (root: string, author: DefinedApp | undefined): Promise<Compiled> => {
-  const { all, tree } = templatesOf(root, author);
+/** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
+export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary): Promise<Compiled> => {
+  const { all, tree } = templatesOf(root, author, vocabulary);
   const used = reachable(all);
-  const model = modelOf(root, author, tree);
+  const model = modelOf(root, author, tree, vocabulary);
 
   if (!used.some((template) => template.component === ROOT)) {
     throw new AppError([diagnostic(`${SOURCE_DIR}/${ROOT}.mprx`, 0, "layout-missing", "there is no layout")]);

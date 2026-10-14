@@ -11,7 +11,7 @@ import { attribute, controlled, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
-import { applyHead, compose } from "./web-plugin.js";
+import { applyHead, cleanTitle, compose } from "./web-plugin.js";
 import type { HeadTags, Navigation, Plugin } from "./web-plugin.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
@@ -197,7 +197,11 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
               // After the URL, so a title or head function that throws cannot keep the URL from following the state. The head wins over the title.
               yield* Effect.sync(() => {
                 if (options.titleOf !== undefined) {
-                  win.document.title = options.titleOf(event.state);
+                  const title = cleanTitle(options.titleOf(event.state));
+
+                  if (win.document.title !== title) {
+                    win.document.title = title;
+                  }
                 }
 
                 if (options.head !== undefined) {

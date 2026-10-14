@@ -21,13 +21,13 @@ const problems = (root: string): ReadonlyArray<string> => {
 
 describe("valance.json and valance.web.json", () => {
   it("resolves defaults: the web target is served at / with no published address", () => {
-    expect(loadConfig(project({}))).toEqual({ name: "Test", web: { base: "/", url: "" } });
+    expect(loadConfig(project({}))).toEqual({ name: "Test", title: "{page} · {site}", web: { base: "/", url: "", headers: true, announce: true }, api: { base: "", proxy: "" } });
   });
 
   it("reads the target's settings from valance.web.json", () => {
     const root = project({ "valance.web.json": '{ "version": 1, "base": "/docs/", "url": "https://example.com" }' });
 
-    expect(loadConfig(root).web).toEqual({ base: "/docs/", url: "https://example.com" });
+    expect(loadConfig(root).web).toEqual({ base: "/docs/", url: "https://example.com", headers: true, announce: true });
   });
 
   it("names the line of an unknown setting, and lists the known ones", () => {

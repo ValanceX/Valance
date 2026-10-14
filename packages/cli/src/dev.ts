@@ -98,7 +98,14 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   const base = baseConfig(root, config);
   const server = await createServer({
     ...base,
-    server: { port: options.port ?? 5173, host: options.host ?? "127.0.0.1", strictPort: false, fs: { allow: [root] } },
+    server: {
+      port: options.port ?? 5173,
+      host: options.host ?? "127.0.0.1",
+      strictPort: false,
+      fs: { allow: [root] },
+      // The backend, reached through the page's own origin: no CORS settings to write (valance.web.json `api`).
+      ...(config.api.proxy === "" || !config.api.base.startsWith("/") ? {} : { proxy: { [config.api.base.replace(/\/$/, "")]: { target: config.api.proxy, changeOrigin: true } } }),
+    },
     plugins: [
       ...(base.plugins ?? []),
       {

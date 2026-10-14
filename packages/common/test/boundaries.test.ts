@@ -78,3 +78,12 @@ describe("the runtime entries", () => {
     expect([...closure("index.ts")]).toEqual(["index.ts"]);
   });
 });
+
+describe("the http entry", () => {
+  it("imports NEXUS and effect and nothing that runs on a machine, and is not loaded by the authoring entry", () => {
+    const allowed = ["@valancex/nexus", "effect"];
+
+    expect(externals("http.ts").filter((name) => !allowed.includes(name))).toEqual([]);
+    expect([...closure("index.ts")]).not.toContain("http.ts");
+  });
+});

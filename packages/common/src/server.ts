@@ -34,7 +34,7 @@ export const createRenderer = ({ content, program, author }: ServerParts) => {
 
   return async (pathname: string, built: Built): Promise<Rendered> => {
     const state = stateFor(content, pathname, author);
-    const served = await Effect.runPromise(renderToHtml(app, { plugins: [plugin(content, built)], state }));
+    const served = await Effect.runPromise(renderToHtml(app, { plugins: [plugin(content, built, author)], state }));
     const boot = safe(JSON.stringify({ state: served.state, built }));
 
     return {

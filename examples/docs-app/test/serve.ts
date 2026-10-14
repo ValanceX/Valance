@@ -13,6 +13,30 @@ const TYPES: Record<string, string> = {
   ".xml": "application/xml",
 };
 
+/** The headers a host applies from the `_headers` file the build writes (Netlify and Cloudflare Pages read it): the lines under the pattern that matches the path. Only `*` at the end of a pattern. */
+const headersFor = async (root: string, pathname: string): Promise<Record<string, string>> => {
+  const text = await readFile(join(root, "_headers"), "utf8").catch(() => "");
+  const found: Record<string, string> = {};
+  let applies = false;
+
+  for (const line of text.split("\n")) {
+    if (line.trim() === "" || line.startsWith("#")) {
+      continue;
+    }
+    if (!line.startsWith(" ")) {
+      const pattern = line.trim();
+
+      applies = pattern.endsWith("*") ? pathname.startsWith(pattern.slice(0, -1)) : pathname === pattern;
+    } else if (applies) {
+      const at = line.indexOf(":");
+
+      found[line.slice(0, at).trim().toLowerCase()] = line.slice(at + 1).trim();
+    }
+  }
+
+  return found;
+};
+
 export const serveStatic = async (dir: string): Promise<{ readonly origin: string; readonly server: Server }> => {
   const root = normalize(dir);
   const server = createServer((request, response) => {
@@ -24,16 +48,18 @@ export const serveStatic = async (dir: string): Promise<{ readonly origin: strin
         return;
       }
 
+      const extra = await headersFor(root, new URL(request.url ?? "/", "http://x").pathname);
+
       for (const candidate of [path, join(path, "index.html")]) {
         const body = await readFile(candidate).catch(() => undefined);
 
         if (body !== undefined && !candidate.endsWith(sep)) {
-          response.writeHead(200, { "content-type": TYPES[extname(candidate)] ?? "application/octet-stream" }).end(body);
+          response.writeHead(200, { "content-type": TYPES[extname(candidate)] ?? "application/octet-stream", ...extra }).end(body);
           return;
         }
       }
 
-      response.writeHead(404, { "content-type": TYPES[".html"]! }).end(await readFile(join(root, "404.html")).catch(() => "not found"));
+      response.writeHead(404, { "content-type": TYPES[".html"]!, ...extra }).end(await readFile(join(root, "404.html")).catch(() => "not found"));
     })();
   });
 

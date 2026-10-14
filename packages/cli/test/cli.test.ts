@@ -54,8 +54,8 @@ describe("the schemas editors read", () => {
     JSON.parse(readFileSync(new URL(`../schemas/${name}`, import.meta.url), "utf8")) as { properties: Record<string, unknown>; required?: Array<string> };
 
   it("list exactly the settings the tools accept", () => {
-    expect(Object.keys(load("valance.schema.json").properties)).toEqual(["$schema", "version", "name"]);
+    expect(Object.keys(load("valance.schema.json").properties)).toEqual(["$schema", "version", "name", "title"]);
     expect(load("valance.schema.json").required).toEqual(["name"]);
-    expect(Object.keys(load("valance.web.schema.json").properties)).toEqual(["$schema", "version", "base", "url"]);
+    expect(Object.keys(load("valance.web.schema.json").properties)).toEqual(["$schema", "version", "base", "url", "headers", "announce", "api"]);
   });
 });

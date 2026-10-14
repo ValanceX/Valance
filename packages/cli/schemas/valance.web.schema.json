@@ -6,9 +6,51 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "const": 1, "description": "The version of this file's format." },
-    "base": { "type": "string", "pattern": "^/([\\w.~-]+/)*$", "default": "/", "description": "The path the site is served under: \"/\" or \"/docs/\". Every address the build writes is under it." },
-    "url": { "type": "string", "pattern": "^https?://.*[^/]$", "description": "Where the site is published, without a trailing slash. With it, pages get canonical links and the build writes sitemap.xml." }
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "description": "The version of this file's format."
+    },
+    "base": {
+      "type": "string",
+      "pattern": "^/([\\w.~-]+/)*$",
+      "default": "/",
+      "description": "The path the site is served under: \"/\" or \"/docs/\". Every address the build writes is under it."
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^https?://.*[^/]$",
+      "description": "Where the site is published, without a trailing slash. With it, pages get canonical links and the build writes sitemap.xml."
+    },
+    "headers": {
+      "type": "boolean",
+      "default": true,
+      "description": "Write the recommended security headers (a strict Content-Security-Policy and others) as _headers beside the built site."
+    },
+    "announce": {
+      "type": "boolean",
+      "default": true,
+      "description": "After the application changes page in place, tell assistive technology: say the new title in a live region and focus the main content."
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base"
+      ],
+      "description": "The application's backend.",
+      "properties": {
+        "base": {
+          "type": "string",
+          "description": "Where its requests go: a path on the site's own origin (\"/api\") or an absolute https address (\"https://api.example.com\", which the Content-Security-Policy then allows)."
+        },
+        "proxy": {
+          "type": "string",
+          "description": "For vlx dev: forward requests under a path \"base\" to this address (\"http://localhost:3000\"), so the browser sees one origin and no CORS settings are needed."
+        }
+      }
+    }
   }
 }
