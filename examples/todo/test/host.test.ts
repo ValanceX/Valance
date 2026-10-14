@@ -7,9 +7,9 @@ import { describe, expect, it } from "vitest";
 
 import { application, initial, sample, starting } from "../src/app.js";
 import { compilePrograms } from "../src/compile.js";
-import { MAX_HREF, MAX_LINE, parseInbound, PROTOCOL, serve } from "../src/host.js";
+import { MAX_HREF, MAX_LINE, parseInbound, PROTOCOL, serve } from "@valancex/valance/native";
+import type { Outbound } from "@valancex/valance/native";
 import { router } from "../src/routes.js";
-import type { Outbound } from "../src/host.js";
 import { textTarget } from "../src/text-target.js";
 import type { TextTarget } from "../src/text-target.js";
 

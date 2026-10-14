@@ -36,9 +36,9 @@ One word per thing, lower case. Two events: **click** (a button) and **change** 
 
 The web's vocabulary is a different, larger table (26 tags, with `class`, `theme` and the like). A template written in this one can also run in a browser, with a realization table of eight entries; see [the investigation](../application-model/NATIVE-VOCABULARY.md#evidence).
 
-## The content layer (experimental)
+## The content layer
 
-For a site of Markdown pages, the PORT also draws what Markdown produces, named as WAI-ARIA names the same things. It is drawn and tested, and not yet part of what the PORT promises.
+For a site of Markdown pages, the PORT also draws what Markdown produces, named as WAI-ARIA names the same things (the names the [investigation](../application-model/NATIVE-VOCABULARY.md#decided-and-what-is-next) adopted).
 
 | Component | Props | What it is |
 |---|---|---|

@@ -57,7 +57,7 @@ describe("the package declares that importing it does nothing", () => {
   });
 
   it("exposes each concern as its own entry, so an entry's weight is its own", () => {
-    expect(Object.keys(manifest.exports)).toEqual([".", "./web", "./web/server", "./web/plugin", "./web/build", "./internal", "./package.json"]);
+    expect(Object.keys(manifest.exports)).toEqual([".", "./web", "./web/server", "./web/plugin", "./web/build", "./native", "./internal", "./package.json"]);
   });
 });
 

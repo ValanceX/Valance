@@ -121,7 +121,7 @@ cd native
 TODO_ENGINE="node ../dist/main.js" cargo run
 ```
 
-`pnpm build` compiles the screens and the engine. `cargo run` opens the window, which starts the engine named by `TODO_ENGINE` and draws what it sends. Make a list by typing a name and pressing **Add list**. Open it, add an item, open the item, change its text, and then try **Back to list**: the guard says no until you save or discard.
+`pnpm build` compiles the screens and the engine. The engine's whole `main` is one call, `Native.run(app, { titleOf, mayClose })`, which serves the application for the window to talk to. `cargo run` opens the window, which starts the engine named by `TODO_ENGINE` and draws what it sends. Make a list by typing a name and pressing **Add list**. Open it, add an item, open the item, change its text, and then try **Back to list**: the guard says no until you save or discard.
 
 ## 6. Give it to someone
 

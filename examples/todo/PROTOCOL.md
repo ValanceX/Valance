@@ -1,6 +1,6 @@
 # The host protocol, from the engine's side
 
-The window is the **Desktop PORT** ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop)), and the protocol between an engine and a PORT is specified there: [the architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md#the-host-protocol). This page is what is specific to the engine in this example (`src/host.ts`).
+The window is the **Desktop PORT** ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop)), and the protocol between an engine and a PORT is specified there: [the architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md#the-host-protocol). The engine's half is `Native.run` in `@valancex/valance/native` ([contract §20](../../docs/V1_CONTRACT.md#20-the-native-host-nativerun)); this page is what is specific to this example.
 
 One JSON object per line over the engine's stdin and stdout. The engine sends `hello`, `title`, `draw`, `update`, `unmount` and `closeAnswer`; it reads `event`, `closeRequested` and `close` (and accepts `ready`, ignored in version 1).
 

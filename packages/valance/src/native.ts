@@ -1,12 +1,15 @@
-// The engine side of a native host. The application runs here, in JavaScript, with its state, commands and router; a renderer, a separate native process, draws the screen and reports what the person
-// did. They talk in lines of JSON over two byte streams (a child process's stdin and stdout, or any pair). The renderer never sees a command, a state or a route: only the render tree and the
-// opaque handler identifiers in it, which is all PORT's contract gives a renderer. See PROTOCOL.md.
+/// <reference types="node" />
+// The engine side of a native host: `Native.run` is to a window what `Web.run` is to a page. The application runs here, in JavaScript, with its state, commands and router; a renderer (a PORT, a
+// separate native process) draws the screen and reports what the person did. They talk in lines of JSON over two byte streams (the engine's stdin and stdout, or any pair). The renderer never sees a
+// command, a state or a route: only the render tree and the opaque handler identifiers in it, which is all PORT's contract gives a renderer. The protocol is specified in the Desktop PORT's
+// architecture note (github.com/ValanceX/Port, docs/architecture/2026-10-14-port-desktop.md). Node only.
 import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
-import * as Valance from "@valancex/valance";
-import type { Report, Target } from "@valancex/valance";
-import { Effect } from "effect";
+import { Effect, Logger } from "effect";
 import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
+
+import * as Valance from "./index.js";
+import type { Report, Target } from "./index.js";
 
 export const PROTOCOL = 1;
 /** The longest inbound line the engine reads, in characters. A renderer that sends more is cut off. */
@@ -118,7 +121,7 @@ export interface Served {
 export const serve = <S, E, R extends Valance.Ambient, V extends string>(
   app: Valance.ApplicationDefinition<S, E, R, V>,
   streams: HostStreams,
-  options: HostOptions<S> = {},
+  options: HostOptions<S, E> = {},
 ): Effect.Effect<Served, unknown> =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -193,3 +196,35 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
       return { ignored } satisfies Served;
     }),
   );
+
+/** The engine's log, on stderr: stdout is the protocol, and a line of anything else on it would be taken for a message. */
+const toStderr = Logger.replace(
+  Logger.defaultLogger,
+  Logger.map(Logger.logfmtLogger, (line) => void process.stderr.write(`${line}\n`)),
+);
+
+export interface RunOptions<S, E = unknown> extends HostOptions<S, E> {
+  /** Default the process's stdin and stdout. Tests and tools pass their own. */
+  readonly streams?: HostStreams;
+}
+
+/**
+ * Runs `app` as a native engine: the application on the process's stdin and stdout, for a PORT (a window) to start and talk to. It is the whole of an engine's `main`:
+ *
+ *     await Native.run(app, { titleOf: (state) => state.title, mayClose: (state) => Effect.succeed(!state.dirty) });
+ *
+ * It returns when the renderer closes (a `close` message, or its stream ending), after the application has been closed and its work cancelled. Because stdout carries the protocol, `run` sends
+ * the application's log (Effect's logger, and `console.log`, `info` and `debug`) to stderr; a program that writes its own bytes to stdout will corrupt the conversation.
+ */
+export const run = <S, E, R extends Valance.Ambient, V extends string>(app: Valance.ApplicationDefinition<S, E, R, V>, options: RunOptions<S, E> = {}): Promise<Served> => {
+  const streams = options.streams ?? { input: process.stdin, output: process.stdout };
+
+  for (const name of ["log", "info", "debug"] as const) {
+    console[name] = (...args: ReadonlyArray<unknown>): void => console.error(...args);
+  }
+  if (options.streams === undefined) {
+    process.stdin.setEncoding("utf8");
+  }
+
+  return Effect.runPromise(serve(app, streams, options).pipe(Effect.provide(toStderr)));
+};

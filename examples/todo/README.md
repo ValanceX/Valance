@@ -5,7 +5,7 @@ A to-do application (lists, items, editing, routes with guards) written against 
 | Part | Is | Where |
 |---|---|---|
 | The application | state, commands, router, screens (`.mprx`), the vocabulary | `src/` (`app.ts`, `routes.ts`, `domain.ts`, `vocabulary.ts`, `screens/`) |
-| The engine | the application behind stdin/stdout, speaking [`PROTOCOL.md`](./PROTOCOL.md) | `src/host.ts`, `src/engine.ts`, `src/main.ts`, `src/sea-main.ts` |
+| The engine | the application behind stdin/stdout, speaking [`PROTOCOL.md`](./PROTOCOL.md) | `src/engine.ts`, `src/main.ts`, `src/sea-main.ts` (the protocol itself is `Native.run`, `@valancex/valance/native`) |
 | The window | the **Desktop PORT** ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop), its own package in the PORT repository): draws the render tree and reports events. This example only names the app and its engine | `native/` |
 | Packaging | the engine as one executable (Node SEA), the renderer, archived | `scripts/package.mjs`, `scripts/dist.sh` |
 

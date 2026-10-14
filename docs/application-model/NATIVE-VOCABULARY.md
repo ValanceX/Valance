@@ -102,7 +102,7 @@ A table of **seven entries** realizes the whole vocabulary with PORT Web's own m
 | 4 | Say what the window is called | a `window` component with a `title` prop, which no toolkit read does | FW | 1 | **Fixed**: the application's `titleOf(state)`, sent by the host |
 | 5 | Give a button an address to go to | a template cannot build a string, so each row's scope carries its own `href` | FW | 1 | Open (#5 in the [parity matrix](./NATIVE-PARITY.md)) |
 | 6 | Change state from an event | two ways to define a command (`Valance.command` with `entry`, or `Nexus.Command.define`), and the key names that connect them | FW/Eng | **2** | Open; the to-do app used the second, which exposes Effect |
-| 7 | Start the application on a window | I wrote `serve` (stdin, stdout, Scope, `Effect.async`) | FW | **3** | Open: needs a `Native.run`, the way `Web.run` is for a page |
+| 7 | Start the application on a window | I wrote `serve` (stdin, stdout, Scope, `Effect.async`) | FW | **3** | **Fixed**: `Native.run(app, options)`, one call, the way `Web.run` is for a page (contract §20) |
 | 8 | Package it | I wrote a bundler step, a blob step and a download | tooling | **3** | Open: a `vlx` target |
 | 9 | Type into a field | a keystroke was lost when the engine answered late | PORT | **3** for a PORT author, 0 for an app author | **Fixed** in the PORT (`Field`) |
 | 10 | Know which components do what | one table, one page of docs | | 0 | the [Learn page](../learn/desktop-application.md) and the [reference](../use/desktop-vocabulary.md) |
@@ -129,13 +129,13 @@ What it found, none of which the hypothesis predicted:
 5. **An address that is not on the site does nothing.** Opening `https:` or `mailto:` addresses needs a capability ([parity](./NATIVE-PARITY.md) #16).
 6. **Heading anchors are dropped**, so `#fragment` links do not scroll.
 
-This is the evidence for D1's second layer and for D10; it does not decide D10's names.
+This is the evidence for D1's second layer and for D10, and the maintainer decided on it: the content layer is part of what the Desktop PORT promises, under ARIA's names.
 
 ## Decisions
 
 | # | Decision | Chosen | Evidence | Status |
 |---|---|---|---|---|
-| D1 | Layers, by purpose | **Controls and layout** (7 components, owned by each PORT as data), a **content layer** (what Markdown produces, named by ARIA), and a PORT's own extras. Names are aligned by convention across PORTs; no shared code | the toolkits have no widgets for content, and ARIA and AccessKit name it alike (above); two PORTs share a contract and no code (PORT ROADMAP) | Controls built; the content layer held in the experiment above and is drawn by the PORT, experimental |
+| D1 | Layers, by purpose | **Controls and layout** (7 components, owned by each PORT as data), a **content layer** (what Markdown produces, named by ARIA), and a PORT's own extras. Names are aligned by convention across PORTs; no shared code | the toolkits have no widgets for content, and ARIA and AccessKit name it alike (above); two PORTs share a contract and no code (PORT ROADMAP) | Built: controls and layout, and the content layer (promoted 2026-10-14 after the experiment above) |
 | D2 | The names | `column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield` | the table above | Built |
 | D3 | The event of a button | **`click`** | five of eight sources; the DOM defines it as device-independent; Compose uses it on touch; the first version's `press` was an invention (*corrected*) | Built |
 | D4 | The event of a control with a value | **`change`**, carrying the new value (`string` for a textfield, `boolean` for a checkbox) | every toolkit that reports calls it a change and passes the value; React Native and Compose state the controlled rule; a value is idempotent where a toggle is not (*corrected*) | Built |
@@ -144,14 +144,14 @@ This is the evidence for D1's second layer and for D10; it does not decide D10's
 | D7 | Styling | none in tier 1; tier 2 an **`intent`** (`primary`, `danger`) and the OS theme | SwiftUI `ButtonRole` (`.destructive`): "The system uses the button's role to style the button appropriately" [1]. (SwiftUI calls it a role; ARIA's `role` means something else, so `intent`.) | Proposal |
 | D8 | Accessibility | roles come from the names; tier 2 makes a **`label` required** on a control with no text | SwiftUI: "Avoid labels that only use images or exclusively visual components without an accessibility label" [1]; React Native: "It is recommended to set accessibilityLabel" [6]. Both recommend; the principles (§10) say the unlabeled path must not be the easy one | Proposal |
 | D9 | Escape hatch | a clearly marked component in the PORT's own vocabulary, never a toolkit widget passed through | PORT's architecture: escape hatches exist and are marked as leaving the portable layer | Proposal |
-| D10 | The content layer's names | **ARIA's**: `heading` (with `level`), `paragraph`, `list`, `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | the content model has exactly these meanings, ARIA defines them, AccessKit has them; the web table's `para`, `item`, `olist`, `quote`, `em` are Valance's own short forms | **Open for you**: it renames words in the web's published, Provisional table |
+| D10 | The content layer's names | **ARIA's**: `heading` (with `level`), `paragraph`, `list`, `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | the content model has exactly these meanings, ARIA defines them, AccessKit has them; the web table's `para`, `item`, `olist`, `quote`, `em` are Valance's own short forms | **Decided (2026-10-14, by the maintainer): ARIA's names for the shared content layer.** The web's published, Provisional table keeps its own short forms until a migration is decided |
 
 ## Tiers
 
 | Tier | Components and props | Built | Justified by |
 |---|---|---|---|
 | **1: first hour** | `column`, `row`, `heading`, `text`, `button` (`disabled`, `click`), `checkbox` (`checked`, `change`), `textfield` (`value`, `placeholder`, `change`) | yes | the to-do app |
-| **content** | `heading` (`level`), `paragraph`, `list` (`ordered`), `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | `content.json` in the PORT, experimental; tested as above | the content model is exactly this |
+| **content** | `heading` (`level`), `paragraph`, `list` (`ordered`), `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | yes: `content.json` in the Desktop PORT, part of what it promises | the content model is exactly this |
 | **2: next** | a `submit` event on `textfield`, `intent` on `button` and `text`, `gap` and `align` on `column` and `row`, required `label` | no | parity matrix #7, #10, #11; D7, D8 |
 | **3: deep** | a list with many rows (virtualized), tables, menus, dialogs, drag and drop | no | not planned; D9 |
 
@@ -180,8 +180,10 @@ Read on 2026-10-14. `learn.microsoft.com`, `docs.flutter.dev`, `doc.qt.io`, `doc
 9. egui: `emilk/egui` `crates/egui/src/` `widgets/button.rs`, `ui.rs` (`vertical`, `horizontal`).
 10. AccessKit 0.25.1: `accesskit` crate, `src/lib.rs` (`Role`): "The majority of these roles come from the ARIA specification."
 
-## Open questions for you
+## Decided, and what is next
 
-1. **D10, the content layer's names.** Adopt ARIA's (`paragraph`, `listitem`, `blockquote`, `emphasis`) for the shared content layer, leaving the web's published table as it is until a migration is decided?
-2. **Promote the content layer?** The experiment held, so `content.json` is in the Desktop PORT, marked experimental. Make it part of what the PORT promises, or keep it experimental until a second PORT (the web) realizes the same ten names?
-3. **The three Sev 3 and 2 rows (#6 to #8)** are what would stop a newcomer, not the vocabulary: a `Native.run` for a window, a `vlx` desktop target, and one way to define a command. Which first?
+Decided on 2026-10-14, after this note:
+
+1. **ARIA's names** (`paragraph`, `listitem`, `blockquote`, `emphasis`, and the rest) are the shared content layer's. The web's published table is not renamed for now.
+2. **The content layer is promoted** to part of what the Desktop PORT promises (`content.json`; images draw as their description until the PORT carries an image loader, and that limit is documented, not hidden).
+3. **The order of the gaps that would stop a newcomer** (rows 6 to 8 above): the host first, then the `vlx` desktop target, then one way to define commands. The host is built: `Native.run` ([contract §20](../V1_CONTRACT.md#20-the-native-host-nativerun)).
