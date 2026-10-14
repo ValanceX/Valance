@@ -62,7 +62,14 @@ export interface RouteTable<S> {
   readonly delivery?: (pathname: string) => Delivery;
   /** Called after each navigation (see `HistoryOptions.onNavigated`): where scroll and focus policy lives. */
   readonly onNavigated?: (navigation: Navigation) => void;
+  /** Whether a state change that moves the URL pushes an entry or replaces the current one (see `HistoryOptions.modeOf`). Absent: push. */
+  readonly modeOf?: (previous: S, next: S) => "push" | "replace";
+  /** Asked before a link or Back/Forward moves the application (see `HistoryOptions.guard`). Absent: every navigation runs. */
+  readonly guard?: (navigation: Navigation, state: S) => GuardResult | Promise<GuardResult>;
 }
+
+/** What a guard answers: let it run, stop it, or send it to another address of this origin (a path and query, or an absolute address on this origin). */
+export type GuardResult = boolean | { readonly redirect: string };
 
 /** A navigation that has been written to the URL (a link click) or taken from it (Back and Forward). */
 export interface Navigation {

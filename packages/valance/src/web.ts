@@ -12,14 +12,14 @@ import { hydrate, mount, start } from "./index.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
 import { applyHead, cleanTitle, compose } from "./web-plugin.js";
-import type { HeadTags, Navigation, Plugin } from "./web-plugin.js";
+import type { GuardResult, HeadTags, Navigation, Plugin } from "./web-plugin.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, controlled, property, textProperty } from "@valancex/port-web";
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
-export type { Delivery, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";
+export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";
 
 /**
  * A link: an `<a>` whose one prop, `href`, is the destination. It declares no event: with `history` and a `container` (which `run` supplies), a click on it is the
@@ -83,7 +83,54 @@ export interface HistoryOptions<S> {
    * state already shown. A defect in it is logged and ends nothing. Absent: nothing is called.
    */
   readonly onNavigated?: (navigation: Navigation) => void;
+  /**
+   * How the URL for a state change is written: `push` (a new history entry, the default) or `replace` (this entry is rewritten, so Back skips it). Asked once per change that moves the
+   * URL, with the state before and after. A redirect, a canonicalization and a query that only filters (a search box) are `replace`; a page change is `push`. Absent: always `push`.
+   */
+  readonly modeOf?: (previous: S, next: S) => "push" | "replace";
+  /**
+   * Asked before the browser moves the application: a link click it handles, and Back or Forward, with the destination and the state the application is in. `true` lets the navigation
+   * run (the `navigate` command is invoked as always). `false` stops it: a link click does nothing, and Back or Forward is **undone** (`history.go` back to where the page was, or, when
+   * that entry is not one this page wrote, a push of the page's own URL), so the address bar and the application agree. Navigation the application starts itself (a command that changes
+   * state) does not pass through here: it is the application's own, and its command is where its own conditions belong. `{ redirect }` sends the navigation to another address of this origin instead: a link click navigates there, and Back or Forward rewrites the entry it moved to (`replaceState`) and navigates there, so the address bar and the application agree. A throw or a rejection counts as `false`. Absent: every navigation runs.
+   */
+  readonly guard?: (navigation: Navigation, state: S) => GuardResult | Promise<GuardResult>;
 }
+
+/** The key under which an entry this page wrote carries its position in `history.state`. */
+const ENTRY = "valance";
+
+const entryOf = (data: unknown): number | undefined => {
+  const value = typeof data === "object" && data !== null ? (data as Record<string, unknown>)[ENTRY] : undefined;
+
+  return typeof value === "number" ? value : undefined;
+};
+
+/** Whether `destination` is the address the application already shows (`last`), ignoring a `#fragment`. */
+const sameAddress = (destination: URL, last: string | undefined): boolean => last !== undefined && `${destination.pathname}${destination.search}` === last;
+
+/** What the guard decided: `url` is where the navigation goes (the destination, or a redirect on this origin), or `undefined` for no. */
+const permitted = <S>(guard: NonNullable<HistoryOptions<S>["guard"]>, navigation: Navigation, state: Effect.Effect<S>, origin: string): Effect.Effect<URL | undefined> =>
+  Effect.flatMap(state, (current) => Effect.tryPromise(async () => guard(navigation, current))).pipe(
+    Effect.map((answer) => {
+      if (answer === true) {
+        return navigation.url;
+      }
+      if (answer === false) {
+        return undefined;
+      }
+
+      // A redirect stays on this origin: an address the guard computed from data cannot send the page elsewhere.
+      try {
+        const target = new URL(answer.redirect, navigation.url);
+
+        return target.origin === origin ? target : undefined;
+      } catch {
+        return undefined;
+      }
+    }),
+    Effect.catchAllCause((cause) => Effect.logError("navigation guard failed", cause).pipe(Effect.as(undefined))),
+  );
 
 /**
  * Where a click on a link inside `container` goes, when it is the application's to handle; otherwise undefined and the browser keeps it. See `HistoryOptions.container`.
@@ -139,12 +186,17 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const running = runningOf(application);
     const scope = yield* Effect.scope;
     const { window: win } = options;
-    const popped = yield* Queue.unbounded<string>();
+    const popped = yield* Queue.unbounded<{ readonly href: string; readonly entry: number | undefined }>();
     const { container } = options;
     // A bare `navigate` names a command that takes the navigation fact as its input; an exact key ("app/navigate") is the binding it always was.
     const navigateKey = options.navigate.includes("/") ? options.navigate : INPUT_KEY(options.navigate);
     // The application URL of the last state this mechanism has accounted for. Unset until the first state: the baseline.
     let last: string | undefined;
+    // The entries this page wrote carry their position in `history.state`, so a Back or Forward the application refuses can be undone by the exact distance. The entry the page loaded at
+    // has no state, which counts as 0. `ignoring` counts the popstates the page caused itself by undoing one.
+    let position = 0;
+    let ignoring = 0;
+    let previous: S | undefined;
     // A link click whose destination starts at the top is waiting for its URL to be written: the browser records the position of the entry being left WHEN the URL is pushed, so the
     // reset must come after the push, never before it, or Back would restore the top.
     let top = false;
@@ -161,7 +213,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const follower = yield* Stream.runForEach(
       Stream.merge(
         Stream.map(running.states, (state) => ({ _tag: "state" as const, state })),
-        Stream.map(Stream.fromQueue(popped), (href) => ({ _tag: "popstate" as const, href })),
+        Stream.map(Stream.fromQueue(popped), (arrival) => ({ _tag: "popstate" as const, ...arrival })),
       ),
       (event) =>
         (event._tag === "state"
@@ -170,11 +222,21 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
               const landed = yield* Effect.sync(() => {
                 const url = options.urlOf(event.state);
 
+                const before = previous;
+
+                previous = event.state;
+
                 if (last === undefined) {
                   last = url;
                 } else if (url !== last) {
                   last = url;
-                  win.history.pushState(null, "", url);
+
+                  if (before !== undefined && options.modeOf?.(before, event.state) === "replace") {
+                    win.history.replaceState({ [ENTRY]: position }, "", url);
+                  } else {
+                    position += 1;
+                    win.history.pushState({ [ENTRY]: position }, "", url);
+                  }
 
                   if (top) {
                     top = false;
@@ -214,13 +276,48 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
               }
             })
           : Effect.gen(function* () {
+              const arrived = new URL(event.href);
+              let destination = arrived;
+
+              // Asked first. Not for a move that stays on the application's own URL (a `#fragment` entry fires popstate too): nothing leaves, so nothing can object.
+              if (options.guard !== undefined && !sameAddress(arrived, last)) {
+                const target = yield* permitted(options.guard, { kind: "popstate", url: arrived }, running.state, win.location.origin);
+
+                if (target === undefined) {
+                  yield* Effect.sync(() => {
+                    const delta = (event.entry ?? 0) - position;
+
+                    if (delta !== 0) {
+                      ignoring += 1;
+                      win.history.go(-delta); // the browser moves back to where the page was; the popstate that causes is the page's own
+                    } else {
+                      position += 1;
+                      win.history.pushState({ [ENTRY]: position }, "", last ?? win.location.href); // an entry this page did not write: stay at the application's URL
+                    }
+                  });
+
+                  return;
+                }
+
+                destination = target;
+              }
+
+              position = event.entry ?? position;
+
+              // A redirect rewrites the entry the browser moved to, so the address bar holds the address the application is at.
+              if (destination.href !== arrived.href) {
+                const rewritten = destination;
+
+                yield* Effect.sync(() => win.history.replaceState({ [ENTRY]: position }, "", `${rewritten.pathname}${rewritten.search}${rewritten.hash}`));
+              }
+
               // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
               yield* running
-                .invoke(navigateKey, [{ value: options.stateOf(new URL(event.href)) }])
+                .invoke(navigateKey, [{ value: options.stateOf(destination) }])
                 .pipe(Effect.catchAllCause((cause) => Effect.logError("popstate navigation failed", cause)));
               // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
               last = options.urlOf(yield* running.state);
-              yield* announce({ kind: "popstate", url: new URL(event.href) });
+              yield* announce({ kind: "popstate", url: destination });
             })
         ).pipe(
           // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
@@ -230,7 +327,13 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     ).pipe(Effect.forkIn(scope));
 
     const onPopState = (): void => {
-      Queue.unsafeOffer(popped, win.location.href);
+      if (ignoring > 0) {
+        ignoring -= 1;
+
+        return;
+      }
+
+      Queue.unsafeOffer(popped, { href: win.location.href, entry: entryOf(win.history.state) });
     };
 
     win.addEventListener("popstate", onPopState);
@@ -251,7 +354,26 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       arrived = destination;
 
       Effect.runFork(
-        running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(
+        Effect.gen(function* () {
+          // A guard may refuse a link (nothing is invoked, nothing is pushed) or send it elsewhere on this origin. A link to the address already shown has nowhere to leave to.
+          if (options.guard !== undefined && !sameAddress(destination, last)) {
+            const target = yield* permitted(options.guard, { kind: "link", url: destination }, running.state, win.location.origin);
+
+            if (target === undefined) {
+              top = false;
+              arrived = undefined;
+
+              return undefined;
+            }
+
+            arrived = target;
+
+            return target;
+          }
+
+          return destination;
+        }).pipe(
+          Effect.flatMap((target) => (target === undefined ? Effect.void : running.invoke(navigateKey, [{ value: options.stateOf(target) }]))),
           Effect.flatMap(() => running.state),
           // The command is done. If the state's URL is the one already written, no push is coming (or it already happened): nothing is waiting for the top any more.
           Effect.flatMap((state) =>
@@ -353,6 +475,8 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
             stateOf: composed.routes.stateOf,
             navigate: composed.routes.navigate,
             ...(composed.routes.onNavigated === undefined ? {} : { onNavigated: composed.routes.onNavigated }),
+            ...(composed.routes.modeOf === undefined ? {} : { modeOf: composed.routes.modeOf }),
+            ...(composed.routes.guard === undefined ? {} : { guard: composed.routes.guard }),
             ...(composed.head === undefined ? {} : { head: composed.head }),
           };
   const startup = Effect.gen(function* () {

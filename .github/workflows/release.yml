@@ -40,6 +40,7 @@ on:
       - packages/valance/package.json
       - packages/common/package.json
       - packages/cli/package.json
+      - packages/router/package.json
 
 permissions:
   contents: read
@@ -74,6 +75,7 @@ jobs:
           pnpm --filter @valancex/valance pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/common pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/cli pack --pack-destination "$PWD/out"
+          pnpm --filter @valancex/router pack --pack-destination "$PWD/out"
       - uses: actions/upload-artifact@v4
         with:
           name: release-packages
@@ -105,21 +107,21 @@ jobs:
           tag="v${version}"
           echo "TAG=${tag}" >> "$GITHUB_ENV"
           echo "VERSION=${version}" >> "$GITHUB_ENV"
-          for package in common cli; do
+          for package in common cli router; do
             other="$(node -p "require('./packages/${package}/package.json').version")"
             if [ "$other" != "$version" ]; then
-              echo "::error::@valancex/${package} is ${other} but @valancex/valance is ${version}: the three packages share one version"
+              echo "::error::@valancex/${package} is ${other} but @valancex/valance is ${version}: the four packages share one version"
               exit 1
             fi
           done
-          for package in valance common cli; do
+          for package in valance common cli router; do
             if [ ! -f "out/valancex-${package}-${version}.tgz" ]; then
               echo "::error::Expected out/valancex-${package}-${version}.tgz"
               exit 1
             fi
           done
-          if [ "$(ls out/*.tgz | wc -l)" != "3" ]; then
-            echo "::error::Expected exactly three tarballs"
+          if [ "$(ls out/*.tgz | wc -l)" != "4" ]; then
+            echo "::error::Expected exactly four tarballs"
             exit 1
           fi
           if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
@@ -139,15 +141,15 @@ jobs:
             exit 1
           fi
           echo "NOTES=${notes}" >> "$GITHUB_ENV"
-          # The packed ranges between the three must name this version.
-          for package in common cli; do
+          # The packed ranges between the four must name this version.
+          for package in common cli router; do
             tar -xzOf "out/valancex-${package}-${version}.tgz" package/package.json | node -e '
               const manifest = JSON.parse(require("fs").readFileSync(0, "utf8"));
               const bad = Object.entries(manifest.dependencies ?? {}).filter(([name, range]) => name.startsWith("@valancex/") && range.startsWith("workspace:"));
               if (bad.length > 0) { console.error("::error::" + manifest.name + " still has workspace ranges: " + JSON.stringify(bad)); process.exit(1); }
             '
           done
-          for package in valance common cli; do
+          for package in valance common cli router; do
             if npm view "@valancex/${package}@${version}" version > /dev/null 2>&1; then
               if [ "$PUBLISH" = "true" ]; then
                 echo "::error::@valancex/${package}@${version} is already on npm"
@@ -161,7 +163,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
           # Absolute, so npm reads each tarball as a file, not a GitHub spec. In dependency order.
-          for package in valance common cli; do
+          for package in valance common cli router; do
             tarball="$PWD/out/valancex-${package}-${VERSION}.tgz"
             if [ "$PUBLISH" = "true" ]; then
               npm publish "$tarball" --access public --provenance
