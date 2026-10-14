@@ -14,6 +14,11 @@ import { connect } from "./lsp-client";
 
 const valance = resolve(__dirname, "../../../packages/cli/bin/vlx.js");
 const app = resolve(__dirname, "../../../examples/docs-app");
+// The project says where its manifest and wiring are (`editor.json`): a project of two targets has one of each per target, and the editor reads the first.
+const editorJson = (): { readonly model: string; readonly wiring: string } =>
+  JSON.parse(readFileSync(join(app, ".valance/editor.json"), "utf8")) as { readonly model: string; readonly wiring: string };
+const modelOf = (): string => editorJson().model;
+const wiringOf = (): string => editorJson().wiring;
 // The project's own server, as the extension finds it: a dev dependency of the application (examples/docs-app), not of the extension.
 const server = resolve(app, "node_modules/@valancex/mesh-lsp/dist/cli.js");
 
@@ -208,9 +213,9 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     });
     const location = ([] as Array<{ uri: string; range: { start: { line: number } } }>).concat(answer.result ?? [])[0];
 
-    return location === undefined || !location.uri.endsWith("/.valance/manifest.json")
+    return location === undefined || !location.uri.endsWith(`/${modelOf()}`)
       ? undefined
-      : { manifest: readFileSync(join(app, ".valance/manifest.json"), "utf8"), line: location.range.start.line };
+      : { manifest: readFileSync(join(app, modelOf()), "utf8"), line: location.range.start.line };
   };
 
   /** Go to Definition: the one place. */
@@ -233,7 +238,7 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
   };
 
   it("goes in from the layout: the tag to the component's template, its event and prop to where main.ts declares them, the state and the command to main.ts", async () => {
-    const wiring = readWiring(app, ".valance/wiring.json")!;
+    const wiring = readWiring(app, wiringOf())!;
     const declared = wiring.definitions["components/theme-toggle/events/toggle"]!;
     const state = wiring.state.find((each) => each.name === "theme")!.source;
     const command = wiring.commands.find((each) => each.name === "toggleTheme")!.source;
@@ -252,7 +257,7 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
         .split("\n")
         .findIndex((each) => each.includes("<theme-toggle")) + 1;
 
-    const wiring = readWiring(app, ".valance/wiring.json")!;
+    const wiring = readWiring(app, wiringOf())!;
     const declared = wiring.tree!.find((each) => each.name === "theme-toggle")!.declared!;
     const event = wiring.definitions["components/theme-toggle/events/toggle"]!;
 
@@ -277,13 +282,13 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
   });
 
   it("puts the other end beside each end", () => {
-    const wiring = readWiring(app, ".valance/wiring.json")!;
+    const wiring = readWiring(app, wiringOf())!;
     const titles = (file: string): ReadonlyArray<string> => lensesFor(wiring, file).map((lens) => lens.title);
 
     expect(titles("src/layout.mprx")).toEqual([
       "→ theme-toggle.mprx  ·  theme ← {theme}  ·  on toggle ⇒ toggleTheme()",
       "→ blocks.mprx  ·  items ← {blocks}",
-      "the application's layout  ·  declared in main.ts:9",
+      "the application's layout  ·  declared in main.ts:11",
     ]);
     expect(titles("src/theme-toggle.mprx")).toEqual([
       "in layout  ·  declared in theme-toggle.ts:7  ·  used in layout.mprx:4",

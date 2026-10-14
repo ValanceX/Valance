@@ -118,7 +118,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     }
   };
 
-  const manifestFile = (): string => join(root!, ".valance", "manifest.json");
+  // The manifest the project's `editor.json` names (`manifest.json` for a project of one target, the first target's `manifest.<id>.json` for one of several).
+  let modelFile = ".valance/manifest.json";
+  const manifestFile = (): string => join(root!, modelFile);
 
   /** The lines of manifest.json that a definition answer points into. */
   const manifestLines = (answer: unknown): ReadonlyArray<number> => {
@@ -170,6 +172,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
     known = new Set(Object.keys(project.settings.components));
     wiringFile = project.wiring;
+    modelFile = project.settings.model;
 
     // A project built by an older `vlx` has no wiring data. Everything else works; say what does not, and why.
     const working: "ready" | "partial" = readWiring(root, project.wiring) === undefined ? "partial" : "ready";
@@ -399,7 +402,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   };
   // The files themselves, however they change: this window, another program, a `git checkout`. Not `.valance/` (`affectsProject`), which the run itself writes.
   const sources = vscode.workspace.createFileSystemWatcher("**/*.{md,mprx,ts,json}");
-  const wiringWatcher = vscode.workspace.createFileSystemWatcher("**/.valance/wiring.json");
+  const wiringWatcher = vscode.workspace.createFileSystemWatcher("**/.valance/wiring*.json");
   // `import layout from "./layout.mprx"`: TypeScript resolves the specifier to its ambient declaration, so the specifier is made a link to the template itself.
   const importLinks: vscode.DocumentLinkProvider = {
     provideDocumentLinks: (document) =>
