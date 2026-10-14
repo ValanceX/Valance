@@ -101,7 +101,7 @@ describe("navigation on a target that is not the web", () => {
     const other = content.pages.find((page) => page.path !== "/");
 
     expect(other).toBeDefined();
-    await Effect.runPromise(handle.invoke("app/go", [{ value: table.stateOf(new URL(other!.path, "http://app.invalid/")).id }] as never));
+    await Effect.runPromise(handle.invoke("app/go", [{ value: (table.stateOf(new URL(other!.path, "http://app.invalid/")) as { readonly id: string }).id }] as never));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(await Effect.runPromise(handle.state)).toMatchObject({ page: other!.path });
     expect(target!.screen()).toContain(other!.title);
