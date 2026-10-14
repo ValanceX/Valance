@@ -4,7 +4,7 @@ Written 2026-10-14. The gaps are the 13 in [MULTI-TARGET.md](./MULTI-TARGET.md).
 
 ## 1. The standards the plan is held to
 
-**The ecosystem's own** ([API Design Principles](../../../Mesh/docs/standards/api-design-principles.md), adopted 2026-10-09). The ones that decide this plan:
+**The ecosystem's own** ([API Design Principles](https://github.com/ValanceX/Mesh/blob/main/docs/standards/api-design-principles.md), adopted 2026-10-09). The ones that decide this plan:
 
 | § | Rule | What it decides here |
 |---|---|---|
