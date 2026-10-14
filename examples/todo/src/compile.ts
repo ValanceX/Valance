@@ -5,9 +5,9 @@ import { readFileSync } from "node:fs";
 import type { Programs } from "./app.js";
 import { manifest, SCREENS } from "./vocabulary.js";
 
-const read = (name: string): string => readFileSync(new URL(`./screens/${name}.mprx`, import.meta.url), "utf8");
+export const compilePrograms = async (screens: URL = new URL("./screens/", import.meta.url)): Promise<Programs> => {
+  const read = (name: string): string => readFileSync(new URL(`${name}.mprx`, screens), "utf8");
 
-export const compilePrograms = async (): Promise<Programs> => {
   const entries = await Promise.all(
     SCREENS.map(async (screen) => {
       const result = await compileProgram({
