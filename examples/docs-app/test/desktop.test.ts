@@ -41,7 +41,7 @@ describe("the documentation site in a window", () => {
 
       child.stdin.write(`${JSON.stringify({ op: "link", href: "/guide/getting-started" })}\n`);
       await until(() => seen.some((message) => message.op === "title" && String(message["title"]).startsWith("Getting started")));
-      expect(seen.findLast((message) => message.op === "title")).toMatchObject({ title: "Getting started · Notes" });
+      expect([...seen].reverse().find((message) => message.op === "title")).toMatchObject({ title: "Getting started · Notes" });
     } finally {
       child.stdin.write('{"op":"close"}\n');
       await new Promise((resolve) => child.on("exit", resolve));
