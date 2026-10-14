@@ -1,0 +1,125 @@
+diff --git a/examples/todo-multi/src/desktop/layout.mprx b/examples/todo-multi/src/desktop/layout.mprx
+index da889d0..866de38 100644
+--- a/examples/todo-multi/src/desktop/layout.mprx
++++ b/examples/todo-multi/src/desktop/layout.mprx
+@@ -19,11 +19,7 @@
+     <text>{summary}</text>
+     <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
+     {#each items as it (it.id)}
+-      <row>
+-        <checkbox label="Done" checked={it.done} on.change={setDone(it.id, $event)} />
+-        <text>{it.title}</text>
+-        <button on.click={removeItem(it.id)}>Remove</button>
+-      </row>
++      <todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} />
+     {/each}
+     <button on.click={clearDone()}>Clear done</button>
+   </column>
+diff --git a/examples/todo-multi/src/main.ts b/examples/todo-multi/src/main.ts
+index 78eab52..566b269 100644
+--- a/examples/todo-multi/src/main.ts
++++ b/examples/todo-multi/src/main.ts
+@@ -3,6 +3,7 @@ import { Schema } from "effect";
+ import desktopLayout from "./desktop/layout.mprx";
+ import themeToggle from "./web/theme-toggle.js";
+ import todoAdd from "./shared/todo-add.js";
++import todoItem from "./shared/todo-item.js";
+ import webLayout from "./web/layout.mprx";
+ 
+ const Item = Schema.Struct({ id: Schema.String, title: Schema.String, done: Schema.Boolean });
+@@ -39,7 +40,7 @@ export default defineApp({
+     toggleNavigation: command((state) => ({ ...state, navigation: !state.navigation })),
+   }),
+   targets: {
+-    web: { layout: component(webLayout), components: [themeToggle, todoAdd] },
+-    desktop: { layout: component(desktopLayout), components: [todoAdd] },
++    web: { layout: component(webLayout), components: [themeToggle, todoAdd, todoItem] },
++    desktop: { layout: component(desktopLayout), components: [todoAdd, todoItem] },
+   },
+ });
+diff --git a/examples/todo-multi/src/shared/todo-item.mprx b/examples/todo-multi/src/shared/todo-item.mprx
+new file mode 100644
+index 0000000..a6ccda7
+--- /dev/null
++++ b/examples/todo-multi/src/shared/todo-item.mprx
+@@ -0,0 +1,5 @@
++<row>
++  <checkbox label="Done" checked={done} on.change={tick($event)} />
++  <text>{title}</text>
++  <button on.click={remove()}>Remove</button>
++</row>
+diff --git a/examples/todo-multi/src/shared/todo-item.ts b/examples/todo-multi/src/shared/todo-item.ts
+new file mode 100644
+index 0000000..ffc1310
+--- /dev/null
++++ b/examples/todo-multi/src/shared/todo-item.ts
+@@ -0,0 +1,9 @@
++import { component } from "@valancex/common";
++import { Schema } from "effect";
++import template from "./todo-item.mprx";
++
++// An item's row, written once: a checkbox, its text and a button, all of the portable core.
++export default component(template, {
++  props: { title: Schema.String, done: Schema.Boolean },
++  events: { tick: Schema.Boolean, remove: Schema.Void },
++});
+diff --git a/examples/todo-multi/src/web/layout.mprx b/examples/todo-multi/src/web/layout.mprx
+index 4a64d18..bbffcff 100644
+--- a/examples/todo-multi/src/web/layout.mprx
++++ b/examples/todo-multi/src/web/layout.mprx
+@@ -24,11 +24,7 @@
+         <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
+         <list class="todo-list">
+           {#each items as it (it.id)}
+-            <item>
+-              <checkbox type="checkbox" label="Done" checked={it.done} on.change={setDone(it.id, $event)} />
+-              <span class="todo-text">{it.title}</span>
+-              <button class="todo-button" pressed="false" on.click={removeItem(it.id)}>Remove</button>
+-            </item>
++            <item><todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} /></item>
+           {/each}
+         </list>
+         <button class="todo-button" pressed="false" on.click={clearDone()}>Clear done</button>
+diff --git a/packages/common/src/primitives.ts b/packages/common/src/primitives.ts
+index 5114775..15680d4 100644
+--- a/packages/common/src/primitives.ts
++++ b/packages/common/src/primitives.ts
+@@ -45,10 +45,11 @@ export const primitives: Web.WebPrimitives = {
+   a: { element: "a", props: { href: Web.attribute("href") } },
+   /** A link that is part of the page's furniture (navigation, a brand): it has a class, and says whether it is where you are (`aria-current`: "page" or "false"). */
+   link: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
+-  /** A box to tick, reporting `change` with the new value (a boolean). PORT Web's table cannot give an element a fixed attribute, so a template says `type="checkbox"` itself. */
++  /** A box to tick, reporting `change` with the new value (a boolean). It is an `<input type="checkbox">` (a constant attribute of the primitive), and `checked` is live and server-rendered (`controlledBoolean`). */
+   checkbox: {
+     element: "input",
+-    props: { type: Web.attribute("type"), checked: Web.property("checked", "boolean"), label },
++    attributes: { type: "checkbox" },
++    props: { checked: Web.controlledBoolean("checked"), label },
+     events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) },
+   },
+   /** A text field, reporting `change` with the new text (a string); the field shows what the state says. */
+diff --git a/packages/valance/src/web-manifest.ts b/packages/valance/src/web-manifest.ts
+index e712415..6152237 100644
+--- a/packages/valance/src/web-manifest.ts
++++ b/packages/valance/src/web-manifest.ts
+@@ -157,6 +157,7 @@ const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["pr
+     case "text-property":
+       return { type: { kind: "string" }, required: true };
+     case "boolean-attribute":
++    case "controlled-boolean":
+       return { type: { kind: "boolean" }, required: false };
+     case "property":
+       return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };
+diff --git a/packages/valance/src/web.ts b/packages/valance/src/web.ts
+index c2b32e1..2112572 100644
+--- a/packages/valance/src/web.ts
++++ b/packages/valance/src/web.ts
+@@ -16,7 +16,7 @@ import type { GuardResult, HeadTags, Navigation, Plugin } from "./web-plugin.js"
+ import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
+ 
+ export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
+-export { attribute, booleanAttribute, controlled, property, textProperty } from "@valancex/port-web";
++export { attribute, booleanAttribute, controlled, controlledBoolean, property, textProperty } from "@valancex/port-web";
+ export { event } from "./web-payload.js";
+ export type { PayloadKind } from "./web-payload.js";
+ export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";
