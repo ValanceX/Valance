@@ -4,7 +4,7 @@
 
 What it contributes: the `mprx` language (the TextMate grammar and bracket rules are MESH's, `Mesh/editors/vscode`; this extension ships an identical copy until MESH publishes its own, `pnpm sync-grammar`); schema validation for `valance.json` and `valance.web.json`; the MESH language server (`mesh-lsp`) for `.mprx` files, started with the settings the project generated in `.valance/editor.json`; `vlx check --json` diagnostics for Markdown, config and `src/main.ts`; go to definition from a tag to its template.
 
-It needs, in the project: `@valancex/cli` (for `valance`) and `@valancex/mesh-lsp` as a **dev dependency** (the server, in the version of the project's MESH), and one run of `vlx dev|build|check` so `.valance/editor.json` exists.
+It needs, in the project: `@valancex/cli` (for `valance`) and `@valancex/mesh-lsp` as a **dev dependency** (the server, in the version of the project's MESH), installed (`npm install`). Nothing has to be run by hand: the extension runs the project's own `vlx check` when the window opens and whenever a Markdown, template, TypeScript or JSON file in the project is saved, created, changed or deleted (including by another program or a `git checkout`), one run at a time, and tells the language server when it finishes. Unsaved edits are not seen by `vlx check`, which reads files from disk.
 
 ```console
 $ pnpm install

@@ -20,13 +20,19 @@ importers:
 
   examples/docs-app:
     dependencies:
-      '@valancex/cli':
+      '@valancex/common':
         specifier: workspace:*
-        version: link:../../packages/cli
+        version: link:../../packages/common
+      effect:
+        specifier: ^3.10.0
+        version: 3.22.2
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      '@valancex/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@valancex/mesh-lsp':
         specifier: 0.11.0
         version: 0.11.0
@@ -125,17 +131,14 @@ importers:
 
   packages/cli:
     dependencies:
+      '@valancex/common':
+        specifier: workspace:^
+        version: link:../common
       '@valancex/mesh-compiler':
         specifier: ^0.11.0
         version: 0.11.0
-      '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@valancex/port-web':
-        specifier: ^0.4.0
-        version: 0.4.0(@valancex/mesh-runtime@0.11.0)
       '@valancex/valance':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../valance
       effect:
         specifier: ^3.10.0
@@ -162,6 +165,31 @@ importers:
       playwright:
         specifier: 1.56.1
         version: 1.56.1
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+
+  packages/common:
+    dependencies:
+      '@valancex/mesh-runtime':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@valancex/port-web':
+        specifier: ^0.4.0
+        version: 0.4.0(@valancex/mesh-runtime@0.11.0)
+      '@valancex/valance':
+        specifier: workspace:^
+        version: link:../valance
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      effect:
+        specifier: ^3.10.0
+        version: 3.22.2
       typescript:
         specifier: ^5.6.0
         version: 5.9.3

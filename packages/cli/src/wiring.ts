@@ -4,9 +4,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { ownNames } from "./app.js";
+import { ownNames } from "@valancex/common/internal";
 import type { Compiled } from "./compile.js";
-import type { DefinedApp } from "./index.js";
+import type { DefinedApp } from "@valancex/common";
 import { ENTRY_FILE } from "./project.js";
 import type { Place } from "./tree.js";
 import { declarationsOf, placeIn } from "./tree.js";

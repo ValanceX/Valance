@@ -1,4 +1,5 @@
-import { component, Schema } from "@valancex/cli";
+import { component } from "@valancex/common";
+import { Schema } from "effect";
 import template from "./theme-toggle.mprx";
 
 // The interface of `<theme-toggle>`, stated once, where it is defined: what the template reads (`theme`) and what it raises (`toggle`, which carries nothing). Whoever uses it names only that

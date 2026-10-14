@@ -352,7 +352,7 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
         assert.match(note.message, /vlx check/);
 
         // Use it in the layout and save: the check rebuilds the project, `.valance/editor.json` changes, and the running server is told.
-        // The tree is declared: main.ts imports the template and lists it in the layout's `uses`, and the layout uses it.
+        // main.ts imports the template and registers it in `components`, and the layout writes its tag.
         const { document: mainDocument, editor: mainEditor, original: mainOriginal } = await open("src/main.ts");
 
         mainOriginalText = mainOriginal;
@@ -360,7 +360,7 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
           mainEditor,
           mainOriginal
             .replace('import layout from "./layout.mprx";', 'import layout from "./layout.mprx";\nimport badge from "./badge.mprx";')
-            .replace("uses: [themeToggle]", "uses: [themeToggle, component(badge)]"),
+            .replace("components: [themeToggle]", "components: [themeToggle, component(badge)]"),
         );
 
         const { document: layoutDocument, editor, original } = await open("src/layout.mprx");

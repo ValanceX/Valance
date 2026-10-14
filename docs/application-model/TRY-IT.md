@@ -1,6 +1,6 @@
 # Try it locally
 
-Everything here runs from a clone; nothing is published. You need **Node 22 or newer**, **pnpm 10** (`corepack enable` gives you one), and **git**. Part 3 also needs **VS Code 1.90 or newer**.
+Everything here runs from a clone. (Once `@valancex/cli` is on npm, `npm install -g @valancex/cli` replaces the build and link steps, and `vlx init` installs from the registry.) You need **Node 22 or newer**, **pnpm 10** (`corepack enable` gives you one), and **git**. Part 3 also needs **VS Code 1.90 or newer**.
 
 The package is `@valancex/cli` and the command is `vlx` (like `npx`, `bunx`). A project is a directory with a `valance.json`.
 

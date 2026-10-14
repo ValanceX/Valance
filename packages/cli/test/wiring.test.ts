@@ -9,14 +9,16 @@ import { cleanup, PAGE, project } from "./fixture.js";
 
 afterEach(cleanup);
 
-const MAIN = `import { component, defineApp, field, Schema } from "@valancex/cli";
+const MAIN = `import { component, defineApp, field } from "@valancex/common";
+import { Schema } from "effect";
 import counter from "./counter.mprx";
 import layout from "./layout.mprx";
 
 const counterComponent = component(counter, { props: { n: Schema.Number, label: Schema.String }, events: { bump: Schema.Void } });
 
 export default defineApp({
-  layout: component(layout, { uses: [counterComponent] }),
+  layout: component(layout),
+  components: [counterComponent],
   state: { count: field(Schema.Number, 0) },
   commands: (command) => ({
     bump: command((state) => ({ ...state, count: state.count + 1 })),
@@ -66,8 +68,8 @@ describe("reading a template", () => {
   });
 
   it("finds the key a name is declared with, and says top of file when it cannot", () => {
-    expect(locateKey(MAIN, "count")).toMatchObject({ file: "src/main.ts", line: 9 });
-    expect(locateKey(MAIN, "bump")).toMatchObject({ line: 11 });
+    expect(locateKey(MAIN, "count")).toMatchObject({ file: "src/main.ts", line: 11 });
+    expect(locateKey(MAIN, "bump")).toMatchObject({ line: 13 });
     expect(locateKey(MAIN, "missing")).toMatchObject({ line: 1, column: 1 });
   });
 });
@@ -76,11 +78,11 @@ describe("both ends of each connection", () => {
   it("declares your state and command in src/main.ts, and a component's prop and event where it declares them", async () => {
     const { definitions: at } = await wiringOf();
 
-    expect(at["components/layout/scope/count"]).toMatchObject({ file: "src/main.ts", line: 9 });
-    expect(at["components/layout/commands/bump"]).toMatchObject({ file: "src/main.ts", line: 11 });
+    expect(at["components/layout/scope/count"]).toMatchObject({ file: "src/main.ts", line: 11 });
+    expect(at["components/layout/commands/bump"]).toMatchObject({ file: "src/main.ts", line: 13 });
     expect(at["components/counter"]).toMatchObject({ file: "src/counter.mprx", line: 1 });
-    expect(at["components/counter/props/n"]).toMatchObject({ file: "src/main.ts", line: 5 });
-    expect(at["components/counter/events/bump"]).toMatchObject({ file: "src/main.ts", line: 5 });
+    expect(at["components/counter/props/n"]).toMatchObject({ file: "src/main.ts", line: 6 });
+    expect(at["components/counter/events/bump"]).toMatchObject({ file: "src/main.ts", line: 6 });
     expect(at["components/counter/events/bump"]!.column).toBeGreaterThan(at["components/counter/props/n"]!.column); // the words in the list, not the start of the call
   });
 
@@ -104,7 +106,7 @@ describe("both ends of each connection", () => {
       {
         name: "bump",
         at: expect.objectContaining({ file: "src/counter.mprx", line: 1 }),
-        declared: expect.objectContaining({ file: "src/main.ts", line: 5 }),
+        declared: expect.objectContaining({ file: "src/main.ts", line: 6 }),
         handledBy: [{ at: expect.objectContaining({ file: "src/layout.mprx", line: 2 }), to: "bump()" }],
       },
     ]);
@@ -125,16 +127,16 @@ describe("both ends of each connection", () => {
         events: [{ name: "bump", to: "bump()", at: { file: "src/layout.mprx", line: 2, column: 37 } }],
       },
     ]);
-    expect(state).toEqual([{ name: "count", source: expect.objectContaining({ line: 9 }), readBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
-    expect(commands).toEqual([{ name: "bump", source: expect.objectContaining({ line: 11 }), runBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
+    expect(state).toEqual([{ name: "count", source: expect.objectContaining({ line: 11 }), readBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
+    expect(commands).toEqual([{ name: "bump", source: expect.objectContaining({ line: 13 }), runBy: [expect.objectContaining({ file: "src/layout.mprx", line: 2 })] }]);
   });
 
   it("records the component tree as declared: who declares each, where, and what it lists", async () => {
     const { tree } = await wiringOf();
 
     expect(tree).toEqual([
-      { name: "layout", file: "src/layout.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 8 }), parents: ["(application)"], uses: ["counter"] },
-      { name: "counter", file: "src/counter.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 5 }), parents: ["layout"], uses: [] },
+      { name: "layout", file: "src/layout.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 9 }), parents: ["(application)"], uses: ["counter"] },
+      { name: "counter", file: "src/counter.mprx", declared: expect.objectContaining({ file: "src/main.ts", line: 6 }), parents: ["layout"], uses: [] },
     ]);
   });
 

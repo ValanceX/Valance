@@ -87,7 +87,9 @@ export const detectPackageManager = (env: NodeJS.ProcessEnv = process.env): Pack
 
 export const runCommand = (manager: PackageManager): string => (manager === "npm" ? "npm run" : manager === "bun" ? "bun run" : manager);
 
-/** What `@valancex/cli` is in the new package.json. A published package is a range; while it is not, the package this command came from, by path (the only place it can be installed from). */
+const inCheckout = (): boolean => (own().dependencies["@valancex/common"] ?? "").startsWith("workspace:");
+
+/** What `@valancex/cli` is in the new package.json. A published package is a range; run from a checkout of the repository, the package this command came from, by path (the only place it can be installed from). */
 export const cliSpec = (manager: PackageManager, given?: string): string => {
   if (given !== undefined) {
     return given;
@@ -95,13 +97,26 @@ export const cliSpec = (manager: PackageManager, given?: string): string => {
 
   const manifest = own();
 
-  if (manifest.private !== true) {
+  // Installed from the registry, a dependency on a sibling is a range; in a checkout of the repository it is still `workspace:`, and the package can only be installed from where it is.
+  if (!inCheckout()) {
     return `^${manifest.version}`;
   }
 
   const path = fileURLToPath(PACKAGE).replace(/[\\/]$/, "");
 
   return `${manager === "pnpm" ? "link" : "file"}:${path}`;
+};
+
+/**
+ * What `@valancex/common` is in the new package.json: the range this package depends on once published; inside the workspace (where that is `workspace:*`) the sibling package, by path, like
+ * `cliSpec`.
+ */
+export const commonSpec = (manager: PackageManager): string => {
+  if (!inCheckout()) {
+    return own().dependencies["@valancex/common"] ?? "*";
+  }
+
+  return `${manager === "pnpm" ? "link" : "file"}:${fileURLToPath(new URL("../common/", PACKAGE)).replace(/[\\/]$/, "")}`;
 };
 
 const mesh = (): string => own().dependencies["@valancex/mesh-compiler"] ?? "^0.11.0";
@@ -164,9 +179,9 @@ export const plan = (answers: Answers): Plan => {
       version: "0.0.0",
       private: true,
       type: "module",
-      scripts: { dev: "vlx dev", build: "vlx build", check: "vlx check", typecheck: "tsc --noEmit" },
-      dependencies: { "@valancex/cli": cliSpec(answers.packageManager, answers.cli) },
-      devDependencies: { "@types/node": "^22.0.0", "@valancex/mesh-lsp": mesh(), typescript: "^5.6.0" },
+      scripts: { dev: "vlx dev", build: "vlx build", check: "vlx check", typecheck: "vlx sync && tsc --noEmit", prepare: "vlx sync" },
+      dependencies: { "@valancex/common": commonSpec(answers.packageManager), effect: own().dependencies["effect"] ?? "^3.10.0" },
+      devDependencies: { "@types/node": "^22.0.0", "@valancex/cli": cliSpec(answers.packageManager, answers.cli), "@valancex/mesh-lsp": mesh(), typescript: "^5.6.0" },
     }),
   );
 

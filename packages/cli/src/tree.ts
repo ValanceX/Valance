@@ -1,11 +1,11 @@
-// The component tree the author declares in `src/main.ts`: `layout` at the top, each component listing the components its template uses. This module reads the declaration and finds where in
-// the file each part is written (for a diagnostic, and for the editor); it does not read templates.
+// The components the author declares in `src/main.ts`: `layout`, the overrides and `components`. This module reads the declaration and finds where in the file each part is written (for a
+// diagnostic, and for the editor); who uses whom is read from the templates (`linked`, with `outline.ts`).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 import type { Schema } from "effect";
 
-import type { Component } from "./index.js";
+import type { Component } from "@valancex/common";
 import { ENTRY_FILE } from "./project.js";
 
 export interface Place {
@@ -19,11 +19,11 @@ export interface Node {
   readonly name: string;
   /** The template, relative to the project. */
   readonly file: string;
-  /** The interface the component declares: present when it declares one (an omitted side is none), absent when its contract is inferred from the template and its uses. */
+  /** The interface the component declares: present when it declares one (an omitted side is none), absent when its contract is inferred from the template and where it is used. */
   readonly interface?: { readonly props: Readonly<Record<string, Schema.Schema<any, any, never>>>; readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>> };
-  /** The tags of the components it declares it uses. */
+  /** The declared components its template writes. */
   readonly uses: ReadonlyArray<string>;
-  /** Who declares it: the components listing it in `uses`; `"(application)"` for the layout and for an override. */
+  /** Who uses it: the components whose templates write its tag; `"(application)"` for the layout and for an override. */
   readonly parents: ReadonlyArray<string>;
 }
 
@@ -31,49 +31,42 @@ export const APPLICATION = "(application)";
 
 export const nameOf = (file: string): string => basename(file, ".mprx");
 
-/** Every component the definition declares, once each by name, starting from `layout` and each `override`. */
-export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<Component>): ReadonlyArray<Node> => {
-  const found = new Map<string, { node: Node; parents: Array<string> }>();
+/** Every component the definition declares, once each by name: `layout`, each `override`, then each of `components`. Who uses whom is read from the templates (`linked`). */
+export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<Component>, components: ReadonlyArray<Component> = []): ReadonlyArray<Node> => {
+  const found = new Map<string, Node>();
 
-  const walk = (declared: Component, parent: string): void => {
+  for (const declared of [...(layout === undefined ? [] : [layout]), ...overrides, ...components]) {
     const name = nameOf(declared.template.mprx);
-    const known = found.get(name);
 
-    if (known !== undefined) {
-      if (!known.parents.includes(parent)) {
-        known.parents.push(parent);
-      }
-      return;
+    if (!found.has(name)) {
+      const contract = declared.props === undefined && declared.events === undefined ? {} : { interface: { props: declared.props ?? {}, events: declared.events ?? {} } };
+
+      found.set(name, { name, file: declared.template.mprx, ...contract, uses: [], parents: [] });
     }
-
-    const entry = { node: undefined as unknown as Node, parents: [parent] };
-
-    found.set(name, entry);
-    const contract = declared.props === undefined && declared.events === undefined ? {} : { interface: { props: declared.props ?? {}, events: declared.events ?? {} } };
-
-    entry.node = {
-      name,
-      file: declared.template.mprx,
-      ...contract,
-      uses: declared.uses.map((each) => nameOf(each.template.mprx)),
-      get parents() {
-        return entry.parents;
-      },
-    };
-
-    for (const child of declared.uses) {
-      walk(child, name);
-    }
-  };
-
-  if (layout !== undefined) {
-    walk(layout, APPLICATION);
-  }
-  for (const each of overrides) {
-    walk(each, APPLICATION);
   }
 
-  return [...found.values()].map((entry) => entry.node);
+  return [...found.values()];
+};
+
+/**
+ * The tree with who uses whom filled in: `usesOf` gives the tags each component's template writes. A component uses the declared components its template writes (not itself); the layout and each
+ * override are also the application's.
+ */
+export const linked = (
+  nodes: ReadonlyArray<Node>,
+  layout: Component | undefined,
+  overrides: ReadonlyArray<Component>,
+  usesOf: (name: string) => ReadonlyArray<string>,
+): ReadonlyArray<Node> => {
+  const declared = new Set(nodes.map((each) => each.name));
+  const uses = new Map(nodes.map((each) => [each.name, usesOf(each.name).filter((tag) => declared.has(tag) && tag !== each.name)] as const));
+  const roots = new Set([...(layout === undefined ? [] : [nameOf(layout.template.mprx)]), ...overrides.map((each) => nameOf(each.template.mprx))]);
+
+  return nodes.map((each) => ({
+    ...each,
+    uses: uses.get(each.name)!,
+    parents: [...(roots.has(each.name) ? [APPLICATION] : []), ...nodes.filter((other) => uses.get(other.name)!.includes(each.name)).map((other) => other.name)],
+  }));
 };
 
 // ---- where it is written ----------------------------------------------------------------------------------------------------------------------------------------

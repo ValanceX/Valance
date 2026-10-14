@@ -1,26 +1,31 @@
 # @valancex/cli
 
-> **Provisional and unpublished.** The name, the conventions and the `defineApp` API are this cycle's proposal (see [`docs/application-model/`](../../docs/application-model/)). Use it inside this workspace; it is not on npm.
+> **Pre-1.0.** Like VALANCE itself, the commands and conventions may change between minor releases; each change is in the [release notes](../../docs/releases/). The design record is [`docs/application-model/`](../../docs/application-model/).
 
-The VALANCE application model and the commands that run it: you write **content**, a **layout**, **components** and **styles**; `vlx dev` serves them as you edit and `vlx build` produces a website. You do not write a compiler step, a manifest, a server, a hydration script or a bundler config.
+`vlx` is the way into VALANCE: it makes an application, serves it as you edit, builds it, checks it and adds to it. The application model it runs: you write **content**, a **layout**, **components** and **styles**; `vlx dev` serves them as you edit and `vlx build` produces a website. You do not write a compiler step, a manifest, a server, a hydration script or a bundler config.
 
 ```console
 $ vlx init my-app --web   # make a new application (asks what you leave out)
 $ vlx dev       # serve the project, rebuild as files change
 $ vlx build     # write the site to dist/
 $ vlx check     # find mistakes in your files without building (--json for tools)
+$ vlx generate component post-card    # add a component (or: generate page guide/intro)
+$ vlx sync      # refresh the generated files (it runs by itself; rarely typed)
+$ vlx help      # every command; `vlx help <command>` says more
 ```
+
+The code an application's `src/main.ts` imports (`defineApp`, `component`, `field`) is a separate package, [`@valancex/common`](../common), which also holds the runtime a built application runs: the command line builds your application and is not part of it, so a project has `@valancex/cli` as a dev dependency.
 
 ## Install `vlx` once, use it everywhere
 
-`vlx` is a global command, like Angular's `ng`. Once `@valancex/cli` is published:
+`vlx` is a global command, like Angular's `ng`:
 
 ```console
 $ npm install -g @valancex/cli      # or: pnpm add -g @valancex/cli
 $ vlx --version
 ```
 
-Until then, link this package from a clone (after `pnpm install && pnpm build`):
+From a clone of this repository instead (after `pnpm install && pnpm build`):
 
 ```console
 $ cd packages/cli
@@ -47,7 +52,7 @@ In a terminal it asks (Ink), skipping whatever a flag already answered:
 3. **web settings**: the base path (`/`, or `/docs/`) and where it will be published (optional; adds canonical links and a sitemap)
 4. **the package manager** (npm, pnpm, yarn or bun; the one that ran `vlx` is preselected), whether to **install** the dependencies, and whether to **make a git repository**
 
-Then it writes the project (the same files as `examples/docs-app`: a layout, a component with its stated contract, a stylesheet, two pages, typed template imports configured in `tsconfig.json`), installs, runs `git init`, and prints what to type next. An install that fails (no network, a package that is not published yet) is a note, not an error: the project is written and the next step says what to run.
+Then it writes the project (the same files as `examples/docs-app`: a layout, a component with its stated contract, a stylesheet, two pages, typed template imports configured in `tsconfig.json`), installs, runs `git init`, and prints what to type next. The project depends on `@valancex/common` and `effect` (what `src/main.ts` imports) and has `@valancex/cli` as a dev dependency. An install that fails (no network) is a note, not an error: the project is written and the next step says what to run.
 
 | Option | |
 |---|---|
@@ -56,10 +61,19 @@ Then it writes the project (the same files as `examples/docs-app`: a layout, a c
 | `--pm <npm\|pnpm\|yarn\|bun>` | the package manager |
 | `--no-install`, `--no-git` | skip those steps |
 | `--base <path>`, `--url <address>` | the web target's settings |
-| `--cli <spec>` | what to write for `@valancex/cli` in `package.json` (default: `^<version>` once published; until then the path of this package) |
+| `--cli <spec>` | what to write for `@valancex/cli` in `package.json` (default: `^<version>`; from a clone of this repository, the path of this package) |
 | `--plain` | no interface: plain text and never a question |
 
 Without a terminal (a pipe, CI) it cannot ask, so it needs a name and a target: `vlx init my-app --web`.
+
+## Adding to an application: `vlx generate`
+
+```console
+$ vlx generate page guide/getting-started   # content/guide/getting-started.md, with its front matter
+$ vlx generate component post-card          # src/post-card.mprx and src/post-card.ts, registered in src/main.ts
+```
+
+`g` is short for `generate`. Nothing is overwritten: a name that is taken is refused. A component is made with a stated, empty contract (`props: {}`, `events: {}`) and a template that places its children (`<mesh-slot />`); it is imported in `src/main.ts` and listed in `components` (a `src/main.ts` that is not there is made). If `src/main.ts` is not written in the plain form `defineApp({ … })` the command cannot edit it, leaves it alone, and says what to add. Write `<post-card></post-card>` in a template to use the component: until a template writes its tag it is not part of the program.
 
 ## What the terminal shows
 
@@ -89,9 +103,9 @@ That is a complete application. It uses a built-in layout. Everything below is h
 | `content/**/*.md` | The pages. A file's path is its address. | you |
 | `public/**` | Files served as they are (`public/logo.svg` is `/logo.svg`). | you |
 | `src/layout.mprx` | The shell around every page. Optional: without a `layout` in `src/main.ts` a default ships. | you |
-| `src/*.mprx` | Your components, each named by its file (`src/callout.mprx` is `<callout>`). Each is imported and declared in `src/main.ts`; a file nothing declares is an error. | you |
+| `src/*.mprx` | Your components, each named by its file (`src/callout.mprx` is `<callout>`). Each is imported and registered in `src/main.ts`; a file nothing registers is an error. | you |
 | `src/**/*.css` | Styles. Every stylesheet is loaded. | you |
-| `src/main.ts` | Optional until you own a template. `defineApp`: the component tree (`layout` and what it uses), state of your own and the commands that change it. | you |
+| `src/main.ts` | Optional until you own a template. `defineApp`: the `layout`, your `components`, state of your own and the commands that change it. | you |
 | `.valance/` | Generated: content, compiled templates, the entries, and for editors `manifest.json` (what a template may use) and `editor.json` (which file is which component). Git-ignored by a `.gitignore` inside it. | the tools |
 | `dist/` | The built site. | the tools |
 
@@ -130,24 +144,26 @@ Templates are MPRX. Conditional and repeated parts are blocks: `{#if cond}…{:e
 
 Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `para`, `quote`, `list`, `olist`, `item`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
 
-## The component tree
+## The components
 
-Your application is the tree you declare in `src/main.ts`, from `layout` down. Nothing under `src/` is part of it by being there.
+Your application is the layout and the components you register in `src/main.ts`. Nothing under `src/` is part of it by being there.
 
 ```ts
 // src/main.ts
-import { component, defineApp } from "@valancex/cli";
+import { component, defineApp } from "@valancex/common";
 import layout from "./layout.mprx";
 import themeToggle from "./theme-toggle.js";
 
 export default defineApp({
-  layout: component(layout, { uses: [themeToggle] }),
+  layout: component(layout),
+  components: [themeToggle],
 });
 ```
 
 ```ts
 // src/theme-toggle.ts: the component states its own interface, where it is defined
-import { component, Schema } from "@valancex/cli";
+import { component } from "@valancex/common";
+import { Schema } from "effect";
 import template from "./theme-toggle.mprx";
 
 export default component(template, {
@@ -156,30 +172,50 @@ export default component(template, {
 });
 ```
 
-- `import x from "./x.mprx"` names a template file; `component(x, …)` declares it. The tag is the file's name (`theme-toggle.mprx` is `<theme-toggle>`).
-- `uses` lists the components *its template* uses, and only those. A tag used but not listed is an error at the tag (`component-undeclared`); one listed but not used is an error at the declaration (`component-unused`). A file under `src/` that no declaration reaches is an error (`template-unused`). Using a component names it and nothing else: its interface is stated where it is defined.
-- **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and its uses. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`, and props have no defaults. A schema with no MESH type is a diagnostic at the declaration (`component-schema`). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
-- A component used in several places is one declaration you pass to each `uses`; it may live in any file under `src/` you import.
+- `import x from "./x.mprx"` names a template file; `component(x, …)` defines it. The tag is the file's name (`theme-toggle.mprx` is `<theme-toggle>`). Register it once, in `components`.
+- **Which components a template uses is read from the template.** Write `<theme-toggle … />` in the layout (or in another component) and it is used; there is no list of uses to keep in step. A registered component no template writes yet is not part of the program, and is not an error. A file under `src/` that is not registered is an error (`template-unused`).
+- **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and where it is used. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`, and props have no defaults. A schema with no MESH type is a diagnostic at the declaration (`component-schema`). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
 - `override: [component(runs, { props: { spans: … } })]` replaces a built-in (`runs`, `heading`, …) with your template of the same name.
 - `layout` is optional; without it the built-in layout draws the page. Its template must be named `layout.mprx`.
 
+### Children and slots
+
+A component places the content its caller writes inside it with `<mesh-slot />`, and may name several places:
+
+```
+<!-- src/card.mprx -->
+<div class="card">
+  <mesh-slot name="head" />
+  <mesh-slot />
+</div>
+
+<!-- where it is used -->
+<card>
+  <mesh-fill slot="head"><para class="title">Title</para></mesh-fill>
+  <para class="body">The body goes to the unnamed slot.</para>
+</card>
+```
+
+The children are the caller's: `{x}` in them is the caller's `x`, never the card's. `vlx generate component` writes the single, unnamed slot for you. The rules (where a slot may be, what a fill is, the errors) are in MESH's [templates manual](https://github.com/ValanceX/Mesh/blob/main/docs/manual/templates.md#children-and-the-slot).
+
 ### Typed template imports
 
-`vlx check`, `dev` and `build` write `.valance/types/<template>.d.mprx.ts`, so a component's declaration is checked against the names its template uses: `component(template, { props: { thme: … } })` is a compile-time error. This needs two options in your `tsconfig.json`:
+`vlx sync` (and `check`, `dev` and `build`) write `.valance/types/<template>.d.mprx.ts`, so a component's declaration is checked against the names its template uses: `component(template, { props: { thme: … } })` is a compile-time error. This needs two options in your `tsconfig.json`:
 
 ```json
 { "compilerOptions": { "allowArbitraryExtensions": true, "rootDirs": ["src", ".valance/types"] } }
 ```
 
-Without them the import is untyped and nothing else changes. The types are regenerated by `check`, `dev` and `build`, so they are stale until the next one. Not covered: value-level agreement between a template and its component, literal values, exposing derived values, and props or events nothing uses.
+Without them the import is untyped and nothing else changes. The types are regenerated by `vlx sync`, which runs by itself: after `install` (a new project's `prepare` script), after `vlx generate`, and as `dev`, `build` and `check` run; a project's `typecheck` script runs it first. You run it yourself only after changing a template with none of those running (an editor open without `vlx dev`, a template edited in another tool). Not covered: value-level agreement between a template and its component, literal values, exposing derived values, and props or events nothing uses.
 
-The tree is plain data you can read from the top; the compiled program is built from it, and nothing is loaded lazily yet (a page ships one program).
+Nothing is loaded lazily yet (a page ships one program).
 
 ## State and commands
 
 ```ts
 // src/main.ts
-import { defineApp, field, Schema } from "@valancex/cli";
+import { defineApp, field } from "@valancex/common";
+import { Schema } from "effect";
 
 export default defineApp({
   // (and `layout`, if you own one: see above)

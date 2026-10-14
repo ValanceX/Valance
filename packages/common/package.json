@@ -1,0 +1,74 @@
+{
+  "name": "@valancex/common",
+  "version": "0.11.0",
+  "description": "The author's side of a VALANCE application (defineApp, component, field) and the runtime the vlx build runs: the browser and server entries. What src/main.ts imports; @valancex/cli builds what it describes.",
+  "keywords": [
+    "valance",
+    "defineApp",
+    "component"
+  ],
+  "homepage": "https://github.com/ValanceX/Valance/tree/main/packages/common#readme",
+  "bugs": {
+    "url": "https://github.com/ValanceX/Valance/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ValanceX/Valance.git",
+    "directory": "packages/common"
+  },
+  "license": "MIT",
+  "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "types"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "prepack": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@valancex/mesh-runtime": "^0.11.0",
+    "@valancex/port-web": "^0.4.0",
+    "@valancex/valance": "workspace:^"
+  },
+  "peerDependencies": {
+    "effect": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "effect": "^3.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

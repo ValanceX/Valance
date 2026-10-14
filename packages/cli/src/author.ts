@@ -1,11 +1,11 @@
 // Loads `src/main.ts` in Node (through Vite, which understands TypeScript) and checks what it exports.
 import type { ViteDevServer } from "vite";
 
-import { checkDefinition } from "./app.js";
+import { checkDefinition } from "@valancex/common/internal";
 import { AppError, diagnostic } from "./diagnostics.js";
-import type { DefinedApp } from "./index.js";
-import { APP } from "./index.js";
-import { hasEntry } from "./generate.js";
+import type { DefinedApp } from "@valancex/common";
+import { APP } from "@valancex/common";
+import { hasEntry } from "./emit.js";
 import { ENTRY_FILE } from "./project.js";
 
 /** The author's definition, or nothing when there is no `src/main.ts`. A mistake in the file is a diagnostic about the file. */
@@ -27,7 +27,7 @@ export const loadAuthor = async (server: ViteDevServer, root: string): Promise<D
   const definition = loaded["default"] as (DefinedApp & { readonly [APP]?: true }) | undefined;
 
   if (definition === undefined || definition[APP] !== true) {
-    throw new AppError([diagnostic(ENTRY_FILE, 1, "entry-export", `${ENTRY_FILE} must export default defineApp({ … }) from "@valancex/cli"`)]);
+    throw new AppError([diagnostic(ENTRY_FILE, 1, "entry-export", `${ENTRY_FILE} must export default defineApp({ … }) from "@valancex/common"`)]);
   }
 
   try {

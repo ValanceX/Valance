@@ -9,14 +9,16 @@
     "dev": "vlx dev",
     "build": "vlx build",
     "check": "vlx check",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "vlx sync && tsc -p tsconfig.json",
     "test:smoke": "vitest run"
   },
   "dependencies": {
-    "@valancex/cli": "workspace:*"
+    "@valancex/common": "workspace:*",
+    "effect": "^3.10.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@valancex/cli": "workspace:*",
     "@valancex/mesh-lsp": "0.11.0",
     "playwright": "1.56.1",
     "typescript": "^5.6.0",

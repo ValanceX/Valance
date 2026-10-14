@@ -1,5 +1,7 @@
 # Your first application
 
+> This page builds an application from the engines up, with no command line: the route for embedding Valance in an application you already have. To make a site of Markdown pages and components, start with [`vlx init`](../../packages/cli/README.md), which writes the compile step, the manifest and the browser entry you see below for you.
+
 A counter: one view, one number, one command. It runs in a browser page, renders as HTML on a server, and can be driven headless. Install the packages listed in [Installation](../V1_CONTRACT.md#13-installation-and-package-surface). The list includes a few packages VALANCE is built on: a strict package manager needs you to declare them, but nothing on this page requires you to learn them.
 
 ## 1. Describe the view

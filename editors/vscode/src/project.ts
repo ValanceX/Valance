@@ -21,7 +21,7 @@ export interface LspSettings {
 
 export type Readiness =
   | { readonly kind: "ready"; readonly settings: LspSettings; readonly wiring?: string }
-  /** `valance.json` is there but nothing has been generated yet: run `vlx dev`, `build` or `check` once. */
+  /** `valance.json` is there but nothing has been generated (the extension runs `vlx check` to make it, so this is a state to report only when that did not produce it). */
   | { readonly kind: "not-generated" }
   | { readonly kind: "not-a-project" };
 
@@ -124,16 +124,20 @@ export const forWorkspace = (workspace: string, project: string, settings: LspSe
 };
 
 /** What to tell the author when the server is not running, and what to do about it. */
-export const explain = (readiness: Readiness | { readonly kind: "no-server"; readonly path: string } | { readonly kind: "partial" }): string => {
+export const explain = (
+  readiness: Readiness | { readonly kind: "no-server"; readonly path: string } | { readonly kind: "no-cli"; readonly path: string } | { readonly kind: "partial" },
+): string => {
   switch (readiness.kind) {
     case "ready":
       return "Language features are on.";
     case "not-a-project":
       return "No valance.json was found in this folder or the folders below it (three levels). Open the project's folder, or the folder that contains it.";
     case "not-generated":
-      return "The project has not been built yet, so the editor does not know its components. Run `vlx check` (or `vlx dev`) in the project once; this window notices by itself.";
+      return "The project's `vlx check` ran and wrote nothing the editor can read, so it does not know the project's components. Run `vlx check` in the project to see why; this window notices by itself.";
+    case "no-cli":
+      return `The editor runs the project's own \`vlx check\` to learn its components, and it is not installed (${readiness.path}). Install the project's dependencies (\`npm install\`); this window notices by itself.`;
     case "partial":
-      return "The language server is running, but ctrl+click, references and the connection lenses cannot reach your files: this project's .valance/ has no wiring.json, so it was built by an older @valancex/cli (an installed tarball is a frozen copy). Install the CLI by path (npm install -D /path/to/Valance/packages/cli), or repack and reinstall it, then run `vlx check`: this window notices by itself.";
+      return "The language server is running, but ctrl+click, references and the connection lenses cannot reach your files: this project's .valance/ has no wiring.json, so it was built by an older @valancex/cli (an installed tarball is a frozen copy). Install the CLI by path (npm install -D /path/to/Valance/packages/cli), or repack and reinstall it, then reload the window: it runs `vlx check` itself.";
     case "no-server":
       return `The template language server was not found at ${readiness.path}. Install it in the project: npm install -D @valancex/mesh-lsp@0.10.0`;
   }

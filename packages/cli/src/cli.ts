@@ -4,6 +4,9 @@
 //   vlx dev [--port N] [--host H]   serve the project and rebuild it as it changes
 //   vlx build                       write the site to dist/
 //   vlx check [--json]              find mistakes in authored files without building
+//   vlx generate page|component <name>   add a page, or a component registered in src/main.ts (alias: g)
+//   vlx sync                        bring .valance/ (generated types, manifest, entries) up to date; runs by itself after install and generate
+//   vlx help [command]              what a command does
 //
 // In a terminal, `init`, `dev`, `build` and `check` draw an interface (Ink, `ui/`). Anywhere else (a pipe, CI, `--json`, `--plain`) they print the plain text they always have.
 import { readFileSync } from "node:fs";
@@ -12,6 +15,8 @@ import { pathToFileURL } from "node:url";
 import { INIT_HELP, parseInit } from "./args.js";
 import type { InitArgs } from "./args.js";
 import { build } from "./build.js";
+import { generateComponent, generatePage, GenerateError, KINDS } from "./add.js";
+import type { Kind } from "./add.js";
 import { check } from "./check.js";
 import { findRoot } from "./config.js";
 import { localCli } from "./delegate.js";
@@ -23,14 +28,51 @@ import { canAsk, canDraw } from "./tty.js";
 
 const HELP = `vlx <command>
 
-  init [name] [--web]         make a new application (vlx init --help)
-  dev [--port N] [--host H]   serve the project and rebuild it as it changes
-  build                       write the site to dist/
-  check [--json]              find mistakes in your files without building
+  init [name] [--web]              make a new application
+  dev [--port N] [--host H]        serve it and rebuild as it changes
+  build                            write the site to dist/
+  check [--json]                   find mistakes in your files without building
+  generate page|component <name>  add a page, or a component (alias: g)
+  sync                             refresh the generated files (this runs by itself; see vlx help sync)
+  help [command]                   say more about one command
 
 Run it in a project (a directory with a valance.json), or any directory inside one.
 In a terminal the commands draw an interface; --plain (or a pipe, or CI) prints plain text.
 `;
+
+const GENERATE_HELP = `vlx generate <page|component> <name>   (alias: vlx g)
+
+  vlx generate page guide/getting-started   content/guide/getting-started.md, with its front matter
+                                            (--title "Getting started" to say the title)
+  vlx generate component post-card          src/post-card.mprx and src/post-card.ts, imported in
+                                            src/main.ts and listed in its \`components\`. Write
+                                            <post-card></post-card> in a template to use it.
+
+Nothing is overwritten: a name that is taken is refused.
+`;
+
+const COMMAND_HELP: Readonly<Record<string, string>> = {
+  init: INIT_HELP,
+  generate: GENERATE_HELP,
+  g: GENERATE_HELP,
+  dev: "vlx dev [--port N] [--host H]\n\nServe the project and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
+  build: "vlx build\n\nWrite the site to dist/. Any host that serves files can serve it.\n",
+  sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
+  check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
+};
+
+/** Refreshes `.valance/` and says so in a line. Best effort: a mistake in the project is `check`'s to report, and a project with no `valance.json` (the install ran before init finished) is left alone. */
+const sync = async (from: string): Promise<string> => {
+  try {
+    const checked = await check(findRoot(from));
+
+    return checked.diagnostics.length === 0
+      ? "the generated files are up to date"
+      : `the generated files are up to date; ${checked.diagnostics.length} problem${checked.diagnostics.length === 1 ? "" : "s"} in your files (vlx check)`;
+  } catch (error) {
+    return `skipped (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`;
+  }
+};
 
 const option = (args: ReadonlyArray<string>, name: string): string | undefined => {
   const at = args.indexOf(name);
@@ -99,8 +141,22 @@ const runInit = async (args: InitArgs, cwd: string): Promise<number> => {
 export const main = async (args: ReadonlyArray<string>, cwd: string = process.cwd()): Promise<number> => {
   const [command, ...rest] = args;
 
+  // `vlx dev --help` says what dev does and runs nothing (`init` and `generate` answer for themselves below).
+  if (
+    command !== undefined &&
+    command !== "init" &&
+    command !== "generate" &&
+    command !== "g" &&
+    COMMAND_HELP[command] !== undefined &&
+    (rest.includes("--help") || rest.includes("-h"))
+  ) {
+    console.log(COMMAND_HELP[command]);
+
+    return 0;
+  }
+
   // A global `vlx` runs the project's own (see `delegate.ts`).
-  if (command === "dev" || command === "build" || command === "check") {
+  if (command === "dev" || command === "build" || command === "check" || command === "sync" || command === "generate" || command === "g") {
     const local = localCli(cwd);
 
     if (local !== undefined) {
@@ -194,13 +250,79 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         return result.diagnostics.length === 0 ? 0 : 1;
       }
+      case "sync": {
+        const synced = await sync(cwd);
+
+        console.log(synced);
+
+        return 0;
+      }
+      case "generate":
+      case "g": {
+        if (rest.includes("--help") || rest.includes("-h")) {
+          console.log(GENERATE_HELP);
+
+          return 0;
+        }
+
+        const title = option(rest, "--title");
+        const positional = rest.filter((each, at) => !each.startsWith("-") && rest[at - 1] !== "--title");
+        const kind = positional[0] as Kind | undefined;
+
+        if (kind === undefined || !KINDS.includes(kind) || positional[1] === undefined || positional.length > 2) {
+          console.error(`vlx generate: say what and its name: ${KINDS.map((each) => `vlx generate ${each} <name>`).join(", ")}\n\n${GENERATE_HELP}`);
+
+          return 2;
+        }
+
+        const root = findRoot(cwd);
+
+        try {
+          const made = kind === "page" ? generatePage(root, positional[1], title) : generateComponent(root, positional[1]);
+
+          made.created.forEach((file) => console.log(`vlx generate: created ${file}`));
+          made.changed.forEach((file) => console.log(`vlx generate: changed ${file}`));
+          console.log(`vlx generate: ${await sync(root)}`);
+          made.notes.forEach((note) => console.log(`vlx generate: ${note}`));
+
+          return 0;
+        } catch (error) {
+          if (error instanceof GenerateError) {
+            console.error(`vlx generate: ${error.message}`);
+
+            return 1;
+          }
+
+          throw error;
+        }
+      }
       case "--version":
       case "-v":
         console.log(version());
 
         return 0;
+      case "help": {
+        const about = rest[0];
+
+        if (about === undefined) {
+          console.log(HELP);
+
+          return 0;
+        }
+
+        const text = COMMAND_HELP[about];
+
+        if (text === undefined) {
+          console.error(`vlx help: no command "${about}"\n\n${HELP}`);
+
+          return 2;
+        }
+
+        console.log(text);
+
+        return 0;
+      }
       case undefined:
-      case "help":
       case "--help":
       case "-h":
         console.log(HELP);

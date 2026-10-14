@@ -57,11 +57,6 @@
           "default": "",
           "description": "Path to the mesh-lsp executable. Empty: the one installed in the project (node_modules/.bin/mesh-lsp)."
         },
-        "valance.check.onType": {
-          "type": "boolean",
-          "default": false,
-          "description": "Also run `vlx check` after every change to a Markdown or template file, not only on save."
-        },
         "valance.codeLens": {
           "type": "string",
           "enum": [

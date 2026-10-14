@@ -1,6 +1,6 @@
 # Release set: MESH 0.12.0, NEXUS 0.12.3, PORT Web 0.4.2, VALANCE 0.10.0
 
-Prepared 2026-10-13. Nothing is tagged or published. The earlier set ([`release-set-2026-10.md`](./release-set-2026-10.md): MESH 0.10, PORT 0.4, NEXUS 0.12, VALANCE 0.7, and VALANCE 0.8 and 0.9 with MESH 0.11) is released.
+Prepared 2026-10-13. VALANCE 0.10.0 is published on npm (checked 2026-10-14: `latest`). The earlier set ([`release-set-2026-10.md`](./release-set-2026-10.md): MESH 0.10, PORT 0.4, NEXUS 0.12, VALANCE 0.7, and VALANCE 0.8 and 0.9 with MESH 0.11) is released.
 
 | # | Repository | Version | Kind | Tag | Notes file |
 |---|---|---|---|---|---|
@@ -44,7 +44,7 @@ Every repository's `release.yml` publishes on a pushed `v*` tag, with provenance
 4. Check: a clean project installs `@valancex/valance@0.10.0` with the registry's NEXUS 0.12.3, MESH 0.12 and PORT Web 0.4.2 and resolves one copy of each (`npm ls @valancex/nexus @valancex/mesh-runtime effect`).
 5. Mark the notes "released".
 
-`@valancex/cli` (the `vlx` command) stays private and unpublished: nothing in this set publishes it, and a new application made with `vlx init` points at it by path until it is.
+`@valancex/common` and `@valancex/cli` (the `vlx` command) are not in this set; they are released with VALANCE 0.11.0 ([`release-set-2026-10-c.md`](./release-set-2026-10-c.md)).
 
 ## Gates that were run on the prepared set
 

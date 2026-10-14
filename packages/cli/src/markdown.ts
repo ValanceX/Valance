@@ -7,7 +7,7 @@
 // The dialect is deliberately a subset; the documentation verifier's richer one (tables, callouts, tabs, included snippets) is the path to a fuller one (docs/EXTERNALS.md, X2).
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
-import type { Block, Heading, Item, Span } from "./model.js";
+import type { Block, Heading, Item, Span } from "@valancex/common/internal";
 
 export interface LinkRef {
   readonly href: string;

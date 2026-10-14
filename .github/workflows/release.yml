@@ -1,20 +1,25 @@
 name: Release
 
-# Builds a VALANCE release from its tag and publishes it, as PORT's and
-# MESH's release.yml do: all of CI on the tagged commit, then @valancex/valance
-# packed, published to npm with provenance, and a GitHub release with the
-# tarball and the version's release notes.
+# Builds a VALANCE release from its tag and publishes it, as PORT's and MESH's
+# release.yml do: all of CI on the tagged commit, then the packages packed,
+# published to npm with provenance, and a GitHub release with the tarballs and
+# the version's release notes.
 #
-# - A pushed `v*` tag publishes. Its tag must be `v` + @valancex/valance's
-#   version (packages/valance/package.json). Tagging the release commit is
-#   the maintainer's step.
+# The release is three packages with ONE version, in this order (each depends
+# on the one before): @valancex/valance, @valancex/common (what an
+# application's src/main.ts imports, and the runtime the build runs) and
+# @valancex/cli (the `vlx` command).
+#
+# - A pushed `v*` tag publishes. Its tag must be `v` + the version of all three
+#   packages (packages/*/package.json), which must agree. Tagging the release
+#   commit is the maintainer's step.
 # - A manual run publishes only with `publish` set, and only from a tag;
 #   otherwise it's a dry run: everything but the publishing.
-# - A pull request that changes this workflow or the package's version runs
-#   the dry run, so a release is checked before it is tagged.
+# - A pull request that changes this workflow or a package's version runs the
+#   dry run, so a release is checked before it is tagged.
 #
-# The release notes are docs/releases/vX.Y.Z.md when that file exists (a
-# patch release), and otherwise docs/releases/vX.Y.md.
+# The release notes are docs/releases/vX.Y.Z.md when that file exists (a patch
+# release), and otherwise docs/releases/vX.Y.md.
 #
 # Publishing needs the `NPM_ACCESS_TOKEN` secret: an npm granular access
 # token that can publish to the @valancex organisation. It expires; a
@@ -33,6 +38,8 @@ on:
     paths:
       - .github/workflows/release.yml
       - packages/valance/package.json
+      - packages/common/package.json
+      - packages/cli/package.json
 
 permissions:
   contents: read
@@ -63,10 +70,13 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
           mkdir -p out
+          # `workspace:^` ranges are written as real ones by pack.
           pnpm --filter @valancex/valance pack --pack-destination "$PWD/out"
+          pnpm --filter @valancex/common pack --pack-destination "$PWD/out"
+          pnpm --filter @valancex/cli pack --pack-destination "$PWD/out"
       - uses: actions/upload-artifact@v4
         with:
-          name: release-package
+          name: release-packages
           path: out/
           if-no-files-found: error
 
@@ -86,7 +96,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - uses: actions/download-artifact@v4
         with:
-          name: release-package
+          name: release-packages
           path: out
       - name: Check what is being released
         run: |
@@ -94,12 +104,26 @@ jobs:
           version="$(node -p 'require("./packages/valance/package.json").version')"
           tag="v${version}"
           echo "TAG=${tag}" >> "$GITHUB_ENV"
-          if [ "$(ls out/*.tgz | wc -l)" != "1" ] || [ ! -f "out/valancex-valance-${version}.tgz" ]; then
-            echo "::error::Expected exactly one tarball, valancex-valance-${version}.tgz"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          for package in common cli; do
+            other="$(node -p "require('./packages/${package}/package.json').version")"
+            if [ "$other" != "$version" ]; then
+              echo "::error::@valancex/${package} is ${other} but @valancex/valance is ${version}: the three packages share one version"
+              exit 1
+            fi
+          done
+          for package in valance common cli; do
+            if [ ! -f "out/valancex-${package}-${version}.tgz" ]; then
+              echo "::error::Expected out/valancex-${package}-${version}.tgz"
+              exit 1
+            fi
+          done
+          if [ "$(ls out/*.tgz | wc -l)" != "3" ]; then
+            echo "::error::Expected exactly three tarballs"
             exit 1
           fi
           if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
-            echo "::error::The tag is ${GITHUB_REF_NAME}, but @valancex/valance is ${version}: tag ${tag}"
+            echo "::error::The tag is ${GITHUB_REF_NAME}, but the packages are ${version}: tag ${tag}"
             exit 1
           fi
           if [ "$PUBLISH" = "true" ] && [ "$GITHUB_REF_TYPE" != "tag" ]; then
@@ -115,24 +139,36 @@ jobs:
             exit 1
           fi
           echo "NOTES=${notes}" >> "$GITHUB_ENV"
-          if npm view "@valancex/valance@${version}" version > /dev/null 2>&1; then
-            if [ "$PUBLISH" = "true" ]; then
-              echo "::error::@valancex/valance@${version} is already on npm"
-              exit 1
+          # The packed ranges between the three must name this version.
+          for package in common cli; do
+            tar -xzOf "out/valancex-${package}-${version}.tgz" package/package.json | node -e '
+              const manifest = JSON.parse(require("fs").readFileSync(0, "utf8"));
+              const bad = Object.entries(manifest.dependencies ?? {}).filter(([name, range]) => name.startsWith("@valancex/") && range.startsWith("workspace:"));
+              if (bad.length > 0) { console.error("::error::" + manifest.name + " still has workspace ranges: " + JSON.stringify(bad)); process.exit(1); }
+            '
+          done
+          for package in valance common cli; do
+            if npm view "@valancex/${package}@${version}" version > /dev/null 2>&1; then
+              if [ "$PUBLISH" = "true" ]; then
+                echo "::error::@valancex/${package}@${version} is already on npm"
+                exit 1
+              fi
+              echo "::warning::@valancex/${package}@${version} is already on npm; a release needs a version bump"
             fi
-            echo "::warning::@valancex/valance@${version} is already on npm; a release needs a version bump"
-          fi
+          done
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
-          # Absolute, so npm reads the tarball as a file, not a GitHub spec.
-          tarball="$PWD/out/valancex-valance-${TAG#v}.tgz"
-          if [ "$PUBLISH" = "true" ]; then
-            npm publish "$tarball" --access public --provenance
-          else
-            npm publish "$tarball" --access public --provenance=false --dry-run
-          fi
+          # Absolute, so npm reads each tarball as a file, not a GitHub spec. In dependency order.
+          for package in valance common cli; do
+            tarball="$PWD/out/valancex-${package}-${VERSION}.tgz"
+            if [ "$PUBLISH" = "true" ]; then
+              npm publish "$tarball" --access public --provenance
+            else
+              npm publish "$tarball" --access public --provenance=false --dry-run
+            fi
+          done
       - name: GitHub release
         if: env.PUBLISH == 'true'
         env:
