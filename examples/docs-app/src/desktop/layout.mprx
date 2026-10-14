@@ -1,0 +1,16 @@
+<column>
+  <link href={home}>{site}</link>
+  {#each sections as s (s.id)}
+    <column>
+      {#if s.title != ""}<text>{s.title}</text>{/if}
+      <list ordered={false}>
+        {#each s.items as n (n.id)}<listitem><link href={n.href}>{n.label}</link></listitem>{/each}
+      </list>
+    </column>
+  {/each}
+  <blocks items={blocks} />
+  <row>
+    {#if prev.href != ""}<link href={prev.href}>{prev.label}</link>{/if}
+    {#if next.href != ""}<link href={next.href}>{next.label}</link>{/if}
+  </row>
+</column>

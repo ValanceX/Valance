@@ -23,7 +23,8 @@ D1, D2 and D3 were decided as recommended below; D4 is decided as "unsigned for 
 | Phase 4 gap 11, packaging | **done for the engine, unsigned**: `vlx package --desktop`; a Linux test runs the packed executable over the wire. Not done: installer formats (MSIX, AppImage or Flatpak, DMG), archives, the macOS leg, signing (D4: until authoring and signing are covered) |
 | Phase 4 gap 12, images | **done for local raster images**: the window decodes PNG, JPEG, GIF, BMP and WebP files and names the image by its `label`; the engine turns a content image's site address (`/dot.png`) into the file of `public/` shipped beside it (`dist/desktop/public/`, and in the package), refusing an address that leaves `public/`; anything else (a network address, SVG, a missing file) is drawn as its description. Not done: SVG, network images (the window fetches nothing), a `public/` of the desktop's own |
 | Phase 4 `Store` (parity #24) | **done**: a `Store` capability (typed keys; values decoded by the Schema the caller states; keys are words, never paths), the web's implementation over `localStorage` (`valance:<name>:<key>`) and the desktop's over a file in the user's data directory (atomic write), and `persist: ["items", "theme"]` in `defineApp` so an author names the fields and the framework loads and saves them. Proved on `todo-multi` in the browser (a reload) and the engine (a restart). D3 settled by it: `navigation` and `entry` are simply not listed. Not done: a store for secrets (a keychain), quotas, migration of a changed field |
-| Phase 4 other rows (Navigation, Open, theme, keyboard), Phase 5 | not done |
+| Phase 5 (a second consumer) | **done**: `examples/docs-app`, the documentation site, is now a two-target project. See "Phase 5: what the second consumer showed" below |
+| Phase 4 other rows (Navigation, Open, theme, keyboard) | not done |
 
 ## 1. The standards the plan is held to
 
@@ -111,6 +112,24 @@ Each is a capability or a tool, in the order the matrix proposed (#17, #24, #16 
 ### Phase 5: validate with a second consumer (§18)
 
 Make `examples/docs-app` (the documentation site) a two-target project, with **no change to its content or state**. If the model is right, that is a layout and a `targets` section, not a rewrite. Then score both consumers with the existing criterion (`COGNITIVE_LOAD.md`: severity 0 to 3, by layer) and record what remains. The plan is finished when `todo-multi` and the docs site each have **no severity 2 or 3 item that is specific to having two targets**.
+
+## Phase 5: what the second consumer showed (2026-10-14)
+
+`examples/docs-app` (a documentation site: Markdown, a layout, a theme toggle) became a project of two targets with **one command**, `vlx generate target desktop`, and **no change to its content, its state, its commands or its web templates**. `vlx check` is clean for both; the built engine draws its pages, titles them as the web does (`Notes`, `Getting started · Notes`) and follows a link by the application's own `go` command (`examples/docs-app/test/desktop.test.ts`); the existing browser tests pass.
+
+Scored with the criterion of `examples/tracer-web/src/docs-benchmark/COGNITIVE_LOAD.md` (0 natural, 1 a small learned thing, 2 a surprise or a workaround, 3 an abstraction failure):
+
+| Step | Severity | Note |
+|---|---|---|
+| Adding the target | **0** | one command; nothing moved; the starting layout is the framework's own (page title, sections, previous and next) |
+| `vlx check` and `vlx build` for both | **0** | no flag needed |
+| The page title and navigation on the window | **0** | the same `go` command and the same title format; a link is an address on both |
+| Writing the desktop layout beyond the starting one | **1** | the web layout's sidebar and theme toggle are not reproduced: they are the web's presentation, and the author writes the desktop's in its own vocabulary |
+| `theme` in the shared state, unused by the desktop | **1** | D3: harmless; `persist` would keep it, which is the author's choice |
+| **The site moved from `dist/` to `dist/web/`** | **2** | the first thing that broke: the browser tests (and so any deploy step) served `dist/`. Gap 7 is real, and it is a surprise at the moment a project gains a target. Recommendation: build every target to `dist/<target>/` from the start, with `dist/` still written for a one-target web project until a breaking release, and say so in `vlx generate target`'s output |
+| The dev test copies the project's files by name | **1** | it did not know the two new settings files; a test written against a one-target project needed `target: "web"` |
+
+No severity 3. The one 2 is the output directory, already gap 7. The plan's success criterion (each consumer has no severity 2 or 3 item that is *specific to having two targets*) is **not yet met for the output directory**; it is for everything else.
 
 ## 4. Decisions
 
