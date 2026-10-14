@@ -133,6 +133,27 @@ describe("the command", () => {
     expect(read(root, "content/x.md")).toContain("title: An X");
   });
 
+  it("syncs by itself after generate: the new component's types are there, with no other command run", async () => {
+    const root = project({ ...BASE, "src/main.ts": MAIN, "src/layout.mprx": '<shell class="x" theme="light"><callout><para class="p">hi</para></callout></shell>' });
+    const { out } = quiet();
+
+    expect(await main(["generate", "component", "callout"], root)).toBe(0);
+    expect(out.mock.calls.flat().join("\n")).toContain("vlx generate: the generated files are up to date");
+    expect(existsSync(join(root, ".valance/types/callout.d.mprx.ts"))).toBe(true);
+  });
+
+  it("`vlx sync` refreshes .valance/, and never fails: a mistake in the project is check's, and no project is nothing to do", async () => {
+    const root = project({ ...BASE, "src/main.ts": MAIN, "src/layout.mprx": "<shell" });
+    const { out } = quiet();
+
+    expect(await main(["sync"], root)).toBe(0);
+    expect(out.mock.calls.flat().join("\n")).toMatch(/up to date; \d+ problems? in your files \(vlx check\)/);
+    expect(existsSync(join(root, ".valance/manifest.json")) || existsSync(join(root, ".valance/content.json"))).toBe(true);
+    out.mockClear();
+    expect(await main(["sync"], join(root, "..", "nowhere-at-all"))).toBe(0);
+    expect(out.mock.calls.flat().join("\n")).toContain("skipped");
+  });
+
   it("answers help for each command, and for one that does not exist", async () => {
     const { out, err } = quiet();
 

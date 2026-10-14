@@ -4,7 +4,7 @@
 
 ## 0.1.0
 
-*Prepared 2026-10-14 (nothing tagged or published).* The first release of both. Release order: `@valancex/valance@0.10.0` first ([release set](./release-set-2026-10-b.md)), since both depend on `^0.10.0`; the workflow refuses to publish before it is on the registry.
+*Prepared 2026-10-14 (nothing tagged or published).* The first release of both. They depend on `@valancex/valance@^0.10.0`, which is on the registry; the workflow checks that again before it publishes. Installed with the registry's `@valancex/valance@0.10.0`, a new project passes `vlx check`, `vlx build` and `tsc --noEmit`.
 
 ### What it is
 
@@ -22,6 +22,7 @@ The authoring API moved out of the command-line package. An application's `src/m
 
 ### New commands
 
+- **The generated files keep themselves up to date.** `vlx sync` brings `.valance/` (the template types, the manifest, the entries) up to date and never fails. A new project runs it by itself after install (its `prepare` script) and before `typecheck`; `vlx generate` runs it after it writes; `dev`, `build` and `check` already did. Before, the types were stale, and `tsc` and the editor wrong, until one of those was run by hand.
 - `vlx generate page <path>` and `vlx generate component <name>` (alias `g`): add a Markdown page, or a component (`src/<name>.mprx`, `src/<name>.ts`) imported and registered in `src/main.ts`. Nothing is overwritten.
 - `vlx help [command]`, and `--help` for every command.
 - `vlx init` now writes a `tsconfig.json` (it documented one and did not write it), so typed template imports and `typecheck` work in a new project.

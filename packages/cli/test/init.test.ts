@@ -153,7 +153,7 @@ describe("the scaffold", () => {
     const manifest = JSON.parse(readFileSync(join(dir, "my-notes", "package.json"), "utf8")) as Record<string, any>;
 
     expect(manifest["name"]).toBe("my-notes");
-    expect(manifest["scripts"]).toMatchObject({ dev: "vlx dev", build: "vlx build", check: "vlx check" });
+    expect(manifest["scripts"]).toMatchObject({ dev: "vlx dev", build: "vlx build", check: "vlx check", prepare: "vlx sync", typecheck: "vlx sync && tsc --noEmit" });
     expect(manifest["dependencies"]).toMatchObject({ effect: expect.stringMatching(/^\^\d/) });
     expect(Object.keys(manifest["dependencies"]).sort()).toEqual(["@valancex/common", "effect"]);
     expect(manifest["devDependencies"]["@valancex/cli"]).toBe("^1.2.3");

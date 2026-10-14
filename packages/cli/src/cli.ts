@@ -5,6 +5,7 @@
 //   vlx build                       write the site to dist/
 //   vlx check [--json]              find mistakes in authored files without building
 //   vlx generate page|component <name>   add a page, or a component registered in src/main.ts (alias: g)
+//   vlx sync                        bring .valance/ (generated types, manifest, entries) up to date; runs by itself after install and generate
 //   vlx help [command]              what a command does
 //
 // In a terminal, `init`, `dev`, `build` and `check` draw an interface (Ink, `ui/`). Anywhere else (a pipe, CI, `--json`, `--plain`) they print the plain text they always have.
@@ -32,6 +33,7 @@ const HELP = `vlx <command>
   build                            write the site to dist/
   check [--json]                   find mistakes in your files without building
   generate page|component <name>  add a page, or a component (alias: g)
+  sync                             refresh the generated files (this runs by itself; see vlx help sync)
   help [command]                   say more about one command
 
 Run it in a project (a directory with a valance.json), or any directory inside one.
@@ -55,7 +57,21 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   g: GENERATE_HELP,
   dev: "vlx dev [--port N] [--host H]\n\nServe the project and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
   build: "vlx build\n\nWrite the site to dist/. Any host that serves files can serve it.\n",
+  sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
   check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
+};
+
+/** Refreshes `.valance/` and says so in a line. Best effort: a mistake in the project is `check`'s to report, and a project with no `valance.json` (the install ran before init finished) is left alone. */
+const sync = async (from: string): Promise<string> => {
+  try {
+    const checked = await check(findRoot(from));
+
+    return checked.diagnostics.length === 0
+      ? "the generated files are up to date"
+      : `the generated files are up to date; ${checked.diagnostics.length} problem${checked.diagnostics.length === 1 ? "" : "s"} in your files (vlx check)`;
+  } catch (error) {
+    return `skipped (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`;
+  }
 };
 
 const option = (args: ReadonlyArray<string>, name: string): string | undefined => {
@@ -140,7 +156,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
   }
 
   // A global `vlx` runs the project's own (see `delegate.ts`).
-  if (command === "dev" || command === "build" || command === "check") {
+  if (command === "dev" || command === "build" || command === "check" || command === "sync" || command === "generate" || command === "g") {
     const local = localCli(cwd);
 
     if (local !== undefined) {
@@ -234,6 +250,13 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         return result.diagnostics.length === 0 ? 0 : 1;
       }
+      case "sync": {
+        const synced = await sync(cwd);
+
+        console.log(synced);
+
+        return 0;
+      }
       case "generate":
       case "g": {
         if (rest.includes("--help") || rest.includes("-h")) {
@@ -259,6 +282,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
           made.created.forEach((file) => console.log(`vlx generate: created ${file}`));
           made.changed.forEach((file) => console.log(`vlx generate: changed ${file}`));
+          console.log(`vlx generate: ${await sync(root)}`);
           made.notes.forEach((note) => console.log(`vlx generate: ${note}`));
 
           return 0;

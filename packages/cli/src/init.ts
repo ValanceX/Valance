@@ -179,7 +179,7 @@ export const plan = (answers: Answers): Plan => {
       version: "0.0.0",
       private: true,
       type: "module",
-      scripts: { dev: "vlx dev", build: "vlx build", check: "vlx check", typecheck: "tsc --noEmit" },
+      scripts: { dev: "vlx dev", build: "vlx build", check: "vlx check", typecheck: "vlx sync && tsc --noEmit", prepare: "vlx sync" },
       dependencies: { "@valancex/common": commonSpec(answers.packageManager), effect: own().dependencies["effect"] ?? "^3.10.0" },
       devDependencies: { "@types/node": "^22.0.0", "@valancex/cli": cliSpec(answers.packageManager, answers.cli), "@valancex/mesh-lsp": mesh(), typescript: "^5.6.0" },
     }),

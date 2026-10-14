@@ -9,7 +9,8 @@
     "dev": "vlx dev",
     "build": "vlx build",
     "check": "vlx check",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "vlx sync && tsc -p tsconfig.json",
+    "prepare": "vlx sync",
     "test:smoke": "vitest run"
   },
   "dependencies": {

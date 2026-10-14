@@ -1,6 +1,6 @@
 # Release set: MESH 0.12.0, NEXUS 0.12.3, PORT Web 0.4.2, VALANCE 0.10.0
 
-Prepared 2026-10-13. Nothing is tagged or published. The earlier set ([`release-set-2026-10.md`](./release-set-2026-10.md): MESH 0.10, PORT 0.4, NEXUS 0.12, VALANCE 0.7, and VALANCE 0.8 and 0.9 with MESH 0.11) is released.
+Prepared 2026-10-13. VALANCE 0.10.0 is published on npm (checked 2026-10-14: `latest`). The earlier set ([`release-set-2026-10.md`](./release-set-2026-10.md): MESH 0.10, PORT 0.4, NEXUS 0.12, VALANCE 0.7, and VALANCE 0.8 and 0.9 with MESH 0.11) is released.
 
 | # | Repository | Version | Kind | Tag | Notes file |
 |---|---|---|---|---|---|
