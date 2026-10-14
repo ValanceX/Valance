@@ -3,21 +3,17 @@ name = "todo-desktop"
 version = "0.0.0"
 edition = "2021"
 publish = false
-description = "The native renderer for the to-do application: draws MESH render trees in a window and reports what the person does, over the host protocol (PROTOCOL.md)."
-
-[lib]
-name = "renderer"
-path = "src/lib.rs"
+description = "The to-do desktop app: a window, drawn by the Desktop PORT, over the application's engine."
 
 [[bin]]
 name = "todo-desktop"
 path = "src/main.rs"
 
 [dependencies]
-eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
-serde = { version = "1", features = ["derive"] }
+# The Desktop PORT is its own package in the PORT repository. Until it is published to crates.io the build takes it from there, at a fixed revision (Cargo.lock records it too).
+valancex-port-desktop = { git = "https://github.com/ValanceX/Port", rev = "5d25bd9b5e0079d33f52c21532d92889efb73dbb" }
+eframe = { version = "0.31", default-features = false }
 serde_json = "1"
-egui = "0.31"
 
 [profile.release]
 opt-level = "s"

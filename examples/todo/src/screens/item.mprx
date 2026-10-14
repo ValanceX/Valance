@@ -2,7 +2,7 @@
   <column>
     <heading>Edit item</heading>
     <text>In {listName}</text>
-    <field value={value} placeholder="What needs doing?" on.change={setDraft($event)} />
+    <textfield value={value} placeholder="What needs doing?" on.change={setDraft($event)} />
     {#if dirty}
       <text>Unsaved changes</text>
     {/if}

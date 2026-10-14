@@ -17,7 +17,7 @@
       </row>
     {/each}
     <row>
-      <field value={entry} placeholder="New item" on.change={setEntry($event)} />
+      <textfield value={entry} placeholder="New item" on.change={setEntry($event)} />
       <button on.press={addItem()}>Add item</button>
     </row>
     <row>

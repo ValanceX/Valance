@@ -51,7 +51,7 @@ try {
     throw new Error(`the first message is not hello: ${JSON.stringify(messages[0])}`);
   }
 
-  const field = handlerOf((node) => node.component === "field" && node.props.placeholder === "New list", "change");
+  const field = handlerOf((node) => node.component === "textfield" && node.props.placeholder === "New list", "change");
 
   send({ op: "event", handler: field, payload: "Smoke" });
   await until(

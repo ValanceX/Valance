@@ -1,6 +1,6 @@
 # What a native target needs: findings from the to-do app
 
-Written 2026-10-14 from `examples/todo`: one application (lists, items, editing; four routes with guards) that runs headless, behind a stdin/stdout protocol, in a native window (Rust, egui) on Linux, and as a cross-built Windows app. Everything below was **run** unless it says otherwise. The Windows executables were built and inspected (PE header, injected blob, fuse flipped), **not run**: there is no Windows machine here.
+Written 2026-10-14 from `examples/todo` (since then the renderer is the Desktop PORT, a package of its own in the PORT repository, and its vocabulary is [investigated](./NATIVE-VOCABULARY.md); the findings below stand): one application (lists, items, editing; four routes with guards) that runs headless, behind a stdin/stdout protocol, in a native window (Rust, egui) on Linux, and as a cross-built Windows app. Everything below was **run** unless it says otherwise. The Windows executables were built and inspected (PE header, injected blob, fuse flipped), **not run**: there is no Windows machine here.
 
 ## What worked unchanged
 

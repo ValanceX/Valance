@@ -1,30 +1,23 @@
-# The native host protocol (version 1)
+# The host protocol, from the engine's side
 
-A native app is two programs. The **engine** (JavaScript: the application, its state, commands and router) and the **renderer** (native: the window). The renderer starts the engine as a child process and they exchange **one JSON object per line**, the renderer on the engine's stdin and stdout. The renderer never sees a command, a state or a route: only the render tree and the opaque handler identifiers in it, which is all PORT's contract gives a renderer.
+The window is the **Desktop PORT** ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop)), and the protocol between an engine and a PORT is specified there: [the architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md#the-host-protocol). This page is what is specific to the engine in this example (`src/host.ts`).
 
-## Engine to renderer
+One JSON object per line over the engine's stdin and stdout. The engine sends `hello`, `draw`, `update`, `unmount` and `closeAnswer`; it reads `event`, `closeRequested` and `close` (and accepts `ready`, ignored in version 1).
 
-| Message | Meaning |
+## What the engine does with what it reads
+
+The renderer is a separate program, so nothing it sends is trusted until it has the shape of a message (`parseInbound`):
+
+| Refused (ignored, and counted in the result of `serve`) | Limit |
 |---|---|
-| `{"op":"hello","protocol":1,"app":"todo"}` | First line. A renderer that does not know the protocol number stops. |
-| `{"op":"draw","tree":RenderTree}` | A different screen: draw it afresh. |
-| `{"op":"update","tree":RenderTree}` | The same screen with new data: reconcile by `key`. |
-| `{"op":"unmount"}` | The screen is gone (the application is closing). |
-| `{"op":"closeAnswer","allowed":true\|false}` | The answer to `closeRequested`. When allowed the engine is ending and `unmount` follows; when not (unsaved edits), the window stays open. |
+| a line that is not JSON, or not a message | |
+| a line longer than | 64 KiB |
+| an `event` whose `handler` is not text, or is longer than | 256 characters |
+| a `payload` deeper than | 8 levels |
+| a payload with a non-finite number or a `__proto__` key | |
 
-`RenderTree` is MESH's `mesh-render` format: nodes `{type:"node", component, key, props, events, children}` and `{type:"text", key, text}`. `events` maps an event name to an opaque handler identifier.
+`closeRequested` is answered by `closeAnswer`: the engine asks the router (`router.mayLeave`), so a screen with unsaved edits says no, and the window stays open until they are saved or discarded.
 
-## Renderer to engine
+## The vocabulary
 
-| Message | Meaning |
-|---|---|
-| `{"op":"event","handler":"…","payload":JSON}` | The person did something. `handler` is copied from the tree; `payload` (optional) is the event's value, plain data. |
-| `{"op":"close"}` | The window closed. The engine closes the application and exits. (The renderer's stream ending means the same.) |
-| `{"op":"closeRequested"}` | The person asked to close the window. The renderer cancels the close and waits for `closeAnswer`: the application decides (`router.mayLeave`). |
-| `{"op":"ready"}` | Accepted and ignored in version 1. |
-
-The engine treats the renderer as a separate program: a line over 64 KiB, a line that is not JSON, an unknown `op`, a handler that is not text, or a payload that is not plain data (deeper than 8, a non-finite number, `__proto__`) is ignored, and counted.
-
-## The screen vocabulary
-
-The application's own (`src/vocabulary.ts`): `window{title}`, `column`, `row`, `heading`, `text`, `button{disabled?}` with `press`, `checkbox{checked}` with `toggle`, `field{value, placeholder?}` with `change` (payload: the text). A renderer draws these and surfaces any component it does not know rather than dropping it.
+`src/desktop-vocabulary.json` is a copy of the PORT's `vocabulary.json` (a test in `native/` holds it to the original); `src/vocabulary.ts` adds this application's screens to it. The components are described in [the desktop vocabulary](../../docs/use/desktop-vocabulary.md).

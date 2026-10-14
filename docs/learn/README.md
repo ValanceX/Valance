@@ -8,6 +8,7 @@ This path needs no knowledge of anything underneath VALANCE. Read in order:
 4. [**Async work**](async-work.md): waiting, failing, cancelling and out-of-date answers, all inside commands.
 5. [**Startup work**](startup-work.md): work the application starts by itself.
 6. [**Mounting and hydration**](mounting-and-hydration.md): drawing the application, taking over server HTML, and what a server render does.
+7. [**Your first desktop application**](desktop-application.md): a to-do app that runs as a window on Linux and Windows, with eight words to draw it. New to native apps? Start here; it needs none of 2 to 6.
 
 Then use the [common tasks](#common-tasks) below, and the [API reference](../use/README.md) when you need an exact answer.
 

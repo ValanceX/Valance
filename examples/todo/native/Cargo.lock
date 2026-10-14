@@ -2327,9 +2327,8 @@ name = "todo-desktop"
 version = "0.0.0"
 dependencies = [
  "eframe",
- "egui",
- "serde",
  "serde_json",
+ "valancex-port-desktop",
 ]
 
 [[package]]
@@ -2444,6 +2443,17 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "valancex-port-desktop"
+version = "0.1.0"
+source = "git+https://github.com/ValanceX/Port?rev=5d25bd9b5e0079d33f52c21532d92889efb73dbb#5d25bd9b5e0079d33f52c21532d92889efb73dbb"
+dependencies = [
+ "eframe",
+ "egui",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "version_check"

@@ -2,6 +2,8 @@
 
 Written 2026-10-14. Every capability the web path gives an application (Valance, `@valancex/common`, `@valancex/router`, `vlx`, the VS Code extension), taken in turn, with what the native equivalent would be and where it stands. **Evidence** is marked: **run** (a test or a run on this machine), **read** (read from the code, not run on native), **reasoned** (my reading of how native platforms work; verify before building on it). The native work so far is the to-do app ([`examples/todo`](../../examples/todo/README.md): engine in Node behind a stdin/stdout protocol, renderer in Rust and egui, Linux and Windows) and one new test, `packages/cli/test/second-target.test.ts` ("navigation on a target that is not the web").
 
+> **Since this note:** the native window is now the Desktop PORT, a package of its own in the PORT repository ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop)), and the vocabulary question (#4) has an investigation and a built answer for applications written for native: [the native vocabulary](./NATIVE-VOCABULARY.md). The question for a `vlx` application (the web's tags) is still open.
+
 ## The shape of the answer
 
 Two different applications exist, and they stand in different places:
@@ -23,7 +25,7 @@ So the **model** (state, commands, templates, slots, blocks, events, router, con
 | 2 | Templates: props, events, blocks, slots, typed scope | MESH | the same code | **run** (blocks, events with payload; slots **read**) | nothing |
 | 3 | Content pages (Markdown → content model), link checks, `public/` files | `vlx`, `@valancex/common` | the same content model; a page becomes a screen | **run** headless (renders; navigates by `go`) | a renderer that draws the web's semantic tags, or a native vocabulary and layout (#4) |
 | **Presentation** |||||
-| 4 | Vocabulary: which tags exist | the web's tag table (`primitives.ts`) | an application's own (`vocabulary.ts` in the to-do app) | **run** for the to-do app; **open** for `vlx` | decide the semantic core (the earlier investigation's options 1 to 3). The to-do app is evidence for "per-target templates"; nothing yet for "one template, many targets" |
+| 4 | Vocabulary: which tags exist | the web's tag table (`primitives.ts`) | the Desktop PORT's own, as data (`vocabulary.json`; [investigation](./NATIVE-VOCABULARY.md)) | **built** for applications written for native; **open** for `vlx` | decide the semantic core (the earlier investigation's options 1 to 3). The to-do app is evidence for "per-target templates"; nothing yet for "one template, many targets" |
 | 5 | Update by key (patches) | MESH patches through PORT Web | a renderer reconciles by `key` | **run** (whole tree sent on `update`; the renderer redraws) | patches in the protocol; fine for small screens, wasteful for large ones |
 | 6 | Server rendering, static export, hydration | `renderToHtml`, `vlx build` | **not applicable**: there is no server and no first-paint document | n/a | what replaces it is startup time: **run** 185 to 250 ms to the first screen from the packaged engine (3.3 s the very first time, while the executable is cached), engine memory about 79 MB |
 | 7 | Styling | `class`, `theme`, CSS files, live style updates | tokens or a style vocabulary the renderer maps | **not built** (the to-do app has no styling at all) | a small style language (spacing, emphasis, intent) in the vocabulary; CSS does not carry over |

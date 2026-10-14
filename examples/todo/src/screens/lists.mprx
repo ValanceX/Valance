@@ -10,7 +10,7 @@
       </row>
     {/each}
     <row>
-      <field value={entry} placeholder="New list" on.change={setEntry($event)} />
+      <textfield value={entry} placeholder="New list" on.change={setEntry($event)} />
       <button on.press={createList()}>Add list</button>
     </row>
   </column>

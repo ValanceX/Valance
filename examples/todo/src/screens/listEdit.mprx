@@ -1,7 +1,7 @@
 <window title="Rename list">
   <column>
     <heading>Rename list</heading>
-    <field value={value} placeholder="List name" on.change={setDraft($event)} />
+    <textfield value={value} placeholder="List name" on.change={setDraft($event)} />
     {#if dirty}
       <text>Unsaved changes</text>
     {/if}

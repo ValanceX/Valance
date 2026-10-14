@@ -25,7 +25,7 @@ const draw = (node: Node, depth: number): ReadonlyArray<string> => {
       return [`${pad}[ ${textOf(node)} ]${props["disabled"] === true ? " (disabled)" : ""}`];
     case "checkbox":
       return [`${pad}[${props["checked"] === true ? "x" : " "}]`];
-    case "field":
+    case "textfield":
       return [`${pad}<${String(props["value"]) === "" ? String(props["placeholder"] ?? "") : String(props["value"])}>`];
     case "row":
       return [`${pad}${node.children.flatMap((child) => draw(child, 0)).join(" ")}`];
@@ -103,7 +103,9 @@ export const textTarget = (): TargetFactory<TextTarget> => (report: Report) => {
       report(handlerOf(box, "toggle"));
     },
     type: (placeholder, text) => {
-      const field = elements(now().root).find((element) => element.component === "field" && (element.props as Readonly<Record<string, unknown>>)["placeholder"] === placeholder);
+      const field = elements(now().root).find(
+        (element) => element.component === "textfield" && (element.props as Readonly<Record<string, unknown>>)["placeholder"] === placeholder,
+      );
 
       if (field === undefined) {
         throw new Error(`no field: ${placeholder}`);
