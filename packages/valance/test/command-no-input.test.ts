@@ -11,29 +11,35 @@ import { eventFreeProgram } from "./event-free-program.js";
 const State = Schema.Struct({ count: Schema.Number, label: Schema.Literal("idle", "busy") });
 type State = typeof State.Type;
 
-const application = (start?: string) => Valance.define({
-  name: "command-no-input",
-  state: { schema: State, initial: { count: 0, label: "idle" } },
-  views: { main: { program: eventFreeProgram, scope: () => ({}) } },
-  view: () => "main" as const,
-  commands: (state) => {
-    const command = Valance.command(state);
+const application = (start?: string) =>
+  Valance.define({
+    name: "command-no-input",
+    state: { schema: State, initial: { count: 0, label: "idle" } },
+    views: { main: { program: eventFreeProgram, scope: () => ({}) } },
+    view: () => "main" as const,
+    commands: (state) => {
+      const command = Valance.command(state);
 
-    return {
-      increment: command((s) => ({ ...s, count: s.count + 1 })),                                            // the new form
-      explicit: command(Schema.Struct({}), (_input, s) => ({ ...s, count: s.count + 1 })),                  // the existing form
-      add: command(Schema.Struct({ amount: Schema.Number }), ({ amount }, s) => ({ ...s, count: s.count + amount })),
-      busy: command((s) => ({ ...s, label: "busy" })),                                                       // a literal in the returned state is not widened
-    };
-  },
-  ...(start === undefined ? {} : { start }),
-});
+      return {
+        increment: command((s) => ({ ...s, count: s.count + 1 })), // the new form
+        explicit: command(Schema.Struct({}), (_input, s) => ({ ...s, count: s.count + 1 })), // the existing form
+        add: command(Schema.Struct({ amount: Schema.Number }), ({ amount }, s) => ({ ...s, count: s.count + amount })),
+        busy: command((s) => ({ ...s, label: "busy" })), // a literal in the returned state is not widened
+      };
+    },
+    ...(start === undefined ? {} : { start }),
+  });
 
 const boot = async (start?: string) => {
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(Valance.start(application(start)).pipe(Scope.extend(scope)));
 
-  return { handle, state: () => Effect.runPromise(handle.state), exit: (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(Effect.exit(handle.invoke(key, values.map((value) => ({ value })) as never))), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
+  return {
+    handle,
+    state: () => Effect.runPromise(handle.state),
+    exit: (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(Effect.exit(handle.invoke(key, values.map((value) => ({ value })) as never))),
+    close: () => Effect.runPromise(Scope.close(scope, Exit.void)),
+  };
 };
 
 describe("the no-input form of Valance.command(state)", () => {
@@ -49,11 +55,19 @@ describe("the no-input form of Valance.command(state)", () => {
 
   it("2. the state type comes from the state handle (no second inference path), and a transition must return the state", () => {
     Valance.define({
-      name: "inference", state: { schema: State, initial: { count: 0, label: "idle" } }, views: { main: { program: eventFreeProgram, scope: () => ({}) } }, view: () => "main" as const,
+      name: "inference",
+      state: { schema: State, initial: { count: 0, label: "idle" } },
+      views: { main: { program: eventFreeProgram, scope: () => ({}) } },
+      view: () => "main" as const,
       commands: (state) => {
         const command = Valance.command(state);
 
-        expectTypeOf(command((s) => { expectTypeOf(s).toEqualTypeOf<State>(); return s; })).toEqualTypeOf<Nexus.Command.Command<{}, void, never, never>>();
+        expectTypeOf(
+          command((s) => {
+            expectTypeOf(s).toEqualTypeOf<State>();
+            return s;
+          }),
+        ).toEqualTypeOf<Nexus.Command.Command<{}, void, never, never>>();
         // @ts-expect-error the next state must be a state
         void command((s) => ({ count: "x", label: s.label }));
 
@@ -80,25 +94,32 @@ describe("the no-input form of Valance.command(state)", () => {
     const made: { bare?: Nexus.Command.Command<{}, void, never, never>; explicit?: Nexus.Command.Command<{}, void, never, never> } = {};
     const scope = await Effect.runPromise(Scope.make());
 
-    await Effect.runPromise(Valance.start(Valance.define({
-      name: "capture", state: { schema: State, initial: { count: 0, label: "idle" } }, views: { main: { program: eventFreeProgram, scope: () => ({}) } }, view: () => "main" as const,
-      commands: (state) => {
-        const command = Valance.command(state);
+    await Effect.runPromise(
+      Valance.start(
+        Valance.define({
+          name: "capture",
+          state: { schema: State, initial: { count: 0, label: "idle" } },
+          views: { main: { program: eventFreeProgram, scope: () => ({}) } },
+          view: () => "main" as const,
+          commands: (state) => {
+            const command = Valance.command(state);
 
-        made.bare = command((s) => s);
-        made.explicit = command(Schema.Struct({}), (_input, s) => s);
+            made.bare = command((s) => s);
+            made.explicit = command(Schema.Struct({}), (_input, s) => s);
 
-        return { bare: made.bare, explicit: made.explicit };
-      },
-    })).pipe(Scope.extend(scope)));
+            return { bare: made.bare, explicit: made.explicit };
+          },
+        }),
+      ).pipe(Scope.extend(scope)),
+    );
     await Effect.runPromise(Scope.close(scope, Exit.void));
 
     const { bare, explicit } = made as { bare: Nexus.Command.Command<{}, void, never, never>; explicit: Nexus.Command.Command<{}, void, never, never> };
 
-    expect(Object.keys(bare).sort()).toEqual(["handler", "input", "name"]);                    // no new field, no new value kind
+    expect(Object.keys(bare).sort()).toEqual(["handler", "input", "name"]); // no new field, no new value kind
     expect(Object.keys(explicit).sort()).toEqual(["handler", "input", "name"]);
     expect(bare.name).toBe(explicit.name);
-    expect(bare.input.ast).toEqual(explicit.input.ast);                                         // the same empty struct
+    expect(bare.input.ast).toEqual(explicit.input.ast); // the same empty struct
     expect(typeof bare.handler).toBe("function");
 
     const app = await boot();
@@ -120,7 +141,9 @@ describe("the no-input form of Valance.command(state)", () => {
   it("7. startup can run a no-input command, by bare name", async () => {
     const app = await boot("increment");
 
-    for (let i = 0; i < 200 && (await app.state()).count !== 1; i += 1) { await new Promise((r) => setTimeout(r, 5)); }
+    for (let i = 0; i < 200 && (await app.state()).count !== 1; i += 1) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
     expect((await app.state()).count).toBe(1);
     await app.close();
   });

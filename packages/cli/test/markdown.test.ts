@@ -4,14 +4,25 @@ import { AppError } from "../src/diagnostics.js";
 import { parseMarkdown, slug } from "../src/markdown.js";
 
 const fail = (text: string): ReadonlyArray<string> => {
-  try { parseMarkdown(text, "content/x.md", 0); } catch (error) { if (error instanceof AppError) { return error.diagnostics.map(({ line, code }) => `${line} ${code}`); } throw error; }
+  try {
+    parseMarkdown(text, "content/x.md", 0);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return error.diagnostics.map(({ line, code }) => `${line} ${code}`);
+    }
+    throw error;
+  }
 
   return [];
 };
 
 describe("the Markdown a page is written in", () => {
   it("makes typed blocks with anchors and an outline", () => {
-    const { blocks, outline } = parseMarkdown("# Title\n\nText with **bold**, *em*, `code` and [a link](/x).\n\n## Second part\n\n- one\n- two\n\n1. a\n2. b\n\n```ts\nconst x = 1;\n```\n\n> quoted\n\n![alt](/a.svg)\n", "content/x.md", 0);
+    const { blocks, outline } = parseMarkdown(
+      "# Title\n\nText with **bold**, *em*, `code` and [a link](/x).\n\n## Second part\n\n- one\n- two\n\n1. a\n2. b\n\n```ts\nconst x = 1;\n```\n\n> quoted\n\n![alt](/a.svg)\n",
+      "content/x.md",
+      0,
+    );
 
     expect(blocks.map((block) => block.kind)).toEqual(["heading", "paragraph", "heading", "list", "list", "code", "quote", "image"]);
     expect(blocks[1]!.spans.map((span) => span.kind)).toEqual(["text", "strong", "text", "emphasis", "text", "code", "text", "link", "text"]);

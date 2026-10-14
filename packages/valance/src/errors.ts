@@ -33,11 +33,23 @@ export class ValanceError extends Error {
   }
 }
 
-const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>(["admission-closed", "application-ended", "not-an-application", "bare-command-binding", "unknown-view", "target-not-drawn", "plugin-conflict", "invalid-head"]);
+const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>([
+  "admission-closed",
+  "application-ended",
+  "not-an-application",
+  "bare-command-binding",
+  "unknown-view",
+  "target-not-drawn",
+  "plugin-conflict",
+  "invalid-head",
+]);
 
 /** Whether `value` is a `ValanceError`, by its shape and not its class, so it works across two installed copies of the package. */
 export const isValanceError = (value: unknown): value is ValanceError =>
-  value instanceof Error && value.name === "ValanceError" && typeof (value as unknown as { code?: unknown }).code === "string" && CODES.has((value as unknown as { code: string }).code);
+  value instanceof Error &&
+  value.name === "ValanceError" &&
+  typeof (value as unknown as { code?: unknown }).code === "string" &&
+  CODES.has((value as unknown as { code: string }).code);
 
 /**
  * Whether `value`, usually a defect taken from a `Cause`, is a refusal: work turned away because the application, or the NEXUS runtime under

@@ -42,7 +42,7 @@ describe("successful hydration", () => {
     await b.invoke("app/ids", ["A", "C"]);
     await until(() => h.ops.length === 2);
     expect(h.ops).toEqual(["hydrate", "update"]);
-    h.click(1);                                                          // C: H1 only
+    h.click(1); // C: H1 only
     await until(() => h.ok!.dispatched.length === 1);
     expect(b.taps).toEqual(["C"]);
     expect(Exit.isSuccess(h.ok!.dispatched[0]!)).toBe(true);
@@ -63,17 +63,17 @@ for (const throws of ["before", "after"] as const) {
 
       expect(defectOf(h.exit)).toBe(throws === "before" ? "hydrate failed" : "hydrate failed after mutation");
       expect(h.ok).toBeUndefined();
-      expect(h.ops).toEqual([]);                                         // a throwing hydrate is no presentation
-      expect(h.page.container.innerHTML === html).toBe(throws === "before");   // physical state is PORT's: untouched, or already the client's render
+      expect(h.ops).toEqual([]); // a throwing hydrate is no presentation
+      expect(h.page.container.innerHTML === html).toBe(throws === "before"); // physical state is PORT's: untouched, or already the client's render
       expect(h.rows()).toEqual(throws === "before" ? ["A", "B", "C"] : ["A", "B"]);
       h.click(1);
       await sleep(40);
-      expect(b.taps).toEqual([]);                                        // nothing logically retained: nothing dispatches
+      expect(b.taps).toEqual([]); // nothing logically retained: nothing dispatches
       // before: PORT never took the container, so no listener exists; after: PORT's listener exists and VALANCE refuses an interaction with nothing retained
       expect(h.reports.length).toBe(throws === "before" ? 0 : 1);
       expect(h.errors.some((m) => m.includes("before anything was drawn"))).toBe(throws === "after");
       await h.close();
-      expect(h.ops).toEqual([]);                                         // no finalizer was registered: the failed attempt is never unmounted
+      expect(h.ops).toEqual([]); // no finalizer was registered: the failed attempt is never unmounted
     });
 
     it("application commits continue and the failed attempt presents nothing; a fresh mount in the same container draws the current state and does not inherit it", async () => {
@@ -92,10 +92,10 @@ for (const throws of ["before", "after"] as const) {
       expect(fresh.ops).toEqual(["draw"]);
       expect(fresh.rows()).toEqual(["A", "C", "D"]);
       h.errors.length = 0;
-      h.click(2);                                                        // D
+      h.click(2); // D
       await until(() => b.taps.length >= 1);
       await sleep(40);
-      expect(b.taps).toEqual(["D"]);                                     // dispatched once, by the fresh mount's retained render
+      expect(b.taps).toEqual(["D"]); // dispatched once, by the fresh mount's retained render
       expect(fresh.mounted.dispatched.length).toBe(1);
       await fresh.close();
     });
@@ -107,7 +107,7 @@ describe("hydrate beside other mounts", () => {
     const b = await boot();
     let fails = false;
     const h = await hydrateOn(b, await served(b, A0));
-    const plain = await b.mountOn({ updateThrows: () => fails ? "after" : undefined });
+    const plain = await b.mountOn({ updateThrows: () => (fails ? "after" : undefined) });
 
     h.click(1);
     plain.page.click(plain.rowEls()[1]!.querySelector("button")!);
@@ -118,8 +118,8 @@ describe("hydrate beside other mounts", () => {
     await sleep(40);
     expect(h.ops).toEqual(["hydrate", "update"]);
     expect(plain.ops).toEqual(["draw"]);
-    h.click(1);                                                          // C: hydrated mount's H1
-    plain.reports.find((r) => r.handler !== undefined)!.send();          // B: the failed mount's retained A0
+    h.click(1); // C: hydrated mount's H1
+    plain.reports.find((r) => r.handler !== undefined)!.send(); // B: the failed mount's retained A0
     await until(() => h.ok!.dispatched.length === 2 && plain.mounted.dispatched.length === 2);
     expect(h.ok!.dispatched.map(Exit.isSuccess)).toEqual([true, true]);
     expect(plain.mounted.dispatched.map(Exit.isSuccess)).toEqual([true, true]);

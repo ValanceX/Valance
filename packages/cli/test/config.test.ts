@@ -7,7 +7,14 @@ import { cleanup, project } from "./fixture.js";
 afterEach(cleanup);
 
 const problems = (root: string): ReadonlyArray<string> => {
-  try { loadConfig(root); } catch (error) { if (error instanceof AppError) { return error.diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`); } throw error; }
+  try {
+    loadConfig(root);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return error.diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
+    }
+    throw error;
+  }
 
   return [];
 };

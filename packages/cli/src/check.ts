@@ -17,7 +17,10 @@ const collect = async <T>(into: Array<Diagnostic>, work: () => Promise<T> | T): 
   try {
     return await work();
   } catch (error) {
-    if (error instanceof AppError) { into.push(...error.diagnostics); return undefined; }
+    if (error instanceof AppError) {
+      into.push(...error.diagnostics);
+      return undefined;
+    }
 
     throw error;
   }
@@ -28,7 +31,9 @@ export const check = async (root: string): Promise<Checked> => {
   const problems: Array<Diagnostic> = [];
   const config = await collect(problems, () => loadConfig(root));
 
-  if (config === undefined) { return { diagnostics: problems, pages: 0, components: [] }; }
+  if (config === undefined) {
+    return { diagnostics: problems, pages: 0, components: [] };
+  }
 
   generateEntries(root);
 

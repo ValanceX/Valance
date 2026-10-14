@@ -24,7 +24,7 @@ export interface Reported {
   readonly handler: string;
 }
 
-const textOf = (node: Child): string => node.type === "text" ? node.text : node.children.map(textOf).join("");
+const textOf = (node: Child): string => (node.type === "text" ? node.text : node.children.map(textOf).join(""));
 
 /** Plain text: one line per primitive node, children indented; text runs inline; a node with events shows them as `{event}`. */
 const lines = (node: Child, depth: number): ReadonlyArray<string> => {
@@ -32,8 +32,12 @@ const lines = (node: Child, depth: number): ReadonlyArray<string> => {
     return [`${"  ".repeat(depth)}${JSON.stringify(node.text)}`];
   }
 
-  const props = Object.entries(node.props).map(([name, value]) => ` ${name}=${JSON.stringify(value)}`).join("");
-  const events = Object.keys(node.events).map((name) => `{${name}}`).join("");
+  const props = Object.entries(node.props)
+    .map(([name, value]) => ` ${name}=${JSON.stringify(value)}`)
+    .join("");
+  const events = Object.keys(node.events)
+    .map((name) => `{${name}}`)
+    .join("");
 
   return [`${"  ".repeat(depth)}<${node.component}${props}>${events}`, ...node.children.flatMap((child) => lines(child, depth + 1))];
 };
@@ -42,10 +46,7 @@ export const render = (tree: RenderTree): string => lines(tree.root, 0).join("\n
 
 /** Every node of the tree that has an event, with its text (a button's label), in document order. */
 const interactive = (node: Child): ReadonlyArray<{ label: string; event: string; handler: string }> =>
-  node.type === "text" ? [] : [
-    ...Object.entries(node.events).map(([event, handler]) => ({ label: textOf(node), event, handler })),
-    ...node.children.flatMap(interactive),
-  ];
+  node.type === "text" ? [] : [...Object.entries(node.events).map(([event, handler]) => ({ label: textOf(node), event, handler })), ...node.children.flatMap(interactive)];
 
 export interface TextTarget extends Target {
   /** What the target was handed, in order. */
@@ -73,8 +74,11 @@ export const textTarget = (): TargetFactory<TextTarget> => (report: Report) => {
     reports,
     draw: (tree) => present("draw", tree),
     update: (tree) => present("update", tree),
-    unmount: () => { calls.push({ op: "unmount" }); drawn = undefined; },
-    screen: () => drawn === undefined ? "" : render(drawn),
+    unmount: () => {
+      calls.push({ op: "unmount" });
+      drawn = undefined;
+    },
+    screen: () => (drawn === undefined ? "" : render(drawn)),
     activate: (label, index = 0) => {
       const hit = drawn === undefined ? undefined : interactive(drawn.root).filter((node) => node.label.startsWith(label))[index];
 

@@ -16,7 +16,13 @@ export interface ItemsServed {
 
 export default async function setup(project: TestProject): Promise<void> {
   const programs = await compilePrograms();
-  const serve = (url: string): Promise<ItemsServed> => Effect.runPromise(renderToHtml(application(programs, () => new Promise<string>(() => undefined)), { primitives, state: stateFor(url) }));
+  const serve = (url: string): Promise<ItemsServed> =>
+    Effect.runPromise(
+      renderToHtml(
+        application(programs, () => new Promise<string>(() => undefined)),
+        { primitives, state: stateFor(url) },
+      ),
+    );
 
   project.provide("items", { programs, list: await serve("/items"), detail: await serve("/items?item=b") });
 }

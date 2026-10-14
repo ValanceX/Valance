@@ -31,10 +31,14 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       shutdown: { grace: "250 millis" },
     });
 
-    container.dataset["valance"] = "running";                      // readiness marker for whoever drives the page
-    addEventListener("pagehide", (event) => { if (!event.persisted) { void host.stop(); } });
+    container.dataset["valance"] = "running"; // readiness marker for whoever drives the page
+    addEventListener("pagehide", (event) => {
+      if (!event.persisted) {
+        void host.stop();
+      }
+    });
   } catch (error) {
     container.dataset["valance"] = "failed";
-    console.error("the application did not start", error);        // the server's HTML stays as drawn
+    console.error("the application did not start", error); // the server's HTML stays as drawn
   }
 };

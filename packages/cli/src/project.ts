@@ -10,7 +10,9 @@ export const generated = (root: string, name: string): string => join(root, GENE
 
 /** Writes `text` unless the file already says exactly that: a watcher that sees a write should only see a change. Returns whether it wrote. */
 export const writeIfChanged = (path: string, text: string): boolean => {
-  if (existsSync(path) && readFileSync(path, "utf8") === text) { return false; }
+  if (existsSync(path) && readFileSync(path, "utf8") === text) {
+    return false;
+  }
 
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, text);

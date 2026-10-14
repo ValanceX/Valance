@@ -11,7 +11,13 @@ import { until } from "./helpers.js";
 
 type Mounted = Awaited<ReturnType<Awaited<ReturnType<typeof boot>>["mountOn"]>>;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const state = (m: Mounted): Promise<string> => Effect.runPromise(Effect.race(Effect.map(m.mounted.followed, (e): string => Exit.isSuccess(e) ? "ended" : Cause.isDieType(e.cause) ? `defect ${(e.cause.defect as Error).message}` : "other"), Effect.succeed("following")));
+const state = (m: Mounted): Promise<string> =>
+  Effect.runPromise(
+    Effect.race(
+      Effect.map(m.mounted.followed, (e): string => (Exit.isSuccess(e) ? "ended" : Cause.isDieType(e.cause) ? `defect ${(e.cause.defect as Error).message}` : "other")),
+      Effect.succeed("following"),
+    ),
+  );
 const clickRow = (m: Mounted, index: number) => m.page.click(m.rowEls()[index]!.querySelector("button")!);
 /** A mount over A0 whose updates throw (before or after mutating) while `mode.when` says so; B's handler is captured by one click (which taps B). */
 const failing = async (when: "before" | "after", initial?: Parameters<typeof boot>[0]) => {
@@ -19,13 +25,13 @@ const failing = async (when: "before" | "after", initial?: Parameters<typeof boo
   const mode: { when?: "before" | "after" } = {};
   const m = await b.mountOn({ updateThrows: () => mode.when });
 
-  clickRow(m, 1);                                                     // B (A0 only): captures its handler
+  clickRow(m, 1); // B (A0 only): captures its handler
   await until(() => b.taps.length === 1);
   mode.when = when;
 
   return { b, m, mode };
 };
-const bHandler = (m: Mounted) => m.reports[0]!;                         // B's handler, captured
+const bHandler = (m: Mounted) => m.reports[0]!; // B's handler, captured
 
 describe("the update commit boundary", () => {
   it("a successful update retains the new render: its events resolve, the previous render's handlers no longer do", async () => {
@@ -36,9 +42,9 @@ describe("the update commit boundary", () => {
     await until(() => b.taps.length === 1);
     await b.invoke("app/ids", ["A", "C"]);
     await until(() => m.ops.length === 2);
-    clickRow(m, 1);                                                    // C: only A1 has it
+    clickRow(m, 1); // C: only A1 has it
     await until(() => b.taps.length === 2);
-    bHandler(m).send();                                                // B: only A0 had it
+    bHandler(m).send(); // B: only A0 had it
     await until(() => m.mounted.dispatched.length === 3);
     expect(b.taps).toEqual(["B", "C"]);
     expect(m.mounted.dispatched.map(Exit.isSuccess)).toEqual([true, true, false]);
@@ -53,15 +59,15 @@ describe("the update commit boundary", () => {
         await b.invoke("app/ids", ["A", "C"]);
         await sleep(60);
         expect(await state(m)).toBe(when === "before" ? "defect update failed" : "defect update failed after mutation");
-        expect(m.ops).toEqual(["draw"]);                                // the failed update is not a presentation
+        expect(m.ops).toEqual(["draw"]); // the failed update is not a presentation
         // physical state is PORT's: untouched before the mutation, A1's rows after it
         expect(m.rows()).toEqual(when === "before" ? ["A", "B"] : ["A", "C"]);
-        bHandler(m).send();                                            // A0's handler: still resolves
+        bHandler(m).send(); // A0's handler: still resolves
         await until(() => b.taps.length === 2);
         expect(b.taps).toEqual(["B", "B"]);
 
         if (when === "after") {
-          clickRow(m, 1);                                              // physically C's button, logically not in A0
+          clickRow(m, 1); // physically C's button, logically not in A0
           await until(() => m.mounted.dispatched.length === 3);
           expect(Exit.isFailure(m.mounted.dispatched[2]!)).toBe(true);
           expect(b.taps).toEqual(["B", "B"]);
@@ -80,12 +86,12 @@ describe("the update commit boundary", () => {
         expect(m.ops).toEqual(["draw"]);
         expect((await b.state()).ids).toEqual(["A", "C", "D"]);
         bHandler(m).send();
-        await until(() => b.taps.length === 2);                         // still A0
+        await until(() => b.taps.length === 2); // still A0
         await m.close();
         expect(m.ops).toEqual(["draw", "unmount"]);
         const fresh = await b.mountOn({ page: m.page });
 
-        expect(fresh.ops).toEqual(["draw"]);                            // not inherited: a normal first draw of the current state
+        expect(fresh.ops).toEqual(["draw"]); // not inherited: a normal first draw of the current state
         expect(fresh.rows()).toEqual(["A", "C", "D"]);
         clickRow(fresh, 2);
         await until(() => b.taps.length === 3);
@@ -103,11 +109,11 @@ describe("the update commit boundary", () => {
     await sleep(60);
     expect(await state(m)).toBe("defect update failed after mutation");
     expect(m.ops).toEqual(["draw"]);
-    expect(m.rows()).toEqual(["A", "B", "C"]);                           // physically structural change landed (or part of it)
+    expect(m.rows()).toEqual(["A", "B", "C"]); // physically structural change landed (or part of it)
     bHandler(m).send();
     await until(() => b.taps.length === 2);
     expect(b.taps).toEqual(["B", "B"]);
-    clickRow(m, 2);                                                      // C exists only in the render that never became retained
+    clickRow(m, 2); // C exists only in the render that never became retained
     await until(() => m.mounted.dispatched.length === 3);
     expect(Exit.isFailure(m.mounted.dispatched[2]!)).toBe(true);
     await m.close();
@@ -117,7 +123,7 @@ describe("the update commit boundary", () => {
     const b = await boot();
     let fails = false;
     const ok = await b.mountOn();
-    const bad = await b.mountOn({ updateThrows: () => fails ? "after" : undefined });
+    const bad = await b.mountOn({ updateThrows: () => (fails ? "after" : undefined) });
 
     clickRow(ok, 1);
     clickRow(bad, 1);
@@ -130,10 +136,10 @@ describe("the update commit boundary", () => {
     expect(await state(bad)).toBe("defect update failed after mutation");
     expect(ok.ops).toEqual(["draw", "update"]);
     expect(bad.ops).toEqual(["draw"]);
-    clickRow(ok, 1);                                                     // C: A1
-    clickRow(bad, 1);                                                    // physically C, logically A0: refused
-    bHandler(bad).send();                                                // B: A0
-    bHandler(ok).send();                                                 // B: not in A1
+    clickRow(ok, 1); // C: A1
+    clickRow(bad, 1); // physically C, logically A0: refused
+    bHandler(bad).send(); // B: A0
+    bHandler(ok).send(); // B: not in A1
     await until(() => ok.mounted.dispatched.length === 3 && bad.mounted.dispatched.length === 3);
     expect(ok.mounted.dispatched.map(Exit.isSuccess)).toEqual([true, true, false]);
     expect(bad.mounted.dispatched.map(Exit.isSuccess)).toEqual([true, false, true]);
@@ -148,10 +154,10 @@ describe("the update commit boundary", () => {
     const m = await b.mountOn({ updateThrows: () => mode.when });
 
     clickRow(m, 1);
-    await until(() => b.taps.length === 1);                              // B (A0)
+    await until(() => b.taps.length === 1); // B (A0)
     await b.invoke("app/ids", ["A", "C"]);
     await until(() => m.ops.length === 2);
-    clickRow(m, 1);                                                      // C (A1), captured
+    clickRow(m, 1); // C (A1), captured
     await until(() => b.taps.length === 2);
     mode.when = "after";
     await b.invoke("app/ids", ["A", "C", "D"]);
@@ -159,9 +165,9 @@ describe("the update commit boundary", () => {
     expect(await state(m)).toBe("defect update failed after mutation");
     expect(m.ops).toEqual(["draw", "update"]);
     expect(m.rows()).toEqual(["A", "C", "D"]);
-    clickRow(m, 2);                                                      // D: A2 only
-    clickRow(m, 1);                                                      // C: A1
-    bHandler(m).send();                                                  // B: A0 only
+    clickRow(m, 2); // D: A2 only
+    clickRow(m, 1); // C: A1
+    bHandler(m).send(); // B: A0 only
     await until(() => m.mounted.dispatched.length === 5);
     expect(m.mounted.dispatched.map(Exit.isSuccess)).toEqual([true, true, false, true, false]);
     expect(b.taps).toEqual(["B", "C", "C"]);

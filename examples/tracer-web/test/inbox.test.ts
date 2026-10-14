@@ -28,10 +28,15 @@ describe("second application: inbox", () => {
     const writes: Array<string> = [];
     const push = win.history.pushState.bind(win.history);
 
-    win.history.pushState = (data, unused, target) => { writes.push(String(target)); push(data, unused, target); };
+    win.history.pushState = (data, unused, target) => {
+      writes.push(String(target));
+      push(data, unused, target);
+    };
 
     const texts = (): string => [...main.querySelectorAll("span")].map((span) => span.textContent).join("|");
-    const press = (label: string, index = 0): void => { [...main.querySelectorAll("button")].filter((button) => button.textContent!.startsWith(label))[index]!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); };
+    const press = (label: string, index = 0): void => {
+      [...main.querySelectorAll("button")].filter((button) => button.textContent!.startsWith(label))[index]!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    };
     const url = (): string => win.location.pathname + win.location.search;
 
     const seen: Array<{ step: string; texts: string; url: string; sameRoot: boolean }> = [];
@@ -40,16 +45,19 @@ describe("second application: inbox", () => {
     await new Promise((resolve) => setTimeout(resolve, 40));
 
     let root = main.firstElementChild;
-    const step = (name: string): void => { seen.push({ step: name, texts: texts(), url: url(), sameRoot: main.firstElementChild === root }); root = main.firstElementChild; };
+    const step = (name: string): void => {
+      seen.push({ step: name, texts: texts(), url: url(), sameRoot: main.firstElementChild === root });
+      root = main.firstElementChild;
+    };
 
     step("list");
-    press("Open", 1);                                        // open m2: marks it read
+    press("Open", 1); // open m2: marks it read
     await until(() => texts().startsWith("Invoice"));
     step("open m2");
-    press("Star");                                           // same view, new data
+    press("Star"); // same view, new data
     await until(() => [...main.querySelectorAll("button")].some((button) => button.textContent === "Star on"));
     step("star");
-    win.history.back();                                      // the browser's Back: the same navigation
+    win.history.back(); // the browser's Back: the same navigation
     await until(() => texts().includes("1 unread"));
     step("Back");
     win.history.forward();
@@ -64,7 +72,7 @@ describe("second application: inbox", () => {
       ["Back", "1 unread|*Welcome| Invoice", "/inbox", false],
       ["Forward", "Invoice|Due Friday.", "/inbox?open=m2", false],
     ]);
-    expect(writes).toEqual(["/inbox?open=m2"]);                // one navigation by the application; Back and Forward wrote nothing
+    expect(writes).toEqual(["/inbox?open=m2"]); // one navigation by the application; Back and Forward wrote nothing
   });
 
   it("SSR → hydrate at /inbox?open=m1: the served message view is adopted; Close is a view change", async () => {
@@ -87,6 +95,6 @@ describe("second application: inbox", () => {
     expect(result.hydration).toEqual({ adopted: true });
     expect(result.adopted).toBe(true);
     expect(result.state.open).toBe("");
-    expect(result.text).toContain("2 unread");                // the server's state only said which message was open; nothing marked it read
+    expect(result.text).toContain("2 unread"); // the server's state only said which message was open; nothing marked it read
   });
 });

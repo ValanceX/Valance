@@ -6,7 +6,7 @@
 import { Exit, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { boot, run, sleep, type State } from "./two-view-fixture.js";
+import { boot, run, sleep } from "./two-view-fixture.js";
 
 /** A mount on view A that goes inert: the commit that follows makes A's render invalid. */
 const inertA = async () => {
@@ -16,7 +16,7 @@ const inertA = async () => {
   await b.invoke("app/break");
   await sleep(60);
   expect(await a.standing()).toBe("failed MeshDiagnostics");
-  expect(a.label()).toBe("A0");                                                              // the last good render, retained
+  expect(a.label()).toBe("A0"); // the last good render, retained
 
   return { b, a };
 };
@@ -25,22 +25,22 @@ describe("an inert mount's retained render and the application's later state", (
   it("1-4 the event resolves against the RETAINED render (A's intent), not the view since selected (B); it runs against current state; it repairs the state; the mount stays inert; a fresh mount renders the repaired current state", async () => {
     const { b, a } = await inertA();
 
-    await b.invoke("app/toggle");                                                            // the application now selects view B
+    await b.invoke("app/toggle"); // the application now selects view B
     await b.invoke("app/bump");
     await b.invoke("app/bump");
     expect(await b.state()).toEqual({ view: "b", n: 2, bad: true });
-    a.click();                                                                               // A's retained button
+    a.click(); // A's retained button
     await sleep(60);
 
-    expect(b.log).toEqual(["commit break", "commit toggle", "commit bump", "commit bump", "commit back-on-a"]);   // A's command, never B's `back-on-b`
-    expect(await b.state()).toEqual({ view: "b", n: 12, bad: false });                       // on CURRENT state: the toggle and both bumps survive; the repair applied; exactly +10
+    expect(b.log).toEqual(["commit break", "commit toggle", "commit bump", "commit bump", "commit back-on-a"]); // A's command, never B's `back-on-b`
+    expect(await b.state()).toEqual({ view: "b", n: 12, bad: false }); // on CURRENT state: the toggle and both bumps survive; the repair applied; exactly +10
     expect(a.ledger()).toEqual(["succeeded"]);
-    expect(a.ops).toEqual(["draw A0"]);                                                      // no presentation, even though the state is renderable again
-    expect(await a.standing()).toBe("failed MeshDiagnostics");                                               // it did not resume
+    expect(a.ops).toEqual(["draw A0"]); // no presentation, even though the state is renderable again
+    expect(await a.standing()).toBe("failed MeshDiagnostics"); // it did not resume
 
     const fresh = await b.mountOn();
 
-    expect(fresh.ops).toEqual(["draw B12"]);                                                 // a normal first draw of the CURRENT state (view B), not the retained A render
+    expect(fresh.ops).toEqual(["draw B12"]); // a normal first draw of the CURRENT state (view B), not the retained A render
     expect(await fresh.standing()).toBe("following");
     await fresh.close();
     await a.close();
@@ -56,7 +56,7 @@ describe("an inert mount's retained render and the application's later state", (
     await b.invoke("app/bump");
     a.click();
     await sleep(60);
-    expect(b.log.filter((entry) => entry.startsWith("commit back"))).toEqual(["commit back-on-a", "commit back-on-a", "commit back-on-a"]);   // always the retained render's intent
+    expect(b.log.filter((entry) => entry.startsWith("commit back"))).toEqual(["commit back-on-a", "commit back-on-a", "commit back-on-a"]); // always the retained render's intent
     expect(await b.state()).toEqual({ view: "b", n: 31, bad: false });
     expect(a.ledger()).toEqual(["succeeded", "succeeded", "succeeded"]);
     expect(a.ops).toEqual(["draw A0"]);
@@ -66,7 +66,7 @@ describe("an inert mount's retained render and the application's later state", (
   it("5 another mount keeps following and presents what the retained event committed; the inert mount dispatches A's retained intent and cannot touch the live mount's render bookkeeping", async () => {
     const b = await boot();
     let throws = false;
-    const inert = await b.mountOn({ updateThrows: () => throws });                          // mount-local inertness: a target that fails its first update
+    const inert = await b.mountOn({ updateThrows: () => throws }); // mount-local inertness: a target that fails its first update
     const live = await b.mountOn();
 
     throws = true;
@@ -74,21 +74,21 @@ describe("an inert mount's retained render and the application's later state", (
     await sleep(60);
     expect(await inert.standing()).toBe("defect update failed");
     expect(await live.standing()).toBe("following");
-    await b.invoke("app/toggle");                                                            // the live mount draws view B; the inert one still holds A's render
+    await b.invoke("app/toggle"); // the live mount draws view B; the inert one still holds A's render
     await sleep(60);
     expect([inert.label(), live.label()]).toEqual(["A0", "B1"]);
 
-    inert.click();                                                                           // A's retained button
+    inert.click(); // A's retained button
     await sleep(60);
-    expect(b.log.at(-1)).toBe("commit back-on-a");                                           // A's intent, although the application is on view B
+    expect(b.log.at(-1)).toBe("commit back-on-a"); // A's intent, although the application is on view B
     expect(await b.state()).toEqual({ view: "b", n: 11, bad: false });
-    expect(live.label()).toBe("B11");                                                        // the live mount presents the committed state normally
-    live.click();                                                                            // and its OWN drawn render still dispatches B's intent
+    expect(live.label()).toBe("B11"); // the live mount presents the committed state normally
+    live.click(); // and its OWN drawn render still dispatches B's intent
     await sleep(60);
     expect(b.log.at(-1)).toBe("commit back-on-b");
     expect(await b.state()).toEqual({ view: "b", n: 111, bad: false });
     expect(live.label()).toBe("B111");
-    expect(inert.ops).toEqual(["draw A0"]);                                                  // the inert mount presented nothing throughout
+    expect(inert.ops).toEqual(["draw A0"]); // the inert mount presented nothing throughout
     expect(inert.ledger()).toEqual(["succeeded"]);
     expect(live.ledger()).toEqual(["succeeded"]);
     expect(await live.standing()).toBe("following");
@@ -105,7 +105,7 @@ describe("an inert mount's retained render and the application's later state", (
     a.click();
     await sleep(60);
     expect(a.ledger()).toEqual(["died NEXUS: the runtime has begun terminating"]);
-    expect(b.log).toEqual(logged);                                                           // no commit
+    expect(b.log).toEqual(logged); // no commit
     expect(await b.state()).toEqual(before);
     expect(a.ops).toEqual(["draw A0"]);
     await a.close();
@@ -114,21 +114,21 @@ describe("an inert mount's retained render and the application's later state", (
   it("7 after retained events and another path advanced the state, closing the inert mount and mounting afresh in the SAME container starts from the current state with a normal draw", async () => {
     const { b, a } = await inertA();
 
-    a.click();                                                                               // repair through the retained event
+    a.click(); // repair through the retained event
     await sleep(40);
     await b.invoke("app/toggle");
     await b.invoke("app/bump");
     expect(await b.state()).toEqual({ view: "b", n: 11, bad: false });
-    expect(a.label()).toBe("A0");                                                            // its DOM is still the old render
+    expect(a.label()).toBe("A0"); // its DOM is still the old render
     await a.close();
     expect(a.page.container.innerHTML).toBe("");
 
-    const fresh = await b.mountOn({ page: a.page });                                         // the same container
+    const fresh = await b.mountOn({ page: a.page }); // the same container
 
-    expect(fresh.ops).toEqual(["draw B11"]);                                                 // current state, not the retained render or DOM
+    expect(fresh.ops).toEqual(["draw B11"]); // current state, not the retained render or DOM
     await b.invoke("app/bump");
     await sleep(40);
-    expect(fresh.ops).toEqual(["draw B11", "update B12"]);                                   // and it follows normally
+    expect(fresh.ops).toEqual(["draw B11", "update B12"]); // and it follows normally
     expect(await fresh.standing()).toBe("following");
     await fresh.close();
   });

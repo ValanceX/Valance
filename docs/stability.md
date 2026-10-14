@@ -17,12 +17,12 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 | `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, `Web.link`, `Web.event`, the PORT table helpers) | Stable |
 | `@valancex/valance/web/server` (`renderToHtml`) | Stable |
 | `@valancex/valance/web/build` (`manifest` and its helpers) | Stable |
-| `@valancex/valance/web/plugin` (`Plugin`, `RouteTable`, `HeadTags`, `Navigation`, `Delivery`, `compose`, `mergePlatforms`, `mergeHeads`, `renderHead`, `applyHead`, `deliveryOf`, `staticPaths`), and the `plugins` option of `Web.run`, `renderToHtml` and `manifest` | **Unreleased** (0.8) |
-| `HistoryOptions.head` and `HistoryOptions.onNavigated`; `renderToHtml`'s `head` option and `Served.head`; `RunOptions.primitives` and `renderToHtml`'s `primitives` becoming optional | **Unreleased** (0.8) |
-| `ValanceErrorCode` `plugin-conflict` and `invalid-head` | **Unreleased** (0.8) |
-| `command(state).waiting`: `work` may return an `Effect` that requires the application's environment (a capability), as well as a Promise | **Unreleased** (0.8) |
-| `@valancex/cli` (private, unpublished): `defineApp`, `Schema`, the `valance` command (`dev`, `build`, `check`), `valance.json` / `valance.web.json`, the project layout and the layout scope (`docs/application-model/`) | **Provisional**: a proposal proved by `examples/docs-app`; not a contract, not in any release |
-| Deriving a manifest declares no element for conditional or repeated structure (blocks `{#if}`, `{#each}` are MESH's, built in); the retired names `mesh-if`, `mesh-each`, `mesh-switch`, `mesh-case`, `mesh-default` are refused when derived | **Unreleased** (0.9) |
+| `@valancex/valance/web/plugin` (`Plugin`, `RouteTable`, `HeadTags`, `Navigation`, `Delivery`, `compose`, `mergePlatforms`, `mergeHeads`, `renderHead`, `applyHead`, `deliveryOf`, `staticPaths`), and the `plugins` option of `Web.run`, `renderToHtml` and `manifest` | Stable (since 0.8.0) |
+| `HistoryOptions.head` and `HistoryOptions.onNavigated`; `renderToHtml`'s `head` option and `Served.head`; `RunOptions.primitives` and `renderToHtml`'s `primitives` becoming optional | Stable (since 0.8.0) |
+| `ValanceErrorCode` `plugin-conflict` and `invalid-head` | Stable (since 0.8.0) |
+| `command(state).waiting`: `work` may return an `Effect` that requires the application's environment (a capability), as well as a Promise | Stable (since 0.8.0) |
+| `@valancex/cli` (private, unpublished): `defineApp`, `Schema`, the `vlx` command (`init`, `dev`, `build`, `check`; global, running the project's own install; an Ink interface in a terminal), `valance.json` / `valance.web.json`, the project layout and the layout scope (`docs/application-model/`) | **Provisional**: a proposal proved by `examples/docs-app`; not a contract, not in any release |
+| Deriving a manifest declares no element for conditional or repeated structure (blocks `{#if}`, `{#each}` are MESH's, built in); the retired names `mesh-if`, `mesh-each`, `mesh-switch`, `mesh-case`, `mesh-default` are refused when derived | Stable (since 0.9.0) |
 | `@valancex/valance/internal` | **Internal**: the composition protocol for binding authors and tests, unstable by design |
 | `ValanceError`, `ValanceErrorCode`, `isValanceError`, `isRefusal` (the defects' stable `code`s) (since 0.6.0) | Stable |
 | A start-time command's failure is **logged** (`Effect.logError`, message `start-time work failed`, with the whole cause) (since 0.6.0) | Stable |
@@ -32,4 +32,4 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 
 ## What is logged
 
-VALANCE writes to Effect's logger in these places: a failed `head`/`titleOf` application and a throwing `onNavigated` (0.8, unreleased, message `history synchronization failed` / `navigation hook failed`), and, as before, a failed popstate or link navigation (C28) and a start-time command that fails (C35). Both log **the whole `Cause`**, which includes whatever the failing command's errors carry. VALANCE does not inspect or redact it: an application whose errors can hold secrets or personal data keeps them out of the errors it lets escape a command, or installs a logger that redacts. A failure the application wants the user to see is state, not a log line.
+VALANCE writes to Effect's logger in these places: a failed `head`/`titleOf` application and a throwing `onNavigated` (since 0.8.0, message `history synchronization failed` / `navigation hook failed`), and, as before, a failed popstate or link navigation (C28) and a start-time command that fails (C35). Both log **the whole `Cause`**, which includes whatever the failing command's errors carry. VALANCE does not inspect or redact it: an application whose errors can hold secrets or personal data keeps them out of the errors it lets escape a command, or installs a logger that redacts. A failure the application wants the user to see is state, not a log line.

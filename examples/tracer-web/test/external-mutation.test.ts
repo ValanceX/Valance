@@ -16,7 +16,9 @@ type Booted = Awaited<ReturnType<typeof boot>>;
 type Mounted = Awaited<ReturnType<Booted["mountOn"]>>;
 
 const section = (m: Mounted): Element | null => m.page.container.querySelector("section");
-const clickOn = (m: Mounted, element: Element): void => { m.page.click(element); };
+const clickOn = (m: Mounted, element: Element): void => {
+  m.page.click(element);
+};
 
 describe("external mutation of a successfully realized target", () => {
   it("1 drift alone: no rerender, no failure, nothing reported; the DOM simply differs from the render", async () => {
@@ -26,9 +28,9 @@ describe("external mutation of a successfully realized target", () => {
     m.page.container.querySelector("span")!.textContent = "EDITED";
     section(m)!.setAttribute("aria-label", "EXT");
     await sleep(80);
-    expect(m.ops).toEqual(["draw A0"]);                                                      // no spontaneous update or redraw
-    expect(await m.standing()).toBe("following");                                            // not a failure of any kind
-    expect(section(m)!.getAttribute("aria-label")).toBe("EXT");                              // VALANCE did not undo it
+    expect(m.ops).toEqual(["draw A0"]); // no spontaneous update or redraw
+    expect(await m.standing()).toBe("following"); // not a failure of any kind
+    expect(section(m)!.getAttribute("aria-label")).toBe("EXT"); // VALANCE did not undo it
     expect(m.ledger()).toEqual([]);
     await m.close();
   });
@@ -42,9 +44,9 @@ describe("external mutation of a successfully realized target", () => {
     section(m)!.setAttribute("aria-label", "EXT");
     await b.invoke("app/bump");
     await sleep(60);
-    expect(m.ops).toEqual(["draw A0", "update A1"]);                                         // update, the C32 continuity: same view as the drawn one
-    expect(section(m)).toBe(root);                                                           // PORT updated in place
-    expect(section(m)!.getAttribute("aria-label")).toBe("A1");                               // what the render carries is what the target shows
+    expect(m.ops).toEqual(["draw A0", "update A1"]); // update, the C32 continuity: same view as the drawn one
+    expect(section(m)).toBe(root); // PORT updated in place
+    expect(section(m)!.getAttribute("aria-label")).toBe("A1"); // what the render carries is what the target shows
     expect(await m.standing()).toBe("following");
     await m.close();
   });
@@ -62,7 +64,7 @@ describe("external mutation of a successfully realized target", () => {
     expect(section(m)!.hasAttribute("data-drift")).toBe(false);
     await b.invoke("app/toggle");
     await sleep(60);
-    expect(m.ops).toEqual(["draw A0", "draw B0", "draw A0"]);                                // a fresh A, not the old DOM
+    expect(m.ops).toEqual(["draw A0", "draw B0", "draw A0"]); // a fresh A, not the old DOM
     expect(section(m)).not.toBe(first);
     await m.close();
   });
@@ -77,19 +79,19 @@ describe("external mutation of a successfully realized target", () => {
     button.setAttribute("data-intent", "details/back");
     clickOn(m, button);
     await sleep(40);
-    expect(b.log).toEqual(["commit back-on-a"]);                                             // the retained render's intent, whatever the label or metadata say
+    expect(b.log).toEqual(["commit back-on-a"]); // the retained render's intent, whatever the label or metadata say
     const inner = m.page.container.ownerDocument.createElement("b");
 
     button.append(inner);
-    clickOn(m, inner);                                                                       // inside a PORT-created element: still reaches it
+    clickOn(m, inner); // inside a PORT-created element: still reaches it
     await sleep(40);
     expect(b.log).toEqual(["commit back-on-a", "commit back-on-a"]);
     const clone = button.cloneNode(true) as Element;
 
-    button.replaceWith(clone);                                                               // an element PORT never created
+    button.replaceWith(clone); // an element PORT never created
     clickOn(m, clone);
     await sleep(40);
-    expect(b.log).toHaveLength(2);                                                           // nothing to resolve: no dispatch, no failure
+    expect(b.log).toHaveLength(2); // nothing to resolve: no dispatch, no failure
     expect(m.ledger()).toEqual(["succeeded", "succeeded"]);
     expect(await m.standing()).toBe("following");
     await m.close();
@@ -117,11 +119,11 @@ describe("external mutation of a successfully realized target", () => {
     m.page.container.innerHTML = "";
     await b.invoke("app/bump");
     await sleep(60);
-    expect(m.ops.filter((op) => op.startsWith("draw"))).toEqual(["draw A0"]);                // no new draw: no recovery
-    expect(m.ops.filter((op) => op.startsWith("update"))).toHaveLength(1);                   // the update was asked for and did not fail
+    expect(m.ops.filter((op) => op.startsWith("draw"))).toEqual(["draw A0"]); // no new draw: no recovery
+    expect(m.ops.filter((op) => op.startsWith("update"))).toHaveLength(1); // the update was asked for and did not fail
     expect(await m.standing()).toBe("following");
-    expect(m.page.container.innerHTML).toBe("");                                             // the container stays as the outsider left it
-    expect(await b.state()).toEqual({ view: "a", n: 1, bad: false });                        // application state is untouched by any of it
+    expect(m.page.container.innerHTML).toBe(""); // the container stays as the outsider left it
+    expect(await b.state()).toEqual({ view: "a", n: 1, bad: false }); // application state is untouched by any of it
     await m.close();
   });
 
@@ -135,7 +137,7 @@ describe("external mutation of a successfully realized target", () => {
     expect(m.ops).toEqual(["draw A0", "unmount"]);
     expect(m.page.container.innerHTML).toBe("");
     await expect(Promise.race([Promise.resolve(m.mounted.settled).then(() => "ok"), sleep(300).then(() => "x")])).resolves.toBeDefined();
-    await b.invoke("app/bump");                                                              // the application and a fresh mount are unaffected
+    await b.invoke("app/bump"); // the application and a fresh mount are unaffected
     const fresh = await b.mountOn({ page: m.page });
 
     expect(fresh.ops).toEqual(["draw A1"]);
@@ -151,12 +153,12 @@ describe("external mutation of a successfully realized target", () => {
     await b.invoke("app/bump");
     await sleep(60);
     expect(drifted.ops).toEqual(["draw A0", "update A1"]);
-    expect(other.ops).toEqual(["draw A0", "update A1"]);                                     // the same operations, drift or not
-    expect(other.page.container.innerHTML).toBe(`<section aria-label="A1"><span>Not found</span><button>Back</button></section>`);   // exactly the normal result
+    expect(other.ops).toEqual(["draw A0", "update A1"]); // the same operations, drift or not
+    expect(other.page.container.innerHTML).toBe(`<section aria-label="A1"><span>Not found</span><button>Back</button></section>`); // exactly the normal result
     expect([await drifted.standing(), await other.standing()]).toEqual(["following", "following"]);
     await b.invoke("app/toggle");
     await sleep(60);
-    expect(drifted.ops.at(-1)).toBe("draw B1");                                              // the drifted mount draws afresh like the other
+    expect(drifted.ops.at(-1)).toBe("draw B1"); // the drifted mount draws afresh like the other
     expect(other.ops.at(-1)).toBe("draw B1");
     await drifted.close();
     await other.close();

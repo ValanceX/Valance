@@ -15,12 +15,15 @@ import { primitives } from "../src/catalog/web.js";
 
 const { catalog } = inject("page");
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 const ids = ["gate"] as const;
 const State = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })), value: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
-const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded" : Cause.isFailType(exit.cause) ? `failed ${JSON.stringify(exit.cause.error)}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : "other";
+const show = (exit: Exit.Exit<unknown, unknown>): string =>
+  Exit.isSuccess(exit) ? "succeeded" : Cause.isFailType(exit.cause) ? `failed ${JSON.stringify(exit.cause.error)}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : "other";
 const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 
 const setup = async (outcome: "commit" | "fail") => {
@@ -30,19 +33,35 @@ const setup = async (outcome: "commit" | "fail") => {
   const app = Valance.define({
     name: "event-ledger",
     state: { schema: State, initial },
-    views: { home: { program: catalog.home, scope: (state: State) => ({ title: "Ledger", count: state.items.length, summary: state.value, firstId: "", items: state.items.map(({ id, name }) => ({ id, name })) }) } },
+    views: {
+      home: {
+        program: catalog.home,
+        scope: (state: State) => ({ title: "Ledger", count: state.items.length, summary: state.value, firstId: "", items: state.items.map(({ id, name }) => ({ id, name })) }),
+      },
+    },
     view: () => "home" as const,
-    commands: (state: Nexus.State.StateHandle<State>) => ({
-      "home/open": Nexus.Mesh.bind(Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), () => Effect.gen(function* () {
-        yield* Deferred.succeed(entered, undefined);
-        const value = yield* Deferred.await(gate);
+    commands: (state: Nexus.State.StateHandle<State>) =>
+      ({
+        "home/open": Nexus.Mesh.bind(
+          Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), () =>
+            Effect.gen(function* () {
+              yield* Deferred.succeed(entered, undefined);
+              const value = yield* Deferred.await(gate);
 
-        if (outcome === "fail") { return yield* Effect.fail("late-boom") as Effect.Effect<never, string>; }
+              if (outcome === "fail") {
+                return yield* Effect.fail("late-boom") as Effect.Effect<never, string>;
+              }
 
-        yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
-      })), (args) => ({ id: (args[0] !== undefined && "value" in args[0] ? args[0].value : "") as string })),
-      "home/reverse": Nexus.Mesh.bind(Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.void), () => ({})),
-    }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
+              yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
+            }),
+          ),
+          (args) => ({ id: (args[0] !== undefined && "value" in args[0] ? args[0].value : "") as string }),
+        ),
+        "home/reverse": Nexus.Mesh.bind(
+          Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.void),
+          () => ({}),
+        ),
+      }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
   });
   const appScope = await run(Scope.make());
   const mountScope = await run(Scope.make());
@@ -54,7 +73,9 @@ const setup = async (outcome: "commit" | "fail") => {
   const mounted = (await run(Valance.mount(handle as never, target).pipe(Scope.extend(mountScope)))) as Valance.Mounted<never>;
 
   return {
-    root, mounted, handle,
+    root,
+    mounted,
+    handle,
     click: () => userEvent.click(root.querySelector("div button")!),
     entered: () => run(Deferred.await(entered)),
     release: () => run(Deferred.succeed(gate, "late")),
@@ -71,21 +92,21 @@ describe("the event-exit ledger when the mount closes before its command exits",
     try {
       await s.click();
       await s.entered();
-      await s.closeMount();                                                       // target and follower gone; the mount is closed
+      await s.closeMount(); // target and follower gone; the mount is closed
       expect(s.root.innerHTML).toBe("");
-      expect(s.mounted.dispatched).toEqual([]);                                   // nothing has exited yet
+      expect(s.mounted.dispatched).toEqual([]); // nothing has exited yet
 
-      await run(s.mounted.settled);                                               // returns at once: the closed mount holds no dispatches to await
-      expect(s.mounted.dispatched).toEqual([]);                                   // ... it did NOT wait for the still-running command
+      await run(s.mounted.settled); // returns at once: the closed mount holds no dispatches to await
+      expect(s.mounted.dispatched).toEqual([]); // ... it did NOT wait for the still-running command
 
-      await s.release();                                                          // the command, now owned by the application alone, fails
-      await expect.poll(() => s.mounted.dispatched.length).toBe(1);               // the closed mount's ledger receives the late exit
+      await s.release(); // the command, now owned by the application alone, fails
+      await expect.poll(() => s.mounted.dispatched.length).toBe(1); // the closed mount's ledger receives the late exit
       expect(s.mounted.dispatched.map(show)).toEqual(['failed "late-boom"']);
-      expect((await s.state()).value).toBe("init");                               // the failure is visible NOWHERE else: not state, not any render
-      expect(show(await run(s.mounted.followed) as never)).toBe("interrupted");   // the follower ended with the mount's Scope
+      expect((await s.state()).value).toBe("init"); // the failure is visible NOWHERE else: not state, not any render
+      expect(show((await run(s.mounted.followed)) as never)).toBe("interrupted"); // the follower ended with the mount's Scope
 
-      await s.closeApp();                                                         // the application closes with nothing pending
-      expect(s.mounted.dispatched.map(show)).toEqual(['failed "late-boom"']);    // the ledger is unchanged by it: it lives as long as someone holds `Mounted`
+      await s.closeApp(); // the application closes with nothing pending
+      expect(s.mounted.dispatched.map(show)).toEqual(['failed "late-boom"']); // the ledger is unchanged by it: it lives as long as someone holds `Mounted`
     } finally {
       root(s);
     }
@@ -97,15 +118,17 @@ describe("the event-exit ledger when the mount closes before its command exits",
     try {
       await s.click();
       await s.entered();
-      await s.closeMount();                                                       // closed mount, command still pending
-      await s.closeApp();                                                         // the registry interrupts it and awaits its exit
+      await s.closeMount(); // closed mount, command still pending
+      await s.closeApp(); // the registry interrupts it and awaits its exit
 
-      expect(s.mounted.dispatched.map(show)).toEqual(["interrupted"]);           // read with no waiting
-      await run(s.mounted.settled);                                               // still returns at once
+      expect(s.mounted.dispatched.map(show)).toEqual(["interrupted"]); // read with no waiting
+      await run(s.mounted.settled); // still returns at once
     } finally {
       root(s);
     }
   });
 });
 
-const root = (s: { readonly root: Element }) => { s.root.remove(); };
+const root = (s: { readonly root: Element }) => {
+  s.root.remove();
+};

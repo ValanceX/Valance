@@ -9,7 +9,9 @@ import { until } from "./helpers.js";
 
 const settle = () => sleep(40);
 const one = { view: "a", show: false, ids: ["A"], n: 0 } as const;
-const press = (m: { readonly page: { click: (e: Element) => unknown }; readonly rowEls: () => ReadonlyArray<Element> }) => { m.page.click(m.rowEls()[0]!.querySelector("button")!); };
+const press = (m: { readonly page: { click: (e: Element) => unknown }; readonly rowEls: () => ReadonlyArray<Element> }) => {
+  m.page.click(m.rowEls()[0]!.querySelector("button")!);
+};
 
 describe("the retained render is the source of interaction identity", () => {
   it("A. a successful same-view update replaces it, even with an identical tree", async () => {
@@ -38,15 +40,15 @@ describe("the retained render is the source of interaction identity", () => {
       await settle();
       fails = when;
       await b.invoke("app/tag", "b");
-      await b.invoke("app/ids", ["A", "C"]);                             // physically (after) there is a row the retained render does not have
+      await b.invoke("app/ids", ["A", "C"]); // physically (after) there is a row the retained render does not have
       await settle();
       expect(m.ops).toEqual(["draw", "update"]);
       expect(m.rowEls().length).toBe(when === "after" ? 2 : 1);
       press(m);
       await until(() => b.taps.length === 1);
-      expect(b.taps).toEqual(["aA"]);                                    // A's argument, not B's
+      expect(b.taps).toEqual(["aA"]); // A's argument, not B's
       if (when === "after") {
-        m.page.click(m.rowEls()[1]!.querySelector("button")!);           // the B-only artifact: no logical source
+        m.page.click(m.rowEls()[1]!.querySelector("button")!); // the B-only artifact: no logical source
         await until(() => m.mounted.dispatched.length === 2);
         expect(Exit.isFailure(m.mounted.dispatched[1]!)).toBe(true);
         expect(b.taps).toEqual(["aA"]);
@@ -60,17 +62,17 @@ describe("the retained render is the source of interaction identity", () => {
     const m = await b.mountOn();
 
     press(m);
-    await until(() => b.taps.length === 1);                              // A(""): "A"
+    await until(() => b.taps.length === 1); // A(""): "A"
     const oldA = m.reports[0]!;
     await b.invoke("app/tag", "b");
     await settle();
     await b.invoke("app/toggleView");
-    await until(() => m.ops.length === 3);                               // update, draw → view b
+    await until(() => m.ops.length === 3); // update, draw → view b
     expect(m.ops).toEqual(["draw", "update", "draw"]);
     press(m);
     await until(() => b.taps.length === 2);
     expect(b.taps).toEqual(["A", "bA"]);
-    oldA.send();                                                         // the first A render's interaction, reported while B is retained: B's table has no such handler
+    oldA.send(); // the first A render's interaction, reported while B is retained: B's table has no such handler
     await until(() => m.mounted.dispatched.length === 3);
     expect(Exit.isFailure(m.mounted.dispatched[2]!)).toBe(true);
     await b.invoke("app/tag", "c");
@@ -79,9 +81,9 @@ describe("the retained render is the source of interaction identity", () => {
     await until(() => m.ops.length === 5);
     expect(m.ops).toEqual(["draw", "update", "draw", "update", "draw"]);
     press(m);
-    oldA.send();                                                         // same handler identity as the first A, resolved against the newly drawn A
+    oldA.send(); // same handler identity as the first A, resolved against the newly drawn A
     await until(() => b.taps.length === 4);
-    expect(b.taps).toEqual(["A", "bA", "cA", "cA"]);                    // never "A": the render from before the transition is gone
+    expect(b.taps).toEqual(["A", "bA", "cA", "cA"]); // never "A": the render from before the transition is gone
     await m.close();
   });
 
@@ -96,7 +98,7 @@ describe("the retained render is the source of interaction identity", () => {
     await until(() => f.ops.length === 3);
     await full.invoke("app/tag", "b");
     await settle();
-    press(f);                                                            // B's handler, retained while B is presented
+    press(f); // B's handler, retained while B is presented
     await until(() => full.taps.length === 1);
     expect(full.taps).toEqual(["bA"]);
     const bHandler = f.reports.at(-1)!;
@@ -119,8 +121,8 @@ describe("the retained render is the source of interaction identity", () => {
     expect(s.ops[0]).toBe("draw");
     press(s);
     await until(() => fast.taps.length === 1);
-    expect(fast.taps).toEqual(["cA"]);                                   // the final presented A(c), whichever intermediates were presented
-    s.report(bHandler.handler, bHandler.payload);                        // B's handler (view b): no resolution against any B render
+    expect(fast.taps).toEqual(["cA"]); // the final presented A(c), whichever intermediates were presented
+    s.report(bHandler.handler, bHandler.payload); // B's handler (view b): no resolution against any B render
     await until(() => s.mounted.dispatched.length === 2);
     expect(Exit.isFailure(s.mounted.dispatched[1]!)).toBe(true);
     expect(fast.taps).toEqual(["cA"]);
@@ -132,7 +134,7 @@ describe("the retained render is the source of interaction identity", () => {
     const b = await boot(one);
     let fails = false;
     const ok = await b.mountOn();
-    const bad = await b.mountOn({ updateThrows: () => fails ? "after" : undefined });
+    const bad = await b.mountOn({ updateThrows: () => (fails ? "after" : undefined) });
 
     fails = true;
     await b.invoke("app/tag", "b");
@@ -142,7 +144,7 @@ describe("the retained render is the source of interaction identity", () => {
     press(ok);
     press(bad);
     await until(() => b.taps.length === 2);
-    expect(b.taps).toEqual(["bA", "A"]);                                 // one application state ("b"), two retained renders
+    expect(b.taps).toEqual(["bA", "A"]); // one application state ("b"), two retained renders
     await ok.close();
     await bad.close();
   });
@@ -160,13 +162,13 @@ describe("the retained render is the source of interaction identity", () => {
     button.className = "x";
     m.page.click(button);
     await until(() => b.taps.length === 1);
-    expect(b.taps).toEqual(["bA"]);                                      // the retained render, not the DOM's attributes or text, nor anything the DOM now says
+    expect(b.taps).toEqual(["bA"]); // the retained render, not the DOM's attributes or text, nor anything the DOM now says
 
-    const foreign = button.cloneNode(true) as Element;                   // an element PORT did not create
+    const foreign = button.cloneNode(true) as Element; // an element PORT did not create
 
     button.replaceWith(foreign);
     m.page.click(foreign);
-    m.page.click(button);                                                // detached
+    m.page.click(button); // detached
     await settle();
     expect(b.taps).toEqual(["bA"]);
     expect(m.mounted.dispatched.length).toBe(1);

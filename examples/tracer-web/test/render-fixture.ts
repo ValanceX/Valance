@@ -15,18 +15,49 @@ export type State = Schema.Schema.Type<typeof State>;
 export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const definition = (initial: State, hooks: { onScope?: () => void } = {}) => Valance.define({
-  name: "first-render", state: { schema: State, initial },
-  views: { only: { program: titleProgram, scope: (s: State) => { hooks.onScope?.(); return { title: s.bad ? (42 as never) : `n${s.n}` }; } } }, view: () => "only" as const,
-  commands: (state: Nexus.State.StateHandle<State>) => ({
-    "app/fix": Nexus.Mesh.bind(Nexus.Command.define("t.fix", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: false })))), () => ({})),
-    "app/break": Nexus.Mesh.bind(Nexus.Command.define("t.break", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: true })))), () => ({})),
-    "app/bump": Nexus.Mesh.bind(Nexus.Command.define("t.bump", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 1 })))), () => ({})),
-  }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
-});
+export const definition = (initial: State, hooks: { onScope?: () => void } = {}) =>
+  Valance.define({
+    name: "first-render",
+    state: { schema: State, initial },
+    views: {
+      only: {
+        program: titleProgram,
+        scope: (s: State) => {
+          hooks.onScope?.();
+          return { title: s.bad ? (42 as never) : `n${s.n}` };
+        },
+      },
+    },
+    view: () => "only" as const,
+    commands: (state: Nexus.State.StateHandle<State>) =>
+      ({
+        "app/fix": Nexus.Mesh.bind(
+          Nexus.Command.define("t.fix", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: false })))),
+          () => ({}),
+        ),
+        "app/break": Nexus.Mesh.bind(
+          Nexus.Command.define("t.break", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, bad: true })))),
+          () => ({}),
+        ),
+        "app/bump": Nexus.Mesh.bind(
+          Nexus.Command.define("t.bump", Schema.Struct({}), () => Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 1 })))),
+          () => ({}),
+        ),
+      }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
+  });
 
-export const causeOf = (exit: Exit.Exit<unknown, unknown> | "hung"): "hung" | "success" | "interrupted" | "MeshDiagnostics" | "defect" | "other" => exit === "hung" ? "hung" : Exit.isSuccess(exit) ? "success" : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : Cause.isFailType(exit.cause) && (exit.cause.error as { _tag?: string })._tag === "MeshDiagnostics" ? "MeshDiagnostics" : Cause.isDieType(exit.cause) ? "defect" : "other";
-
+export const causeOf = (exit: Exit.Exit<unknown, unknown> | "hung"): "hung" | "success" | "interrupted" | "MeshDiagnostics" | "defect" | "other" =>
+  exit === "hung"
+    ? "hung"
+    : Exit.isSuccess(exit)
+      ? "success"
+      : Cause.isInterruptedOnly(exit.cause)
+        ? "interrupted"
+        : Cause.isFailType(exit.cause) && (exit.cause.error as { _tag?: string })._tag === "MeshDiagnostics"
+          ? "MeshDiagnostics"
+          : Cause.isDieType(exit.cause)
+            ? "defect"
+            : "other";
 
 /** One application, a jsdom document, and `open(kind)`: a mount (or hydrate) in a Scope of its own, over a recording target whose update/unmount can be made to throw or to act. */
 export type Kind = "mount" | "hydrate";
@@ -51,10 +82,29 @@ export const rig = async () => {
       const port = Web.target({ container, primitives })(report);
 
       return {
-        draw: (t) => { port.draw(t); ops.push("draw"); },
-        update: (t) => { options.inUpdate?.(); if (options.updateThrows?.() === true) { throw new Error("update failed"); } port.update(t); ops.push("update"); },
-        hydrate: (t) => { ops.push("hydrate"); return port.hydrate(t); },
-        unmount: () => { ops.push("unmount"); if (options.unmountThrows?.() === true) { throw new Error("unmount failed"); } port.unmount(); },
+        draw: (t) => {
+          port.draw(t);
+          ops.push("draw");
+        },
+        update: (t) => {
+          options.inUpdate?.();
+          if (options.updateThrows?.() === true) {
+            throw new Error("update failed");
+          }
+          port.update(t);
+          ops.push("update");
+        },
+        hydrate: (t) => {
+          ops.push("hydrate");
+          return port.hydrate(t);
+        },
+        unmount: () => {
+          ops.push("unmount");
+          if (options.unmountThrows?.() === true) {
+            throw new Error("unmount failed");
+          }
+          port.unmount();
+        },
       };
     };
     const mounted = await run((kind === "mount" ? Valance.mount(handle, factory) : Valance.hydrate(handle, factory)).pipe(Scope.extend(scope)));
@@ -62,10 +112,23 @@ export const rig = async () => {
     return { container, ops, scope, mounted, label: () => container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
   };
   /** How the mount's follower stands: still following, or the shape of its exit. */
-  const standing = (mounted: Valance.Mounted<unknown>) => Effect.runPromise(Effect.race(
-    Effect.map(mounted.followed, (exit): string => Exit.isSuccess(exit) ? "ended" : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : Cause.isFailType(exit.cause) ? `typed ${(exit.cause.error as { _tag: string })._tag}` : Cause.isDieType(exit.cause) ? `defect ${(exit.cause.defect as Error).message}` : "other"),
-    Effect.succeed("following")
-  ));
+  const standing = (mounted: Valance.Mounted<unknown>) =>
+    Effect.runPromise(
+      Effect.race(
+        Effect.map(mounted.followed, (exit): string =>
+          Exit.isSuccess(exit)
+            ? "ended"
+            : Cause.isInterruptedOnly(exit.cause)
+              ? "interrupted"
+              : Cause.isFailType(exit.cause)
+                ? `typed ${(exit.cause.error as { _tag: string })._tag}`
+                : Cause.isDieType(exit.cause)
+                  ? `defect ${(exit.cause.defect as Error).message}`
+                  : "other",
+        ),
+        Effect.succeed("following"),
+      ),
+    );
   const recovers = async () => {
     const fresh = await open("mount");
 
@@ -74,4 +137,3 @@ export const rig = async () => {
 
   return { handle, open, standing, recovers, hooks, appScope, state: () => run(handle.state) };
 };
-

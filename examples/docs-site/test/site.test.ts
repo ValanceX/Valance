@@ -33,11 +33,21 @@ it("search finds pages by title or text, and nothing for an empty query", () => 
 it("the search command shows loading, then results; a newer search wins; going to a page discards the answer still in flight", async () => {
   const programs = await compilePrograms();
   const gates = new Map<string, (answer: ReadonlyArray<{ id: string; title: string }>) => void>();
-  const app = application(programs, (query) => new Promise((resolve) => { gates.set(query, resolve); }));
+  const app = application(
+    programs,
+    (query) =>
+      new Promise((resolve) => {
+        gates.set(query, resolve);
+      }),
+  );
   const scope = Effect.runSync(Scope.make());
   const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
   const state = () => Effect.runSync(handle.state as never) as typeof initial;
-  const until = async (done: () => boolean) => { for (let turn = 0; turn < 200 && !done(); turn += 1) { await new Promise((resolve) => setTimeout(resolve, 5)); } };
+  const until = async (done: () => boolean) => {
+    for (let turn = 0; turn < 200 && !done(); turn += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  };
 
   void Effect.runFork(handle.invoke("app/search", [{ value: "sta" }]) as never);
   await until(() => gates.has("sta"));
@@ -45,7 +55,7 @@ it("the search command shows loading, then results; a newer search wins; going t
 
   void Effect.runFork(handle.invoke("app/search", [{ value: "state" }]) as never);
   await until(() => gates.has("state"));
-  gates.get("sta")!([{ id: "introduction", title: "Introduction" }]);                 // the older answer arrives after the newer search began
+  gates.get("sta")!([{ id: "introduction", title: "Introduction" }]); // the older answer arrives after the newer search began
   gates.get("state")!([{ id: "state", title: "State" }]);
   await until(() => state().search.status === "done");
   expect(state().search.results).toEqual([{ id: "state", label: "State" }]);
@@ -56,7 +66,7 @@ it("the search command shows loading, then results; a newer search wins; going t
   gates.get("api")!([{ id: "api", title: "API" }]);
   await new Promise((resolve) => setTimeout(resolve, 30));
   expect(state().page).toBe("api");
-  expect(state().search.status).toBe("idle");                                            // the stale answer did not land
+  expect(state().search.status).toBe("idle"); // the stale answer did not land
 
   await Effect.runPromise(Scope.close(scope, Exit.void));
 });

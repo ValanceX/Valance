@@ -26,7 +26,9 @@ import { Schema } from "effect";
 export { Schema };
 
 /** The part of the application's state the framework owns: which page is shown. A command's `state` always has it. */
-export interface PageState { readonly page: string }
+export interface PageState {
+  readonly page: string;
+}
 
 // ---- state -------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -128,7 +130,9 @@ export interface AppDefinition<S extends StateInput = {}> {
 /** The brand that says a value came from `defineApp`. */
 export const APP = Symbol.for("valancex.cli");
 
-export interface DefinedApp extends AppDefinition<any> { readonly [APP]: true }
+export interface DefinedApp extends AppDefinition<any> {
+  readonly [APP]: true;
+}
 
 /** Declares the application's component tree, state and commands. It starts nothing; the framework runs it. */
-export const defineApp = <S extends StateInput = {}>(definition: AppDefinition<S>): DefinedApp => ({ ...definition, [APP]: true } as unknown as DefinedApp);
+export const defineApp = <S extends StateInput = {}>(definition: AppDefinition<S>): DefinedApp => ({ ...definition, [APP]: true }) as unknown as DefinedApp;

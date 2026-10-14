@@ -20,17 +20,28 @@ const logs: Array<string> = [];
 const edit = (file: string, from: string, to: string): void => {
   const text = readFileSync(join(copy, file), "utf8");
 
-  if (!text.includes(from)) { throw new Error(`${file} does not contain ${from}`); }
+  if (!text.includes(from)) {
+    throw new Error(`${file} does not contain ${from}`);
+  }
 
   writeFileSync(join(copy, file), text.replace(from, to));
 };
 
-const ready = async (): Promise<void> => { await page.waitForSelector('#app[data-valance="running"]'); };
+const ready = async (): Promise<void> => {
+  await page.waitForSelector('#app[data-valance="running"]');
+};
 
 beforeAll(async () => {
-  for (const entry of ["content", "public", "src", "valance.json"]) { cpSync(join(here, entry), join(copy, entry), { recursive: true }); }
+  for (const entry of ["content", "public", "src", "valance.json"]) {
+    cpSync(join(here, entry), join(copy, entry), { recursive: true });
+  }
 
-  running = await dev(copy, { port: 5400 + Math.floor(Math.random() * 400), log: (line) => { logs.push(line); } });
+  running = await dev(copy, {
+    port: 5400 + Math.floor(Math.random() * 400),
+    log: (line) => {
+      logs.push(line);
+    },
+  });
   browser = await chromium.launch();
   page = await browser.newPage();
   await page.goto(`${running.url}guide/getting-started`);
@@ -66,7 +77,9 @@ describe("vlx dev", () => {
   });
 
   it("applies an edit to a stylesheet without reloading the page", async () => {
-    await page.evaluate(() => { (window as unknown as { __kept: boolean }).__kept = true; });
+    await page.evaluate(() => {
+      (window as unknown as { __kept: boolean }).__kept = true;
+    });
     edit("src/styles.css", "--accent: #5b3fd6", "--accent: #d63f3f");
     await page.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() === "#d63f3f");
     expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);

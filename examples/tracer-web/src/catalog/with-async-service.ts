@@ -28,7 +28,8 @@ export const applicationWithAsyncCatalog = (programs: Programs) => {
           const entry = yield* catalog.lookup(id);
 
           yield* state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...current.items, { id: entry.id, name: entry.name }] }));
-        }));
+        }),
+      );
 
       return { ...base.commands(state), "app/lookupAsync": Nexus.Mesh.bind(lookupAsync, (args) => ({ id: firstValue(args) })) };
     },

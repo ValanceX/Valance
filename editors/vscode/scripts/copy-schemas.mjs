@@ -3,4 +3,6 @@ import { copyFileSync, mkdirSync } from "node:fs";
 
 mkdirSync("schemas", { recursive: true });
 
-for (const name of ["valance.schema.json", "valance.web.schema.json"]) { copyFileSync(new URL(`../../../packages/cli/schemas/${name}`, import.meta.url), new URL(`../schemas/${name}`, import.meta.url)); }
+for (const name of ["valance.schema.json", "valance.web.schema.json"]) {
+  copyFileSync(new URL(`../../../packages/cli/schemas/${name}`, import.meta.url), new URL(`../schemas/${name}`, import.meta.url));
+}

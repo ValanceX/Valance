@@ -17,11 +17,15 @@ export type Entry = Pick<ApplicationHandle<unknown, unknown>, "invoke">;
 export const fromWindowEvent = (entry: Entry, win: Window, name: string, key: string): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function* () {
     const listener = (event: Event): void => {
-      void Effect.runPromise(entry.invoke(key, [{ value: (event as CustomEvent<never>).detail }]).pipe(
-        Effect.catchAllCause((cause) => Effect.logError("host event failed", Cause.pretty(cause)))
-      ));
+      void Effect.runPromise(
+        entry.invoke(key, [{ value: (event as CustomEvent<never>).detail }]).pipe(Effect.catchAllCause((cause) => Effect.logError("host event failed", Cause.pretty(cause)))),
+      );
     };
 
     win.addEventListener(name, listener);
-    yield* Effect.addFinalizer(() => Effect.sync(() => { win.removeEventListener(name, listener); }));
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        win.removeEventListener(name, listener);
+      }),
+    );
   });

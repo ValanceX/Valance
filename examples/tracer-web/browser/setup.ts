@@ -41,18 +41,39 @@ export default async function setup(project: TestProject): Promise<void> {
     catalogServed: await (async (): Promise<CatalogServed> => {
       const catalog = await compileCatalog();
 
-      return Effect.runPromise(renderToHtml(catalogApplication(catalog), { primitives: catalogPrimitives, state: { view: "home", items: [{ id: "A", name: "Alpha" }, { id: "B", name: "Beta" }, { id: "C", name: "Gamma" }] } }));
+      return Effect.runPromise(
+        renderToHtml(catalogApplication(catalog), {
+          primitives: catalogPrimitives,
+          state: {
+            view: "home",
+            items: [
+              { id: "A", name: "Alpha" },
+              { id: "B", name: "Beta" },
+              { id: "C", name: "Gamma" },
+            ],
+          },
+        }),
+      );
     })(),
     // The URLs the "server" is asked for. What each means is the application's (`stateFor`); count is not in a URL.
     home: await serve(stateFor("/tracer/?tab=overview")),
-    about: await serve({ ...stateFor("/tracer/about?tab=details"), count: 3 }),          // case A: canonical
-    plainAbout: await serve({ ...stateFor("/tracer/about"), count: 3 }),                 // case B: valid, not canonical
-    notFound: await serve(stateFor("/tracer/not-a-view")),                               // case C: no view
+    about: await serve({ ...stateFor("/tracer/about?tab=details"), count: 3 }), // case A: canonical
+    plainAbout: await serve({ ...stateFor("/tracer/about"), count: 3 }), // case B: valid, not canonical
+    notFound: await serve(stateFor("/tracer/not-a-view")), // case C: no view
   });
 }
 
 declare module "vitest" {
   export interface ProvidedContext {
-    page: { readonly programs: Programs; readonly catalog: CatalogPrograms; readonly titleProgram: Mesh.Program; readonly catalogServed: CatalogServed; readonly home: Served; readonly about: Served; readonly plainAbout: Served; readonly notFound: Served };
+    page: {
+      readonly programs: Programs;
+      readonly catalog: CatalogPrograms;
+      readonly titleProgram: Mesh.Program;
+      readonly catalogServed: CatalogServed;
+      readonly home: Served;
+      readonly about: Served;
+      readonly plainAbout: Served;
+      readonly notFound: Served;
+    };
   }
 }

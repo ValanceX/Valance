@@ -17,14 +17,21 @@ describe("dependency boundary", () => {
   it("MESH, PORT Web and NEXUS don't depend on Valance (nor MESH/PORT on NEXUS)", () => {
     expect(declared("../node_modules/@valancex/mesh-runtime/package.json")).toEqual([]);
     expect(declared("../node_modules/@valancex/port-web/package.json")).toEqual(["@valancex/mesh-runtime"]);
-    expect(declared("../node_modules/@valancex/nexus/package.json").filter((name) => name.startsWith("@valancex/")).sort()).toEqual(["@valancex/mesh-runtime"]);
+    expect(
+      declared("../node_modules/@valancex/nexus/package.json")
+        .filter((name) => name.startsWith("@valancex/"))
+        .sort(),
+    ).toEqual(["@valancex/mesh-runtime"]);
   });
 
   it("Valance's core (index, internal, errors) names no PORT package and nothing Web; only the ./web entries do", () => {
     for (const file of ["index.ts", "internal.ts", "errors.ts"]) {
       const core = source(file);
 
-      expect(importsOf(core).filter((name) => name.includes("port")), file).toEqual([]);
+      expect(
+        importsOf(core).filter((name) => name.includes("port")),
+        file,
+      ).toEqual([]);
       expect(core, file).not.toMatch(/\b(DOM|Element|document|window|HTML|Web)\b/);
     }
 
@@ -34,7 +41,10 @@ describe("dependency boundary", () => {
   });
 
   it("Valance depends on NEXUS, and on PORT Web only optionally", () => {
-    const manifest = JSON.parse(readFileSync(here("../package.json"), "utf8")) as { dependencies: Record<string, string>; peerDependenciesMeta: Record<string, { optional: boolean }> };
+    const manifest = JSON.parse(readFileSync(here("../package.json"), "utf8")) as {
+      dependencies: Record<string, string>;
+      peerDependenciesMeta: Record<string, { optional: boolean }>;
+    };
 
     expect(Object.keys(manifest.dependencies)).toEqual(["@valancex/nexus"]);
     expect(manifest.peerDependenciesMeta["@valancex/port-web"]).toEqual({ optional: true });

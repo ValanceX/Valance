@@ -13,11 +13,28 @@ const model = JSON.stringify({
   version: 1,
   types: {},
   components: {
-    main: { props: {}, events: {}, commands: {}, scope: { title: { kind: "string" }, items: { kind: "list", element: { kind: "record", fields: { id: { type: { kind: "string" }, required: true }, label: { type: { kind: "string" }, required: true } } } } } },
+    main: {
+      props: {},
+      events: {},
+      commands: {},
+      scope: {
+        title: { kind: "string" },
+        items: { kind: "list", element: { kind: "record", fields: { id: { type: { kind: "string" }, required: true }, label: { type: { kind: "string" }, required: true } } } },
+      },
+    },
     other: { props: {}, events: {}, commands: {}, scope: {} },
     text: { props: {}, events: {}, commands: {}, scope: {} },
     list: { props: {}, events: {}, commands: {}, scope: {} },
-    "mesh-each": { props: { items: { type: { kind: "list", element: { kind: "any" } }, required: true }, as: { type: { kind: "string" }, required: true }, key: { type: { kind: "any" }, required: true } }, events: {}, commands: {}, scope: {} },
+    "mesh-each": {
+      props: {
+        items: { type: { kind: "list", element: { kind: "any" } }, required: true },
+        as: { type: { kind: "string" }, required: true },
+        key: { type: { kind: "any" }, required: true },
+      },
+      events: {},
+      commands: {},
+      scope: {},
+    },
   },
 });
 const program = async (root: string, source: string): Promise<Mesh.Mesh.Program> => {
@@ -37,7 +54,17 @@ type State = Schema.Schema.Type<typeof State>;
 
 const application = Valance.define({
   name: "incremental",
-  state: { schema: State, initial: { page: "main", title: "T", items: [{ id: "a", label: "A" }, { id: "b", label: "B" }] } },
+  state: {
+    schema: State,
+    initial: {
+      page: "main",
+      title: "T",
+      items: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ],
+    },
+  },
   views: { main: { program: main, scope: (s) => ({ title: s.title, items: s.items }) }, other: { program: other, scope: () => ({}) } },
   view: (s) => (s.page === "main" ? "main" : "other") as "main" | "other",
   commands: (state) => {
@@ -46,7 +73,11 @@ const application = Valance.define({
     const page = command(Schema.Struct({ page: Schema.String }), ({ page }, current) => ({ ...current, page }));
     const add = command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, items: [...current.items, { id, label: id.toUpperCase() }] }));
 
-    return { "app/title": Valance.entry(title, (value) => ({ title: value })), "app/page": Valance.entry(page, (value) => ({ page: value })), "app/add": Valance.entry(add, (value) => ({ id: value })) };
+    return {
+      "app/title": Valance.entry(title, (value) => ({ title: value })),
+      "app/page": Valance.entry(page, (value) => ({ page: value })),
+      "app/add": Valance.entry(add, (value) => ({ id: value })),
+    };
   },
 });
 
@@ -57,11 +88,20 @@ const run = async (withPatch: boolean, steps: ReadonlyArray<readonly [string, st
   const calls: Array<string> = [];
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
-  const running = runningOf(handle);
   const factory: Valance.TargetFactory<Valance.Target> = () => ({
-    draw: () => { calls.push("draw"); },
-    update: () => { calls.push("update"); },
-    ...(withPatch ? { patch: (patches: Mesh.Mesh.RenderPatches) => { calls.push(`patch:${patches.patches.map((patch) => (patch as { readonly op: string }).op).join(",")}`); } } : {}),
+    draw: () => {
+      calls.push("draw");
+    },
+    update: () => {
+      calls.push("update");
+    },
+    ...(withPatch
+      ? {
+          patch: (patches: Mesh.Mesh.RenderPatches) => {
+            calls.push(`patch:${patches.patches.map((patch) => (patch as { readonly op: string }).op).join(",")}`);
+          },
+        }
+      : {}),
     unmount: () => undefined,
   });
 
@@ -79,7 +119,10 @@ const run = async (withPatch: boolean, steps: ReadonlyArray<readonly [string, st
 
 describe("only what changed is drawn", () => {
   it("a later render of the same view is the patches that turn the drawn tree into it", async () => {
-    const calls = await run(true, [["title", "U"], ["add", "c"]]);
+    const calls = await run(true, [
+      ["title", "U"],
+      ["add", "c"],
+    ]);
 
     expect(calls[0]).toBe("draw");
     expect(calls[1]).toBe("patch:setText");
@@ -88,14 +131,21 @@ describe("only what changed is drawn", () => {
   });
 
   it("another view is another program: it is drawn afresh, and the view after it is patched again", async () => {
-    const calls = await run(true, [["page", "other"], ["page", "main"], ["title", "V"]]);
+    const calls = await run(true, [
+      ["page", "other"],
+      ["page", "main"],
+      ["title", "V"],
+    ]);
 
     expect(calls.slice(0, 3)).toEqual(["draw", "draw", "draw"]);
     expect(calls[3]).toBe("patch:setText");
   });
 
   it("a target without `patch` is given `update`, as before", async () => {
-    const calls = await run(false, [["title", "U"], ["add", "c"]]);
+    const calls = await run(false, [
+      ["title", "U"],
+      ["add", "c"],
+    ]);
 
     expect(calls).toEqual(["draw", "update", "update"]);
   });

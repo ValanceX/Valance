@@ -24,26 +24,32 @@ describe("tracer: SSR → hydrate → event → state → render → update", ()
     const page = load(served.html);
     const server = page.nodes();
 
-    const result = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      // The client starts the same application with the state the server embedded.
-      const running = yield* Valance.start(app, { state: served.state });
-      const mounted = yield* Valance.hydrate(running, Web.target({ container: page.container, primitives }));
-      const adopted = server.every((node) => page.container.contains(node));
+    const result = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          // The client starts the same application with the state the server embedded.
+          const running = yield* Valance.start(app, { state: served.state });
+          const mounted = yield* Valance.hydrate(running, Web.target({ container: page.container, primitives }));
+          const adopted = server.every((node) => page.container.contains(node));
 
-      page.click(page.container.querySelector("button")!);
-      yield* mounted.settled;
-      yield* Effect.promise(() => until(() => text(page.container).startsWith("1 clicks")));
+          page.click(page.container.querySelector("button")!);
+          yield* mounted.settled;
+          yield* Effect.promise(() => until(() => text(page.container).startsWith("1 clicks")));
 
-      // Updated in place: the server's own elements are still the page's elements.
-      const kept = server.filter((node) => node.nodeType === 1).every((node) => page.nodes().includes(node));
+          // Updated in place: the server's own elements are still the page's elements.
+          const kept = server.filter((node) => node.nodeType === 1).every((node) => page.nodes().includes(node));
 
-      return { hydration: mounted.hydration, adopted, kept, dispatched: mounted.dispatched, state: yield* running.state };
-    })));
+          return { hydration: mounted.hydration, adopted, kept, dispatched: mounted.dispatched, state: yield* running.state };
+        }),
+      ),
+    );
 
     expect(result.hydration).toEqual({ adopted: true });
     expect(result.adopted).toBe(true);
     expect(result.kept).toBe(true);
-    expect(result.dispatched.map((exit) => Exit.isSuccess(exit) ? exit.value.intent : "failed")).toEqual([{ command: { component: "counter", name: "increment" }, arguments: [] }]);
+    expect(result.dispatched.map((exit) => (Exit.isSuccess(exit) ? exit.value.intent : "failed"))).toEqual([
+      { command: { component: "counter", name: "increment" }, arguments: [] },
+    ]);
     expect(result.state.count).toBe(1);
   });
 
@@ -53,17 +59,21 @@ describe("tracer: SSR → hydrate → event → state → render → update", ()
     const page = load(served.html);
     const server = page.nodes();
 
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      // The client's state differs from the server's: PORT reports it, it does not guess.
-      const running = yield* Valance.start(app, { state: { ...initial, title: "Other" } satisfies AppState });
-      const mounted = yield* Valance.hydrate(running, Web.target({ container: page.container, primitives }));
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          // The client's state differs from the server's: PORT reports it, it does not guess.
+          const running = yield* Valance.start(app, { state: { ...initial, title: "Other" } satisfies AppState });
+          const mounted = yield* Valance.hydrate(running, Web.target({ container: page.container, primitives }));
 
-      expect(mounted.hydration.adopted).toBe(false);
-      expect(server.filter((node) => page.container.contains(node))).toEqual([]);
+          expect(mounted.hydration.adopted).toBe(false);
+          expect(server.filter((node) => page.container.contains(node))).toEqual([]);
 
-      page.click(page.container.querySelector("button")!);
-      yield* mounted.settled;
-      yield* Effect.promise(() => until(() => text(page.container).startsWith("1 clicks")));
-    })));
+          page.click(page.container.querySelector("button")!);
+          yield* mounted.settled;
+          yield* Effect.promise(() => until(() => text(page.container).startsWith("1 clicks")));
+        }),
+      ),
+    );
   });
 });

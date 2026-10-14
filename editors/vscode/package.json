@@ -63,9 +63,19 @@
           "description": "Also run `vlx check` after every change to a Markdown or template file, not only on save."
         },
         "valance.codeLens": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show, above each prop, event, component use, state field and command, where the other end of the connection is."
+          "type": "string",
+          "enum": [
+            "summary",
+            "full",
+            "off"
+          ],
+          "enumDescriptions": [
+            "A short line above each prop, event, component use, state field and command: how many places are on the other end. Click it to see them.",
+            "The places, and what is passed or handled, written out (long on a component with many bindings).",
+            "No lenses."
+          ],
+          "default": "summary",
+          "description": "The other end of each connection, above each prop, event, component use, state field and command."
         }
       }
     },
@@ -82,7 +92,16 @@
         "command": "valance.showOutput",
         "title": "VALANCE: Show details"
       }
-    ]
+    ],
+    "configurationDefaults": {
+      "[mprx]": {
+        "editor.autoIndent": "full",
+        "editor.formatOnType": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.detectIndentation": false
+      }
+    }
   },
   "scripts": {
     "prepare": "node scripts/copy-schemas.mjs",

@@ -19,9 +19,28 @@ const ids = ["setA", "setB", "gate1", "gate2", "boom"] as const;
 const State = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })), value: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
 const programs = await compilePrograms();
-const firstValue = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => { const first = args[0]; return first !== undefined && "value" in first ? first.value : undefined; };
-const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded" : Cause.isFailType(exit.cause) ? "failed" : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : "other";
-const yields = (n: number) => Effect.runPromise(Effect.forEach(Array.from({ length: n }, (_, index) => index), () => Effect.yieldNow(), { discard: true }));
+const firstValue = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => {
+  const first = args[0];
+  return first !== undefined && "value" in first ? first.value : undefined;
+};
+const show = (exit: Exit.Exit<unknown, unknown>): string =>
+  Exit.isSuccess(exit)
+    ? "succeeded"
+    : Cause.isFailType(exit.cause)
+      ? "failed"
+      : Cause.isDieType(exit.cause)
+        ? `died: ${(exit.cause.defect as Error).message}`
+        : Cause.isInterruptedOnly(exit.cause)
+          ? "interrupted"
+          : "other";
+const yields = (n: number) =>
+  Effect.runPromise(
+    Effect.forEach(
+      Array.from({ length: n }, (_, index) => index),
+      () => Effect.yieldNow(),
+      { discard: true },
+    ),
+  );
 const at = (events: ReadonlyArray<string>, event: string) => events.indexOf(event);
 
 const boot = async () => {
@@ -41,49 +60,93 @@ const boot = async () => {
   const app = Valance.define({
     name: "multi-mount",
     state: { schema: State, initial },
-    views: { home: { program: programs.home, scope: (state: State) => ({ title: "Mounts", count: state.items.length, summary: state.value, firstId: "", items: state.items.map(({ id, name }) => ({ id, name })) }) } },
+    views: {
+      home: {
+        program: programs.home,
+        scope: (state: State) => ({ title: "Mounts", count: state.items.length, summary: state.value, firstId: "", items: state.items.map(({ id, name }) => ({ id, name })) }),
+      },
+    },
     view: () => "home" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
-      const commit = (value: string) => Effect.gen(function* () {
-        yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
-        events.push(`commit ${value}`);
-      });
-      const wait = (name: string) => Effect.gen(function* () {
-        const { gate, started } = gateOf(name);
+      const commit = (value: string) =>
+        Effect.gen(function* () {
+          yield* state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value }));
+          events.push(`commit ${value}`);
+        });
+      const wait = (name: string) =>
+        Effect.gen(function* () {
+          const { gate, started } = gateOf(name);
 
-        events.push(`${name} started`);
-        yield* Deferred.succeed(started, undefined);
+          events.push(`${name} started`);
+          yield* Deferred.succeed(started, undefined);
 
-        return yield* Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { events.push(`${name} interrupted`); })));
-      });
+          return yield* Deferred.await(gate).pipe(
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                events.push(`${name} interrupted`);
+              }),
+            ),
+          );
+        });
       const behavior = (id: string): Effect.Effect<void> => {
         switch (id) {
-          case "setA": return commit("A");
-          case "setB": return commit("B");
-          case "gate1": return Effect.flatMap(wait("gate1"), (v) => commit(`g1:${v}`));
-          case "gate2": return Effect.flatMap(wait("gate2"), (v) => commit(`g2:${v}`));
-          default: return Effect.die(new Error(`no behavior for ${id}`));
+          case "setA":
+            return commit("A");
+          case "setB":
+            return commit("B");
+          case "gate1":
+            return Effect.flatMap(wait("gate1"), (v) => commit(`g1:${v}`));
+          case "gate2":
+            return Effect.flatMap(wait("gate2"), (v) => commit(`g2:${v}`));
+          default:
+            return Effect.die(new Error(`no behavior for ${id}`));
         }
       };
 
       return {
         // the borrowed home program also declares Reverse: bound (a no-op) because the harness uses that program, though nothing here presses it
-        "home/reverse": Nexus.Mesh.bind(Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.void), () => ({})),
-        "home/open": Nexus.Mesh.bind(Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), ({ id }) =>
-          behavior(id).pipe(Effect.onExit((exit) => Effect.sync(() => { events.push(`open(${id}) exit: ${show(exit)}`); })))), (args) => ({ id: firstValue(args) })),
+        "home/reverse": Nexus.Mesh.bind(
+          Nexus.Command.define("t.reverse", Schema.Struct({}), () => Effect.void),
+          () => ({}),
+        ),
+        "home/open": Nexus.Mesh.bind(
+          Nexus.Command.define("t.open", Schema.Struct({ id: Schema.String }), ({ id }) =>
+            behavior(id).pipe(
+              Effect.onExit((exit) =>
+                Effect.sync(() => {
+                  events.push(`open(${id}) exit: ${show(exit)}`);
+                }),
+              ),
+            ),
+          ),
+          (args) => ({ id: firstValue(args) }),
+        ),
       } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
     },
   });
 
   const appScope = await Effect.runPromise(Scope.make());
 
-  await Effect.runPromise(Scope.addFinalizer(appScope, Effect.sync(() => { events.push("platform resource released"); })));
+  await Effect.runPromise(
+    Scope.addFinalizer(
+      appScope,
+      Effect.sync(() => {
+        events.push("platform resource released");
+      }),
+    ),
+  );
   const handle = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.extend(appScope)))) as Valance.ApplicationHandle<State, never>;
   // Two independent subscribers to the application's state stream: are they given the same commit?
   const seen: [Array<State>, Array<State>] = [[], []];
 
   for (const index of [0, 1] as const) {
-    Effect.runFork(Stream.runForEach(runningOf(handle as never).states as Stream.Stream<State>, (state) => Effect.sync(() => { seen[index].push(state); })));
+    Effect.runFork(
+      Stream.runForEach(runningOf(handle as never).states as Stream.Stream<State>, (state) =>
+        Effect.sync(() => {
+          seen[index].push(state);
+        }),
+      ),
+    );
   }
 
   /** One independent mount in its own Scope, over its own page. */
@@ -94,17 +157,32 @@ const boot = async () => {
       const port = Web.target({ container: page.container, primitives })(report);
 
       return {
-        draw: (tree) => { if (options.failDraw === true) { throw new Error(`${name} draw failed`); } port.draw(tree); events.push(`${name} render draw: ${label()}`); },
-        update: (tree) => { port.update(tree); events.push(`${name} render update: ${label()}`); },
+        draw: (tree) => {
+          if (options.failDraw === true) {
+            throw new Error(`${name} draw failed`);
+          }
+          port.draw(tree);
+          events.push(`${name} render draw: ${label()}`);
+        },
+        update: (tree) => {
+          port.update(tree);
+          events.push(`${name} render update: ${label()}`);
+        },
         hydrate: (tree) => port.hydrate(tree),
-        unmount: () => { port.unmount(); events.push(`${name} unmounted`); },
+        unmount: () => {
+          port.unmount();
+          events.push(`${name} unmounted`);
+        },
       };
     };
     const scope = await Effect.runPromise(Scope.make());
     const mounted = await Effect.runPromise(Effect.exit(Valance.mount(handle as never, target).pipe(Scope.extend(scope))));
 
     return {
-      scope, page, label, mounted,
+      scope,
+      page,
+      label,
+      mounted,
       mount: Exit.isSuccess(mounted) ? (mounted.value as Valance.Mounted<never>) : undefined,
       unmount: () => Effect.runPromise(Scope.close(scope, Exit.void)),
       clickRow: (id: string) => page.click(page.container.querySelectorAll("div")[ids.indexOf(id as never)]!.querySelector("button")!),
@@ -113,9 +191,28 @@ const boot = async () => {
   type MountOn = Awaited<ReturnType<typeof mountOn>>;
 
   return {
-    events, handle, mountOn, seen,
-    invoke: (id: string) => Effect.runFork(Effect.onExit(handle.invoke("home/open", [{ value: id }]), (exit) => Effect.sync(() => { events.push(`invoke(${id}): ${show(exit)}`); }))),
-    closeApp: () => Effect.runPromise(Scope.close(appScope, Exit.void).pipe(Effect.tap(() => Effect.sync(() => { events.push("application closed"); })))),
+    events,
+    handle,
+    mountOn,
+    seen,
+    invoke: (id: string) =>
+      Effect.runFork(
+        Effect.onExit(handle.invoke("home/open", [{ value: id }]), (exit) =>
+          Effect.sync(() => {
+            events.push(`invoke(${id}): ${show(exit)}`);
+          }),
+        ),
+      ),
+    closeApp: () =>
+      Effect.runPromise(
+        Scope.close(appScope, Exit.void).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              events.push("application closed");
+            }),
+          ),
+        ),
+      ),
     started: (name: string) => Effect.runPromise(Deferred.await(gateOf(name).started)),
     release: (name: string, value: string) => Effect.runPromise(Deferred.succeed(gateOf(name).gate, value)),
     seenEvent: (event: string) => until(() => events.includes(event)),
@@ -137,8 +234,8 @@ describe("A, B, E: both mounts observe the one application state", () => {
     expect(b.renders("A")).toEqual(["A render draw: init"]);
     expect(b.renders("B")).toEqual(["B render draw: init"]);
     await b.stable();
-    expect(b.commits()).toEqual([]);                                                // mounting commits nothing
-    expect(b.seen[0].length).toBe(1);                                               // the state stream has emitted only its initial value
+    expect(b.commits()).toEqual([]); // mounting commits nothing
+    expect(b.seen[0].length).toBe(1); // the state stream has emitted only its initial value
   });
 
   it("B one command, two observers: ONE commit; the state stream hands every subscriber the same value object; each mount updates once from it", async () => {
@@ -150,9 +247,9 @@ describe("A, B, E: both mounts observe the one application state", () => {
     await b.seenEvent("B render update: A");
     await b.stable();
 
-    expect(b.commits()).toEqual(["commit A"]);                                       // a single application transition
+    expect(b.commits()).toEqual(["commit A"]); // a single application transition
     expect(b.seen[0].length).toBe(2);
-    expect(b.seen[0][1]).toBe(b.seen[1][1]);                                         // identical object: no per-subscriber copy
+    expect(b.seen[0][1]).toBe(b.seen[1][1]); // identical object: no per-subscriber copy
     expect(b.renders("A")).toEqual(["A render draw: init", "A render update: A"]);
     expect(b.renders("B")).toEqual(["B render draw: init", "B render update: A"]);
     expect([a.label(), c.label()]).toEqual(["A", "A"]);
@@ -169,28 +266,32 @@ describe("A, B, E: both mounts observe the one application state", () => {
     expect(c.label()).toBe("A");
     expect(b.renders("B")).toEqual(["B render draw: A"]);
     await b.stable();
-    expect(b.commits()).toEqual(["commit A"]);                                       // still the one commit
+    expect(b.commits()).toEqual(["commit A"]); // still the one commit
     expect(a.label()).toBe("A");
   });
 });
 
 describe("C, D: unmounting one observer", () => {
-  for (const [first, second] of [["B", "A"], ["A", "B"]] as const) {
+  for (const [first, second] of [
+    ["B", "A"],
+    ["A", "B"],
+  ] as const) {
     it(`C/D unmount ${first} (the ${first === "B" ? "second" : "first"} mount), then commit: the application and mount ${second} carry on; ${first} stays silent`, async () => {
       const b = await boot();
       const mounts = { A: await b.mountOn("A"), B: await b.mountOn("B") };
 
       await Effect.runPromise(Fiber.join(b.invoke("setA")));
-      await b.seenEvent("A render update: A"); await b.seenEvent("B render update: A");
+      await b.seenEvent("A render update: A");
+      await b.seenEvent("B render update: A");
       await mounts[first].unmount();
       await Effect.runPromise(Fiber.join(b.invoke("setB")));
       await b.seenEvent(`${second} render update: B`);
       await b.stable();
 
       expect(b.commits()).toEqual(["commit A", "commit B"]);
-      expect((await b.state()).value).toBe("B");                                     // application state is unaffected by the unmount
+      expect((await b.state()).value).toBe("B"); // application state is unaffected by the unmount
       expect(b.renders(second)).toEqual([`${second} render draw: init`, `${second} render update: A`, `${second} render update: B`]);
-      expect(b.renders(first)).toEqual([`${first} render draw: init`, `${first} render update: A`, `${first} unmounted`]);   // nothing after its unmount
+      expect(b.renders(first)).toEqual([`${first} render draw: init`, `${first} render update: A`, `${first} unmounted`]); // nothing after its unmount
       expect(b.events).not.toContain("application closed");
     });
   }
@@ -204,10 +305,11 @@ describe("F, I: async commands and mounts", () => {
 
     await b.started("gate1");
     await b.stable();
-    expect(b.renders("A").length + b.renders("B").length).toBe(2);                   // only the two initial draws
+    expect(b.renders("A").length + b.renders("B").length).toBe(2); // only the two initial draws
     await b.release("gate1", "x");
     await Effect.runPromise(Fiber.join(caller));
-    await b.seenEvent("A render update: g1:x"); await b.seenEvent("B render update: g1:x");
+    await b.seenEvent("A render update: g1:x");
+    await b.seenEvent("B render update: g1:x");
 
     const b2 = await boot();
     const [a2, c2] = [await b2.mountOn("A"), await b2.mountOn("B")];
@@ -220,7 +322,7 @@ describe("F, I: async commands and mounts", () => {
     await b2.seenEvent("A render update: g1:y");
     await b2.stable();
 
-    expect(b2.commits()).toEqual(["commit g1:y"]);                                   // the command was not affected by B's unmount
+    expect(b2.commits()).toEqual(["commit g1:y"]); // the command was not affected by B's unmount
     expect(b2.renders("B")).toEqual(["B render draw: init", "B unmounted"]);
     expect([a.label(), c.label(), a2.label()]).toEqual(["g1:x", "g1:x", "g1:y"]);
     void c2;
@@ -246,9 +348,9 @@ describe("F, I: async commands and mounts", () => {
     const b = await boot();
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
-    a.clickRow("gate1");                                                            // real click in A's page: PORT report, A's `connect`, dispatch
+    a.clickRow("gate1"); // real click in A's page: PORT report, A's `connect`, dispatch
     await b.started("gate1");
-    await a.unmount();                                                              // A's follower and target end; its dispatch fibers are let go, not interrupted
+    await a.unmount(); // A's follower and target end; its dispatch fibers are let go, not interrupted
     await b.release("gate1", "z");
     await b.seenEvent("B render update: g1:z");
     await b.stable();
@@ -256,8 +358,8 @@ describe("F, I: async commands and mounts", () => {
     expect(b.events).not.toContain("gate1 interrupted");
     expect(b.commits()).toEqual(["commit g1:z"]);
     expect(c.label()).toBe("g1:z");
-    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);                    // the exit lands in the dispatching mount's ledger, though that mount is closed
-    expect(b.renders("A")).toEqual(["A render draw: init", "A unmounted"]);         // nothing is drawn into the closed target
+    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]); // the exit lands in the dispatching mount's ledger, though that mount is closed
+    expect(b.renders("A")).toEqual(["A render draw: init", "A unmounted"]); // nothing is drawn into the closed target
     expect(b.events).not.toContain("application closed");
   });
 });
@@ -268,31 +370,39 @@ describe("G, H: commands from either mount", () => {
     const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
     a.clickRow("setA");
-    await b.seenEvent("A render update: A"); await b.seenEvent("B render update: A");
+    await b.seenEvent("A render update: A");
+    await b.seenEvent("B render update: A");
     c.clickRow("setB");
-    await b.seenEvent("A render update: B"); await b.seenEvent("B render update: B");
+    await b.seenEvent("A render update: B");
+    await b.seenEvent("B render update: B");
     await b.stable();
 
     expect(b.commits()).toEqual(["commit A", "commit B"]);
     expect(b.seen[0][1]).toBe(b.seen[1][1]);
-    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]);                    // the exit is recorded only by the mount that dispatched it
+    expect(a.mount!.dispatched.map(show)).toEqual(["succeeded"]); // the exit is recorded only by the mount that dispatched it
     expect(c.mount!.dispatched.map(show)).toEqual(["succeeded"]);
   });
 
-  for (const [order, first, second] of [["gate1 then gate2", "gate1", "gate2"], ["gate2 then gate1", "gate2", "gate1"]] as const) {
+  for (const [order, first, second] of [
+    ["gate1 then gate2", "gate1", "gate2"],
+    ["gate2 then gate1", "gate2", "gate1"],
+  ] as const) {
     it(`H a suspended command in each mount, completed ${order}: the two commands run concurrently, completion order decides the state, both mounts follow each commit (the test waits for each render)`, async () => {
       const b = await boot();
       const [a, c] = [await b.mountOn("A"), await b.mountOn("B")];
 
       a.clickRow("gate1");
       c.clickRow("gate2");
-      await b.started("gate1"); await b.started("gate2");
-      const tag = (g: string) => g === "gate1" ? "g1:v" : "g2:v";
+      await b.started("gate1");
+      await b.started("gate2");
+      const tag = (g: string) => (g === "gate1" ? "g1:v" : "g2:v");
 
       await b.release(first, "v");
-      await b.seenEvent(`A render update: ${tag(first)}`); await b.seenEvent(`B render update: ${tag(first)}`);
+      await b.seenEvent(`A render update: ${tag(first)}`);
+      await b.seenEvent(`B render update: ${tag(first)}`);
       await b.release(second, "v");
-      await b.seenEvent(`A render update: ${tag(second)}`); await b.seenEvent(`B render update: ${tag(second)}`);
+      await b.seenEvent(`A render update: ${tag(second)}`);
+      await b.seenEvent(`B render update: ${tag(second)}`);
       await b.stable();
 
       expect(b.commits()).toEqual([`commit ${tag(first)}`, `commit ${tag(second)}`]);
@@ -309,18 +419,19 @@ describe("J, K, L: no mounts, remounting, a failing mount", () => {
 
     await Effect.runPromise(Fiber.join(b.invoke("setA")));
     await b.seenEvent("B render update: A");
-    await a.unmount(); await c.unmount();
-    await Effect.runPromise(Fiber.join(b.invoke("setB")));                           // no mount at all: still an application command
+    await a.unmount();
+    await c.unmount();
+    await Effect.runPromise(Fiber.join(b.invoke("setB"))); // no mount at all: still an application command
     expect((await b.state()).value).toBe("B");
     expect(b.events).not.toContain("application closed");
     expect(b.events).not.toContain("platform resource released");
 
     const again = await b.mountOn("C");
 
-    expect(again.label()).toBe("B");                                                // remount: current state, not the initial one, not the state at A's unmount
+    expect(again.label()).toBe("B"); // remount: current state, not the initial one, not the state at A's unmount
     expect(b.renders("C")).toEqual(["C render draw: B"]);
     expect(b.commits()).toEqual(["commit A", "commit B"]);
-    expect(b.seen[0].length).toBe(3);                                               // the state stream kept running through the empty period
+    expect(b.seen[0].length).toBe(3); // the state stream kept running through the empty period
   });
 
   it("L a mount whose first draw fails: that mount fails by itself (a defect from `mount`); the application, its state and the other mount are unaffected; it can be retried", async () => {
@@ -335,7 +446,7 @@ describe("J, K, L: no mounts, remounting, a failing mount", () => {
     expect(a.label()).toBe("A");
     expect((await b.state()).value).toBe("A");
     expect(b.events).not.toContain("application closed");
-    await bad.unmount();                                                            // closing the failed mount's Scope is harmless
+    await bad.unmount(); // closing the failed mount's Scope is harmless
     const retry = await b.mountOn("B2");
 
     expect(retry.label()).toBe("A");
@@ -347,11 +458,12 @@ describe("J, K, L: no mounts, remounting, a failing mount", () => {
 
     await b.closeApp();
     await b.stable();
-    expect(b.events.some((event) => event.endsWith("unmounted"))).toBe(false);       // with independent Scopes the application's close does NOT unmount a mount: its target is released only by its own Scope
-    expect([a.label(), c.label()]).toEqual(["init", "init"]);                       // the last drawn page is still there
-    await a.unmount(); await c.unmount();
+    expect(b.events.some((event) => event.endsWith("unmounted"))).toBe(false); // with independent Scopes the application's close does NOT unmount a mount: its target is released only by its own Scope
+    expect([a.label(), c.label()]).toEqual(["init", "init"]); // the last drawn page is still there
+    await a.unmount();
+    await c.unmount();
 
     expect(at(b.events, "platform resource released")).toBeGreaterThan(-1);
-    expect(b.events.filter((event) => event.endsWith("unmounted")).sort()).toEqual(["A unmounted", "B unmounted"]);   // each unmounts exactly once, however the order
+    expect(b.events.filter((event) => event.endsWith("unmounted")).sort()).toEqual(["A unmounted", "B unmounted"]); // each unmounts exactly once, however the order
   });
 });

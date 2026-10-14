@@ -16,15 +16,29 @@ beforeAll(async () => {
   execFileSync("pnpm", ["run", "build:server"], { cwd: process.cwd(), stdio: "pipe" });
   child = spawn("node", ["dist/server/serve-main.js"], { cwd: process.cwd(), env: { ...process.env, PORT: "0" }, stdio: ["ignore", "pipe", "pipe"] });
   output = [];
-  child.stderr!.on("data", (chunk: Buffer) => { output.push(`stderr: ${String(chunk)}`); });
+  child.stderr!.on("data", (chunk: Buffer) => {
+    output.push(`stderr: ${String(chunk)}`);
+  });
   origin = await new Promise<string>((resolve, reject) => {
-    createInterface({ input: child.stdout! }).on("line", (line) => { output.push(line); const match = /^listening (http:\/\/\S+)/.exec(line); if (match !== null) { resolve(match[1]!); } });
-    child.on("exit", (code) => { reject(new Error(`the server exited with ${String(code)} before listening: ${output.join("\n")}`)); });
+    createInterface({ input: child.stdout! }).on("line", (line) => {
+      output.push(line);
+      const match = /^listening (http:\/\/\S+)/.exec(line);
+      if (match !== null) {
+        resolve(match[1]!);
+      }
+    });
+    child.on("exit", (code) => {
+      reject(new Error(`the server exited with ${String(code)} before listening: ${output.join("\n")}`));
+    });
   });
 });
 
 afterAll(async () => {
-  const exited = new Promise<void>((resolve) => { child.on("exit", () => { resolve(); }); });
+  const exited = new Promise<void>((resolve) => {
+    child.on("exit", () => {
+      resolve();
+    });
+  });
 
   child.kill("SIGTERM");
   await exited;
@@ -38,8 +52,12 @@ it("an ordinary Node process serves the built page: Chromium loads it, it starts
     const requests: Array<{ readonly path: string; readonly status: number }> = [];
     const failures: Array<string> = [];
 
-    page.on("response", (response) => { requests.push({ path: new URL(response.url()).pathname, status: response.status() }); });
-    page.on("pageerror", (error) => { failures.push(error.message); });
+    page.on("response", (response) => {
+      requests.push({ path: new URL(response.url()).pathname, status: response.status() });
+    });
+    page.on("pageerror", (error) => {
+      failures.push(error.message);
+    });
     await page.goto(`${origin}/tracer/about?tab=details`);
     await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");
 
@@ -51,11 +69,11 @@ it("an ordinary Node process serves the built page: Chromium loads it, it starts
     await page.waitForFunction(() => location.pathname + location.search === "/tracer/about?tab=overview");
 
     expect(failures).toEqual([]);
-    expect(requests.filter((request) => request.status !== 200)).toEqual([]);                                  // every request the page made, including the assets, succeeded
+    expect(requests.filter((request) => request.status !== 200)).toEqual([]); // every request the page made, including the assets, succeeded
     expect(requests.some((request) => /^\/assets\/page-.*\.js$/.test(request.path))).toBe(true);
     expect(requests.some((request) => /^\/assets\/mesh-runtime-.*\.wasm$/.test(request.path))).toBe(true);
-    expect(requests.filter((request) => request.path.startsWith("/tracer")).length).toBe(1);                    // one document load
-    expect(output.filter((line) => line.startsWith("stderr:"))).toEqual([]);                                    // the process wrote nothing to stderr
+    expect(requests.filter((request) => request.path.startsWith("/tracer")).length).toBe(1); // one document load
+    expect(output.filter((line) => line.startsWith("stderr:"))).toEqual([]); // the process wrote nothing to stderr
   } finally {
     await browser.close();
   }

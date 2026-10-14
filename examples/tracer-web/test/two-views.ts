@@ -10,7 +10,9 @@ import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { Effect, Layer, Schema } from "effect";
 
-export interface Resource { readonly id: string }
+export interface Resource {
+  readonly id: string;
+}
 
 export const Shared = Nexus.Capability.define<Resource>("example/shared");
 
@@ -63,13 +65,16 @@ export const definition = async (seen: Array<Resource>) => {
     },
     view: (state) => state.view,
     commands: (state) => {
-      const bump = Nexus.Command.define("t.bump", Schema.Struct({}), () => Effect.gen(function* () {
-        const resource = yield* Nexus.Capability.require(Shared);
+      const bump = Nexus.Command.define("t.bump", Schema.Struct({}), () =>
+        Effect.gen(function* () {
+          const resource = yield* Nexus.Capability.require(Shared);
 
-        seen.push(resource);
-        yield* state.update((current) => Effect.succeed({ ...current, n: current.n + 1, via: resource.id }));
-      }));
-      const to = (view: "a" | "b") => Nexus.Command.define(`t.to.${view}`, Schema.Struct({}), () => state.update((current) => Effect.succeed({ ...current, view })).pipe(Effect.asVoid));
+          seen.push(resource);
+          yield* state.update((current) => Effect.succeed({ ...current, n: current.n + 1, via: resource.id }));
+        }),
+      );
+      const to = (view: "a" | "b") =>
+        Nexus.Command.define(`t.to.${view}`, Schema.Struct({}), () => state.update((current) => Effect.succeed({ ...current, view })).pipe(Effect.asVoid));
 
       return {
         "a/bump": Nexus.Mesh.bind(bump, () => ({})),
@@ -84,27 +89,48 @@ export const definition = async (seen: Array<Resource>) => {
 /** The platform: one resource per application start, counted. Its identity is the instance, not a name. */
 export const platformOf = () => {
   const counts = { acquired: 0, released: 0 };
-  const platform: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.map(
-    Effect.acquireRelease(
-      Effect.sync((): Resource => { counts.acquired += 1; return { id: `resource-${counts.acquired}` }; }),
-      () => Effect.sync(() => { counts.released += 1; })
+  const platform: Nexus.Application.Platform = Layer.scoped(
+    Nexus.Capability.Environment,
+    Effect.map(
+      Effect.acquireRelease(
+        Effect.sync((): Resource => {
+          counts.acquired += 1;
+          return { id: `resource-${counts.acquired}` };
+        }),
+        () =>
+          Effect.sync(() => {
+            counts.released += 1;
+          }),
+      ),
+      (implementation) => ({ resolutions: new Map([[Shared.id, { _tag: "Available" as const, implementation }]]) }),
     ),
-    (implementation) => ({ resolutions: new Map([[Shared.id, { _tag: "Available" as const, implementation }]]) })
-  ));
+  );
 
   return { counts, platform };
 };
 
 export type Operation = "hydrate" | "draw" | "update";
 
-export const recording = (container: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => {
-  const port = Web.target({ container, primitives })(report);
+export const recording =
+  (container: Element, operations: Array<Operation>): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> =>
+  (report) => {
+    const port = Web.target({ container, primitives })(report);
 
-  return {
-    draw: (tree) => { operations.push("draw"); port.draw(tree); },
-    update: (tree) => { operations.push("update"); port.update(tree); },
-    hydrate: (tree) => { operations.push("hydrate"); return port.hydrate(tree); },
-    unmount: () => { port.unmount(); },
+    return {
+      draw: (tree) => {
+        operations.push("draw");
+        port.draw(tree);
+      },
+      update: (tree) => {
+        operations.push("update");
+        port.update(tree);
+      },
+      hydrate: (tree) => {
+        operations.push("hydrate");
+        return port.hydrate(tree);
+      },
+      unmount: () => {
+        port.unmount();
+      },
+    };
   };
-};
-

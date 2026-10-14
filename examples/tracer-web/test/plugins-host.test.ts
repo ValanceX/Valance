@@ -14,7 +14,9 @@ import { application, manifest, primitives, source, stateOf, urlOf, type State }
 
 const compiled = await compileProgram({ model: { manifest, path: "components.json" }, root: "shell", components: [{ component: "shell", path: "shell.mprx", source }] });
 
-if (compiled.program === undefined) { throw new Error(JSON.stringify(compiled.assembly ?? compiled.components, null, 1)); }
+if (compiled.program === undefined) {
+  throw new Error(JSON.stringify(compiled.assembly ?? compiled.components, null, 1));
+}
 
 const app = application(compiled.program);
 
@@ -29,10 +31,15 @@ const router: Plugin<State> = {
     navigate: "go",
     known: (pathname) => pathname === "/app/home" || pathname === "/app/about",
     paths: () => ["/app/home", "/app/about"],
-    onNavigated: ({ kind, url }) => { navigations.push(`${kind} ${url.pathname}${url.hash}`); },
+    onNavigated: ({ kind, url }) => {
+      navigations.push(`${kind} ${url.pathname}${url.hash}`);
+    },
   },
 };
-const seo: Plugin<State> = { name: "seo", head: ({ page }) => ({ title: `${page} · Docs`, meta: [{ name: "description", content: `the ${page} page` }], links: [{ rel: "canonical", href: `/app/${page}` }] }) };
+const seo: Plugin<State> = {
+  name: "seo",
+  head: ({ page }) => ({ title: `${page} · Docs`, meta: [{ name: "description", content: `the ${page} page` }], links: [{ rel: "canonical", href: `/app/${page}` }] }),
+};
 
 const page = (url: string, html = "", head = "") => {
   const dom = new JSDOM(`<!doctype html><html><head>${head}</head><body><main>${html}</main></body></html>`, { url });
@@ -47,7 +54,7 @@ describe("an application whose tags, URL policy and head all come from plugins",
     const host = await Web.run(app, { container: p.container, present: "mount", plugins: [kit, router, seo] });
 
     expect(p.container.querySelector("span")?.textContent).toBe("page home");
-    await until(() => p.doc.title === "home · Docs");                                      // the first state's head is applied by the follower, as the first title always was
+    await until(() => p.doc.title === "home · Docs"); // the first state's head is applied by the follower, as the first title always was
     expect(p.doc.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("the home page");
 
     const link = [...p.container.querySelectorAll("a")].find((anchor) => anchor.textContent === "About")!;
@@ -55,7 +62,7 @@ describe("an application whose tags, URL policy and head all come from plugins",
     link.dispatchEvent(new p.dom.window.MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
     await until(() => p.doc.title === "about · Docs");
     expect(p.win.location.pathname).toBe("/app/about");
-    expect(p.doc.head.querySelectorAll(`[${HEAD_MARK}]`)).toHaveLength(2);                // replaced, not accumulated
+    expect(p.doc.head.querySelectorAll(`[${HEAD_MARK}]`)).toHaveLength(2); // replaced, not accumulated
     expect(p.doc.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe("/app/about");
     expect(navigations).toEqual(["link /app/about"]);
 
@@ -72,25 +79,27 @@ describe("an application whose tags, URL policy and head all come from plugins",
     const host = await Web.run(app, { container: p.container, present: "hydrate", state: served.state, plugins: [kit, router, seo] });
 
     expect(host.mounted.hydration?.adopted).toBe(true);
-    expect(p.container.innerHTML).toBe(before);                                          // adopted, not redrawn
+    expect(p.container.innerHTML).toBe(before); // adopted, not redrawn
     expect(p.doc.title).toBe("about · Docs");
-    expect(p.doc.head.querySelectorAll(`[${HEAD_MARK}]`)).toHaveLength(2);                // the server's elements are the ones the browser then replaces
+    expect(p.doc.head.querySelectorAll(`[${HEAD_MARK}]`)).toHaveLength(2); // the server's elements are the ones the browser then replaces
     await host.stop();
   });
 
   it("a plugin and the application's own history both declaring the URL policy fail the run before anything is started or drawn", async () => {
     const p = page("http://localhost/app/home");
 
-    await expect(Web.run(app, { container: p.container, present: "mount", plugins: [kit, router], history: { window: p.win, urlOf, stateOf, navigate: "go" } }))
-      .rejects.toSatisfy((error: unknown) => Valance.isValanceError(error) && error.code === "plugin-conflict");
+    await expect(Web.run(app, { container: p.container, present: "mount", plugins: [kit, router], history: { window: p.win, urlOf, stateOf, navigate: "go" } })).rejects.toSatisfy(
+      (error: unknown) => Valance.isValanceError(error) && error.code === "plugin-conflict",
+    );
     expect(p.container.innerHTML).toBe("");
   });
 
   it("a tag the application and a plugin both declare fails the run the same way", async () => {
     const p = page("http://localhost/app/home");
 
-    await expect(Web.run(app, { container: p.container, present: "mount", primitives: { page: { element: "section" } }, plugins: [kit] }))
-      .rejects.toSatisfy((error: unknown) => Valance.isValanceError(error) && error.code === "plugin-conflict");
+    await expect(Web.run(app, { container: p.container, present: "mount", primitives: { page: { element: "section" } }, plugins: [kit] })).rejects.toSatisfy(
+      (error: unknown) => Valance.isValanceError(error) && error.code === "plugin-conflict",
+    );
   });
 
   it("without plugins a run is exactly what it was: nothing is composed, nothing is added", async () => {

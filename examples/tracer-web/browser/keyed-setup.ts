@@ -6,15 +6,22 @@ import { compileProgram } from "@valancex/mesh-compiler";
 
 const prop = (kind: string) => ({ type: { kind }, required: true });
 const manifest = JSON.stringify({
-  version: 1, types: {},
+  version: 1,
+  types: {},
   components: {
     page: { props: { title: prop("string") }, events: {}, commands: {}, scope: {} },
     row: { props: {}, events: {}, commands: {}, scope: {} },
     field: { props: {}, events: {}, commands: {}, scope: {} },
     button: { props: {}, events: { click: {} }, commands: {}, scope: {} },
-    "mesh-each": { props: { items: { type: { kind: "list", element: { kind: "any" } }, required: true }, as: prop("string"), key: { type: { kind: "any" }, required: true } }, events: {}, commands: {}, scope: {} },
+    "mesh-each": {
+      props: { items: { type: { kind: "list", element: { kind: "any" } }, required: true }, as: prop("string"), key: { type: { kind: "any" }, required: true } },
+      events: {},
+      commands: {},
+      scope: {},
+    },
     keyed: {
-      props: {}, events: {},
+      props: {},
+      events: {},
       commands: { pick: { parameters: [{ name: "id", type: { kind: "string" } }] } },
       scope: { title: { kind: "string" }, items: { kind: "list", element: { kind: "record", fields: { id: prop("string"), value: prop("string") } } } },
     },
@@ -28,7 +35,9 @@ const source = `<page title={title}>
 export default async function setup(project: TestProject): Promise<void> {
   const result = await compileProgram({ model: { manifest, path: "components.json" }, root: "keyed", components: [{ component: "keyed", source, path: "keyed.mprx" }] });
 
-  if (result.program === undefined) { throw new Error(JSON.stringify(result.assembly ?? result.components)); }
+  if (result.program === undefined) {
+    throw new Error(JSON.stringify(result.assembly ?? result.components));
+  }
 
   project.provide("keyed", result.program);
 }

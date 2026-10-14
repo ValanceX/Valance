@@ -49,6 +49,16 @@ What is generated lives in `.valance/` (git-ignored), the site in `dist/`. Look 
 
 ## 3. Make your own project, outside the repo
 
+The quick way: link the command once, then ask it to make one.
+
+```console
+$ cd ~/path/to/Valance/packages/cli && pnpm link --global     # puts `vlx` on your PATH (pnpm setup first, if PNPM_HOME is not set)
+$ cd ~ && vlx init my-notes                                    # asks for the targets, the package manager and so on
+$ cd my-notes && npm run dev
+```
+
+(Nothing is published, so the new project's `@valancex/cli` is a link to your clone: it follows every rebuild.) The manual way, which shows what `vlx init` does for you:
+
 Nothing is published, so install the tool **by path**. A path install is a link to your clone, so it follows every rebuild. (A tarball from `pnpm pack` is a frozen copy: a project that uses one never gets newer tooling, and the editor's ctrl+click and references silently fall back to the generated manifest. The status bar then shows `$(warning) VALANCE` and says so.)
 
 ```console

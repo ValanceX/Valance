@@ -18,15 +18,15 @@ describe("same-view structural change is an update", () => {
       await until(() => m.ops.length === expectOps);
     };
 
-    await step("app/show", 2);                       // 1 appears
+    await step("app/show", 2); // 1 appears
     expect(m.shown()).toBe(true);
-    await step("app/hide", 3);                       // 2 disappears
+    await step("app/hide", 3); // 2 disappears
     expect(m.shown()).toBe(false);
-    await step("app/ids", 4, ["A", "B", "C"]);       // 3 add
+    await step("app/ids", 4, ["A", "B", "C"]); // 3 add
     expect(m.rows()).toEqual(["A", "B", "C"]);
-    await step("app/ids", 5, ["A", "C"]);            // 3 remove
+    await step("app/ids", 5, ["A", "C"]); // 3 remove
     expect(m.rows()).toEqual(["A", "C"]);
-    await step("app/ids", 6, ["C", "A"]);            // 4 reorder, same keys: ONE update (no DOM identity claim)
+    await step("app/ids", 6, ["C", "A"]); // 4 reorder, same keys: ONE update (no DOM identity claim)
     expect(m.rows()).toEqual(["C", "A"]);
     expect(m.ops).toEqual(["draw", "update", "update", "update", "update", "update"]);
     expect(await m.standing()).toBe("following");
@@ -42,8 +42,8 @@ describe("same-view structural change is an update", () => {
     await until(() => m.ops.length === 2);
     expect(m.ops).toEqual(["draw", "draw"]);
     expect(m.title()).toBe("B0");
-    expect(before!.isConnected).toBe(false);          // a fresh realization, not a reconcile of the similar tree
-    await b.invoke("app/bump");                       // and within B again: update
+    expect(before!.isConnected).toBe(false); // a fresh realization, not a reconcile of the similar tree
+    await b.invoke("app/bump"); // and within B again: update
     await until(() => m.ops.length === 3);
     expect(m.ops).toEqual(["draw", "draw", "update"]);
     await m.close();
@@ -68,9 +68,17 @@ describe("same-view structural change is an update", () => {
     const b = await boot();
     const lag = await b.mountOn();
     let once = false;
-    const eager = await b.mountOn({ onUpdate: () => { if (!once) { once = true; void b.invoke("app/show"); void b.invoke("app/ids", ["Z"]); } } });
+    const eager = await b.mountOn({
+      onUpdate: () => {
+        if (!once) {
+          once = true;
+          void b.invoke("app/show");
+          void b.invoke("app/ids", ["Z"]);
+        }
+      },
+    });
 
-    await b.invoke("app/ids", ["A", "B", "C"]);       // eager's first update triggers two more commits from inside its own target
+    await b.invoke("app/ids", ["A", "B", "C"]); // eager's first update triggers two more commits from inside its own target
     await until(() => eager.rows().length === 1 && lag.rows().length === 1);
     for (const m of [lag, eager]) {
       expect(m.rows()).toEqual(["Z"]);
@@ -88,14 +96,14 @@ describe("failure and events", () => {
     const b = await boot();
     const m = await b.mountOn();
 
-    await b.invoke("app/ids", ["A", "A"]);            // duplicate declared key: runtime-duplicate-key, no render
+    await b.invoke("app/ids", ["A", "A"]); // duplicate declared key: runtime-duplicate-key, no render
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(await m.standing()).toBe("failed MeshDiagnostics");
     expect(m.ops).toEqual(["draw"]);
     expect(m.rows()).toEqual(["A", "B"]);
     await b.invoke("app/ids", ["A", "B", "C"]);
     await new Promise((resolve) => setTimeout(resolve, 60));
-    expect(m.rows()).toEqual(["A", "B"]);             // never resumes
+    expect(m.rows()).toEqual(["A", "B"]); // never resumes
     expect(await m.standing()).toBe("failed MeshDiagnostics");
 
     const fresh = await b.mountOn();
@@ -113,10 +121,10 @@ describe("failure and events", () => {
 
     await b.invoke("app/ids", ["A", "C"]);
     await until(() => m.rows().length === 2 && m.rows()[1] === "C");
-    m.page.click(m.rowEls()[1]!.querySelector("button")!);       // C: only exists in the new render
+    m.page.click(m.rowEls()[1]!.querySelector("button")!); // C: only exists in the new render
     await until(() => b.taps.length === 1);
     expect(b.taps).toEqual(["C"]);
-    m.page.click(removed);                                       // B: removed from the render
+    m.page.click(removed); // B: removed from the render
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(b.taps).toEqual(["C"]);
     expect(m.mounted.dispatched.length).toBe(1);

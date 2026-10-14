@@ -19,14 +19,26 @@ describe("start-time work during a server render", () => {
     const log: Array<string> = [];
     const gate = Effect.runSync(Deferred.make<void>());
     const app = Valance.define({
-      name: "server-start", state: { schema: State, initial: { phase: "loading" } satisfies State },
-      views: { only: { program: titleProgram, scope: (s: State) => ({ title: s.phase }) } }, view: () => "only" as const,
+      name: "server-start",
+      state: { schema: State, initial: { phase: "loading" } satisfies State },
+      views: { only: { program: titleProgram, scope: (s: State) => ({ title: s.phase }) } },
+      view: () => "only" as const,
       commands: (state: Nexus.State.StateHandle<State>) => ({
-        "app/load": Valance.entry(Nexus.Command.define("load", Schema.Struct({}), () => Effect.gen(function* () {
-          log.push("started");
-          yield* Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { log.push("interrupted"); })));
-          yield* state.update((): Effect.Effect<State> => Effect.succeed({ phase: "ready" }));
-        }))),
+        "app/load": Valance.entry(
+          Nexus.Command.define("load", Schema.Struct({}), () =>
+            Effect.gen(function* () {
+              log.push("started");
+              yield* Deferred.await(gate).pipe(
+                Effect.onInterrupt(() =>
+                  Effect.sync(() => {
+                    log.push("interrupted");
+                  }),
+                ),
+              );
+              yield* state.update((): Effect.Effect<State> => Effect.succeed({ phase: "ready" }));
+            }),
+          ),
+        ),
       }),
       start: "app/load",
     });
@@ -42,16 +54,20 @@ describe("start-time work during a server render", () => {
 
   it("work that finishes before the render ends: the returned `state` is read AFTER the render, so it can be newer than the html (hydrating it is a mismatch, not a failure)", async () => {
     const app = Valance.define({
-      name: "server-start-instant", state: { schema: State, initial: { phase: "loading" } satisfies State },
-      views: { only: { program: titleProgram, scope: (s: State) => ({ title: s.phase }) } }, view: () => "only" as const,
+      name: "server-start-instant",
+      state: { schema: State, initial: { phase: "loading" } satisfies State },
+      views: { only: { program: titleProgram, scope: (s: State) => ({ title: s.phase }) } },
+      view: () => "only" as const,
       commands: (state: Nexus.State.StateHandle<State>) => ({
-        "app/load": Valance.entry(Nexus.Command.define("load", Schema.Struct({}), () => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ phase: "ready" }))))),
+        "app/load": Valance.entry(
+          Nexus.Command.define("load", Schema.Struct({}), () => Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ phase: "ready" })))),
+        ),
       }),
       start: "app/load",
     });
     const served = await Effect.runPromise(renderToHtml(app, { primitives: { page: { element: "main", props: { title: Web.attribute("aria-label") } }, text: { element: "p" } } }));
 
-    expect(served.html).toContain("loading");                                           // rendered from the state the render read
-    expect(served.state).toEqual({ phase: "ready" });                                    // read after: the start-time commit has landed
+    expect(served.html).toContain("loading"); // rendered from the state the render read
+    expect(served.state).toEqual({ phase: "ready" }); // read after: the start-time commit has landed
   });
 });

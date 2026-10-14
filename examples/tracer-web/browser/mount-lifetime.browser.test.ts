@@ -16,9 +16,18 @@ import { primitives } from "../src/catalog/web.js";
 
 const { catalog } = inject("page");
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
-const show = (exit: Exit.Exit<unknown, unknown>): string => Exit.isSuccess(exit) ? "succeeded" : Cause.isDieType(exit.cause) ? `died: ${(exit.cause.defect as Error).message}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : "other";
+const show = (exit: Exit.Exit<unknown, unknown>): string =>
+  Exit.isSuccess(exit)
+    ? "succeeded"
+    : Cause.isDieType(exit.cause)
+      ? `died: ${(exit.cause.defect as Error).message}`
+      : Cause.isInterruptedOnly(exit.cause)
+        ? "interrupted"
+        : "other";
 const names = (root: Element) => [...root.querySelectorAll("div span")].map((span) => span.textContent);
 const reverse = (root: Element) => [...root.querySelectorAll("button")].find((button) => button.textContent === "Reverse")!;
 
@@ -31,12 +40,21 @@ describe("mount lifetime, in Chromium, with independent Scopes", () => {
     document.body.append(rootA, rootB);
 
     try {
-      const state: AppState = { view: "home", items: [{ id: "A", name: "Alpha" }, { id: "B", name: "Beta" }] };
+      const state: AppState = {
+        view: "home",
+        items: [
+          { id: "A", name: "Alpha" },
+          { id: "B", name: "Beta" },
+        ],
+      };
       const appScope = await run(Scope.make());
       const scopeA = await run(Scope.make());
       const scopeB = await run(Scope.make());
       const handle = await run(Valance.start(application(catalog), { state }).pipe(Scope.extend(appScope)));
-      const target = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => (report) => Web.target({ container: root, primitives })(report);
+      const target =
+        (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> =>
+        (report) =>
+          Web.target({ container: root, primitives })(report);
 
       // 1. application alive, mount A alive: a real click reaches the application and the page follows.
       const mountedA = await run(Valance.mount(handle, target(rootA)).pipe(Scope.extend(scopeA)));
@@ -48,8 +66,17 @@ describe("mount lifetime, in Chromium, with independent Scopes", () => {
 
       // 2. close mount A: the application is untouched and fully usable; a new mount B draws the current state.
       await run(Scope.close(scopeA, Exit.void));
-      expect(rootA.innerHTML).toBe("");                                                         // A's target is gone
-      await run(handle.invoke("app/changeItems", [{ value: [{ id: "C", name: "Gamma" }, { id: "D", name: "Delta" }] as never }]));
+      expect(rootA.innerHTML).toBe(""); // A's target is gone
+      await run(
+        handle.invoke("app/changeItems", [
+          {
+            value: [
+              { id: "C", name: "Gamma" },
+              { id: "D", name: "Delta" },
+            ] as never,
+          },
+        ]),
+      );
       expect((await run(handle.state)).items.map((item) => item.id)).toEqual(["C", "D"]);
       const mountedB = await run(Valance.mount(handle, target(rootB)).pipe(Scope.extend(scopeB)));
 
@@ -57,16 +84,16 @@ describe("mount lifetime, in Chromium, with independent Scopes", () => {
 
       // 3. close the APPLICATION; mount B's own Scope stays open.
       await run(Scope.close(appScope, Exit.void));
-      expect(names(rootB)).toEqual(["Gamma", "Delta"]);                                          // still drawn: nothing unmounted it
-      expect(show(await run(mountedB.followed) as never)).toBe("succeeded");                     // the follower ended because the application ended (the documented outcome)
-      expect((await run(handle.state)).items.map((item) => item.id)).toEqual(["C", "D"]);        // state is still readable
+      expect(names(rootB)).toEqual(["Gamma", "Delta"]); // still drawn: nothing unmounted it
+      expect(show((await run(mountedB.followed)) as never)).toBe("succeeded"); // the follower ended because the application ended (the documented outcome)
+      expect((await run(handle.state)).items.map((item) => item.id)).toEqual(["C", "D"]); // state is still readable
 
       // 5. events and commands after the application ended: reported, reach admission, refused; nothing changes.
       await userEvent.click(reverse(rootB));
       await expect.poll(() => mountedB.dispatched.length).toBe(1);
       expect(mountedB.dispatched.map(show)).toEqual(["died: NEXUS: the runtime has begun terminating"]);
-      expect(show(await run(Effect.exit(handle.invoke("app/changeItems", [{ value: [] as never }]))) as never)).toBe("died: NEXUS: the runtime has begun terminating");
-      expect(names(rootB)).toEqual(["Gamma", "Delta"]);                                          // inert: the page did not change
+      expect(show((await run(Effect.exit(handle.invoke("app/changeItems", [{ value: [] as never }])))) as never)).toBe("died: NEXUS: the runtime has begun terminating");
+      expect(names(rootB)).toEqual(["Gamma", "Delta"]); // inert: the page did not change
 
       // 6. finally close the mount's own Scope: it releases its target, cleanly, once.
       await run(Scope.close(scopeB, Exit.void));

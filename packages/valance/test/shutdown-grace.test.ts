@@ -13,24 +13,45 @@ type State = Schema.Schema.Type<typeof State>;
 const rig = async (shutdown: Nexus.Runtime.ShutdownOptions | undefined, takes: number) => {
   const timeline: Array<string> = [];
   const app = Valance.define({
-    name: "grace", state: { schema: State, initial: { commits: [] } },
-    views: { main: { program: eventFreeProgram, scope: () => ({}) } }, view: () => "main" as const,
-    commands: (state: Nexus.State.StateHandle<State>) => ({
-      "app/slow": Nexus.Mesh.bind(Nexus.Command.define("t.slow", Schema.Struct({}), () => Effect.gen(function* () {
-        timeline.push("started");
-        yield* Effect.sleep(Duration.millis(takes)).pipe(Effect.onInterrupt(() => Effect.sync(() => { timeline.push("interrupted"); })));
-        yield* state.update((c): Effect.Effect<State> => Effect.succeed({ commits: [...c.commits, "slow"] }));
-        timeline.push("committed");
-      })), () => ({})),
-    }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
+    name: "grace",
+    state: { schema: State, initial: { commits: [] } },
+    views: { main: { program: eventFreeProgram, scope: () => ({}) } },
+    view: () => "main" as const,
+    commands: (state: Nexus.State.StateHandle<State>) =>
+      ({
+        "app/slow": Nexus.Mesh.bind(
+          Nexus.Command.define("t.slow", Schema.Struct({}), () =>
+            Effect.gen(function* () {
+              timeline.push("started");
+              yield* Effect.sleep(Duration.millis(takes)).pipe(
+                Effect.onInterrupt(() =>
+                  Effect.sync(() => {
+                    timeline.push("interrupted");
+                  }),
+                ),
+              );
+              yield* state.update((c): Effect.Effect<State> => Effect.succeed({ commits: [...c.commits, "slow"] }));
+              timeline.push("committed");
+            }),
+          ),
+          () => ({}),
+        ),
+      }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
   });
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(Valance.start(app, shutdown === undefined ? {} : { shutdown }).pipe(Scope.extend(scope)));
   const caller = Effect.runPromise(Effect.exit(handle.invoke("app/slow", [])));
 
-  while (!timeline.includes("started")) { await new Promise((resolve) => setTimeout(resolve, 1)); }
+  while (!timeline.includes("started")) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
 
-  const closed = async () => { const before = Date.now(); await Effect.runPromise(Scope.close(scope, Exit.void)); timeline.push("closed"); return Date.now() - before; };
+  const closed = async () => {
+    const before = Date.now();
+    await Effect.runPromise(Scope.close(scope, Exit.void));
+    timeline.push("closed");
+    return Date.now() - before;
+  };
 
   return { timeline, closed, caller, handle };
 };
@@ -73,7 +94,9 @@ describe("shutdown.grace", () => {
 
     await closing;
 
-    expect(Exit.isFailure(late) && Cause.isDie(late.cause) && Valance.isValanceError(Cause.squash(late.cause)) && (Cause.squash(late.cause) as { code: string }).code).toBe("admission-closed");
+    expect(Exit.isFailure(late) && Cause.isDie(late.cause) && Valance.isValanceError(Cause.squash(late.cause)) && (Cause.squash(late.cause) as { code: string }).code).toBe(
+      "admission-closed",
+    );
     expect(r.timeline).toEqual(["started", "committed", "closed"]);
   });
 });

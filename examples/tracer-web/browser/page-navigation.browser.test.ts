@@ -8,7 +8,16 @@ type PageWindow = Window & { __marker?: string; console: Console };
 const text = (doc: Document) => doc.querySelector("#app")?.textContent ?? "";
 const button = (doc: Document, label: string) => [...doc.querySelectorAll("button")].find((b) => b.textContent === label)!;
 const where = (win: Window) => win.location.pathname + win.location.search;
-const loaded = (frame: HTMLIFrameElement) => new Promise<void>((resolve) => { frame.addEventListener("load", () => { resolve(); }, { once: true }); });
+const loaded = (frame: HTMLIFrameElement) =>
+  new Promise<void>((resolve) => {
+    frame.addEventListener(
+      "load",
+      () => {
+        resolve();
+      },
+      { once: true },
+    );
+  });
 
 it("URL changes inside the page are in-place history on ONE document and ONE running application; a reload is a new document that rebuilds from the URL alone; pagehide ends everything", async () => {
   const frame = document.createElement("iframe");
@@ -23,8 +32,12 @@ it("URL changes inside the page are in-place history on ONE document and ONE run
     const reports: Array<unknown> = [];
 
     await expect.poll(() => doc.querySelector<HTMLElement>("#app")?.dataset["valance"]).toBe("running");
-    win.__marker = "first document";                                                  // lives and dies with this document
-    for (const level of ["error", "warn", "log"] as const) { win.console[level] = (...args: Array<unknown>) => { reports.push(args); }; }
+    win.__marker = "first document"; // lives and dies with this document
+    for (const level of ["error", "warn", "log"] as const) {
+      win.console[level] = (...args: Array<unknown>) => {
+        reports.push(args);
+      };
+    }
     const navigations = () => win.performance.getEntriesByType("navigation").length;
     const entries0 = win.history.length;
 
@@ -36,20 +49,20 @@ it("URL changes inside the page are in-place history on ONE document and ONE run
     await expect.poll(() => text(doc)).toMatch(/^1 clicks, last at [1-9]\d+ClickAbout$/);
     const counterText = text(doc);
 
-    expect(where(win)).toBe("/tracer/?tab=overview");                                 // a state change the URL does not carry writes nothing
+    expect(where(win)).toBe("/tracer/?tab=overview"); // a state change the URL does not carry writes nothing
     button(doc, "About").click();
     await expect.poll(() => where(win)).toBe("/tracer/about?tab=overview");
     expect(text(doc)).toBe("About Tracer: 1 clickstab: overviewBack");
 
-    expect(win.history.length).toBe(entries0 + 2);                                    // two pushState entries (counter, about), nothing else
-    expect(frame.contentDocument).toBe(doc);                                          // the same document object ...
-    expect(win.__marker).toBe("first document");                                      // ... the same window and script state ...
-    expect(navigations()).toBe(1);                                                    // ... and the browser requested no new document
+    expect(win.history.length).toBe(entries0 + 2); // two pushState entries (counter, about), nothing else
+    expect(frame.contentDocument).toBe(doc); // the same document object ...
+    expect(win.__marker).toBe("first document"); // ... the same window and script state ...
+    expect(navigations()).toBe(1); // ... and the browser requested no new document
 
     // 2. Traversal: popstate. The same application navigates; the in-memory count survives, which no new document could do.
     win.history.back();
     await expect.poll(() => where(win)).toBe("/tracer/?tab=overview");
-    await expect.poll(() => text(doc)).toBe(counterText);                             // counter view with count 1 and the same stamp
+    await expect.poll(() => text(doc)).toBe(counterText); // counter view with count 1 and the same stamp
     win.history.back();
     await expect.poll(() => where(win)).toBe("/tracer/about?tab=details");
     await expect.poll(() => text(doc)).toBe("About Tracer: 1 clickstab: detailsBack");
@@ -58,8 +71,8 @@ it("URL changes inside the page are in-place history on ONE document and ONE run
     await expect.poll(() => text(doc)).toBe(counterText);
     expect(frame.contentDocument).toBe(doc);
     expect(win.__marker).toBe("first document");
-    expect(navigations()).toBe(1);                                                    // traversing pushState entries is not a document load either
-    expect(reports).toEqual([]);                                                       // no host or history report in a healthy lifecycle
+    expect(navigations()).toBe(1); // traversing pushState entries is not a document load either
+    expect(reports).toEqual([]); // no host or history report in a healthy lifecycle
 
     // 3. Reload: a genuinely new document. The URL is all that survives; the count (state the URL does not carry) is rebuilt from the server.
     const reloaded = loaded(frame);
@@ -71,20 +84,24 @@ it("URL changes inside the page are in-place history on ONE document and ONE run
 
     expect(doc2).not.toBe(doc);
     expect(win2.__marker).toBeUndefined();
-    await expect.poll(() => doc2.querySelector<HTMLElement>("#app")?.dataset["valance"]).toBe("running");   // the new document started its own page and application
+    await expect.poll(() => doc2.querySelector<HTMLElement>("#app")?.dataset["valance"]).toBe("running"); // the new document started its own page and application
     expect(where(win2)).toBe("/tracer/?tab=overview");
-    expect(text(doc2)).toBe("0 clicks, last at 0ClickAbout");                        // counter view again, with count 0: only what the URL carries came back
+    expect(text(doc2)).toBe("0 clicks, last at 0ClickAbout"); // counter view again, with count 0: only what the URL carries came back
 
     // 4. The page ends: one Scope closes the mount AND the history binding. Traversal afterwards reaches nothing.
     const reports2: Array<unknown> = [];
 
-    for (const level of ["error", "warn", "log"] as const) { win2.console[level] = (...args: Array<unknown>) => { reports2.push(args); }; }
+    for (const level of ["error", "warn", "log"] as const) {
+      win2.console[level] = (...args: Array<unknown>) => {
+        reports2.push(args);
+      };
+    }
     win2.dispatchEvent(new Event("pagehide"));
     await expect.poll(() => doc2.querySelector("#app")?.innerHTML).toBe("");
-    win2.history.back();                                                              // popstate with the history binding already gone
+    win2.history.back(); // popstate with the history binding already gone
     await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(doc2.querySelector("#app")?.innerHTML).toBe("");                           // nothing navigates or redraws
-    expect(reports2).toEqual([]);                                                      // and nothing is reported
+    expect(doc2.querySelector("#app")?.innerHTML).toBe(""); // nothing navigates or redraws
+    expect(reports2).toEqual([]); // and nothing is reported
   } finally {
     frame.remove();
   }

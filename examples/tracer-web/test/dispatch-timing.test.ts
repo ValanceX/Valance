@@ -11,11 +11,15 @@ import { until } from "./helpers.js";
 
 const settle = () => sleep(40);
 const start = { view: "a", show: false, ids: ["A"], n: 0, tag: "a" } as const;
-const press = (m: { readonly page: { click: (e: Element) => unknown }; readonly rowEls: () => ReadonlyArray<Element> }) => { m.page.click(m.rowEls()[0]!.querySelector("button")!); };
+const press = (m: { readonly page: { click: (e: Element) => unknown }; readonly rowEls: () => ReadonlyArray<Element> }) => {
+  m.page.click(m.rowEls()[0]!.querySelector("button")!);
+};
 const hold = (b: { readonly gate: { current?: Promise<void> } }) => {
   let release!: () => void;
 
-  b.gate.current = new Promise<void>((resolve) => { release = resolve; });
+  b.gate.current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
 
   return release;
 };
@@ -26,7 +30,7 @@ describe("report time vs execution time", () => {
     const m = await b.mountOn();
     const release = hold(b);
 
-    press(m);                                                            // reported against A(a); the tap is now waiting
+    press(m); // reported against A(a); the tap is now waiting
     await settle();
     await b.invoke("app/bump");
     await b.invoke("app/note", "later");
@@ -34,8 +38,8 @@ describe("report time vs execution time", () => {
     expect(b.taps).toEqual([]);
     release();
     await until(() => b.taps.length === 1);
-    expect(b.taps).toEqual(["aA"]);                                      // report-time argument
-    expect(b.seen).toEqual([{ id: "aA", n: 1, tag: "a", view: "a" }]);   // execution-time state
+    expect(b.taps).toEqual(["aA"]); // report-time argument
+    expect(b.seen).toEqual([{ id: "aA", n: 1, tag: "a", view: "a" }]); // execution-time state
     await m.close();
   });
 
@@ -46,13 +50,13 @@ describe("report time vs execution time", () => {
 
     press(m);
     await settle();
-    await b.invoke("app/tag", "b");                                      // presented while the tap waits: the retained render is now B(b)
+    await b.invoke("app/tag", "b"); // presented while the tap waits: the retained render is now B(b)
     await settle();
     expect(m.ops).toEqual(["draw", "update"]);
     release();
     await until(() => b.taps.length === 1);
     expect(b.taps).toEqual(["aA"]);
-    expect(b.seen[0]).toEqual({ id: "aA", n: 0, tag: "b", view: "a" });  // old argument, new state
+    expect(b.seen[0]).toEqual({ id: "aA", n: 0, tag: "b", view: "a" }); // old argument, new state
     press(m);
     await until(() => b.taps.length === 2);
     expect(b.taps).toEqual(["aA", "bA"]);
@@ -72,7 +76,7 @@ describe("report time vs execution time", () => {
     release();
     await until(() => b.taps.length === 1);
     expect(b.taps).toEqual(["aA"]);
-    expect(Exit.isSuccess(m.mounted.dispatched[0]!)).toBe(true);        // not resolved against view b's render, which has no such handler
+    expect(Exit.isSuccess(m.mounted.dispatched[0]!)).toBe(true); // not resolved against view b's render, which has no such handler
     expect(b.seen[0]!.view).toBe("b");
     await m.close();
   });
@@ -93,8 +97,8 @@ describe("report time vs execution time", () => {
       release();
       await until(() => b.taps.length === 1);
       expect(b.taps).toEqual(["aA"]);
-      expect(b.seen[0]!.tag).toBe("b");                                  // the command still runs against the committed application state
-      press(m);                                                          // and the retained render is still the first one
+      expect(b.seen[0]!.tag).toBe("b"); // the command still runs against the committed application state
+      press(m); // and the retained render is still the first one
       await until(() => b.taps.length === 2);
       expect(b.taps).toEqual(["aA", "aA"]);
       await m.close();
@@ -104,14 +108,14 @@ describe("report time vs execution time", () => {
   it("D. another mount advancing cannot affect a reported interaction; each mount's own retained render is used", async () => {
     const b = await boot(start);
     let fails = false;
-    const stuck = await b.mountOn({ updateThrows: () => fails ? "after" : undefined });
+    const stuck = await b.mountOn({ updateThrows: () => (fails ? "after" : undefined) });
     const moves = await b.mountOn();
     const release = hold(b);
 
     press(stuck);
     await settle();
     fails = true;
-    await b.invoke("app/tag", "b");                                      // `moves` presents it; `stuck` fails and retains the first render
+    await b.invoke("app/tag", "b"); // `moves` presents it; `stuck` fails and retains the first render
     await settle();
     expect(moves.ops).toEqual(["draw", "update"]);
     expect(stuck.ops).toEqual(["draw"]);
@@ -139,7 +143,7 @@ describe("report time vs execution time", () => {
     expect(b.taps).toEqual(["aA"]);
     await until(() => m.mounted.dispatched.length === 1);
     expect(Exit.isSuccess(m.mounted.dispatched[0]!)).toBe(true);
-    await b.invoke("app/bump");                                          // the application is untouched
+    await b.invoke("app/bump"); // the application is untouched
     expect((await b.state()).n).toBe(1);
   });
 
@@ -150,15 +154,20 @@ describe("report time vs execution time", () => {
 
     press(m);
     await settle();
-    await Promise.race([import("effect").then(({ Effect, Scope }) => Effect.runPromise(Scope.close(b.appScope, Exit.void))), sleep(1500).then(() => { throw new Error("application close hung"); })]);
+    await Promise.race([
+      import("effect").then(({ Effect, Scope }) => Effect.runPromise(Scope.close(b.appScope, Exit.void))),
+      sleep(1500).then(() => {
+        throw new Error("application close hung");
+      }),
+    ]);
     await until(() => m.mounted.dispatched.length === 1);
     const exit = m.mounted.dispatched[0]!;
 
     expect(Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);
     release();
     await settle();
-    expect(b.taps).toEqual([]);                                          // never ran, even after the gate opened
-    press(m);                                                            // the mount is inert on its retained render; the application is closed
+    expect(b.taps).toEqual([]); // never ran, even after the gate opened
+    press(m); // the mount is inert on its retained render; the application is closed
     await until(() => m.mounted.dispatched.length === 2);
     expect(Exit.isFailure(m.mounted.dispatched[1]!)).toBe(true);
     expect(b.taps).toEqual([]);

@@ -9,12 +9,32 @@ import { describe, expect, it } from "vitest";
 
 import { textTarget } from "./non-dom-target.js";
 
-const manifest = JSON.stringify({ version: 1, types: {}, components: {
-  page: { props: {}, events: {}, commands: {}, scope: {} }, text: { props: {}, events: {}, commands: {}, scope: {} }, button: { props: {}, events: { click: {} }, commands: {}, scope: {} },
-  left: { props: {}, events: {}, commands: { increment: { parameters: [] }, add: { parameters: [{ name: "a", type: { kind: "number" } }, { name: "b", type: { kind: "number" } }] } }, scope: { label: { kind: "string" }, a: { kind: "number" }, b: { kind: "number" } } },
-  right: { props: {}, events: {}, commands: { increment: { parameters: [] } }, scope: { label: { kind: "string" } } },
-} });
-const compile = async (root: string, source: string) => (await compileProgram({ model: { manifest, path: "components.json" }, root, components: [{ component: root, path: `${root}.mprx`, source }] })).program!;
+const manifest = JSON.stringify({
+  version: 1,
+  types: {},
+  components: {
+    page: { props: {}, events: {}, commands: {}, scope: {} },
+    text: { props: {}, events: {}, commands: {}, scope: {} },
+    button: { props: {}, events: { click: {} }, commands: {}, scope: {} },
+    left: {
+      props: {},
+      events: {},
+      commands: {
+        increment: { parameters: [] },
+        add: {
+          parameters: [
+            { name: "a", type: { kind: "number" } },
+            { name: "b", type: { kind: "number" } },
+          ],
+        },
+      },
+      scope: { label: { kind: "string" }, a: { kind: "number" }, b: { kind: "number" } },
+    },
+    right: { props: {}, events: {}, commands: { increment: { parameters: [] } }, scope: { label: { kind: "string" } } },
+  },
+});
+const compile = async (root: string, source: string) =>
+  (await compileProgram({ model: { manifest, path: "components.json" }, root, components: [{ component: root, path: `${root}.mprx`, source }] })).program!;
 const programs = {
   left: await compile("left", `<page><text>{label}</text><button on.click={increment()}>Left+1</button><button on.click={add(a, b)}>Add</button></page>`),
   right: await compile("right", `<page><text>{label}</text><button on.click={increment()}>Right+1</button></page>`),
@@ -40,13 +60,24 @@ const make = (state: Nexus.State.StateHandle<State>) => {
   };
 };
 
-const app = (table: (c: ReturnType<typeof make>, state: Nexus.State.StateHandle<State>) => Record<string, any>, start?: string) => Valance.define({
-  name: "name-keyed", state: { schema: State, initial: { view: "left", count: 0, last: "" } }, views, view: (s: State) => s.view,
-  commands: (state) => table(make(state), state),
-  ...(start === undefined ? {} : { start }),
-});
+const app = (table: (c: ReturnType<typeof make>, state: Nexus.State.StateHandle<State>) => Record<string, any>, start?: string) =>
+  Valance.define({
+    name: "name-keyed",
+    state: { schema: State, initial: { view: "left", count: 0, last: "" } },
+    views,
+    view: (s: State) => s.view,
+    commands: (state) => table(make(state), state),
+    ...(start === undefined ? {} : { start }),
+  });
 
-const until = async (done: () => boolean | Promise<boolean>) => { for (let i = 0; !(await done()); i += 1) { if (i > 400) { throw new Error("timed out"); } await new Promise((r) => setTimeout(r, 5)); } };
+const until = async (done: () => boolean | Promise<boolean>) => {
+  for (let i = 0; !(await done()); i += 1) {
+    if (i > 400) {
+      throw new Error("timed out");
+    }
+    await new Promise((r) => setTimeout(r, 5));
+  }
+};
 const boot = async (definition: ReturnType<typeof app>) => {
   const scope = await Effect.runPromise(Scope.make());
   const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope)));
@@ -56,12 +87,16 @@ const boot = async (definition: ReturnType<typeof app>) => {
   await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
 
   return {
-    handle, screen: () => screen, click: (l: string) => screen.activate(l), state: () => Effect.runPromise(handle.state),
+    handle,
+    screen: () => screen,
+    click: (l: string) => screen.activate(l),
+    state: () => Effect.runPromise(handle.state),
     invoke: (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(Effect.exit(handle.invoke(key, values.map((value) => ({ value })) as never))),
     close: () => Effect.runPromise(Scope.close(scope, Exit.void)),
   };
 };
-const failureOf = (exit: Exit.Exit<unknown, unknown>) => Exit.isFailure(exit) ? JSON.stringify(Cause.squash(exit.cause) instanceof Error ? { defect: String(Cause.squash(exit.cause)) } : exit.cause) : "";
+const failureOf = (exit: Exit.Exit<unknown, unknown>) =>
+  Exit.isFailure(exit) ? JSON.stringify(Cause.squash(exit.cause) instanceof Error ? { defect: String(Cause.squash(exit.cause)) } : exit.cause) : "";
 
 describe("bare names", () => {
   it("1+4+8. a bare name binds the declared command in every view that declares it (one implementation, repeated name); D ⊆ B holds", async () => {
@@ -72,15 +107,19 @@ describe("bare names", () => {
     await x.invoke("app/show", "right");
     await until(() => x.screen().screen().includes("Right+1"));
     x.click("Right+1");
-    await until(async () => (await x.state()).count === 2);                  // the SAME command, reached through right/increment
+    await until(async () => (await x.state()).count === 2); // the SAME command, reached through right/increment
     await x.close();
   });
 
   it("2. explicit component/name bindings work exactly as before", async () => {
-    const x = await boot(app((c) => ({
-      "left/increment": Valance.entry(c.increment), "right/increment": Valance.entry(c.increment),
-      "left/add": Valance.entry(c.add, (a, b) => ({ first: a, second: b })), "app/show": Valance.entry(c.show, (view) => ({ view })),
-    })));
+    const x = await boot(
+      app((c) => ({
+        "left/increment": Valance.entry(c.increment),
+        "right/increment": Valance.entry(c.increment),
+        "left/add": Valance.entry(c.add, (a, b) => ({ first: a, second: b })),
+        "app/show": Valance.entry(c.show, (view) => ({ view })),
+      })),
+    );
 
     x.click("Left+1");
     await until(async () => (await x.state()).count === 1);
@@ -92,13 +131,13 @@ describe("bare names", () => {
   it("3+9. both forms coexist; for a declared command the exact key wins over the bare name; `app/name` stays the bare one", async () => {
     const x = await boot(app((c) => ({ increment: c.increment, add: c.add, show: c.show, "left/increment": Valance.entry(c.incrementByHundred) })));
 
-    x.click("Left+1");                                                        // left/increment: the explicit one
+    x.click("Left+1"); // left/increment: the explicit one
     await until(async () => (await x.state()).count === 100);
-    await x.invoke("app/increment");                                          // the bare name: +1
+    await x.invoke("app/increment"); // the bare name: +1
     await until(async () => (await x.state()).count === 101);
     await x.invoke("app/show", "right");
     await until(() => x.screen().screen().includes("Right+1"));
-    x.click("Right+1");                                                       // right/increment has no exact key: the bare name
+    x.click("Right+1"); // right/increment has no exact key: the bare name
     await until(async () => (await x.state()).count === 102);
     await x.close();
   });
@@ -107,9 +146,9 @@ describe("bare names", () => {
     const x = await boot(app((c) => ({ increment: c.increment, add: c.add, show: c.show, "app/increment": Valance.entry(c.incrementByHundred) })));
 
     await x.invoke("app/increment");
-    await until(async () => (await x.state()).count === 100);                 // explicit app/increment
+    await until(async () => (await x.state()).count === 100); // explicit app/increment
     x.click("Left+1");
-    await until(async () => (await x.state()).count === 101);                 // left/increment: still the bare name
+    await until(async () => (await x.state()).count === 101); // left/increment: still the bare name
     await x.close();
   });
 });
@@ -118,7 +157,10 @@ describe("conformance and mistakes", () => {
   it("5. a declared command with neither an exact key nor a bare name is the existing ConformanceViolation, naming the key", async () => {
     const exit = await Effect.runPromise(Effect.scoped(Effect.exit(Valance.start(app((c) => ({ increment: c.increment }))))));
 
-    expect(Exit.isFailure(exit) && Cause.failureOption(exit.cause)).toMatchObject({ _tag: "Some", value: { _tag: "ConformanceViolation", missing: [{ view: "left", key: "left/add" }] } });
+    expect(Exit.isFailure(exit) && Cause.failureOption(exit.cause)).toMatchObject({
+      _tag: "Some",
+      value: { _tag: "ConformanceViolation", missing: [{ view: "left", key: "left/add" }] },
+    });
   });
 
   it("7. a binding under a bare name is a mistake `start` names as a defect (it would otherwise be silently misread); a non-command is a compile error", async () => {
@@ -126,7 +168,10 @@ describe("conformance and mistakes", () => {
 
     expect(failureOf(exit)).toContain("is a bare command name");
     void Valance.define({
-      name: "x", state: { schema: State, initial: { view: "left", count: 0, last: "" } }, views, view: (s: State) => s.view,
+      name: "x",
+      state: { schema: State, initial: { view: "left", count: 0, last: "" } },
+      views,
+      view: (s: State) => s.view,
       // @ts-expect-error a table entry is a command or a binding, not a number
       commands: () => ({ increment: 42 }),
     });
@@ -137,13 +182,13 @@ describe("arguments of a bare command", () => {
   it("6. a struct input takes the arguments in field order; the view's parameter names are not used; missing is undefined (validation fails); extras are ignored", async () => {
     const x = await boot(app((c) => ({ increment: c.increment, add: c.add, show: c.show })));
 
-    x.click("Add");                                                           // add(a, b) with a = 3, b = 4  ->  { first: 3, second: 4 }
+    x.click("Add"); // add(a, b) with a = 3, b = 4  ->  { first: 3, second: 4 }
     await until(async () => (await x.state()).last === "3|4");
-    await x.invoke("app/add", 7, 2);                                          // invoke uses the same rule
+    await x.invoke("app/add", 7, 2); // invoke uses the same rule
     expect((await x.state()).last).toBe("7|2");
-    await x.invoke("app/add", 8, 9, 10, 11);                                  // beyond the fields: ignored
+    await x.invoke("app/add", 8, 9, 10, 11); // beyond the fields: ignored
     expect((await x.state()).last).toBe("8|9");
-    expect(failureOf(await x.invoke("app/add", 1))).toContain("CommandValidationError");   // `second` is undefined
+    expect(failureOf(await x.invoke("app/add", 1))).toContain("CommandValidationError"); // `second` is undefined
     expect((await x.state()).last).toBe("8|9");
     await x.close();
   });
@@ -167,10 +212,14 @@ describe("arguments of a bare command", () => {
   });
 
   it("a command whose input is not a struct takes the first argument as the whole input", async () => {
-    const x = await boot(app((c, state) => ({
-      increment: c.increment, add: c.add, show: c.show,
-      note: Nexus.Command.define("note", Schema.String, (text) => Effect.asVoid(state.update((s): Effect.Effect<State> => Effect.succeed({ ...s, last: text })))),
-    })));
+    const x = await boot(
+      app((c, state) => ({
+        increment: c.increment,
+        add: c.add,
+        show: c.show,
+        note: Nexus.Command.define("note", Schema.String, (text) => Effect.asVoid(state.update((s): Effect.Effect<State> => Effect.succeed({ ...s, last: text })))),
+      })),
+    );
 
     await x.invoke("app/note", "hello", "ignored");
     expect((await x.state()).last).toBe("hello");

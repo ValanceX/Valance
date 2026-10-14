@@ -19,7 +19,7 @@
     "start:ssr": "node .valance/tools/build/cli/serve.js --ssr"
   },
   "dependencies": {
-    "@valancex/valance": "0.9.0"
+    "@valancex/valance": "0.10.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

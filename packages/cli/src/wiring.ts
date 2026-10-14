@@ -30,9 +30,19 @@ export interface Component {
   readonly name: string;
   readonly file: string;
   /** `at` is where the template first reads the prop; `declared` where `src/main.ts` lists it. */
-  readonly props: ReadonlyArray<{ readonly name: string; readonly at: Place; readonly declared?: Place; readonly passedBy: ReadonlyArray<{ readonly at: Place; readonly from: string }> }>;
+  readonly props: ReadonlyArray<{
+    readonly name: string;
+    readonly at: Place;
+    readonly declared?: Place;
+    readonly passedBy: ReadonlyArray<{ readonly at: Place; readonly from: string }>;
+  }>;
   /** `at` is where the template first raises the event; `declared` where `src/main.ts` lists it. */
-  readonly events: ReadonlyArray<{ readonly name: string; readonly at: Place; readonly declared?: Place; readonly handledBy: ReadonlyArray<{ readonly at: Place; readonly to: string }> }>;
+  readonly events: ReadonlyArray<{
+    readonly name: string;
+    readonly at: Place;
+    readonly declared?: Place;
+    readonly handledBy: ReadonlyArray<{ readonly at: Place; readonly to: string }>;
+  }>;
 }
 
 /** A component as `src/main.ts` declares it: the application's component tree, one entry per component, from `layout` down. */
@@ -62,9 +72,20 @@ export interface Wiring {
 
 // ---- reading a template -------------------------------------------------------------------------------------------------------------------------------------------
 
-interface Read { readonly name: string; readonly call: boolean; readonly at: number }
-interface Element { readonly tag: string; readonly at: number; readonly attributes: ReadonlyArray<{ readonly name: string; readonly string: boolean; readonly text: string; readonly at: number }> }
-interface Scanned { readonly reads: ReadonlyArray<Read>; readonly elements: ReadonlyArray<Element> }
+interface Read {
+  readonly name: string;
+  readonly call: boolean;
+  readonly at: number;
+}
+interface Element {
+  readonly tag: string;
+  readonly at: number;
+  readonly attributes: ReadonlyArray<{ readonly name: string; readonly string: boolean; readonly text: string; readonly at: number }>;
+}
+interface Scanned {
+  readonly reads: ReadonlyArray<Read>;
+  readonly elements: ReadonlyArray<Element>;
+}
 
 const KEYWORDS = new Set(["true", "false", "null"]);
 
@@ -83,8 +104,12 @@ const identifiers = (expression: string, base: number): ReadonlyArray<Read> => {
     const after = plain.slice(match.index! + name.length).trimStart();
     const before = plain.slice(0, match.index!).trimEnd().slice(-1);
 
-    if (KEYWORDS.has(name) || name.startsWith("$")) { continue; }
-    if (after.startsWith(":") && (before === "{" || before === ",")) { continue; }       // an object key
+    if (KEYWORDS.has(name) || name.startsWith("$")) {
+      continue;
+    }
+    if (after.startsWith(":") && (before === "{" || before === ",")) {
+      continue;
+    } // an object key
 
     found.push({ name, call: match[2] !== undefined, at: base + match.index! });
   }
@@ -99,9 +124,19 @@ const balanced = (text: string, from: number): number => {
   for (let at = from; at < text.length; at += 1) {
     const char = text[at];
 
-    if (char === '"') { at += 1; while (at < text.length && text[at] !== '"') { at += text[at] === "\\" ? 2 : 1; } }
-    else if (char === "{") { depth += 1; }
-    else if (char === "}") { depth -= 1; if (depth === 0) { return at; } }
+    if (char === '"') {
+      at += 1;
+      while (at < text.length && text[at] !== '"') {
+        at += text[at] === "\\" ? 2 : 1;
+      }
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return at;
+      }
+    }
   }
 
   return text.length - 1;
@@ -114,7 +149,9 @@ export const scan = (text: string): Scanned => {
   /** The names the enclosing `{#each}` blocks bind, innermost last, and the kind of each open block. */
   const bound: Array<string> = [];
   const kinds: Array<"if" | "each"> = [];
-  const read = (expression: string, base: number): void => { reads.push(...identifiers(expression, base).filter((each) => !bound.includes(each.name))); };
+  const read = (expression: string, base: number): void => {
+    reads.push(...identifiers(expression, base).filter((each) => !bound.includes(each.name)));
+  };
   let at = 0;
 
   while (at < text.length) {
@@ -138,7 +175,9 @@ export const scan = (text: string): Scanned => {
           bound.push(head[1]!);
           kinds.push("each");
 
-          if (head[2] !== undefined) { read(head[2], at + 1 + head.index + head[0].indexOf("(") + 1); }
+          if (head[2] !== undefined) {
+            read(head[2], at + 1 + head.index + head[0].indexOf("(") + 1);
+          }
         } else {
           kinds.push("each");
         }
@@ -148,7 +187,9 @@ export const scan = (text: string): Scanned => {
       } else if (block[1] === ":else if") {
         read(inner.slice(block[0].length), at + 1 + block[0].length);
       } else if (block[1] === "/each" || block[1] === "/if") {
-        if (kinds.pop() === "each") { bound.pop(); }
+        if (kinds.pop() === "each") {
+          bound.pop();
+        }
       }
 
       at = end + 1;
@@ -160,32 +201,54 @@ export const scan = (text: string): Scanned => {
       let cursor = at + 1 + name.length;
 
       for (;;) {
-        while (/\s/.test(text[cursor] ?? "")) { cursor += 1; }
+        while (/\s/.test(text[cursor] ?? "")) {
+          cursor += 1;
+        }
 
-        if (cursor >= text.length) { break; }
-        if (text.startsWith("/>", cursor)) { cursor += 2; break; }
-        if (text[cursor] === ">") { cursor += 1; break; }
+        if (cursor >= text.length) {
+          break;
+        }
+        if (text.startsWith("/>", cursor)) {
+          cursor += 2;
+          break;
+        }
+        if (text[cursor] === ">") {
+          cursor += 1;
+          break;
+        }
 
         const attribute = /^[A-Za-z_][\w.:-]*/.exec(text.slice(cursor));
 
-        if (attribute === null) { cursor += 1; continue; }
+        if (attribute === null) {
+          cursor += 1;
+          continue;
+        }
 
         const attributeAt = cursor;
 
         cursor += attribute[0].length;
 
-        while (/\s/.test(text[cursor] ?? "")) { cursor += 1; }
+        while (/\s/.test(text[cursor] ?? "")) {
+          cursor += 1;
+        }
 
-        if (text[cursor] !== "=") { attributes.push({ name: attribute[0], string: true, text: "", at: attributeAt }); continue; }
+        if (text[cursor] !== "=") {
+          attributes.push({ name: attribute[0], string: true, text: "", at: attributeAt });
+          continue;
+        }
 
         cursor += 1;
 
-        while (/\s/.test(text[cursor] ?? "")) { cursor += 1; }
+        while (/\s/.test(text[cursor] ?? "")) {
+          cursor += 1;
+        }
 
         if (text[cursor] === '"') {
           let end = cursor + 1;
 
-          while (end < text.length && text[end] !== '"') { end += text[end] === "\\" ? 2 : 1; }
+          while (end < text.length && text[end] !== '"') {
+            end += text[end] === "\\" ? 2 : 1;
+          }
 
           attributes.push({ name: attribute[0], string: true, text: text.slice(cursor + 1, end), at: attributeAt });
           cursor = end + 1;
@@ -219,7 +282,14 @@ export const locateKey = (text: string, name: string): Place => {
     let end = open;
 
     for (; end < text.length; end += 1) {
-      if (text[end] === "{") { depth += 1; } else if (text[end] === "}") { depth -= 1; if (depth === 0) { break; } }
+      if (text[end] === "{") {
+        depth += 1;
+      } else if (text[end] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          break;
+        }
+      }
     }
 
     masked = masked.slice(0, open) + text.slice(open, end).replace(/[^\n]/g, " ") + masked.slice(end);
@@ -232,10 +302,20 @@ export const locateKey = (text: string, name: string): Place => {
 
 // ---- the map ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-interface Manifest { readonly components: Readonly<Record<string, { readonly props: Record<string, unknown>; readonly events: Record<string, unknown>; readonly commands: Record<string, unknown>; readonly scope: Record<string, unknown> }>> }
+interface Manifest {
+  readonly components: Readonly<
+    Record<
+      string,
+      { readonly props: Record<string, unknown>; readonly events: Record<string, unknown>; readonly commands: Record<string, unknown>; readonly scope: Record<string, unknown> }
+    >
+  >;
+}
 
 /** Where the framework documents a name an author did not write: a line of its README, which ships with the package. `undefined` when there is none to point at. */
-export interface Docs { readonly file: string; readonly lines: ReadonlyArray<string> }
+export interface Docs {
+  readonly file: string;
+  readonly lines: ReadonlyArray<string>;
+}
 
 const docLine = (docs: Docs | undefined, find: (line: string) => boolean): Place | undefined => {
   const at = docs?.lines.findIndex(find) ?? -1;
@@ -246,16 +326,32 @@ const docLine = (docs: Docs | undefined, find: (line: string) => boolean): Place
 export const buildWiring = (root: string, author: DefinedApp | undefined, compiled: Compiled, docs?: Docs): Wiring => {
   const manifest = compiled.manifest as Manifest;
   const own = ownNames(author);
-  const mainText = (() => { try { return readFileSync(join(root, ENTRY_FILE), "utf8"); } catch { return ""; } })();
+  const mainText = (() => {
+    try {
+      return readFileSync(join(root, ENTRY_FILE), "utf8");
+    } catch {
+      return "";
+    }
+  })();
   const scanned = new Map(compiled.templates.map((template) => [template.component, { template, ...scan(template.source) }]));
   const builtInFiles = new Set(compiled.templates.filter((template) => template.builtIn).map((template) => template.file));
   const definitions: Record<string, Place> = {};
   const bindings: Record<string, Array<Place>> = {};
-  const define = (path: ReadonlyArray<string>, place: Place | undefined): void => { if (place !== undefined) { definitions[path.join("/")] = place; } };
-  const placeOf = (component: string, offset: number): Place => { const found = scanned.get(component)!; return placeIn(found.template.source, offset, found.template.file); };
+  const define = (path: ReadonlyArray<string>, place: Place | undefined): void => {
+    if (place !== undefined) {
+      definitions[path.join("/")] = place;
+    }
+  };
+  const placeOf = (component: string, offset: number): Place => {
+    const found = scanned.get(component)!;
+    return placeIn(found.template.source, offset, found.template.file);
+  };
   const declarations = declarationsOf(root);
   const sites = new Map(compiled.tree.map((node) => [node.name, declarations.get(node.file)]));
-  const declaredAt = (name: string): Place | undefined => { const site = sites.get(name); return site?.call ?? site?.imported; };
+  const declaredAt = (name: string): Place | undefined => {
+    const site = sites.get(name);
+    return site?.call ?? site?.imported;
+  };
   const top = (component: string): Place => ({ file: scanned.get(component)!.template.file, line: 1, column: 1 });
 
   // Where each component is used, and what is passed and handled.
@@ -267,8 +363,12 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
         at: placeOf(component, element.at),
         tag: element.tag,
         target: top(element.tag),
-        props: element.attributes.filter((attribute) => !attribute.name.startsWith("on.")).map((attribute) => ({ name: attribute.name, from: attribute.string ? JSON.stringify(attribute.text) : `{${attribute.text}}`, at: placeOf(component, attribute.at) })),
-        events: element.attributes.filter((attribute) => attribute.name.startsWith("on.")).map((attribute) => ({ name: attribute.name.slice(3), to: attribute.text, at: placeOf(component, attribute.at) })),
+        props: element.attributes
+          .filter((attribute) => !attribute.name.startsWith("on."))
+          .map((attribute) => ({ name: attribute.name, from: attribute.string ? JSON.stringify(attribute.text) : `{${attribute.text}}`, at: placeOf(component, attribute.at) })),
+        events: element.attributes
+          .filter((attribute) => attribute.name.startsWith("on."))
+          .map((attribute) => ({ name: attribute.name.slice(3), to: attribute.text, at: placeOf(component, attribute.at) })),
       });
     }
   }
@@ -277,18 +377,26 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
   const readsOf = (name: string, call: boolean): ReadonlyArray<Place> => {
     const seen = new Set<number>();
 
-    return scanned.get("layout")!.reads.filter((read) => read.name === name && read.call === call).map((read) => placeOf("layout", read.at)).filter((place) => !seen.has(place.line) && seen.add(place.line));
+    return scanned
+      .get("layout")!
+      .reads.filter((read) => read.name === name && read.call === call)
+      .map((read) => placeOf("layout", read.at))
+      .filter((place) => !seen.has(place.line) && seen.add(place.line));
   };
 
   // The layout: its names are your state, your commands, or the framework's.
   define(["components", "layout"], top("layout"));
 
   for (const name of Object.keys(manifest.components["layout"]!.scope)) {
-    define(["components", "layout", "scope", name], own.state.includes(name) ? locateKey(mainText, name) : docLine(docs, (line) => line.startsWith("|") && (line.split("|")[1] ?? "").includes(`\`${name}\``)));
+    define(["components", "layout", "scope", name], own.state.includes(name)
+      ? locateKey(mainText, name)
+      : docLine(docs, (line) => line.startsWith("|") && (line.split("|")[1] ?? "").includes(`\`${name}\``)));
   }
 
   for (const name of Object.keys(manifest.components["layout"]!.commands)) {
-    define(["components", "layout", "commands", name], own.commands.includes(name) ? locateKey(mainText, name) : docLine(docs, (line) => line.includes(`\`${name}\` is the framework`)));
+    define(["components", "layout", "commands", name], own.commands.includes(name)
+      ? locateKey(mainText, name)
+      : docLine(docs, (line) => line.includes(`\`${name}\` is the framework`)));
   }
 
   // Components: declared where the template first uses the prop or raises the event, and bound where a caller writes it.
@@ -297,7 +405,9 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
   for (const { template } of scanned.values()) {
     const name = template.component;
 
-    if (name === "layout") { continue; }
+    if (name === "layout") {
+      continue;
+    }
 
     define(["components", name], top(name));
 
@@ -340,12 +450,18 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
   const tags = docLine(docs, (line) => line.startsWith("Tags you may use:"));
 
   for (const [tag, entry] of Object.entries(manifest.components)) {
-    if (scanned.has(tag) || tag.startsWith("mesh-")) { continue; }
+    if (scanned.has(tag) || tag.startsWith("mesh-")) {
+      continue;
+    }
 
     define(["components", tag], tags);
 
-    for (const prop of Object.keys(entry.props)) { define(["components", tag, "props", prop], tags); }
-    for (const event of Object.keys(entry.events)) { define(["components", tag, "events", event], tags); }
+    for (const prop of Object.keys(entry.props)) {
+      define(["components", tag, "props", prop], tags);
+    }
+    for (const event of Object.keys(entry.events)) {
+      define(["components", tag, "events", event], tags);
+    }
   }
 
   return {
@@ -354,7 +470,10 @@ export const buildWiring = (root: string, author: DefinedApp | undefined, compil
     bindings,
     uses,
     components,
-    tree: compiled.tree.map((node) => { const declared = declaredAt(node.name); return { name: node.name, file: node.file, ...(declared === undefined ? {} : { declared }), parents: node.parents, uses: node.uses }; }),
+    tree: compiled.tree.map((node) => {
+      const declared = declaredAt(node.name);
+      return { name: node.name, file: node.file, ...(declared === undefined ? {} : { declared }), parents: node.parents, uses: node.uses };
+    }),
     state: own.state.map((name) => ({ name, source: locateKey(mainText, name), readBy: readsOf(name, false) })),
     commands: own.commands.map((name) => ({ name, source: locateKey(mainText, name), runBy: readsOf(name, true) })),
   };

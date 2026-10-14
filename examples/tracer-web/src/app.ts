@@ -70,34 +70,37 @@ export const initialStateAt = (win: Window): AppState => {
   return state;
 };
 
-export const application = (programs: Programs) => Valance.define({
-  name: "tracer-web",
-  state: { schema: AppState, initial },
-  views: {
-    counter: { program: programs.counter, scope: ({ title, count, stamp }) => ({ title, count, stamp }) },
-    about: { program: programs.about, scope: ({ title, count, tab }) => ({ title, count, tab }) },
-    missing: { program: programs.missing, scope: ({ title }) => ({ title }) },
-  },
-  // Route state is application state; the active program is derived from it.
-  view: (state) => state.path === "/" ? "counter" : state.path === "/about" ? "about" : "missing",
-  commands: (state) => {
-    // Behavior: the platform's Clock (application code sees it; the caller never does).
-    const increment = Nexus.Command.define("counter.increment", Schema.Struct({}), () =>
-      Effect.flatMap(Clock.currentTimeMillis, (stamp) => state.update((current) => Effect.succeed({ ...current, count: current.count + 1, stamp }))).pipe(Effect.asVoid));
-    const navigate = Nexus.Command.define("app.navigate", Schema.Struct({ path: Schema.String, tab: Schema.String }), ({ path, tab }) =>
-      state.update((current) => Effect.succeed({ ...current, path, tab })).pipe(Effect.andThen(Nexus.Event.publish(Navigated, { path, tab }))));
+export const application = (programs: Programs) =>
+  Valance.define({
+    name: "tracer-web",
+    state: { schema: AppState, initial },
+    views: {
+      counter: { program: programs.counter, scope: ({ title, count, stamp }) => ({ title, count, stamp }) },
+      about: { program: programs.about, scope: ({ title, count, tab }) => ({ title, count, tab }) },
+      missing: { program: programs.missing, scope: ({ title }) => ({ title }) },
+    },
+    // Route state is application state; the active program is derived from it.
+    view: (state) => (state.path === "/" ? "counter" : state.path === "/about" ? "about" : "missing"),
+    commands: (state) => {
+      // Behavior: the platform's Clock (application code sees it; the caller never does).
+      const increment = Nexus.Command.define("counter.increment", Schema.Struct({}), () =>
+        Effect.flatMap(Clock.currentTimeMillis, (stamp) => state.update((current) => Effect.succeed({ ...current, count: current.count + 1, stamp }))).pipe(Effect.asVoid),
+      );
+      const navigate = Nexus.Command.define("app.navigate", Schema.Struct({ path: Schema.String, tab: Schema.String }), ({ path, tab }) =>
+        state.update((current) => Effect.succeed({ ...current, path, tab })).pipe(Effect.andThen(Nexus.Event.publish(Navigated, { path, tab }))),
+      );
 
-    return {
-      "counter/increment": Nexus.Mesh.bind(increment, () => ({})),
-      "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about", tab: initial.tab })),
-      "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
-      "missing/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
-      // Not a MESH component: the same command, for input that is not a MESH intent (the browser's popstate).
-      // Its argument is `stateOf(url)`: the part of the state the URL represents.
-      "app/navigate": Nexus.Mesh.bind(navigate, (args) => firstValue(args)),
-    };
-  },
-});
+      return {
+        "counter/increment": Nexus.Mesh.bind(increment, () => ({})),
+        "counter/goAbout": Nexus.Mesh.bind(navigate, () => ({ path: "/about", tab: initial.tab })),
+        "about/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
+        "missing/goHome": Nexus.Mesh.bind(navigate, () => ({ path: "/", tab: initial.tab })),
+        // Not a MESH component: the same command, for input that is not a MESH intent (the browser's popstate).
+        // Its argument is `stateOf(url)`: the part of the state the URL represents.
+        "app/navigate": Nexus.Mesh.bind(navigate, (args) => firstValue(args)),
+      };
+    },
+  });
 
 /** The Web realization of the application's primitives. Target configuration: Valance's definition never sees it. */
 export const primitives: Web.WebPrimitives = {

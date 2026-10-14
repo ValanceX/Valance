@@ -10,7 +10,9 @@ import { ENTRY_FILE } from "./project.js";
 
 /** The author's definition, or nothing when there is no `src/main.ts`. A mistake in the file is a diagnostic about the file. */
 export const loadAuthor = async (server: ViteDevServer, root: string): Promise<DefinedApp | undefined> => {
-  if (!hasEntry(root)) { return undefined; }
+  if (!hasEntry(root)) {
+    return undefined;
+  }
 
   let loaded: Record<string, unknown>;
 
@@ -24,7 +26,9 @@ export const loadAuthor = async (server: ViteDevServer, root: string): Promise<D
 
   const definition = loaded["default"] as (DefinedApp & { readonly [APP]?: true }) | undefined;
 
-  if (definition === undefined || definition[APP] !== true) { throw new AppError([diagnostic(ENTRY_FILE, 1, "entry-export", `${ENTRY_FILE} must export default defineApp({ … }) from "@valancex/cli"`)]); }
+  if (definition === undefined || definition[APP] !== true) {
+    throw new AppError([diagnostic(ENTRY_FILE, 1, "entry-export", `${ENTRY_FILE} must export default defineApp({ … }) from "@valancex/cli"`)]);
+  }
 
   try {
     checkDefinition(definition);

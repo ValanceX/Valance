@@ -16,7 +16,11 @@ const manifest = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json"
 /** What a consumer who writes `import { <names> } from "<file>"` and uses each name ships, with every package except Valance's own source left external. */
 const shipped = async (file: string, names: ReadonlyArray<string>): Promise<{ code: string; imports: ReadonlyArray<string> }> => {
   const result = await build({
-    stdin: { contents: `import { ${names.join(", ")} } from ${JSON.stringify(src(file))}; globalThis.used = [${names.join(", ")}];`, resolveDir: fileURLToPath(new URL("..", import.meta.url)), loader: "ts" },
+    stdin: {
+      contents: `import { ${names.join(", ")} } from ${JSON.stringify(src(file))}; globalThis.used = [${names.join(", ")}];`,
+      resolveDir: fileURLToPath(new URL("..", import.meta.url)),
+      loader: "ts",
+    },
     bundle: true,
     write: false,
     format: "esm",
@@ -24,7 +28,14 @@ const shipped = async (file: string, names: ReadonlyArray<string>): Promise<{ co
     treeShaking: true,
     minifySyntax: false,
     // The substrate packages are left out of the bundle and taken at their word: each declares `sideEffects: false` (checked below), so an import nothing uses is dropped.
-    plugins: [{ name: "substrate", setup: (api) => { api.onResolve({ filter: /^(effect|@valancex\/)/ }, (args) => ({ path: args.path, external: true, sideEffects: false })); } }],
+    plugins: [
+      {
+        name: "substrate",
+        setup: (api) => {
+          api.onResolve({ filter: /^(effect|@valancex\/)/ }, (args) => ({ path: args.path, external: true, sideEffects: false }));
+        },
+      },
+    ],
     logLevel: "silent",
   });
   const code = result.outputFiles[0]!.text;
@@ -38,7 +49,9 @@ describe("the package declares that importing it does nothing", () => {
   });
 
   it("keeps the required peers to the substrate; every other peer (PORT Web now, a plugin's package later) is optional", () => {
-    const required = Object.keys(manifest.peerDependencies).filter((name) => manifest.peerDependenciesMeta[name]?.optional !== true).sort();
+    const required = Object.keys(manifest.peerDependencies)
+      .filter((name) => manifest.peerDependenciesMeta[name]?.optional !== true)
+      .sort();
 
     expect(required).toEqual(["@valancex/mesh-runtime", "effect"]);
   });
@@ -49,7 +62,8 @@ describe("the package declares that importing it does nothing", () => {
 });
 
 describe("the substrate keeps the promise those tests rely on", () => {
-  const sideEffects = (name: string): unknown => (JSON.parse(readFileSync(fileURLToPath(new URL(`../node_modules/${name}/package.json`, import.meta.url)), "utf8")) as { sideEffects?: unknown }).sideEffects;
+  const sideEffects = (name: string): unknown =>
+    (JSON.parse(readFileSync(fileURLToPath(new URL(`../node_modules/${name}/package.json`, import.meta.url)), "utf8")) as { sideEffects?: unknown }).sideEffects;
 
   it.each(["effect", "@valancex/mesh-runtime", "@valancex/port-web"])("%s declares that importing it does nothing", (name) => {
     expect(sideEffects(name) === false || (Array.isArray(sideEffects(name)) && (sideEffects(name) as Array<unknown>).length === 0)).toBe(true);
@@ -75,10 +89,10 @@ describe("a consumer ships what it names", () => {
     const { code, imports } = await shipped("web-plugin.ts", ["renderHead"]);
 
     expect(code).toContain("data-valance-head");
-    expect(code).not.toContain("compose");                                               // composition is not shipped to a page that only writes a head
+    expect(code).not.toContain("compose"); // composition is not shipped to a page that only writes a head
     expect(code).not.toContain("history synchronization failed");
     expect(imports.filter((name) => name.includes("port"))).toEqual([]);
-    expect(imports.filter((name) => name.includes("nexus"))).toEqual([]);                  // nor the NEXUS the platform merge needs
+    expect(imports.filter((name) => name.includes("nexus"))).toEqual([]); // nor the NEXUS the platform merge needs
   });
 
   it("`staticPaths` is a few lines, with no head, no composition, no platform", async () => {

@@ -11,11 +11,13 @@ import { application, primitives, stateOf, urlOf } from "../test/links-fixture.j
 
 const served = inject("links");
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 it("hydrate the server's page; a real click navigates the application, not the document; Back and Forward follow", async () => {
-  history.replaceState(null, "", "/app/home");                           // "the server served this URL"
-  (window as unknown as { __alive?: boolean }).__alive = true;           // survives only if the document itself is never navigated
+  history.replaceState(null, "", "/app/home"); // "the server served this URL"
+  (window as unknown as { __alive?: boolean }).__alive = true; // survives only if the document itself is never navigated
 
   const root = document.createElement("div");
 
@@ -24,10 +26,16 @@ it("hydrate the server's page; a real click navigates the application, not the d
 
   const about = [...root.querySelectorAll("a")].find((a) => a.textContent === "About")!;
   const title = () => root.querySelector("span")!.textContent;
-  const host = await Web.run(application(served.program), { container: root, primitives, present: "hydrate", state: served.state, history: { window, urlOf, stateOf, navigate: "go" } });
+  const host = await Web.run(application(served.program), {
+    container: root,
+    primitives,
+    present: "hydrate",
+    state: served.state,
+    history: { window, urlOf, stateOf, navigate: "go" },
+  });
 
   expect(host.mounted.hydration).toEqual({ adopted: true });
-  expect(root.querySelectorAll("a")[1]).toBe(about);                      // the server's own anchor was adopted
+  expect(root.querySelectorAll("a")[1]).toBe(about); // the server's own anchor was adopted
   await userEvent.click(about);
   await expect.poll(() => title()).toBe("page about");
   expect(location.pathname).toBe("/app/about");
@@ -54,18 +62,34 @@ it("a plain link click starts at the top, as a page load does; the browser's Bac
   document.body.append(root);
 
   const title = () => root.querySelector("span")!.textContent;
-  const host = await Web.run(application(served.program), { container: root, primitives, present: "hydrate", state: served.state, history: { window, urlOf, stateOf, navigate: "go" } });
+  const host = await Web.run(application(served.program), {
+    container: root,
+    primitives,
+    present: "hydrate",
+    state: served.state,
+    history: { window, urlOf, stateOf, navigate: "go" },
+  });
 
-  console.log("SCROLLDBG height", document.documentElement.scrollHeight, "inner", window.innerHeight, "overflow", getComputedStyle(document.documentElement).overflow, getComputedStyle(document.body).overflow, "root h", root.getBoundingClientRect().height);
+  console.log(
+    "SCROLLDBG height",
+    document.documentElement.scrollHeight,
+    "inner",
+    window.innerHeight,
+    "overflow",
+    getComputedStyle(document.documentElement).overflow,
+    getComputedStyle(document.body).overflow,
+    "root h",
+    root.getBoundingClientRect().height,
+  );
   window.scrollTo(0, 800);
   await expect.poll(() => window.scrollY).toBe(800);
-  [...root.querySelectorAll("a")].find((a) => a.textContent === "About")!.click();   // a script click: a real one would first scroll the link into view
+  [...root.querySelectorAll("a")].find((a) => a.textContent === "About")!.click(); // a script click: a real one would first scroll the link into view
   await expect.poll(() => title()).toBe("page about");
-  await expect.poll(() => window.scrollY).toBe(0);                        // a native link would have started at the top
+  await expect.poll(() => window.scrollY).toBe(0); // a native link would have started at the top
   window.scrollTo(0, 1500);
   history.back();
   await expect.poll(() => title()).toBe("page home");
-  await expect.poll(() => window.scrollY).toBe(800);                      // restored by the browser, not by VALANCE
+  await expect.poll(() => window.scrollY).toBe(800); // restored by the browser, not by VALANCE
   await host.stop();
   root.remove();
   tall.remove();

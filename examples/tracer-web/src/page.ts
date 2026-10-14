@@ -13,17 +13,27 @@ const boot = JSON.parse(document.getElementById("valance-boot")!.textContent!) a
 const container = document.getElementById("app")!;
 
 await init(wasmUrl);
-initialStateAt(window);                                                    // the application's first act: canonicalize the URL (replace, never push)
+initialStateAt(window); // the application's first act: canonicalize the URL (replace, never push)
 
 try {
-  const host = await Web.run(application(boot.programs), { container, primitives, present: "hydrate", state: boot.state, history: { window, urlOf, stateOf, navigate: "app/navigate" } });
+  const host = await Web.run(application(boot.programs), {
+    container,
+    primitives,
+    present: "hydrate",
+    state: boot.state,
+    history: { window, urlOf, stateOf, navigate: "app/navigate" },
+  });
 
   watchMount(host.mounted);
-  container.dataset["valance"] = "running";                               // readiness marker for whoever drives the page
+  container.dataset["valance"] = "running"; // readiness marker for whoever drives the page
 
   // `pagehide` ends the page only when the document is going away. With `persisted` the browser is storing this same document in the back/forward cache and may restore it
   // with `pageshow`: stopping then would restore a blank target and a dead application (observed, Stage 49), so a persisted `pagehide` leaves the page running.
-  addEventListener("pagehide", (event) => { if (!event.persisted) { void host.stop(); } });
+  addEventListener("pagehide", (event) => {
+    if (!event.persisted) {
+      void host.stop();
+    }
+  });
 } catch (error) {
   // Startup failure policy (Stage 47): `Web.run` rejects with the existing failure (a corrupt embedded state is a typed `StartError`) after closing the lifetime it began.
   // The page says so, once, and marks itself; the server's HTML stays exactly as drawn (no fallback UI, no retry).

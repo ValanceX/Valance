@@ -12,11 +12,20 @@ export const SERVER_ENTRY = `/${GENERATED_DIR}/server.ts`;
 
 // Published packages ship source maps whose sources they do not ship; Vite warns about each, in every project, and the author can do nothing about it. Every other warning is kept.
 const logger = createLogger("warn");
+// oxlint-disable-next-line no-control-regex -- ESC introduces an ANSI colour sequence
 const noise = (message: string): boolean => /^Sourcemap for .* points to missing source files/.test(message.replace(/\u001b\[[0-9;]*m/g, ""));
 const { warn, warnOnce } = logger;
 
-logger.warn = (message, options) => { if (!noise(message)) { warn(message, options); } };
-logger.warnOnce = (message, options) => { if (!noise(message)) { warnOnce(message, options); } };
+logger.warn = (message, options) => {
+  if (!noise(message)) {
+    warn(message, options);
+  }
+};
+logger.warnOnce = (message, options) => {
+  if (!noise(message)) {
+    warnOnce(message, options);
+  }
+};
 
 // `import layout from "./layout.mprx"` in `src/main.ts` is the author naming a template. The import gives the file's address and nothing else: the compiler reads the file itself, and the
 // browser bundle must not carry template text it has already been compiled from.
@@ -29,7 +38,7 @@ const templates = (root: string): Plugin => ({
     return file.endsWith(".mprx") ? `export default ${JSON.stringify({ mprx: relative(root, file).split(sep).join("/") })};` : null;
   },
   // The module is only the file's address, so a change to the template changes nothing the browser holds; the rebuild (dev.ts) recompiles it and reloads once, with the overlay if it fails.
-  handleHotUpdate: ({ file }) => file.endsWith(".mprx") ? [] : undefined,
+  handleHotUpdate: ({ file }) => (file.endsWith(".mprx") ? [] : undefined),
 });
 
 export const baseConfig = (root: string, config: Config): InlineConfig => ({

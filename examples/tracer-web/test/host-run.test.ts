@@ -23,40 +23,53 @@ describe("the web host (`run`) and the end of a mount", () => {
     const app = Valance.define({
       name: "host-run",
       state: { schema: State, initial: { bad: false } },
-      views: { only: { program: programs.notfound, scope: (state: State) => ({ title: state.bad ? (42 as never) : "ok" }) } },   // the render after the second click violates the program's manifest
+      views: { only: { program: programs.notfound, scope: (state: State) => ({ title: state.bad ? (42 as never) : "ok" }) } }, // the render after the second click violates the program's manifest
       view: () => "only" as const,
-      commands: (state: Nexus.State.StateHandle<State>) => ({
-        // click 1: the event command FAILS (typed); click 2: it succeeds, and its commit is the state whose render fails
-        "notfound/back": Nexus.Mesh.bind(Nexus.Command.define("t.back", Schema.Struct({}), () => {
-          clicks += 1;
+      commands: (state: Nexus.State.StateHandle<State>) =>
+        ({
+          // click 1: the event command FAILS (typed); click 2: it succeeds, and its commit is the state whose render fails
+          "notfound/back": Nexus.Mesh.bind(
+            Nexus.Command.define("t.back", Schema.Struct({}), () => {
+              clicks += 1;
 
-          return clicks === 1 ? Effect.fail("nope") as Effect.Effect<void, string> : Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ bad: true })));
-        }), () => ({})),
-      }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
+              return clicks === 1 ? (Effect.fail("nope") as Effect.Effect<void, string>) : Effect.asVoid(state.update((): Effect.Effect<State> => Effect.succeed({ bad: true })));
+            }),
+            () => ({}),
+          ),
+        }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
     });
     const win = new JSDOM(`<!doctype html><html><body><main></main></body></html>`, { url: "http://localhost/" }).window;
     const container = win.document.querySelector("main")!;
     const logs: Array<string> = [];
-    const logger = Logger.replace(Logger.defaultLogger, Logger.make(({ logLevel, message }) => { logs.push(`${logLevel.label}: ${String(message).split("\n")[0]}`); }));
+    const logger = Logger.replace(
+      Logger.defaultLogger,
+      Logger.make(({ logLevel, message }) => {
+        logs.push(`${logLevel.label}: ${String(message).split("\n")[0]}`);
+      }),
+    );
     const click = () => container.querySelector("button")!.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
 
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      yield* Host.run(app, { container, primitives });                              // the host returns nothing: this is all a caller sees
-      expect(container.querySelector("section")?.getAttribute("aria-label")).toBe("ok");
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* Host.run(app, { container, primitives }); // the host returns nothing: this is all a caller sees
+          expect(container.querySelector("section")?.getAttribute("aria-label")).toBe("ok");
 
-      click();                                                                      // a FAILED event command on a healthy page
-      yield* Effect.promise(() => until(() => clicks === 1));
-      yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 20)));
-      expect(logs).toEqual([]);                                                     // observed limitation: nothing tells the host, the failure waits in `dispatched` until the host's one moment
+          click(); // a FAILED event command on a healthy page
+          yield* Effect.promise(() => until(() => clicks === 1));
+          yield* Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 20)));
+          expect(logs).toEqual([]); // observed limitation: nothing tells the host, the failure waits in `dispatched` until the host's one moment
 
-      click();                                                                      // a SUCCESSFUL event command whose commit cannot be rendered
-      yield* Effect.promise(() => until(() => logs.length >= 3));
-    }).pipe(Effect.provide(logger))));
+          click(); // a SUCCESSFUL event command whose commit cannot be rendered
+          yield* Effect.promise(() => until(() => logs.length >= 3));
+        }).pipe(Effect.provide(logger)),
+      ),
+    );
 
-    expect(logs).toHaveLength(3);                                                   // one report per fact: how the mount ended, the tally, the one failed command
+    expect(logs).toHaveLength(3); // one report per fact: how the mount ended, the tally, the one failed command
     expect(logs.filter((line) => line.startsWith("ERROR: the page stopped following the application"))).toHaveLength(1);
-    expect(logs).toContain("INFO: event commands in this mount: 1 succeeded, 1 failed, 0 interrupted");   // success and failure are distinguished
+    expect(logs).toContain("INFO: event commands in this mount: 1 succeeded, 1 failed, 0 interrupted"); // success and failure are distinguished
     expect(logs.filter((line) => line.startsWith("ERROR: event command failed"))).toHaveLength(1);
-    expect(container.innerHTML).toBe("");                                             // closing the Scope afterwards still unmounts: the host's observation is not a second owner
+    expect(container.innerHTML).toBe(""); // closing the Scope afterwards still unmounts: the host's observation is not a second owner
   });
 });

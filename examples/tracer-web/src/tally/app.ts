@@ -44,38 +44,43 @@ const firstValue = (args: ReadonlyArray<Mesh.IntentArgument>): unknown => {
   return first !== undefined && "value" in first ? first.value : undefined;
 };
 
-export const application = (programs: Programs) => Valance.define({
-  name: "tally",
-  state: { schema: AppState, initial },
-  views: {
-    home: { program: programs.home, scope: ({ label, count, tick }) => ({ label, count, tick }) },
-    details: { program: programs.details, scope: ({ label, count, tick }) => ({ label, count, tick }) },
-    settings: { program: programs.settings, scope: ({ label, count }) => ({ label, count }) },
-  },
-  view: ({ path }) => path === "/" ? "home" : path === "/details" ? "details" : "settings",
-  commands: (state) => {
-    const increment = Nexus.Command.define("tally.increment", Schema.Struct({}), () => Effect.gen(function* () {
-      const ticker = yield* Nexus.Capability.require(Ticker);
-      const tick = ticker.next();
+export const application = (programs: Programs) =>
+  Valance.define({
+    name: "tally",
+    state: { schema: AppState, initial },
+    views: {
+      home: { program: programs.home, scope: ({ label, count, tick }) => ({ label, count, tick }) },
+      details: { program: programs.details, scope: ({ label, count, tick }) => ({ label, count, tick }) },
+      settings: { program: programs.settings, scope: ({ label, count }) => ({ label, count }) },
+    },
+    view: ({ path }) => (path === "/" ? "home" : path === "/details" ? "details" : "settings"),
+    commands: (state) => {
+      const increment = Nexus.Command.define("tally.increment", Schema.Struct({}), () =>
+        Effect.gen(function* () {
+          const ticker = yield* Nexus.Capability.require(Ticker);
+          const tick = ticker.next();
 
-      yield* state.update((current) => Effect.succeed({ ...current, count: current.count + 1, tick }));
-    }));
-    const relabel = Nexus.Command.define("tally.relabel", Schema.Struct({}), () =>
-      state.update((current) => Effect.succeed({ ...current, label: current.label === "Tally" ? "Totals" : "Tally" })).pipe(Effect.asVoid));
-    const navigate = Nexus.Command.define("tally.navigate", Schema.Struct({ path: Schema.Literal("/", "/details", "/settings") }), ({ path }) =>
-      state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.asVoid));
-    const go = (path: Path) => Nexus.Mesh.bind(navigate, () => ({ path }));
+          yield* state.update((current) => Effect.succeed({ ...current, count: current.count + 1, tick }));
+        }),
+      );
+      const relabel = Nexus.Command.define("tally.relabel", Schema.Struct({}), () =>
+        state.update((current) => Effect.succeed({ ...current, label: current.label === "Tally" ? "Totals" : "Tally" })).pipe(Effect.asVoid),
+      );
+      const navigate = Nexus.Command.define("tally.navigate", Schema.Struct({ path: Schema.Literal("/", "/details", "/settings") }), ({ path }) =>
+        state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.asVoid),
+      );
+      const go = (path: Path) => Nexus.Mesh.bind(navigate, () => ({ path }));
 
-    return {
-      "home/increment": Nexus.Mesh.bind(increment, () => ({})),
-      "details/increment": Nexus.Mesh.bind(increment, () => ({})),
-      "settings/increment": Nexus.Mesh.bind(increment, () => ({})),
-      "details/relabel": Nexus.Mesh.bind(relabel, () => ({})),
-      "home/goDetails": go("/details"),
-      "details/goSettings": go("/settings"),
-      "settings/goHome": go("/"),
-      // For input that is not a rendered intent: the browser's Back. The same command.
-      "app/navigate": Nexus.Mesh.bind(navigate, (args) => firstValue(args)),
-    };
-  },
-});
+      return {
+        "home/increment": Nexus.Mesh.bind(increment, () => ({})),
+        "details/increment": Nexus.Mesh.bind(increment, () => ({})),
+        "settings/increment": Nexus.Mesh.bind(increment, () => ({})),
+        "details/relabel": Nexus.Mesh.bind(relabel, () => ({})),
+        "home/goDetails": go("/details"),
+        "details/goSettings": go("/settings"),
+        "settings/goHome": go("/"),
+        // For input that is not a rendered intent: the browser's Back. The same command.
+        "app/navigate": Nexus.Mesh.bind(navigate, (args) => firstValue(args)),
+      };
+    },
+  });

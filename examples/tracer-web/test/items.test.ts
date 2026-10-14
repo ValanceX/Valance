@@ -4,7 +4,7 @@
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
 import { renderToHtml } from "@valancex/valance/web/server";
-import { Effect, Exit, Fiber, Scope } from "effect";
+import { Effect, Exit, Scope } from "effect";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
@@ -18,12 +18,15 @@ const programs = await compilePrograms();
 /** The fetch service: every call waits on a gate the test opens, and notes whether its signal was aborted. */
 const service = () => {
   const calls: Array<{ readonly id: string; readonly resolve: (text: string) => void; readonly reject: (reason: string) => void; aborted: boolean }> = [];
-  const fetchDetail: FetchDetail = (id, signal) => new Promise<string>((resolve, reject) => {
-    const call = { id, resolve, reject, aborted: false };
+  const fetchDetail: FetchDetail = (id, signal) =>
+    new Promise<string>((resolve, reject) => {
+      const call = { id, resolve, reject, aborted: false };
 
-    signal.addEventListener("abort", () => { call.aborted = true; });
-    calls.push(call);
-  });
+      signal.addEventListener("abort", () => {
+        call.aborted = true;
+      });
+      calls.push(call);
+    });
 
   return { calls, fetchDetail };
 };
@@ -71,11 +74,13 @@ describe("headless: the application with no screen and no URL", () => {
   it("overlap: B completes, then A: the state stays B's", async () => {
     const t = await headless();
 
-    await t.select("a"); await until(() => t.calls.length === 1);
-    await t.select("b"); await until(() => t.calls.length === 2);
+    await t.select("a");
+    await until(() => t.calls.length === 1);
+    await t.select("b");
+    await until(() => t.calls.length === 2);
     t.calls[1]!.resolve("beta text");
     await settle();
-    t.calls[0]!.resolve("alpha text");                         // late
+    t.calls[0]!.resolve("alpha text"); // late
     await settle();
     expect(await t.state()).toMatchObject({ selected: "b", detail: { status: "ready", text: "beta text" } });
     await t.close();
@@ -84,7 +89,8 @@ describe("headless: the application with no screen and no URL", () => {
   it("Back while A is loading supersedes A: A's late completion changes nothing", async () => {
     const t = await headless();
 
-    await t.select("a"); await until(() => t.calls.length === 1);
+    await t.select("a");
+    await until(() => t.calls.length === 1);
     await Effect.runPromise(t.handle.invoke("app/back", []));
     t.calls[0]!.resolve("alpha text");
     await settle();
@@ -95,7 +101,8 @@ describe("headless: the application with no screen and no URL", () => {
   it("closing the application while work is in flight aborts the work", async () => {
     const t = await headless();
 
-    await t.select("a"); await until(() => t.calls.length === 1);
+    await t.select("a");
+    await until(() => t.calls.length === 1);
     await t.close();
     expect(t.calls[0]!.aborted).toBe(true);
   });
@@ -106,7 +113,8 @@ const page = (url: string, html: string) => {
   const dom = new JSDOM(`<!doctype html><html><body><main>${html}</main></body></html>`, { url });
   const win = dom.window as unknown as Window;
   const container = dom.window.document.querySelector("main")!;
-  const click = (label: string) => [...container.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  const click = (label: string) =>
+    [...container.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
   const texts = () => [...container.querySelectorAll("span")].map((span) => span.textContent);
   const buttons = () => [...container.querySelectorAll("button")].map((button) => button.textContent);
 
@@ -114,7 +122,13 @@ const page = (url: string, html: string) => {
 };
 
 /** The server: the SAME definition, rendered for a request URL. Its fetch never completes: startup work begins during a render and is not awaited. */
-const serve = (url: string) => Effect.runPromise(renderToHtml(application(programs, () => new Promise<string>(() => undefined)), { primitives, state: stateFor(url) }));
+const serve = (url: string) =>
+  Effect.runPromise(
+    renderToHtml(
+      application(programs, () => new Promise<string>(() => undefined)),
+      { primitives, state: stateFor(url) },
+    ),
+  );
 
 describe("server rendering: another way to run the same application", () => {
   it("a list URL and a detail URL render from the application's own stateFor; the returned state is what the browser hydrates with", async () => {
@@ -132,7 +146,13 @@ describe("the browser: hydrate a server-rendered detail, then use it", () => {
     const served = await serve("/items?item=b");
     const p = page("http://localhost/items?item=b", served.html);
     const s = service();
-    const host = await Web.run(application(programs, s.fetchDetail), { container: p.container, primitives, present: "hydrate", state: served.state, history: { window: p.win, urlOf, stateOf, navigate: "select" } });
+    const host = await Web.run(application(programs, s.fetchDetail), {
+      container: p.container,
+      primitives,
+      present: "hydrate",
+      state: served.state,
+      history: { window: p.win, urlOf, stateOf, navigate: "select" },
+    });
 
     // hydration adopted the server's markup; the application's own startup work (not the host's) starts the fetch the server could not complete
     expect(host.mounted.hydration).toMatchObject({ adopted: true });
@@ -177,7 +197,13 @@ describe("the browser: hydrate a server-rendered detail, then use it", () => {
   it("the browser's Back while a request is in flight supersedes it: the late answer cannot reappear", async () => {
     const p = page("http://localhost/items", (await serve("/items")).html);
     const s = service();
-    const host = await Web.run(application(programs, s.fetchDetail), { container: p.container, primitives, present: "hydrate", state: stateFor("/items"), history: { window: p.win, urlOf, stateOf, navigate: "select" } });
+    const host = await Web.run(application(programs, s.fetchDetail), {
+      container: p.container,
+      primitives,
+      present: "hydrate",
+      state: stateFor("/items"),
+      history: { window: p.win, urlOf, stateOf, navigate: "select" },
+    });
 
     p.click("Alpha");
     await until(() => s.calls.length === 1 && p.texts()[1] === "Loading…");
@@ -187,7 +213,7 @@ describe("the browser: hydrate a server-rendered detail, then use it", () => {
     await new Promise((r) => setTimeout(r, 30));
     expect(p.buttons().join()).toBe("Alpha,Beta,Gamma");
     expect(await Effect.runPromise(host.handle.state)).toMatchObject({ selected: "", detail: { status: "idle" } });
-    expect(s.calls[0]!.aborted).toBe(false);                   // delivery was dropped; the underlying work was not cancelled (replacement is not cancellation)
+    expect(s.calls[0]!.aborted).toBe(false); // delivery was dropped; the underlying work was not cancelled (replacement is not cancellation)
     await host.stop();
   });
 });

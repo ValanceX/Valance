@@ -10,7 +10,11 @@ import { compilePrograms } from "../src/inbox/compile.js";
 import { textTarget, type TextTarget } from "./non-dom-target.js";
 
 const read = (path: string): string => readFileSync(new URL(path, import.meta.url), "utf8");
-const codeOf = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\s\/\/.*$/gm, "");
+const codeOf = (source: string): string =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replace(/\s\/\/.*$/gm, "");
 const importsOf = (source: string): ReadonlyArray<string> => [...source.matchAll(/^\s*(?:import|export)\b[^;]*?from\s+"([^"]+)"/gms)].map((match) => match[1]!);
 
 const wait = async (done: () => boolean): Promise<void> => {
@@ -61,52 +65,67 @@ describe("the unchanged inbox on a target with no DOM", () => {
     const transitions: Array<{ step: string; call: string; open: string; starred: ReadonlyArray<string>; read: ReadonlyArray<string> }> = [];
     let target!: TextTarget;
 
-    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(app);
-      const factory = textTarget();
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(app);
+          const factory = textTarget();
 
-      yield* Valance.mount(handle, (report) => (target = factory(report)));
+          yield* Valance.mount(handle, (report) => (target = factory(report)));
 
-      const snapshot = (step: string) => Effect.gen(function* () {
-        const state = yield* handle.state;
+          const snapshot = (step: string) =>
+            Effect.gen(function* () {
+              const state = yield* handle.state;
 
-        transitions.push({
-          step,
-          call: target.calls.at(-1)!.op,
-          open: state.open,
-          starred: state.messages.filter((message) => message.starred).map((message) => message.id),
-          read: state.messages.filter((message) => message.read).map((message) => message.id),
-        });
-      });
-      const presented = (count: number) => Effect.promise(() => wait(() => target.calls.length >= count));
+              transitions.push({
+                step,
+                call: target.calls.at(-1)!.op,
+                open: state.open,
+                starred: state.messages.filter((message) => message.starred).map((message) => message.id),
+                read: state.messages.filter((message) => message.read).map((message) => message.id),
+              });
+            });
+          const presented = (count: number) => Effect.promise(() => wait(() => target.calls.length >= count));
 
-      yield* snapshot("mounted");
+          yield* snapshot("mounted");
 
-      target.activate("Open", 1);                    // open m2: a different view
-      yield* presented(2);
-      yield* snapshot("Open m2");
+          target.activate("Open", 1); // open m2: a different view
+          yield* presented(2);
+          yield* snapshot("Open m2");
 
-      target.activate("Star");                       // same view, new data
-      yield* presented(3);
-      yield* snapshot("Star");
+          target.activate("Star"); // same view, new data
+          yield* presented(3);
+          yield* snapshot("Star");
 
-      target.activate("Close");                      // back to the list: a different view
-      yield* presented(4);
-      yield* snapshot("Close");
-    })));
+          target.activate("Close"); // back to the list: a different view
+          yield* presented(4);
+          yield* snapshot("Close");
+        }),
+      ),
+    );
 
     // The application's scope has closed: the mount's unmount ran with it (shared Scope: mounts end first).
     const calls = target.calls;
 
-    console.info(JSON.stringify({
-      calls: calls.map(({ op, text }) => ({ op, text })),
-      rootKeys: calls.map(({ tree }) => tree?.root.key),
-      reports: target.reports,
-      transitions,
-    }, null, 1));
+    console.info(
+      JSON.stringify(
+        {
+          calls: calls.map(({ op, text }) => ({ op, text })),
+          rootKeys: calls.map(({ tree }) => tree?.root.key),
+          reports: target.reports,
+          transitions,
+        },
+        null,
+        1,
+      ),
+    );
 
     expect(calls.map(({ op }) => op)).toEqual(["draw", "draw", "update", "draw", "unmount"]);
-    expect(target.reports.map(({ label, event }) => [label, event])).toEqual([["Open", "click"], ["Star off", "click"], ["Close", "click"]]);
+    expect(target.reports.map(({ label, event }) => [label, event])).toEqual([
+      ["Open", "click"],
+      ["Star off", "click"],
+      ["Close", "click"],
+    ]);
     expect(transitions.map(({ step, call, open, starred, read: seen }) => [step, call, open, starred, seen])).toEqual([
       ["mounted", "draw", "", [], []],
       ["Open m2", "draw", "m2", [], ["m2"]],

@@ -15,9 +15,11 @@ const container = document.getElementById("app")!;
 const searchDocs: SearchDocs = async (query, signal) => {
   const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal });
 
-  if (!response.ok) { throw new Error(`search answered ${response.status}`); }
+  if (!response.ok) {
+    throw new Error(`search answered ${response.status}`);
+  }
 
-  return await response.json() as ReadonlyArray<{ readonly id: string; readonly title: string }>;
+  return (await response.json()) as ReadonlyArray<{ readonly id: string; readonly title: string }>;
 };
 
 await init(wasmUrl);
@@ -31,11 +33,15 @@ try {
     history: { window, urlOf, stateOf, navigate: "go", titleOf, container },
   });
 
-  container.dataset["valance"] = "running";                      // readiness marker for whoever drives the page
+  container.dataset["valance"] = "running"; // readiness marker for whoever drives the page
 
   // The page ends the application when the document is going away; a page stored in the back/forward cache (`persisted`) keeps running so it can be restored.
-  addEventListener("pagehide", (event) => { if (!event.persisted) { void host.stop(); } });
+  addEventListener("pagehide", (event) => {
+    if (!event.persisted) {
+      void host.stop();
+    }
+  });
 } catch (error) {
   container.dataset["valance"] = "failed";
-  console.error("the application did not start", error);        // the server's HTML stays as drawn
+  console.error("the application did not start", error); // the server's HTML stays as drawn
 }

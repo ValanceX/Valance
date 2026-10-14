@@ -175,6 +175,7 @@ Bug reports and pull requests are welcome on [GitHub](https://github.com/Valance
 ```console
 $ pnpm install && pnpm build && pnpm typecheck && pnpm test
 $ pnpm test:browser          # Chromium via Playwright
+$ pnpm lint                  # oxlint (OXC); `pnpm format` writes the style, `pnpm format:check` is what CI runs
 ```
 
 **On Windows** the same `pnpm` commands run in PowerShell or cmd. Git should check files out with LF endings (this repository's `.gitattributes` asks for it; tests compare file text, so `core.autocrlf=true` would otherwise hand them CRLF). Workspace links are directory junctions, which need no administrator rights. Scripts in the repository are Node scripts, not shell scripts; set an environment variable for one command with `$env:NAME = "value"; pnpm …` in PowerShell (`NAME=value pnpm …` in a POSIX shell).

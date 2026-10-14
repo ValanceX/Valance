@@ -38,7 +38,10 @@ export const textField: WebPrimitive = {
   events: { input: event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
 };
 
-export const target = (options: Omit<WebPortOptions, "report">): TargetFactory<WebPort> => (report) => createWebPort({ ...options, report });
+export const target =
+  (options: Omit<WebPortOptions, "report">): TargetFactory<WebPort> =>
+  (report) =>
+    createWebPort({ ...options, report });
 
 export interface HistoryOptions<S> {
   /** The window whose URL and history are kept in step with the application (the container's own: `container.ownerDocument.defaultView`). */
@@ -92,7 +95,7 @@ const linkDestination = (event: MouseEvent, win: Window, container: Element): UR
   }
 
   const origin = event.target as { readonly closest?: (selector: string) => Element | null; readonly parentElement?: Element | null } | null;
-  const from = origin !== null && typeof origin.closest === "function" ? origin as Element : origin?.parentElement ?? null;
+  const from = origin !== null && typeof origin.closest === "function" ? (origin as Element) : (origin?.parentElement ?? null);
   const anchor = from?.closest("a[href]") as HTMLAnchorElement | null | undefined;
 
   if (anchor === null || anchor === undefined || !container.contains(anchor) || (anchor.target !== "" && anchor.target !== "_self") || anchor.hasAttribute("download")) {
@@ -151,75 +154,80 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const announce = (navigation: Navigation): Effect.Effect<void> =>
       options.onNavigated === undefined
         ? Effect.void
-        : Effect.try(() => { options.onNavigated?.(navigation); }).pipe(Effect.catchAllCause((cause) => Effect.logError("navigation hook failed", cause)));
+        : Effect.try(() => {
+            options.onNavigated?.(navigation);
+          }).pipe(Effect.catchAllCause((cause) => Effect.logError("navigation hook failed", cause)));
 
     const follower = yield* Stream.runForEach(
       Stream.merge(
         Stream.map(running.states, (state) => ({ _tag: "state" as const, state })),
-        Stream.map(Stream.fromQueue(popped), (href) => ({ _tag: "popstate" as const, href }))
+        Stream.map(Stream.fromQueue(popped), (href) => ({ _tag: "popstate" as const, href })),
       ),
-      (event) => (event._tag === "state"
-        ? Effect.gen(function* () {
-          // The URL first. The link click this write answers (if any) is taken here, once, so it is announced once.
-          const landed = yield* Effect.sync(() => {
-            const url = options.urlOf(event.state);
+      (event) =>
+        (event._tag === "state"
+          ? Effect.gen(function* () {
+              // The URL first. The link click this write answers (if any) is taken here, once, so it is announced once.
+              const landed = yield* Effect.sync(() => {
+                const url = options.urlOf(event.state);
 
-            if (last === undefined) {
-              last = url;
-            } else if (url !== last) {
-              last = url;
-              win.history.pushState(null, "", url);
+                if (last === undefined) {
+                  last = url;
+                } else if (url !== last) {
+                  last = url;
+                  win.history.pushState(null, "", url);
 
-              if (top) {
-                top = false;
+                  if (top) {
+                    top = false;
 
-                if (win.scrollY !== 0 || win.scrollX !== 0) {
-                  win.scrollTo(0, 0);
+                    if (win.scrollY !== 0 || win.scrollX !== 0) {
+                      win.scrollTo(0, 0);
+                    }
+                  }
+
+                  const destination = arrived;
+
+                  arrived = undefined;
+
+                  return destination;
                 }
+
+                return undefined;
+              });
+
+              // After the URL, so a title or head function that throws cannot keep the URL from following the state. The head wins over the title.
+              yield* Effect.sync(() => {
+                if (options.titleOf !== undefined) {
+                  win.document.title = options.titleOf(event.state);
+                }
+
+                if (options.head !== undefined) {
+                  applyHead(win.document, options.head(event.state));
+                }
+              }).pipe(Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause)));
+
+              if (landed !== undefined) {
+                yield* announce({ kind: "link", url: landed });
               }
-
-              const destination = arrived;
-
-              arrived = undefined;
-
-              return destination;
-            }
-
-            return undefined;
-          });
-
-          // After the URL, so a title or head function that throws cannot keep the URL from following the state. The head wins over the title.
-          yield* Effect.sync(() => {
-            if (options.titleOf !== undefined) {
-              win.document.title = options.titleOf(event.state);
-            }
-
-            if (options.head !== undefined) {
-              applyHead(win.document, options.head(event.state));
-            }
-          }).pipe(Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause)));
-
-          if (landed !== undefined) {
-            yield* announce({ kind: "link", url: landed });
-          }
-        })
-        : Effect.gen(function* () {
-          // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
-          yield* running.invoke(navigateKey, [{ value: options.stateOf(new URL(event.href)) }]).pipe(
-            Effect.catchAllCause((cause) => Effect.logError("popstate navigation failed", cause))
-          );
-          // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
-          last = options.urlOf(yield* running.state);
-          yield* announce({ kind: "popstate", url: new URL(event.href) });
-        })
-      ).pipe(
-        // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
-        // It never ends the follower, which would silently stop every later URL write; the baseline stays where it was.
-        Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause))
-      )
+            })
+          : Effect.gen(function* () {
+              // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
+              yield* running
+                .invoke(navigateKey, [{ value: options.stateOf(new URL(event.href)) }])
+                .pipe(Effect.catchAllCause((cause) => Effect.logError("popstate navigation failed", cause)));
+              // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
+              last = options.urlOf(yield* running.state);
+              yield* announce({ kind: "popstate", url: new URL(event.href) });
+            })
+        ).pipe(
+          // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
+          // It never ends the follower, which would silently stop every later URL write; the baseline stays where it was.
+          Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause)),
+        ),
     ).pipe(Effect.forkIn(scope));
 
-    const onPopState = (): void => { Queue.unsafeOffer(popped, win.location.href); };
+    const onPopState = (): void => {
+      Queue.unsafeOffer(popped, win.location.href);
+    };
 
     win.addEventListener("popstate", onPopState);
 
@@ -238,22 +246,41 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       top = destination.hash === "";
       arrived = destination;
 
-      Effect.runFork(running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(
-        Effect.flatMap(() => running.state),
-        // The command is done. If the state's URL is the one already written, no push is coming (or it already happened): nothing is waiting for the top any more.
-        Effect.flatMap((state) => Effect.sync(() => { if (options.urlOf(state) === last) { top = false; arrived = undefined; } })),
-        Effect.catchAllCause((cause) => Effect.sync(() => { top = false; arrived = undefined; }).pipe(Effect.zipRight(Effect.logError("link navigation failed", cause)))),
-        Effect.forkIn(scope)
-      ));
+      Effect.runFork(
+        running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(
+          Effect.flatMap(() => running.state),
+          // The command is done. If the state's URL is the one already written, no push is coming (or it already happened): nothing is waiting for the top any more.
+          Effect.flatMap((state) =>
+            Effect.sync(() => {
+              if (options.urlOf(state) === last) {
+                top = false;
+                arrived = undefined;
+              }
+            }),
+          ),
+          Effect.catchAllCause((cause) =>
+            Effect.sync(() => {
+              top = false;
+              arrived = undefined;
+            }).pipe(Effect.zipRight(Effect.logError("link navigation failed", cause))),
+          ),
+          Effect.forkIn(scope),
+        ),
+      );
     };
 
     container?.addEventListener("click", onClick as EventListener);
 
     // Reverse order of the scope: before the application ends.
-    yield* Effect.addFinalizer(() => Effect.gen(function* () {
-      yield* Effect.sync(() => { win.removeEventListener("popstate", onPopState); container?.removeEventListener("click", onClick as EventListener); });
-      yield* Fiber.interrupt(follower);
-    }));
+    yield* Effect.addFinalizer(() =>
+      Effect.gen(function* () {
+        yield* Effect.sync(() => {
+          win.removeEventListener("popstate", onPopState);
+          container?.removeEventListener("click", onClick as EventListener);
+        });
+        yield* Fiber.interrupt(follower);
+      }),
+    );
   });
 
 export interface RunOptions<S> extends StartOptions<S> {
@@ -304,20 +331,26 @@ export interface Host<S, E> {
 export const run = async <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: RunOptions<S>): Promise<Host<S, E>> => {
   const scope = await Effect.runPromise(Scope.make());
   // Composed before anything is acquired: a conflict is a mistake in the composition and fails the call, with nothing started.
-  const composed = compose<S>({ primitives: options.primitives, platform: options.platform, routes: options.history !== undefined, head: options.history?.head }, options.plugins ?? []);
+  const composed = compose<S>(
+    { primitives: options.primitives, platform: options.platform, routes: options.history !== undefined, head: options.history?.head },
+    options.plugins ?? [],
+  );
   const view = options.container.ownerDocument.defaultView;
-  const policy: HistoryOptions<S> | undefined = options.history !== undefined
-    ? (composed.head === undefined ? options.history : { ...options.history, head: composed.head })
-    : composed.routes === undefined || view === null
-      ? undefined
-      : {
-        window: view,
-        urlOf: composed.routes.urlOf,
-        stateOf: composed.routes.stateOf,
-        navigate: composed.routes.navigate,
-        ...(composed.routes.onNavigated === undefined ? {} : { onNavigated: composed.routes.onNavigated }),
-        ...(composed.head === undefined ? {} : { head: composed.head })
-      };
+  const policy: HistoryOptions<S> | undefined =
+    options.history !== undefined
+      ? composed.head === undefined
+        ? options.history
+        : { ...options.history, head: composed.head }
+      : composed.routes === undefined || view === null
+        ? undefined
+        : {
+            window: view,
+            urlOf: composed.routes.urlOf,
+            stateOf: composed.routes.stateOf,
+            navigate: composed.routes.navigate,
+            ...(composed.routes.onNavigated === undefined ? {} : { onNavigated: composed.routes.onNavigated }),
+            ...(composed.head === undefined ? {} : { head: composed.head }),
+          };
   const startup = Effect.gen(function* () {
     const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
     const web = target({ container: options.container, primitives: composed.primitives });
@@ -341,5 +374,5 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
 
   let stopping: Promise<void> | undefined;
 
-  return { ...exit.value, stop: () => stopping ??= Effect.runPromise(Scope.close(scope, Exit.void)) };
+  return { ...exit.value, stop: () => (stopping ??= Effect.runPromise(Scope.close(scope, Exit.void))) };
 };

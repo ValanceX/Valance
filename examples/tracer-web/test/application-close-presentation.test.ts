@@ -15,7 +15,9 @@ import { until } from "./helpers.js";
 type Booted = Awaited<ReturnType<typeof boot>>;
 const closeApp = (b: Booted) => Effect.runPromise(Scope.close(b.appScope, Exit.void));
 const titles = (trees: ReadonlyArray<string>) => trees.map((t) => /"title":"(\w+)"/.exec(t)![1]!);
-const reset = () => { scopeHook.current = undefined; };
+const reset = () => {
+  scopeHook.current = undefined;
+};
 
 describe("application close: state boundary, not presentation boundary", () => {
   it("A. a state committed before the close can be presented after Scope.close resolved (the target operation, and the retained render with it, happen after it); the follower then ends; nothing is committed", async () => {
@@ -25,7 +27,9 @@ describe("application close: state boundary, not presentation boundary", () => {
       const closeResolved = { value: false };
       const renderedAfterClose: Array<boolean> = [];
 
-      scopeHook.current = () => { renderedAfterClose.push(closeResolved.value); };   // is the application's close already resolved when the follower renders?
+      scopeHook.current = () => {
+        renderedAfterClose.push(closeResolved.value);
+      }; // is the application's close already resolved when the follower renders?
       await Promise.all([1, 2, 3].map(() => b.invoke("app/bump")));
       await closeApp(b);
       closeResolved.value = true;
@@ -35,10 +39,10 @@ describe("application close: state boundary, not presentation boundary", () => {
       await sleep(60);
       reset();
       expect(committed).toBe(3);
-      expect(titles(m.trees).at(-1)).toBe("A3");                           // the latest committed state was presented...
-      expect(m.ops.length).toBeGreaterThan(atClose.length);                // ...after the close resolved (observed with this scheduling: possible, not required)
-      expect(renderedAfterClose.length).toBeGreaterThan(0);                // (MESH began rendering it before the close resolved in this scheduling; the target operation came after: not claimed either way)
-      expect((await b.state()).n).toBe(3);                                 // and nothing committed
+      expect(titles(m.trees).at(-1)).toBe("A3"); // the latest committed state was presented...
+      expect(m.ops.length).toBeGreaterThan(atClose.length); // ...after the close resolved (observed with this scheduling: possible, not required)
+      expect(renderedAfterClose.length).toBeGreaterThan(0); // (MESH began rendering it before the close resolved in this scheduling; the target operation came after: not claimed either way)
+      expect((await b.state()).n).toBe(3); // and nothing committed
       expect(await m.standing()).toBe("ended");
       await m.close();
     }
@@ -57,7 +61,7 @@ describe("application close: state boundary, not presentation boundary", () => {
 
     expect(shown.every((n) => n <= 4)).toBe(true);
     expect(shown).toEqual([...shown].sort((x, y) => x - y));
-    expect(m.ops.length - atClose).toBeLessThanOrEqual(1);                 // outstanding wake-ups read the same latest state: one presentation, not one per wake-up
+    expect(m.ops.length - atClose).toBeLessThanOrEqual(1); // outstanding wake-ups read the same latest state: one presentation, not one per wake-up
     await m.close();
   });
 
@@ -66,13 +70,17 @@ describe("application close: state boundary, not presentation boundary", () => {
     const m = await b.mountOn();
     let closing: Promise<unknown> | undefined;
 
-    scopeHook.current = (s) => { if (s.n === 1) { closing ??= closeApp(b); } };
+    scopeHook.current = (s) => {
+      if (s.n === 1) {
+        closing ??= closeApp(b);
+      }
+    };
     await b.invoke("app/bump");
     await until(() => closing !== undefined);
     await closing;
     await sleep(60);
     reset();
-    expect(m.ops).toEqual(["draw", "update"]);                            // A1 was presented although the close began after its state was read
+    expect(m.ops).toEqual(["draw", "update"]); // A1 was presented although the close began after its state was read
     expect(titles(m.trees)).toEqual(["A0", "A1"]);
     expect(await m.standing()).toBe("ended");
     await m.close();
@@ -90,7 +98,7 @@ describe("application close: state boundary, not presentation boundary", () => {
       }
     };
     await b.invoke("app/bump");
-    await until(() => (m.ops.length >= 2 && titles(m.trees).at(-1) === "A3"));
+    await until(() => m.ops.length >= 2 && titles(m.trees).at(-1) === "A3");
     await sleep(60);
     reset();
     const shown = titles(m.trees);
@@ -107,7 +115,11 @@ describe("application close: state boundary, not presentation boundary", () => {
     const m = await b.mountOn();
     let closing: Promise<unknown> | undefined;
 
-    scopeHook.current = (s) => { if (s.view === "b") { closing ??= closeApp(b); } };
+    scopeHook.current = (s) => {
+      if (s.view === "b") {
+        closing ??= closeApp(b);
+      }
+    };
     await b.invoke("app/toggleView");
     await until(() => closing !== undefined);
     await closing;
@@ -124,7 +136,9 @@ describe("application close: state boundary, not presentation boundary", () => {
       const html = await served(b, A0);
       let closing: Promise<unknown> | undefined;
 
-      scopeHook.current = () => { closing ??= closeApp(b); };
+      scopeHook.current = () => {
+        closing ??= closeApp(b);
+      };
       const result = kind === "mount" ? await b.mountOn() : await hydrateOn(b, html);
 
       await closing;
@@ -143,18 +157,22 @@ describe("a mount's Scope close is the awaited boundary", () => {
   it("H. mount close: an in-progress presentation completes and is retained, nothing is presented after the close resolves (the follower is interrupted and awaited, then unmounted)", async () => {
     const b = await boot();
     let closing: Promise<unknown> | undefined;
-    const m = await b.mountOn({ onUpdate: () => { closing ??= m.close(); } });    // the mount's own Scope closes inside the presentation of A1
+    const m = await b.mountOn({
+      onUpdate: () => {
+        closing ??= m.close();
+      },
+    }); // the mount's own Scope closes inside the presentation of A1
 
     await b.invoke("app/bump");
     await until(() => closing !== undefined);
     await closing;
     const atClose = [...m.ops];
 
-    await b.invoke("app/bump");                                            // later commits: the application is alive, the mount is not
+    await b.invoke("app/bump"); // later commits: the application is alive, the mount is not
     await b.invoke("app/bump");
     await sleep(60);
-    expect(atClose).toEqual(["draw", "update", "unmount"]);                // A1 finished; then the target was unmounted
-    expect(m.ops).toEqual(atClose);                                        // nothing after the close resolved
+    expect(atClose).toEqual(["draw", "update", "unmount"]); // A1 finished; then the target was unmounted
+    expect(m.ops).toEqual(atClose); // nothing after the close resolved
     expect((await b.state()).n).toBe(3);
     const exit = await Effect.runPromise(m.mounted.followed);
 
@@ -166,7 +184,11 @@ describe("a mount's Scope close is the awaited boundary", () => {
     let closing: Promise<unknown> | undefined;
     const m = await b.mountOn();
 
-    scopeHook.current = (s) => { if (s.n === 1) { closing ??= m.close(); } };
+    scopeHook.current = (s) => {
+      if (s.n === 1) {
+        closing ??= m.close();
+      }
+    };
     await b.invoke("app/bump");
     await until(() => closing !== undefined);
     await closing;

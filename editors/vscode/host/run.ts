@@ -17,7 +17,9 @@ const app = resolve(extension, "../../examples/docs-app");
 const project = (into: string): string => {
   mkdirSync(into, { recursive: true });
 
-  for (const entry of ["content", "public", "src", "package.json"]) { cpSync(join(app, entry), join(into, entry), { recursive: true }); }
+  for (const entry of ["content", "public", "src", "package.json"]) {
+    cpSync(join(app, entry), join(into, entry), { recursive: true });
+  }
 
   // No `$schema` line: the suite checks the schema the extension itself contributes.
   writeFileSync(join(into, "valance.json"), '{\n  "version": 1,\n  "name": "Notes"\n}\n');

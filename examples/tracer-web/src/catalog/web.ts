@@ -27,4 +27,3 @@ export const initialStateAt = (win: Window, items: ReadonlyArray<Item> = initial
 
   return state;
 };
-

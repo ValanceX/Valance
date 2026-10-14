@@ -8,7 +8,7 @@ import { eventFreeProgram } from "./event-free-program.js";
 
 const State = Schema.Struct({ n: Schema.Number });
 
-const defectOf = (exit: Exit.Exit<unknown, unknown>): unknown => Exit.isFailure(exit) ? Option.getOrUndefined(Cause.dieOption(exit.cause)) : undefined;
+const defectOf = (exit: Exit.Exit<unknown, unknown>): unknown => (Exit.isFailure(exit) ? Option.getOrUndefined(Cause.dieOption(exit.cause)) : undefined);
 
 describe("refusals", () => {
   it("work refused while the application drains, and after it has closed, is a refusal with a stable code; a bug is not", async () => {
@@ -20,12 +20,20 @@ describe("refusals", () => {
       view: () => "main" as const,
       commands: () => ({
         // Uninterruptible, so closing the scope has to wait for it: the drain stays open until the gate does.
-        "app/hold": Nexus.Mesh.bind(Nexus.Command.define("t.hold", Schema.Struct({}), () => Effect.uninterruptible(Deferred.await(gate))), () => ({})),
-        "app/noop": Nexus.Mesh.bind(Nexus.Command.define("t.noop", Schema.Struct({}), () => Effect.void), () => ({})),
+        "app/hold": Nexus.Mesh.bind(
+          Nexus.Command.define("t.hold", Schema.Struct({}), () => Effect.uninterruptible(Deferred.await(gate))),
+          () => ({}),
+        ),
+        "app/noop": Nexus.Mesh.bind(
+          Nexus.Command.define("t.noop", Schema.Struct({}), () => Effect.void),
+          () => ({}),
+        ),
       }),
     });
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(application, { platform: Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.empty) }).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(
+      Valance.start(application, { platform: Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.empty) }).pipe(Scope.extend(scope)),
+    );
 
     Effect.runFork(handle.invoke("app/hold", []));
     await new Promise((resolve) => setTimeout(resolve, 20));

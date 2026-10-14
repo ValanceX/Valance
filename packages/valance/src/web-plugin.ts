@@ -164,8 +164,8 @@ export const compose = <S>(own: Own<S>, plugins: ReadonlyArray<Plugin<S>>): Comp
     }
   }
 
-  const layers = [...plugins.flatMap((plugin) => plugin.platform === undefined ? [] : [plugin.platform]), ...(own.platform === undefined ? [] : [own.platform])];
-  const heads = [...(own.head === undefined ? [] : [own.head]), ...plugins.flatMap((plugin) => plugin.head === undefined ? [] : [plugin.head])];
+  const layers = [...plugins.flatMap((plugin) => (plugin.platform === undefined ? [] : [plugin.platform])), ...(own.platform === undefined ? [] : [own.platform])];
+  const heads = [...(own.head === undefined ? [] : [own.head]), ...plugins.flatMap((plugin) => (plugin.head === undefined ? [] : [plugin.head]))];
 
   return {
     primitives,
@@ -181,19 +181,22 @@ export const compose = <S>(own: Own<S>, plugins: ReadonlyArray<Plugin<S>>): Comp
  * the later one's. What a platform acquires is released with the merged platform, last built first, as one platform's resources are.
  */
 export const mergePlatforms = (platforms: ReadonlyArray<Platform>): Platform =>
-  Layer.scoped(Nexus.Capability.Environment, Effect.gen(function* () {
-    const resolutions = new Map<string, Nexus.Capability.CapabilityResolution<unknown>>();
+  Layer.scoped(
+    Nexus.Capability.Environment,
+    Effect.gen(function* () {
+      const resolutions = new Map<string, Nexus.Capability.CapabilityResolution<unknown>>();
 
-    for (const platform of platforms) {
-      const environment = Context.get(yield* Layer.build(platform), Nexus.Capability.Environment);
+      for (const platform of platforms) {
+        const environment = Context.get(yield* Layer.build(platform), Nexus.Capability.Environment);
 
-      for (const [id, resolution] of environment.resolutions) {
-        resolutions.set(id, resolution);
+        for (const [id, resolution] of environment.resolutions) {
+          resolutions.set(id, resolution);
+        }
       }
-    }
 
-    return { resolutions };
-  }));
+      return { resolutions };
+    }),
+  );
 
 /** Heads merged in order; see `compose` for what wins. */
 export const mergeHeads = (heads: ReadonlyArray<HeadTags>): HeadTags => {
@@ -204,13 +207,17 @@ export const mergeHeads = (heads: ReadonlyArray<HeadTags>): HeadTags => {
     for (const tag of head.meta ?? []) {
       const key = "name" in tag ? `name:${tag.name}` : `property:${tag.property}`;
 
-      if (!meta.has(key)) { meta.set(key, tag); }
+      if (!meta.has(key)) {
+        meta.set(key, tag);
+      }
     }
 
     for (const tag of head.links ?? []) {
       const key = `${tag.rel}\n${tag.href}\n${tag.hreflang ?? ""}`;
 
-      if (!links.has(key)) { links.set(key, tag); }
+      if (!links.has(key)) {
+        links.set(key, tag);
+      }
     }
   }
 
@@ -228,12 +235,16 @@ const escapeText = (text: string): string => text.replaceAll("&", "&amp;").repla
 const escapeAttribute = (text: string): string => escapeText(text).replaceAll('"', "&quot;");
 
 /** A URL a head link may carry: anything but a scheme that runs script or embeds a document. Relative URLs, http, https and the rest are allowed. */
+// oxlint-disable-next-line no-control-regex -- a URL may start with control characters the browser ignores
 const refused = (href: string): boolean => /^[\u0000- ]*(javascript|vbscript|data):/i.test(href.replace(/[\t\n\r]/g, ""));
 
 const checked = (head: HeadTags): HeadTags => {
   for (const link of head.links ?? []) {
     if (refused(link.href)) {
-      throw new ValanceError("invalid-head", `the head link rel="${link.rel}" has an href that carries script (${link.href.slice(0, 24)}…); a head link points at a document or a file`);
+      throw new ValanceError(
+        "invalid-head",
+        `the head link rel="${link.rel}" has an href that carries script (${link.href.slice(0, 24)}…); a head link points at a document or a file`,
+      );
     }
   }
 
@@ -246,8 +257,14 @@ export const renderHead = (head: HeadTags): string => {
 
   return [
     title === undefined ? "" : `<title>${escapeText(title)}</title>`,
-    ...meta.map((tag) => `<meta ${"name" in tag ? `name="${escapeAttribute(tag.name)}"` : `property="${escapeAttribute(tag.property)}"`} content="${escapeAttribute(tag.content)}" ${HEAD_MARK}>`),
-    ...links.map((tag) => `<link rel="${escapeAttribute(tag.rel)}" href="${escapeAttribute(tag.href)}"${tag.as === undefined ? "" : ` as="${escapeAttribute(tag.as)}"`}${tag.type === undefined ? "" : ` type="${escapeAttribute(tag.type)}"`}${tag.hreflang === undefined ? "" : ` hreflang="${escapeAttribute(tag.hreflang)}"`}${tag.title === undefined ? "" : ` title="${escapeAttribute(tag.title)}"`} ${HEAD_MARK}>`)
+    ...meta.map(
+      (tag) =>
+        `<meta ${"name" in tag ? `name="${escapeAttribute(tag.name)}"` : `property="${escapeAttribute(tag.property)}"`} content="${escapeAttribute(tag.content)}" ${HEAD_MARK}>`,
+    ),
+    ...links.map(
+      (tag) =>
+        `<link rel="${escapeAttribute(tag.rel)}" href="${escapeAttribute(tag.href)}"${tag.as === undefined ? "" : ` as="${escapeAttribute(tag.as)}"`}${tag.type === undefined ? "" : ` type="${escapeAttribute(tag.type)}"`}${tag.hreflang === undefined ? "" : ` hreflang="${escapeAttribute(tag.hreflang)}"`}${tag.title === undefined ? "" : ` title="${escapeAttribute(tag.title)}"`} ${HEAD_MARK}>`,
+    ),
   ].join("");
 };
 
@@ -270,7 +287,9 @@ export const applyHead = (document: Document, head: HeadTags): void => {
     const element = document.createElement(tag);
 
     for (const [name, value] of Object.entries(attributes)) {
-      if (value !== undefined) { element.setAttribute(name, value); }
+      if (value !== undefined) {
+        element.setAttribute(name, value);
+      }
     }
 
     element.setAttribute(HEAD_MARK, "");

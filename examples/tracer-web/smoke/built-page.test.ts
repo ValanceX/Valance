@@ -17,7 +17,13 @@ beforeAll(async () => {
   served = await servePage(DIR);
 });
 
-afterAll(async () => { await new Promise<void>((resolve) => { served.server.close(() => { resolve(); }); }); });
+afterAll(async () => {
+  await new Promise<void>((resolve) => {
+    served.server.close(() => {
+      resolve();
+    });
+  });
+});
 
 it("the build contains the page script, the WASM runtime and a manifest, and the script references the WASM by its hashed name", () => {
   const assets = readdirSync(join(DIR, "assets"));
@@ -28,13 +34,13 @@ it("the build contains the page script, the WASM runtime and a manifest, and the
   expect(wasm).toBeDefined();
   expect(existsSync(join(DIR, ".vite", "manifest.json"))).toBe(true);
   expect(served.script).toBe(`/assets/${script}`);
-  expect(readFileSync(join(DIR, "assets", script), "utf8")).toContain(wasm);          // the emitted asset is what the script will fetch
+  expect(readFileSync(join(DIR, "assets", script), "utf8")).toContain(wasm); // the emitted asset is what the script will fetch
 });
 
 it("the served document carries the server HTML, the compiled programs and state, and the BUILT script (not the dev server's)", async () => {
   const html = await (await fetch(`${served.origin}/tracer/about?tab=details`)).text();
 
-  expect(html).toContain("About Tracer: 0 clicks");                                  // server-rendered body
+  expect(html).toContain("About Tracer: 0 clicks"); // server-rendered body
   expect(html).toMatch(/<script type="application\/json" id="valance-boot">.*"programs".*"state".*<\/script>/);
   expect(html).toContain(`<script type="module" src="${served.script}"></script>`);
   expect(html).not.toContain("/src/page.ts");
@@ -47,28 +53,32 @@ it("Chromium loads the built page: it starts, an existing interaction works, and
     const page = await (await browser.newContext()).newPage();
     const requests: Array<string> = [];
 
-    page.on("request", (request) => { requests.push(new URL(request.url()).pathname); });
+    page.on("request", (request) => {
+      requests.push(new URL(request.url()).pathname);
+    });
     const failures: Array<string> = [];
 
-    page.on("pageerror", (error) => { failures.push(error.message); });
+    page.on("pageerror", (error) => {
+      failures.push(error.message);
+    });
     await page.goto(`${served.origin}/tracer/about?tab=details`);
-    await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running");   // the page script ran `run` and it mounted
+    await page.waitForFunction(() => document.querySelector<HTMLElement>("#app")?.dataset["valance"] === "running"); // the page script ran `run` and it mounted
 
-    await page.getByText("Back", { exact: true }).click();                              // About -> counter, a different program
+    await page.getByText("Back", { exact: true }).click(); // About -> counter, a different program
     await page.waitForFunction(() => document.querySelector("#app")?.textContent === "0 clicks, last at 0ClickAbout");
-    await page.getByText("Click", { exact: true }).click();                             // a command that reads the platform clock
+    await page.getByText("Click", { exact: true }).click(); // a command that reads the platform clock
     await page.waitForFunction(() => /^1 clicks, last at [1-9]\d+/.test(document.querySelector("#app")?.textContent ?? ""));
     await page.getByText("About", { exact: true }).click();
-    await page.waitForFunction(() => location.pathname + location.search === "/tracer/about?tab=overview");   // pushState, as with the dev server
+    await page.waitForFunction(() => location.pathname + location.search === "/tracer/about?tab=overview"); // pushState, as with the dev server
     await page.goBack();
     await page.waitForFunction(() => location.pathname + location.search === "/tracer/?tab=overview");
-    await page.waitForFunction(() => /^1 clicks/.test(document.querySelector("#app")?.textContent ?? ""));    // popstate handled in place by the same application
+    await page.waitForFunction(() => (document.querySelector("#app")?.textContent ?? "").startsWith("1 clicks")); // popstate handled in place by the same application
 
     expect(failures).toEqual([]);
-    expect(requests.filter((path) => /^\/(src|@|node_modules)\b/.test(path))).toEqual([]);   // nothing came from a dev server
+    expect(requests.filter((path) => /^\/(src|@|node_modules)\b/.test(path))).toEqual([]); // nothing came from a dev server
     expect(requests.some((path) => path === served.script)).toBe(true);
     expect(requests.some((path) => /^\/assets\/mesh-runtime-.*\.wasm$/.test(path))).toBe(true);
-    expect(requests.filter((path) => path.startsWith("/tracer")).length).toBe(1);        // one document load: the rest was in place
+    expect(requests.filter((path) => path.startsWith("/tracer")).length).toBe(1); // one document load: the rest was in place
   } finally {
     await browser.close();
   }

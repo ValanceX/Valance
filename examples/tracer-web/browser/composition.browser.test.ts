@@ -13,7 +13,9 @@ import { beforeAll, expect, inject, it } from "vitest";
 
 const program = inject("composition");
 
-beforeAll(async () => { await init(wasmUrl); });
+beforeAll(async () => {
+  await init(wasmUrl);
+});
 
 const Item = Schema.Struct({ id: Schema.String, label: Schema.String });
 const State = Schema.Struct({ items: Schema.Array(Item), selected: Schema.String, status: Schema.Literal("idle", "loading", "done", "failed"), result: Schema.String });
@@ -34,7 +36,19 @@ const boot = async () => {
   const app = Valance.define({
     name: "composition",
     state: { schema: State, initial: { items: ["a", "b", "c"].map((id) => ({ id, label: id.toUpperCase() })), selected: "", status: "idle", result: "" } },
-    views: { board: { program, scope: (s: State) => ({ title: "t", loading: s.status === "loading", failed: s.status === "failed", selected: s.selected, result: s.result, items: s.items.map((item) => ({ ...item })) }) } },
+    views: {
+      board: {
+        program,
+        scope: (s: State) => ({
+          title: "t",
+          loading: s.status === "loading",
+          failed: s.status === "failed",
+          selected: s.selected,
+          result: s.result,
+          items: s.items.map((item) => ({ ...item })),
+        }),
+      },
+    },
     view: () => "board",
     commands: (state) => {
       const command = Valance.command(state);
@@ -42,20 +56,33 @@ const boot = async () => {
       const set = (change: (s: State) => State) => state.update((s) => Effect.succeed(change(s)));
 
       return {
-        order: command(Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }, s) => ({ ...s, items: ids.map((id) => s.items.find((item) => item.id === id) ?? { id, label: id.toUpperCase() }) })),
-        // The established ticket: each selection takes the next number; a completion that is no longer the latest is dropped.
-        select: Nexus.Command.define("board.select", Schema.Struct({ id: Schema.String }), ({ id }) => Effect.gen(function* () {
-          const mine = ++latest;
-          const call = { id, gate: yield* Deferred.make<Outcome>(), interrupted: false };
-
-          calls.push(call);
-          yield* set((s) => ({ ...s, selected: id, status: "loading" }));
-
-          const outcome = yield* Deferred.await(call.gate).pipe(Effect.onInterrupt(() => Effect.sync(() => { call.interrupted = true; })));
-
-          if (mine !== latest) { return; }
-          yield* set((s) => outcome.ok ? { ...s, status: "done", result: outcome.value } : { ...s, status: "failed" });
+        order: command(Schema.Struct({ ids: Schema.Array(Schema.String) }), ({ ids }, s) => ({
+          ...s,
+          items: ids.map((id) => s.items.find((item) => item.id === id) ?? { id, label: id.toUpperCase() }),
         })),
+        // The established ticket: each selection takes the next number; a completion that is no longer the latest is dropped.
+        select: Nexus.Command.define("board.select", Schema.Struct({ id: Schema.String }), ({ id }) =>
+          Effect.gen(function* () {
+            const mine = ++latest;
+            const call = { id, gate: yield* Deferred.make<Outcome>(), interrupted: false };
+
+            calls.push(call);
+            yield* set((s) => ({ ...s, selected: id, status: "loading" }));
+
+            const outcome = yield* Deferred.await(call.gate).pipe(
+              Effect.onInterrupt(() =>
+                Effect.sync(() => {
+                  call.interrupted = true;
+                }),
+              ),
+            );
+
+            if (mine !== latest) {
+              return;
+            }
+            yield* set((s) => (outcome.ok ? { ...s, status: "done", result: outcome.value } : { ...s, status: "failed" }));
+          }),
+        ),
       };
     },
   });
@@ -69,10 +96,18 @@ const boot = async () => {
     const port = Web.target({ container: main, primitives })(report);
 
     return {
-      draw: (tree) => { ops.push("draw"); port.draw(tree); },
-      update: (tree) => { ops.push("update"); port.update(tree); },
+      draw: (tree) => {
+        ops.push("draw");
+        port.draw(tree);
+      },
+      update: (tree) => {
+        ops.push("update");
+        port.update(tree);
+      },
       hydrate: (tree) => port.hydrate(tree),
-      unmount: () => { port.unmount(); },
+      unmount: () => {
+        port.unmount();
+      },
     };
   };
 
@@ -82,12 +117,42 @@ const boot = async () => {
   const input = (row: HTMLElement) => row.querySelector("input") as HTMLInputElement;
   const labels = () => rows().map((row) => row.querySelector("button")!.textContent);
   const banners = () => Array.from(main.querySelectorAll("section > span")).map((el) => el.textContent);
-  const until = async (done: () => boolean | Promise<boolean>) => { for (let i = 0; !(await done()); i += 1) { if (i > 400) { throw new Error(`timed out: ${labels().join(",")} / ${banners().join(",")} / ${ops.join(",")}`); } await new Promise((r) => setTimeout(r, 5)); } };
-  const click = (label: string) => userEvent.click(rows().find((row) => row.querySelector("button")!.textContent === label)!.querySelector("button")!);
-  const reorder = async (ids: ReadonlyArray<string>) => { const before = ops.length; await Effect.runPromise(handle.invoke("app/order", [{ value: ids }] as never)); await until(() => ops.length > before); };
+  const until = async (done: () => boolean | Promise<boolean>) => {
+    for (let i = 0; !(await done()); i += 1) {
+      if (i > 400) {
+        throw new Error(`timed out: ${labels().join(",")} / ${banners().join(",")} / ${ops.join(",")}`);
+      }
+      await new Promise((r) => setTimeout(r, 5));
+    }
+  };
+  const click = (label: string) =>
+    userEvent.click(
+      rows()
+        .find((row) => row.querySelector("button")!.textContent === label)!
+        .querySelector("button")!,
+    );
+  const reorder = async (ids: ReadonlyArray<string>) => {
+    const before = ops.length;
+    await Effect.runPromise(handle.invoke("app/order", [{ value: ids }] as never));
+    await until(() => ops.length > before);
+  };
   const open = (n: number, outcome: Outcome) => Effect.runPromise(Deferred.succeed(calls[n]!.gate, outcome));
 
-  return { ops, calls, main, rows, input, labels, banners, until, click, reorder, open, state: () => Effect.runPromise(handle.state), close: () => Effect.runPromise(Scope.close(scope, { _tag: "Success", value: undefined } as never)) };
+  return {
+    ops,
+    calls,
+    main,
+    rows,
+    input,
+    labels,
+    banners,
+    until,
+    click,
+    reorder,
+    open,
+    state: () => Effect.runPromise(handle.state),
+    close: () => Effect.runPromise(Scope.close(scope, { _tag: "Success", value: undefined } as never)),
+  };
 };
 
 it("selection, reorder, supersession, stale completion, failure and close compose: owned work, keyed identity, conditional banners", async () => {
@@ -95,13 +160,13 @@ it("selection, reorder, supersession, stale completion, failure and close compos
   const [rowA, rowB, rowC] = t.rows() as [HTMLElement, HTMLElement, HTMLElement];
 
   await userEvent.type(t.input(rowB), "vb");
-  expect(t.banners()).toEqual(["result: "]);                             // idle: the "not loading" alternative; no error
+  expect(t.banners()).toEqual(["result: "]); // idle: the "not loading" alternative; no error
 
   // 1. A click on item A's own row starts app-owned work; the loading branch appears.
   await t.click("A");
   await t.until(() => t.calls.length === 1 && t.banners()[0] === "loading a");
   expect(t.calls[0]!.id).toBe("a");
-  expect(t.banners()).toEqual(["loading a"]);                            // loading replaces the result alternative
+  expect(t.banners()).toEqual(["loading a"]); // loading replaces the result alternative
 
   // 2. The list reorders while that work is in flight: A moves, nothing else is recreated, B keeps what was typed, the work is untouched.
   await t.reorder(["c", "b", "a"]);
@@ -124,7 +189,7 @@ it("selection, reorder, supersession, stale completion, failure and close compos
 
   // 5. B's completion is the latest: loading goes away.
   await t.open(1, { ok: true, value: "B-result" });
-  await t.until(() => t.banners().join() === "result: B-result");   // loading replaced by the result alternative
+  await t.until(() => t.banners().join() === "result: B-result"); // loading replaced by the result alternative
   expect(await t.state()).toMatchObject({ status: "done", result: "B-result", selected: "b" });
 
   // 6. A failure: the error branch appears (the other conditional stays absent); the list reorders again meanwhile.
@@ -143,9 +208,9 @@ it("selection, reorder, supersession, stale completion, failure and close compos
 
   await t.close();
   await t.until(() => t.calls[3]!.interrupted);
-  expect(t.calls.map((call) => call.interrupted)).toEqual([false, false, false, true]);   // settled calls were not interrupted; only the one in flight was
+  expect(t.calls.map((call) => call.interrupted)).toEqual([false, false, false, true]); // settled calls were not interrupted; only the one in flight was
   buttonA.click();
   await new Promise((r) => setTimeout(r, 50));
-  expect(t.calls).toHaveLength(4);                                       // no handler remains: the click starts nothing
+  expect(t.calls).toHaveLength(4); // no handler remains: the click starts nothing
   expect(t.ops.every((op, i) => op === (i === 0 ? "draw" : "update"))).toBe(true);
 });

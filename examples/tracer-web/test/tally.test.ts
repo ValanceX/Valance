@@ -20,13 +20,28 @@ import { until } from "./helpers.js";
 /** The platform: a Ticker backed by something with a lifetime, acquired at start and released with the application. */
 const tickerPlatform = () => {
   const counts = { acquired: 0, released: 0 };
-  const platform: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.map(
-    Effect.acquireRelease(
-      Effect.sync(() => { counts.acquired += 1; let n = 0; return { next: () => { n += 1; return n; } }; }),
-      () => Effect.sync(() => { counts.released += 1; })
+  const platform: Nexus.Application.Platform = Layer.scoped(
+    Nexus.Capability.Environment,
+    Effect.map(
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          counts.acquired += 1;
+          let n = 0;
+          return {
+            next: () => {
+              n += 1;
+              return n;
+            },
+          };
+        }),
+        () =>
+          Effect.sync(() => {
+            counts.released += 1;
+          }),
+      ),
+      (implementation) => ({ resolutions: new Map([[Ticker.id, { _tag: "Available" as const, implementation }]]) }),
     ),
-    (implementation) => ({ resolutions: new Map([[Ticker.id, { _tag: "Available" as const, implementation }]]) })
-  ));
+  );
 
   return { counts, platform };
 };
@@ -51,53 +66,69 @@ describe("the authoring boundary", () => {
     const writes: Array<string> = [];
     const push = win.history.pushState.bind(win.history);
 
-    win.history.pushState = (data, unused, target) => { writes.push(String(target)); push(data, unused, target); };
+    win.history.pushState = (data, unused, target) => {
+      writes.push(String(target));
+      push(data, unused, target);
+    };
 
     const text = (container: Element): string => container.querySelector("span")?.textContent ?? "";
     const section = (container: Element): Element | null => container.firstElementChild;
     const press = (container: Element, label: string): void => {
       [...container.querySelectorAll("button")].find((button) => button.textContent === label)!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     };
-    const both = (expected: string, label?: string) => Effect.promise(() => until(() => text(one) === expected && text(two) === expected && (label === undefined || (section(one)?.getAttribute("aria-label") === label && section(two)?.getAttribute("aria-label") === label))));
+    const both = (expected: string, label?: string) =>
+      Effect.promise(() =>
+        until(
+          () =>
+            text(one) === expected &&
+            text(two) === expected &&
+            (label === undefined || (section(one)?.getAttribute("aria-label") === label && section(two)?.getAttribute("aria-label") === label)),
+        ),
+      );
     const trace: Array<{ step: string; one: string; two: string; sameSections: boolean; url: string }> = [];
 
-    const final = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
-      const handle = yield* Valance.start(app, { platform, state: served.state });
-      const adopted = yield* Valance.hydrate(handle, Web.target({ container: one, primitives }));
-      yield* Valance.mount(handle, Web.target({ container: two, primitives }));
-      yield* Web.history(handle, { window: win, urlOf, stateOf, navigate: "app/navigate" });
-      yield* Effect.sleep("40 millis");
-      expect(adopted.hydration).toEqual({ adopted: true });
+    const final = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const handle = yield* Valance.start(app, { platform, state: served.state });
+          const adopted = yield* Valance.hydrate(handle, Web.target({ container: one, primitives }));
+          yield* Valance.mount(handle, Web.target({ container: two, primitives }));
+          yield* Web.history(handle, { window: win, urlOf, stateOf, navigate: "app/navigate" });
+          yield* Effect.sleep("40 millis");
+          expect(adopted.hydration).toEqual({ adopted: true });
 
-      let before = [section(one), section(two)];
-      const step = (name: string) => Effect.sync(() => {
-        const now = [section(one), section(two)];
-        trace.push({ step: name, one: text(one), two: text(two), sameSections: now[0] === before[0] && now[1] === before[1], url: win.location.pathname });
-        before = now;
-      });
+          let before = [section(one), section(two)];
+          const step = (name: string) =>
+            Effect.sync(() => {
+              const now = [section(one), section(two)];
+              trace.push({ step: name, one: text(one), two: text(two), sameSections: now[0] === before[0] && now[1] === before[1], url: win.location.pathname });
+              before = now;
+            });
 
-      yield* step("served /details");
-      press(one, "+1");                                  // a same-view change, from the hydrated mount
-      yield* both("Details: 1 (tick 1)");
-      yield* step("+1 on details");
-      press(two, "Rename");                              // a same-view change, from the second mount
-      yield* both("Details: 1 (tick 1)", "Totals");
-      yield* step("rename");
-      press(two, "Settings");                            // a view change, from the second mount
-      yield* both("Settings: 1");
-      yield* step("to settings");
-      press(one, "+1");
-      yield* both("Settings: 2");
-      yield* step("+1 on settings");
-      press(one, "Home");
-      yield* both("Home: 2 (tick 2)", "Totals");
-      yield* step("to home");
-      win.history.back();                                // the browser's Back: the same navigation
-      yield* both("Settings: 2", "Totals");
-      yield* step("Back");
+          yield* step("served /details");
+          press(one, "+1"); // a same-view change, from the hydrated mount
+          yield* both("Details: 1 (tick 1)");
+          yield* step("+1 on details");
+          press(two, "Rename"); // a same-view change, from the second mount
+          yield* both("Details: 1 (tick 1)", "Totals");
+          yield* step("rename");
+          press(two, "Settings"); // a view change, from the second mount
+          yield* both("Settings: 1");
+          yield* step("to settings");
+          press(one, "+1");
+          yield* both("Settings: 2");
+          yield* step("+1 on settings");
+          press(one, "Home");
+          yield* both("Home: 2 (tick 2)", "Totals");
+          yield* step("to home");
+          win.history.back(); // the browser's Back: the same navigation
+          yield* both("Settings: 2", "Totals");
+          yield* step("Back");
 
-      return yield* handle.state;
-    })));
+          return yield* handle.state;
+        }),
+      ),
+    );
 
     expect(trace).toEqual([
       { step: "served /details", one: "Details: 0 (tick 0)", two: "Details: 0 (tick 0)", sameSections: true, url: "/tally/details" },
@@ -108,7 +139,7 @@ describe("the authoring boundary", () => {
       { step: "to home", one: "Home: 2 (tick 2)", two: "Home: 2 (tick 2)", sameSections: false, url: "/tally/" },
       { step: "Back", one: "Settings: 2", two: "Settings: 2", sameSections: false, url: "/tally/settings" },
     ]);
-    expect(writes).toEqual(["/tally/settings", "/tally/"]);                          // Back wrote nothing
+    expect(writes).toEqual(["/tally/settings", "/tally/"]); // Back wrote nothing
     expect(final).toEqual({ path: "/settings", label: "Totals", count: 2, tick: 2 });
     expect(counts).toEqual({ acquired: 1, released: 1 });
   });
