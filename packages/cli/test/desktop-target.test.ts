@@ -92,3 +92,50 @@ describe("a desktop project", () => {
     expect(await new Promise((resolve) => child.on("exit", resolve))).toBe(0);
   }, 180_000);
 });
+
+describe.skipIf(process.platform !== "linux")("vlx package --desktop", () => {
+  it("packs the engine into one executable beside the window, and the executable runs the application over the wire", async () => {
+    const { packageDesktop } = await import("../src/package.js");
+    const { chmodSync, mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const root = scaffolded();
+    const window = join(mkdtempSync(join(tmpdir(), "vlx-win-")), "vlx-window");
+
+    writeFileSync(window, "#!/bin/sh\nexit 0\n");
+    chmodSync(window, 0o755);
+
+    const packaged = await packageDesktop(root, { window });
+
+    expect([...packaged.files].sort()).toEqual(["Test", "vlx-engine"]);
+    expect(packaged.notes.join(" ")).toMatch(/unsigned/);
+
+    const child = spawn(join(packaged.dir, "vlx-engine"), [], { stdio: ["pipe", "pipe", "inherit"] });
+    const seen: Array<{ readonly op: string; readonly [key: string]: unknown }> = [];
+
+    createInterface({ input: child.stdout }).on("line", (line) => void seen.push(JSON.parse(line)));
+
+    for (let tries = 0; !seen.some((message) => message.op === "draw"); tries += 1) {
+      if (tries > 1500) {
+        throw new Error(`timed out; saw ${JSON.stringify(seen).slice(0, 300)}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+
+    expect(seen[0]).toMatchObject({ op: "hello", protocol: 1 });
+    expect(JSON.stringify(seen.find((message) => message.op === "draw"))).toContain("Getting started");
+    child.stdin.write('{"op":"close"}\n');
+    expect(await new Promise((resolve) => child.on("exit", resolve))).toBe(0);
+  }, 240_000);
+
+  it("says what is missing: no window program, no desktop target", async () => {
+    const { packageDesktop } = await import("../src/package.js");
+    const { AppError } = await import("../src/diagnostics.js");
+    const root = scaffolded();
+
+    process.env["VLX_WINDOW"] = "/nonexistent/vlx-window";
+    await expect(packageDesktop(root, {})).rejects.toBeInstanceOf(AppError);
+    delete process.env["VLX_WINDOW"];
+    await expect(packageDesktop(project({ "content/index.md": "---\ntitle: H\n---\n\n# H\n" }))).rejects.toThrow(/no desktop target|window/);
+  }, 120_000);
+});

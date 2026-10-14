@@ -20,7 +20,8 @@ D1, D2 and D3 were decided as recommended below; D4 is decided as "unsigned for 
 | Phase 1 gap 10 (dev) | **half done**: `vlx dev` with no flag in a multi-target project serves the web and opens the window; `--web` / `--desktop` name one. Not done: the window keeping its process when the engine restarts (a Port change) |
 | Phase 1 gap 7 (output directory) | announced in the release notes (`dist/` for one web target stays; `dist/<target>/` for more); no change to the one-target layout |
 | Phase 1 gap 9 (editors) | **not done**: `editor.json` lists every target, but the extension runs one language server on one manifest. A shared component belongs to two manifests, so this needs one server per target and a rule for `src/shared/`; a design of its own |
-| Phase 4, Phase 5 | not done |
+| Phase 4 gap 11, packaging | **done for the engine, unsigned**: `vlx package --desktop`; a Linux test runs the packed executable over the wire. Not done: installer formats (MSIX, AppImage or Flatpak, DMG), archives, the macOS leg, signing (D4: until authoring and signing are covered) |
+| Phase 4 other rows, Phase 5 | not done |
 
 ## 1. The standards the plan is held to
 

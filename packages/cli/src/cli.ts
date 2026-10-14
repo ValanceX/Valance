@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 import { INIT_HELP, parseInit } from "./args.js";
 import type { InitArgs } from "./args.js";
 import { build } from "./build.js";
+import { packageDesktop } from "./package.js";
 import { generateComponent, generatePage, generateTarget, GenerateError, KINDS } from "./add.js";
 import type { Kind } from "./add.js";
 import { check } from "./check.js";
@@ -35,6 +36,7 @@ const HELP = `vlx <command>
   check [--json]                   find mistakes in your files without building
   generate page|component <name>  add a page, or a component (alias: g)
   generate target web|desktop      add a target to the project
+  package --desktop                the desktop target as one executable beside its window (unsigned)
   sync                             refresh the generated files (this runs by itself; see vlx help sync)
   help [command]                   say more about one command
 
@@ -64,6 +66,8 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   build:
     "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/ (dist/web/ when the project has more than one target); any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
+  package:
+    "vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>]\n\nBuild the desktop target and package it: the engine as one executable (Node's single executable application, with the MESH runtime inside) beside the Desktop PORT's window program, in dist/package/<platform>/. --window is the window program for that platform (default: VLX_WINDOW, else vlx-window on the PATH; build it from the PORT repository). For another platform, --node is a node binary of this version for it. The result is unsigned.\n",
   check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
 };
 
@@ -165,7 +169,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
   }
 
   // A global `vlx` runs the project's own (see `delegate.ts`).
-  if (command === "dev" || command === "build" || command === "check" || command === "sync" || command === "generate" || command === "g") {
+  if (command === "dev" || command === "build" || command === "package" || command === "check" || command === "sync" || command === "generate" || command === "g") {
     const local = localCli(cwd);
 
     if (local !== undefined) {
@@ -253,6 +257,27 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const built = await build(findRoot(cwd), flagged.length === 0 ? {} : { targets: flagged });
 
         console.log(`vlx build: ${built.pages.length} pages, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+
+        return 0;
+      }
+      case "package": {
+        if (!rest.includes("--desktop")) {
+          console.error("vlx package: say what: vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>]");
+
+          return 2;
+        }
+
+        const platform = option(rest, "--platform");
+        const window = option(rest, "--window");
+        const node = option(rest, "--node");
+        const packaged = await packageDesktop(findRoot(cwd), {
+          ...(platform === undefined ? {} : { platform }),
+          ...(window === undefined ? {} : { window }),
+          ...(node === undefined ? {} : { node }),
+        });
+
+        console.log(`vlx package: ${packaged.files.join(", ")} → ${packaged.dir}`);
+        packaged.notes.forEach((note) => console.log(`vlx package: ${note}`));
 
         return 0;
       }
