@@ -518,13 +518,26 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
       yield* state.update((latest) => Effect.succeed({ ...latest, [key]: next } as S));
     });
 
+  /**
+   * The route an application starts on, for an address it was opened at (a deep link, a saved session, the address the server rendered): the address's route after the entering guards have had their
+   * say. `match` alone does not ask them, so a link to a list that no longer exists would start the application on a screen with nothing to show. A redirect is followed; a refusal starts on the
+   * not-found route. Nothing is being left, so no `canDeactivate` runs. Give it the state the application will start with (guards read it).
+   */
+  const enter = (address: string, state: S): Effect.Effect<RouteState> =>
+    Effect.gen(function* () {
+      const target = resolve(address) ?? notFoundState(new URL("/", FALLBACK_ORIGIN));
+      const decision = yield* decide({ from: undefined, to: target, state, kind: "initial" });
+
+      return decision._tag === "Refuse" ? notFoundState(new URL(address.startsWith("/") ? address : "/", FALLBACK_ORIGIN)) : strip(decision.to);
+    });
+
   const commands = (state: Nexus.State.StateHandle<S>) => ({
     navigate: Nexus.Command.define("navigate", RouteState, (next) => state.update((current) => Effect.succeed({ ...current, [key]: strip(next) } as S)).pipe(Effect.asVoid)),
     go: Nexus.Command.define("go", Destination, ({ to }) => moveTo(state, to, false)),
     replace: Nexus.Command.define("replace", Destination, ({ to }) => moveTo(state, to, true)),
   });
 
-  return { base, key, notFoundName, table, plugin, commands, match: stateFor, href, hrefOf, resolve, safeNext, decide, titleOf, route: routeNamed, paths };
+  return { base, key, notFoundName, table, plugin, commands, enter, match: stateFor, href, hrefOf, resolve, safeNext, decide, titleOf, route: routeNamed, paths };
 };
 
 export type Router<S extends Record<string, any>, C = undefined> = ReturnType<typeof createRouter<S, C>>;

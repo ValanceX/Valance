@@ -1,0 +1,25 @@
+{
+  "name": "@valancex/todo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A to-do application written once against its own screen vocabulary: lists, items, routes and guards, with no browser in it. The first desktop target draws it.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@valancex/router": "workspace:*",
+    "@valancex/valance": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/mesh-compiler": "^0.11.0",
+    "@valancex/mesh-runtime": "^0.11.0",
+    "@valancex/nexus": "^0.12.0",
+    "effect": "^3.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

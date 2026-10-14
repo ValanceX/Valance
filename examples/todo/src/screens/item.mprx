@@ -1,0 +1,15 @@
+<window title="Edit item">
+  <column>
+    <heading>Edit item</heading>
+    <text>In {listName}</text>
+    <field value={value} placeholder="What needs doing?" on.change={setDraft($event)} />
+    {#if dirty}
+      <text>Unsaved changes</text>
+    {/if}
+    <row>
+      <button on.press={saveItem()}>Save</button>
+      <button on.press={discard()} disabled={clean}>Discard</button>
+      <button on.press={go(listHref)}>Back to list</button>
+    </row>
+  </column>
+</window>

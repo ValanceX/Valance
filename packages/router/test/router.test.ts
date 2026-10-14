@@ -451,3 +451,26 @@ describe("the commands", () => {
     expect(router.plugin.head?.(app({ route: router.match("/login") }))).toEqual({});
   });
 });
+
+describe("starting on an address", () => {
+  const guarded = createRouter<App>({
+    routes: [
+      home,
+      login,
+      route("/secret", { name: "secret", canActivate: ({ state, kind }) => (kind === "initial" && state.user === "guest" ? redirect("login") : true) }),
+      route("/closed", { name: "closed", canActivate: () => false }),
+    ],
+  });
+  const start = (address: string, state: App) => Effect.runPromise(guarded.enter(address, state));
+
+  it("asks the entering guards, which `match` alone does not, and follows a redirect", async () => {
+    expect(guarded.match("/secret").name).toBe("secret");
+    expect((await start("/secret", app({ user: "guest" }))).name).toBe("login");
+    expect((await start("/secret", app({ user: "member" }))).name).toBe("secret");
+  });
+
+  it("starts on not found when the entering guard refuses, and for an address that is not the application's", async () => {
+    expect((await start("/closed", app())).name).toBe("notFound");
+    expect((await start("https://evil.example/x", app())).name).toBe("notFound");
+  });
+});

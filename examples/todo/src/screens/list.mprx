@@ -1,0 +1,28 @@
+<window title={name}>
+  <column>
+    <row>
+      <button on.press={go("/")}>Back to lists</button>
+      <button on.press={go(editHref)}>Rename</button>
+    </row>
+    <heading>{name}</heading>
+    <text>{summary}</text>
+    {#if none}
+      <text>Nothing to do. Add the first item below.</text>
+    {/if}
+    {#each items as item (item.id)}
+      <row>
+        <checkbox checked={item.done} on.toggle={toggleItem(item.id)} />
+        <button on.press={go(item.href)}>{item.title}</button>
+        <button on.press={deleteItem(item.id)}>Delete</button>
+      </row>
+    {/each}
+    <row>
+      <field value={entry} placeholder="New item" on.change={setEntry($event)} />
+      <button on.press={addItem()}>Add item</button>
+    </row>
+    <row>
+      <button on.press={clearDone()} disabled={nothingDone}>Clear done</button>
+      <button on.press={deleteList()}>Delete list</button>
+    </row>
+  </column>
+</window>
