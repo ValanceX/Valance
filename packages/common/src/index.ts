@@ -26,10 +26,17 @@
 import type * as Valance from "@valancex/valance";
 import { Schema } from "effect";
 
+import type { Interceptor } from "./transport.js";
+
 /** The part of the application's state the framework owns: which page is shown. A command's `state` always has it. */
 export interface PageState {
   readonly page: string;
+  /** How much room the page has: `compact` (under 600 px wide: a phone), `medium` (600 to 839) or `expanded` (840 and up). The framework keeps it current as the window changes; a layout reads it as `viewport`. */
+  readonly viewport: Viewport;
 }
+
+/** Window size classes, the ones Material Design and iOS size classes agree on closely enough to design for. */
+export type Viewport = "compact" | "medium" | "expanded";
 
 // ---- state -------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -110,6 +117,18 @@ export function component<P extends string = string, E extends string = string>(
 
 // ---- the application ---------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * What the document's title is made of. `page` is the page's own part (default: its title, from the Markdown front matter), `app` the application's name (default: the site's name), `status` what is
+ * going on right now and is not part of any page (an unread count, "Saving…"): it is written first, in parentheses. The project's format in \`valance.json\` (`"title": "{page} · {site}"`) puts them
+ * together. A target that is not a web page uses the same three parts for its own surfaces (a window title, a navigation bar, a badge). All text: control and direction-override characters are removed
+ * and the length is limited, so a title built from user data cannot reorder or hide what surrounds it.
+ */
+export interface TitleParts {
+  readonly page?: string;
+  readonly app?: string;
+  readonly status?: string;
+}
+
 export interface AppDefinition<S extends StateInput = {}> {
   /** The page's shell. Omit it to use the built-in layout. Its template must be named `layout.mprx`, and it has no props or events: its inputs are the state and the commands. */
   readonly layout?: Component;
@@ -122,6 +141,17 @@ export interface AppDefinition<S extends StateInput = {}> {
    * hydration and shared schemas.
    */
   readonly state?: S;
+  /**
+   * The document's title for a state: `(state, page) => { status: unread > 0 ? String(unread) : undefined }`. A string is the page part. Absent: the page's title and the site's name. It runs for
+   * every committed state, on the server for the state it renders and in the browser after each one; it should be cheap and must not throw (a throw is logged and the title stays).
+   */
+  readonly title?: (state: PageState & StateOf<S>, page: { readonly path: string; readonly title: string }) => TitleParts | string;
+  /**
+   * What the application sends to its backend, for every request: `http: { interceptors: [bearer(base, token), refreshOn401(refresh), retryGet(2)] }`, outermost first. Interceptors
+   * (`@valancex/common/http`) all have one shape, `(next) => next`, so they chain; a narrower scope is `withInterceptors(effect, ...)` around a command's work, or `interceptors` on one request.
+   * Used by the page; the server makes no requests.
+   */
+  readonly http?: { readonly interceptors?: ReadonlyArray<Interceptor> };
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */
   readonly commands?: (command: Valance.CommandMaker<PageState & StateOf<S>>) => Valance.CommandTable<any, Valance.Ambient>;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@valancex/common",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "The author's side of a VALANCE application (defineApp, component, field) and the runtime the vlx build runs: the browser and server entries. What src/main.ts imports; @valancex/cli builds what it describes.",
   "keywords": [
     "valance",
@@ -32,15 +32,19 @@
       "types": "./dist/client.d.ts",
       "default": "./dist/client.js"
     },
-    "./server": {
-      "types": "./dist/server.d.ts",
-      "default": "./dist/server.js"
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "default": "./dist/http.js"
     },
     "./internal": {
       "types": "./dist/internal.d.ts",
       "default": "./dist/internal.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
   },
   "types": "./dist/index.d.ts",
   "files": [
@@ -59,6 +63,7 @@
   },
   "dependencies": {
     "@valancex/mesh-runtime": "^0.11.0",
+    "@valancex/nexus": "^0.12.0",
     "@valancex/port-web": "^0.4.0",
     "@valancex/valance": "workspace:^"
   },

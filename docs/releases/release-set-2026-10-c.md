@@ -1,6 +1,6 @@
 # Release set: VALANCE 0.11.0 (`@valancex/valance`, `@valancex/common`, `@valancex/cli`)
 
-Prepared 2026-10-14. Nothing is tagged or published. The earlier set ([`release-set-2026-10-b.md`](./release-set-2026-10-b.md): MESH 0.12.0, NEXUS 0.12.3, PORT Web 0.4.2, VALANCE 0.10.0) is released; this set needs none of NEXUS, PORT or MESH to change (the new packages name MESH `^0.11.0` and PORT Web `^0.4.0`, which are on the registry).
+Released 2026-10-14 as `v0.11.0`; all three packages are on npm. The earlier set ([`release-set-2026-10-b.md`](./release-set-2026-10-b.md): MESH 0.12.0, NEXUS 0.12.3, PORT Web 0.4.2, VALANCE 0.10.0) is released; this set needs none of NEXUS, PORT or MESH to change (the new packages name MESH `^0.11.0` and PORT Web `^0.4.0`, which are on the registry).
 
 | # | Repository | Packages | Kind | Tag | Notes file |
 |---|---|---|---|---|---|

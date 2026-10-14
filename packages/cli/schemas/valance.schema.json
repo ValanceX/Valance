@@ -5,10 +5,28 @@
   "description": "The project: what the application is called. Settings for a target are in valance.<target>.json (valance.web.json for the web).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["name"],
+  "required": [
+    "name"
+  ],
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "const": 1, "description": "The version of this file's format." },
-    "name": { "type": "string", "minLength": 1, "description": "The application's name: the site's title in navigation and in every page's <title>." }
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "description": "The version of this file's format."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The application's name: the site's title in navigation and in every page's <title>."
+    },
+    "title": {
+      "type": "string",
+      "default": "{page} \u00b7 {site}",
+      "pattern": "^[^{}]*(\\{page\\}|\\{site\\})[^{}]*(\\{page\\}|\\{site\\}|[^{}])*$",
+      "maxLength": 120,
+      "description": "How a document's title is written: \"{page}\" is the page's title and \"{site}\" the name above. Must contain \"{page}\". A page whose title is the site's name is that name alone."
+    }
   }
 }

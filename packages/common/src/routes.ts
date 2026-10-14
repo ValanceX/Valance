@@ -2,6 +2,7 @@
 // and a static export reads for the addresses it writes. The application never writes a route.
 import type { RouteTable } from "@valancex/valance/web/plugin";
 
+import { announcePage } from "./announce.js";
 import type { Content } from "./model.js";
 import { pageAt } from "./scope.js";
 
@@ -28,8 +29,20 @@ export const routes = (content: Content): RouteTable<PageState> => ({
   // Static first: every page is rendered once at build time.
   delivery: () => "static",
   onNavigated: ({ kind, url }) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    // A person who cannot see the page change is told it did: the new title, and focus at the content. Not for a fragment (the browser moves there itself), and not when the project turned it off.
+    const announce = (): void => {
+      if (content.site.announce && url.hash === "") {
+        setTimeout(() => announcePage(document as never), 0); // after the application has presented the new page
+      }
+    };
+
     // Land at the top of a new page, or at its heading when the address names one; Back and Forward are the browser's to restore.
-    if (kind !== "link" || typeof window === "undefined") {
+    if (kind !== "link") {
+      announce();
       return;
     }
 
@@ -45,5 +58,7 @@ export const routes = (content: Content): RouteTable<PageState> => ({
     } else {
       target.scrollIntoView();
     }
+
+    announce();
   },
 });

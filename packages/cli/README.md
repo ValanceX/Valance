@@ -98,8 +98,8 @@ That is a complete application. It uses a built-in layout. Everything below is h
 
 | Path | What it is | Edited by |
 |---|---|---|
-| `valance.json` | The project: its `name`. | you |
-| `valance.web.json` | The web target: `base` (where it is served, default `/`) and `url` (where it is published; adds canonical links and `sitemap.xml`). Optional. | you |
+| `valance.json` | The project: its `name`, and optionally the `title` format (see [The document's title](#the-documents-title)). | you |
+| `valance.web.json` | The web target: `base` (where it is served, default `/`), `url` (where it is published; adds canonical links and `sitemap.xml`), `api` (the backend: [below](#talking-to-a-backend)), `headers` (write the [security headers](#security-headers), default on) and `announce` (tell assistive technology about page changes, default on). Optional. | you |
 | `content/**/*.md` | The pages. A file's path is its address. | you |
 | `public/**` | Files served as they are (`public/logo.svg` is `/logo.svg`). | you |
 | `src/layout.mprx` | The shell around every page. Optional: without a `layout` in `src/main.ts` a default ships. | you |
@@ -141,6 +141,7 @@ Templates are MPRX. Conditional and repeated parts are blocks: `{#if cond}…{:e
 | `hasToc`, `toc` | The `##`/`###` headings of this page: `[{ id, href, label, level }]` |
 | `blocks` | The page body. `<blocks items={blocks} />` draws it |
 | `prev`, `next` | `{ href, label }`, empty `href` when there is none |
+| `viewport` | How much room the page has: `"compact"` (under 600 px), `"medium"` (600 to 839) or `"expanded"` (840 and up), kept current as the window changes. `{#if viewport == "compact"}` chooses markup for a phone. The server renders `expanded`; the browser corrects it as soon as it starts. |
 
 Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `para`, `quote`, `list`, `olist`, `item`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
 
@@ -228,6 +229,76 @@ export default defineApp({
 
 A state field is its type and its default in one declaration. Hand-building `state: { schema, initial }` is still accepted; giving both forms is the same definition error as a clash. `theme` is now a name the layout reads (`<shell theme={theme}>`) and `toggleTheme()` a command it runs (`on.click={toggleTheme()}`). A component raises an event (`on.click={toggle()}`, declared in `events`) and its user binds it (`<theme-toggle on.toggle={toggleTheme()} />`). A state field may not reuse a framework name (`site`, `title`, `blocks`…), and `go` is the framework's command. Both are errors that say so.
 
+## The document's title
+
+A page's title is its front-matter `title` (else its first heading), written with the project's format in `valance.json`:
+
+```json
+{ "name": "Notes", "title": "{page} · {site}" }
+```
+
+`{page}` is the page's part and `{site}` the name; the format must contain `{page}`, and a page whose title is the site's name is that name alone. The application can say its own parts from its state:
+
+```ts
+export default defineApp({
+  state: { unread: field(Schema.Number, 0) },
+  title: (state, page) => ({ status: state.unread > 0 ? String(state.unread) : undefined }),   // "(3) Inbox · Notes"
+});
+```
+
+`title` returns `{ page?, app?, status? }` (a string is the page part). `status` is what is going on right now and belongs to no page (an unread count, "Saving…"); it is written first, in parentheses. A target that is not a web page uses the same three parts for its own surfaces (a window title, a navigation bar, a badge). The function runs for every committed state, on the server for the one it renders and in the browser after each; if it throws, the default title is used and the failure is logged by name.
+
+Every title and meta is **plain text** by the time it reaches the document: control characters and the bidirectional override and isolate characters (U+202A to U+202E, U+2066 to U+2069) are removed (they let a string reorder or hide what is around it in a tab or a history list), whitespace is collapsed, and a title is cut at 200 characters. A title is written only when it changed. After a page changes in place, a polite live region says the new title and focus moves to `#content` (when your layout's `<main id="content" tabindex="-1">` is focusable, as the scaffold's is), as a page load would; a link to a `#heading` is left to the browser. Turn it off with `"announce": false` in `valance.web.json`.
+
+## Talking to a backend
+
+NEXUS and VALANCE hold no HTTP: what an application needs from where it runs is a **capability**, which the platform supplies. `@valancex/common/http` is that contract for HTTP, and the web page supplies it with `fetch`.
+
+```ts
+import { defineApp, field } from "@valancex/common";
+import { request } from "@valancex/common/http";
+import { Schema } from "effect";
+
+const Inbox = Schema.Struct({ unread: Schema.Number });
+
+export default defineApp({
+  state: { unread: field(Schema.Number, 0), failed: field(Schema.String, "") },
+  commands: (command) => ({
+    refresh: command.waiting(Schema.Struct({}), {
+      work: () => request({ path: "/inbox", response: Inbox }),
+      wanted: () => true,
+      settle: (outcome, _input, state) => (outcome.ok ? { ...state, unread: outcome.value.unread, failed: "" } : { ...state, failed: "could not load" }),
+    }),
+  }),
+});
+```
+
+Where the requests go is `api` in `valance.web.json`:
+
+```json
+{ "api": { "base": "/api", "proxy": "http://localhost:3000" } }
+```
+
+`base` is a path on the site's own origin (the default is the origin's root) or an absolute `https` address; `proxy` is for `vlx dev`: requests under a path `base` are forwarded to it, so the browser sees one origin and the backend needs no CORS settings.
+
+What the client does, so a command does not have to: the path must start with a single `/` (a path built from data cannot send the request elsewhere: `//host`, a scheme, a backslash or `..` is `Unsafe`); it sends and accepts JSON and refuses any other answer type (an HTML error page is `Decode`, never state); the answer is **decoded by the Schema you give** before it reaches the command; it is bounded in time (15 s, `Timeout`) and size (`TooLarge`); it is cancelled when the application ends (`Aborted`); same-origin credentials only, and an `api.base` on another origin gets none unless the application asks; unsafe methods carry `x-requested-with: valance`, which a plain cross-site form cannot send. A failure is one of `Offline`, `Status(code)`, `Decode`, `Timeout`, `Aborted`, `TooLarge` or `Unsafe` and **never carries the answer, the address or a header**, which can hold a secret.
+
+A static site cannot keep a secret: nothing in `src/` or `valance.web.json` should be one. For sign-in on the web, prefer a same-origin session cookie (`HttpOnly`, `Secure`, `SameSite=Lax` or `Strict`, set by the backend) to a token in `localStorage`, which any script that gets past the policy can read. A desktop or mobile target supplies the same `Http` capability with the platform's own client and a keychain-backed token; no command changes. Data fetched while building (`vlx build`) is not part of the model, and server rendering of a command that waits is not either.
+
+## Security headers
+
+`vlx build` writes `_headers` beside the site (the file Netlify and Cloudflare Pages read; other hosts take the same lines):
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+Cross-Origin-Opener-Policy: same-origin
+```
+
+The page's runtime is WebAssembly, so a strict policy needs **`'wasm-unsafe-eval'`** in `script-src` and nothing more permissive: no `'unsafe-inline'`, no `'unsafe-eval'`. Without it the server's HTML stays and the application never starts (`data-valance="failed"`). `connect-src` adds the origin of an absolute `api.base`. The site's own test runs under this exact policy with no violation. If you serve the site with your own policy, start from this one. Turn the file off with `"headers": false`. `vlx dev` does not send it (the bundler's development client needs inline scripts).
+
 ## What `vlx dev` does when you save
 
 | You change | It does |
@@ -237,7 +308,7 @@ A state field is its type and its default in one declaration. Hand-building `sta
 | `src/**/*.css` | updates the style in the open page, no reload |
 | `public/**` | reloads |
 | a new or removed stylesheet or `src/main.ts` | rewrites the entry, reloads |
-| `valance.json`, `valance.web.json` | restarts the server (the name and the base are fixed at startup) |
+| `valance.json`, `valance.web.json` | restarts the server (the name, the base and the proxy are fixed at startup) |
 
 A mistake leaves the last good build serving and appears in the terminal and as an overlay in the page, as `file:line:column code: message`. Fixing it reloads the page. There is no hot swap of the compiled templates yet: a reload is the correct, reliable update, and the browser keeps its address.
 
@@ -259,6 +330,6 @@ Every mistake the tools can attribute to a file has one shape: `{ file, line, co
 
 - The whole content model ships in the page bundle. Fine for tens of pages; a per-page payload is the known answer for hundreds (the documentation verifier does it).
 - The Markdown dialect is a subset; no syntax highlighting, tables, callouts, tabs, search, versions or languages (the verifier has these as stand-ins).
-- The tag table is fixed. An application cannot declare new primitives.
+- The tag table is fixed, and it is the web's: `class`, `theme`, `tabindex`, `label`, `current`, `pressed`, `id` and `loading` are web hooks (a build against a vocabulary without them rejects the built-in views). An application cannot declare new primitives.
 - Only the web target exists, delivered as a static site. No server rendering command, no `preview` command.
 - Updates are reloads, not hot swaps (except styles).

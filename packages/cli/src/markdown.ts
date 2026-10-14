@@ -32,7 +32,8 @@ export const slug = (text: string): string =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const MARKS = /\*\*([^*]+)\*\*|`([^`]+)`|!\[[^\]]*\]\([^)\s]*\)|\[([^\]]+)\]\(([^)\s]+)\)|\*([^*\s][^*]*)\*|(?<![\w])_([^_\s][^_]*)_(?![\w])/g;
+// A link's address may hold one level of balanced parentheses (`/a_(b)`, `javascript:alert(1)`), so it is read whole: a check that names it quotes all of it.
+const MARKS = /\*\*([^*]+)\*\*|`([^`]+)`|!\[[^\]]*\]\((?:[^()\s]|\([^()\s]*\))*\)|\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)|\*([^*\s][^*]*)\*|(?<![\w])_([^_\s][^_]*)_(?![\w])/g;
 
 const empty = { level: 0, anchor: "", spans: [], items: [], ordered: false, lang: "", text: "", src: "", alt: "" } as const;
 

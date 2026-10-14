@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, posix } from "node:path";
 
 import type { Config } from "./config.js";
+import { siteInfo } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { Content, Page } from "@valancex/common/internal";
@@ -267,7 +268,7 @@ export const readContent = (root: string, config: Config): Content => {
     (a, b) => (a.section === "" ? 0 : 1) - (b.section === "" ? 0 : 1) || a.section.localeCompare(b.section) || a.order - b.order || a.path.localeCompare(b.path),
   );
 
-  return { site: { name: config.name, base: config.web.base, url: config.web.url }, pages: ordered, ...(fallback === undefined ? {} : { notFound: fallback }) };
+  return { site: siteInfo(config), pages: ordered, ...(fallback === undefined ? {} : { notFound: fallback }) };
 };
 
 export const sectionTitle = titleCase;

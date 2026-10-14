@@ -5,7 +5,7 @@ import * as Valance from "@valancex/valance";
 import type { Plugin } from "@valancex/valance/web/plugin";
 import { Schema } from "effect";
 
-import type { DefinedApp, PageState } from "./index.js";
+import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
 import { primitives } from "./primitives.js";
@@ -22,7 +22,7 @@ export interface Built {
   readonly styles: ReadonlyArray<string>;
 }
 
-const PageSchema = Schema.Struct({ page: Schema.String });
+const PageSchema = Schema.Struct({ page: Schema.String, viewport: Schema.Literal("compact", "medium", "expanded") });
 
 /** A mistake in `src/main.ts`, reported with what to change. */
 export class AppDefinitionError extends Error {
@@ -50,8 +50,15 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
   }
 
   // Building the table reads no state (a command reads it when it runs), so it can be built here, with nothing, to see its names.
-  if ("go" in (author?.commands?.(Valance.command({} as never) as never) ?? {})) {
-    throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name');
+  const own = author?.commands?.(Valance.command({} as never) as never) ?? {};
+
+  for (const [name, what] of [
+    ["go", "shows a page"],
+    ["resize", "tells the layout how much room the page has"],
+  ] as const) {
+    if (name in own) {
+      throw new AppDefinitionError(`src/main.ts: "${name}" is the framework's command (it ${what}); choose another name`);
+    }
   }
 };
 
@@ -81,14 +88,21 @@ export const commandTable =
     const command = Valance.command(state as never) as Valance.CommandMaker<AppState>;
     const own = author?.commands?.(command as never) ?? {};
 
-    if ("go" in own) {
-      throw new AppDefinitionError('src/main.ts: "go" is the framework\'s command (it shows a page); choose another name');
+    for (const name of ["go", "resize"]) {
+      if (name in own) {
+        throw new AppDefinitionError(`src/main.ts: "${name}" is the framework's command; choose another name`);
+      }
     }
 
-    return { go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })), ...own };
+    return {
+      go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })),
+      // The window changed size: the browser tells the application, which tells the layout (`viewport`).
+      resize: command(Schema.Struct({ viewport: Schema.Literal("compact", "medium", "expanded") }), ({ viewport }, current) => ({ ...current, viewport })),
+      ...own,
+    };
   };
 
-export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", ...stateOf(author)?.initial });
+export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", viewport: "expanded", ...stateOf(author)?.initial });
 
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);
@@ -102,7 +116,7 @@ export const application = (content: Content, program: Valance.Program, author?:
         scope: (state: AppState) => {
           const { page, ...own } = state;
 
-          return { ...frame(content, page), ...own };
+          return { ...frame(content, page, state.viewport), ...own };
         },
       },
     },
@@ -114,8 +128,26 @@ export const application = (content: Content, program: Valance.Program, author?:
 /** The state a request for `pathname` starts from. */
 export const stateFor = (content: Content, pathname: string, author?: DefinedApp): AppState => ({ ...initialState(author), page: normalize(pathname, content.site.base) });
 
+/**
+ * The title for a state: the page's and the site's name, or what the author's `title` function says. A function that throws falls back to the default (a title is never worth a failed render),
+ * and the failure is reported by its name only.
+ */
+const titleFor = (content: Content, page: ReturnType<typeof pageAt>, state: AppState, author: DefinedApp | undefined): string => {
+  let parts: TitleParts = {};
+
+  try {
+    const made = author?.title?.(state as never, { path: state.page, title: page?.title ?? "" });
+
+    parts = made === undefined ? {} : typeof made === "string" ? { page: made } : made;
+  } catch (error) {
+    console.error(`the title function in src/main.ts failed (${error instanceof Error ? error.name : "error"}); the default title is used`);
+  }
+
+  return documentTitle(content, page, parts);
+};
+
 /** The plugin that makes the application a website: its tags, its URL policy, and its document head. */
-export const plugin = (content: Content, built: Built): Plugin<AppState> => ({
+export const plugin = (content: Content, built: Built, author?: DefinedApp): Plugin<AppState> => ({
   name: "valance-app",
   primitives,
   routes: routes(content) as never,
@@ -125,7 +157,7 @@ export const plugin = (content: Content, built: Built): Plugin<AppState> => ({
     const canonical = content.site.url === "" || page === undefined ? [] : [{ rel: "canonical", href: `${content.site.url}${content.site.base}${page.path.replace(/^\//, "")}` }];
 
     return {
-      title: documentTitle(content, page),
+      title: titleFor(content, page, state, author),
       meta: shown.description === "" ? [] : [{ name: "description", content: shown.description }],
       links: [...built.styles.map((href) => ({ rel: "stylesheet", href })), ...canonical],
     };

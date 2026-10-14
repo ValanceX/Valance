@@ -62,7 +62,14 @@ export interface RouteTable<S> {
   readonly delivery?: (pathname: string) => Delivery;
   /** Called after each navigation (see `HistoryOptions.onNavigated`): where scroll and focus policy lives. */
   readonly onNavigated?: (navigation: Navigation) => void;
+  /** Whether a state change that moves the URL pushes an entry or replaces the current one (see `HistoryOptions.modeOf`). Absent: push. */
+  readonly modeOf?: (previous: S, next: S) => "push" | "replace";
+  /** Asked before a link or Back/Forward moves the application (see `HistoryOptions.guard`). Absent: every navigation runs. */
+  readonly guard?: (navigation: Navigation, state: S) => GuardResult | Promise<GuardResult>;
 }
+
+/** What a guard answers: let it run, stop it, or send it to another address of this origin (a path and query, or an absolute address on this origin). */
+export type GuardResult = boolean | { readonly redirect: string };
 
 /** A navigation that has been written to the URL (a link click) or taken from it (Back and Forward). */
 export interface Navigation {
@@ -238,6 +245,32 @@ const escapeAttribute = (text: string): string => escapeText(text).replaceAll('"
 // oxlint-disable-next-line no-control-regex -- a URL may start with control characters the browser ignores
 const refused = (href: string): boolean => /^[\u0000- ]*(javascript|vbscript|data):/i.test(href.replace(/[\t\n\r]/g, ""));
 
+/** The longest title the document is given, in characters. A title is a label, not content; a longer one is cut with an ellipsis. */
+export const TITLE_LIMIT = 200;
+
+/**
+ * Text that is safe to show where the reader cannot see markup or layout: control characters (C0, DEL, C1) and the bidirectional override and isolate characters (U+202A to U+202E, U+2066 to
+ * U+2069) are removed, because they let a string reorder or hide what is around it in a tab, a history list or a window switcher (a title built from user data can spoof); runs of
+ * whitespace become one space; the ends are trimmed.
+ */
+// oxlint-disable-next-line no-control-regex -- removing control characters is the point
+const UNSAFE_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
+
+export const plainText = (text: string): string => text.replace(UNSAFE_TEXT, "").replace(/\s+/g, " ").trim();
+
+/** A document title: `plainText`, and no more than `TITLE_LIMIT` characters. */
+export const cleanTitle = (title: string): string => {
+  const text = plainText(title);
+  const characters = Array.from(text);
+
+  return characters.length <= TITLE_LIMIT
+    ? text
+    : `${characters
+        .slice(0, TITLE_LIMIT - 1)
+        .join("")
+        .trimEnd()}…`;
+};
+
 const checked = (head: HeadTags): HeadTags => {
   for (const link of head.links ?? []) {
     if (refused(link.href)) {
@@ -248,7 +281,12 @@ const checked = (head: HeadTags): HeadTags => {
     }
   }
 
-  return head;
+  return {
+    ...head,
+    ...(head.title === undefined ? {} : { title: cleanTitle(head.title) }),
+    ...(head.meta === undefined ? {} : { meta: head.meta.map((tag) => ({ ...tag, content: plainText(tag.content) })) }),
+    ...(head.links === undefined ? {} : { links: head.links.map((tag) => (tag.title === undefined ? tag : { ...tag, title: plainText(tag.title) })) }),
+  };
 };
 
 /** The `<title>` is not marked: the browser keeps one, so the document's own is replaced in place. */
@@ -275,7 +313,7 @@ export const renderHead = (head: HeadTags): string => {
 export const applyHead = (document: Document, head: HeadTags): void => {
   const { title, meta = [], links = [] } = checked(head);
 
-  if (title !== undefined) {
+  if (title !== undefined && document.title !== title) {
     document.title = title;
   }
 

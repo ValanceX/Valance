@@ -75,15 +75,18 @@ const wait = async (done: () => boolean): Promise<void> => {
   }
 };
 
-const boot = async (options: Parameters<typeof app>[1] & { readonly state?: State; readonly mount?: boolean } = {}) => {
+const boot = async (options: Parameters<typeof app>[1] & { readonly state?: State; readonly mount?: boolean; readonly onStartFailure?: (cause: unknown) => void } = {}) => {
   const resource = fakeResource();
   const scope = await Effect.runPromise(Scope.make());
   const released: Array<string> = [];
   const logs: Array<string> = [];
+  /** Everything a log line could carry: the message, its annotations and its cause, written out. */
+  const everything: Array<string> = [];
   const logger = Logger.replace(
     Logger.defaultLogger,
-    Logger.make(({ message }) => {
+    Logger.make(({ message, annotations, cause }) => {
       logs.push(String(message));
+      everything.push(JSON.stringify({ message, annotations: Object.fromEntries(annotations), cause: String(cause) }));
     }),
   );
 
@@ -97,7 +100,10 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
   ); // before start: runs after NEXUS terminates
 
   const handle = await Effect.runPromise(
-    Valance.start(app(resource, options), options.state === undefined ? {} : { state: options.state }).pipe(Effect.provide(logger), Scope.extend(scope)),
+    Valance.start(app(resource, options), {
+      ...(options.state === undefined ? {} : { state: options.state }),
+      ...(options.onStartFailure === undefined ? {} : { onStartFailure: options.onStartFailure }),
+    }).pipe(Effect.provide(logger), Scope.extend(scope)),
   ); // the host's ONLY act
   let target: TextTarget | undefined;
 
@@ -112,6 +118,7 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
     scope,
     released,
     logs,
+    everything,
     handle,
     close: () => Effect.runPromise(Scope.close(scope, Exit.void)),
     screen: () => target?.screen() ?? "",
@@ -203,6 +210,25 @@ describe("start-time work declared by the application", () => {
     const viaInvoke = await Effect.runPromise(Effect.exit(b.handle.invoke("app/load", [])));
 
     expect(viaInvoke._tag === "Failure" && JSON.stringify(viaInvoke.cause)).toContain("LoadError");
+    await b.close();
+  });
+
+  it("3b1: the log says which failure it was and not what it carried: a secret in the error never reaches the log; the whole cause goes only to the sink the application passes", async () => {
+    const secret = "Bearer s3cr3t-token";
+    const causes: Array<unknown> = [];
+    const b = await boot({ raise: true, onStartFailure: (cause) => void causes.push(cause) });
+
+    await wait(() => b.resource.log.includes("started"));
+    await b.resource.open({ _tag: "Err", reason: secret });
+    await wait(() => b.resource.log.includes("settled"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(b.logs).toEqual(["start-time work failed"]);
+    expect(b.everything).toHaveLength(1);
+    expect(b.everything[0]).toContain('"failure":"LoadError"');
+    expect(b.everything[0]).not.toContain("s3cr3t");
+    expect(causes).toHaveLength(1);
+    expect(JSON.stringify(causes[0])).toContain("s3cr3t");
     await b.close();
   });
 

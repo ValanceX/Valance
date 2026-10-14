@@ -137,4 +137,54 @@ describe("the built site, in a browser", () => {
     expect(await page.$eval(".nav-link[aria-current='page']", (link) => getComputedStyle(link).fontWeight)).toBe("600");
     await page.close();
   });
+
+  it("runs under the strict policy the build wrote, with no violation: the site hydrates and the browser reports none", async () => {
+    const response = await fetch(`${origin}/`);
+    const policy = response.headers.get("content-security-policy") ?? "";
+
+    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(policy).not.toMatch(/unsafe-inline|'unsafe-eval'/);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+
+    const { page, errors } = await open("/");
+
+    expect(await page.getAttribute("#app", "data-valance")).toBe("running");
+    expect(errors.filter((message) => /Content Security Policy|Refused/i.test(message))).toEqual([]);
+    await page.close();
+  });
+
+  it("tells the application how much room it has, now and when the window changes", async () => {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+
+    await page.goto(`${origin}/`);
+    await page.waitForSelector('#app[data-valance="running"]');
+    await page.waitForFunction(() => document.getElementById("app")!.dataset["viewport"] === "expanded");
+    await page.setViewportSize({ width: 700, height: 800 });
+    await page.waitForFunction(() => document.getElementById("app")!.dataset["viewport"] === "medium");
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.waitForFunction(() => document.getElementById("app")!.dataset["viewport"] === "compact");
+
+    const phone = await browser.newPage({ viewport: { width: 390, height: 800 } });
+
+    await phone.goto(`${origin}/`);
+    await phone.waitForSelector('#app[data-valance="running"]');
+    await phone.waitForFunction(() => document.getElementById("app")!.dataset["viewport"] === "compact");
+    await page.close();
+    await phone.close();
+  });
+
+  it("announces a page change made in place: the new title in a live region, and focus at the content", async () => {
+    const { page } = await open("/");
+
+    expect(await page.$("#valance-announcer")).toBeNull();
+    await page.click('a.nav-link[href="/guide/getting-started"]');
+    await page.waitForFunction(() => location.pathname === "/guide/getting-started");
+    await page.waitForFunction(() => document.getElementById("valance-announcer")?.textContent === document.title);
+    expect(await page.getAttribute("#valance-announcer", "aria-live")).toBe("polite");
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe("content");
+
+    await page.goBack();
+    await page.waitForFunction(() => document.getElementById("valance-announcer")?.textContent === "Notes");
+    await page.close();
+  });
 });

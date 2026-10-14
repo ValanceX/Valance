@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
+import { headersFile } from "./security.js";
 import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
@@ -110,6 +111,11 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
 
     if (config.web.url !== "") {
       write("sitemap.xml", sitemap(content));
+    }
+
+    // The headers to serve it with: the page is only as safe as the host makes it (src/security.ts).
+    if (config.web.headers) {
+      write("_headers", headersFile(config));
     }
 
     return { dir: dist, files, pages };

@@ -62,7 +62,16 @@ export interface SiteInfo {
   readonly base: string;
   /** Where the site is published (no trailing slash), or empty. */
   readonly url: string;
+  /** How a document's title is written from a page's title and the site's name: `{page}` and `{site}`. */
+  readonly title: string;
+  /** The address the application's backend requests go to (a path on the site's origin, or an absolute https address), or empty when it has none. */
+  readonly api: string;
+  /** Tell assistive technology about a page change made in place (the title, and focus at the content). */
+  readonly announce: boolean;
 }
+
+/** The title format when the project does not say: the page, then the site. */
+export const DEFAULT_TITLE = "{page} · {site}";
 
 export interface Content {
   readonly site: SiteInfo;

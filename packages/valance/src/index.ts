@@ -24,7 +24,7 @@ import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export type { ValanceErrorCode } from "./errors.js";
@@ -84,8 +84,9 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
   /**
    * The key of a command-table entry (an exact `"component/name"` key, or a bare command name, which means `"app/name"`) that `start` runs, once, with no arguments, as the application's own command: admitted before `start` returns, owned
    * by the application's registry like any admitted command (closing the Scope interrupts and awaits it before NEXUS terminates), with no caller. Its exit is
-   * returned nowhere (no caller, no mount ledger), and a failure it does not catch is logged with `Effect.logError("start-time work failed", cause)`, the whole cause and unredacted, so keep secrets out of
-   * the errors it lets escape: work that can fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
+   * returned nowhere (no caller, no mount ledger), and a failure it does not catch is logged with `Effect.logError("start-time work failed")` and the failure's identity only (annotation `failure`: its `_tag`, `code` or
+   * `name`, else its kind), never its message or value, which may carry a secret (a token in an error). The whole cause goes only to `StartOptions.onStartFailure`, if the application asks. Work that can
+   * fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
    */
   readonly start?: string;
 }
@@ -300,7 +301,28 @@ export interface StartOptions<S> {
    * commands are refused, before it interrupts what is left and waits for each to exit. The default, `0`, interrupts at once. `Duration.infinity` waits for every command.
    */
   readonly shutdown?: Nexus.Runtime.ShutdownOptions;
+  /**
+   * Receives the whole cause of a start-time command's failure, which the log leaves out (it carries only the failure's identity, since the cause may hold a secret). Opt in to send it
+   * somewhere you control. Not called for interruption or a refusal by a closing application. A throw from it is ignored.
+   */
+  readonly onStartFailure?: (cause: Cause.Cause<unknown>) => void;
 }
+
+/** What a failure is called in a log without saying what it carried: its `_tag`, `code` or `name` when it has one, else the kind of failure. Never a message or a value. */
+const failureIdentity = (cause: Cause.Cause<unknown>): string => {
+  const found = Option.orElse(Cause.failureOption(cause), () => Cause.dieOption(cause));
+
+  if (Option.isSome(found) && typeof found.value === "object" && found.value !== null) {
+    const named = found.value as { readonly _tag?: unknown; readonly code?: unknown; readonly name?: unknown };
+    const label = [named._tag, named.code, named.name].find((each) => typeof each === "string" && /^[\w.:-]{1,64}$/.test(each));
+
+    if (typeof label === "string") {
+      return label;
+    }
+  }
+
+  return Option.isSome(Cause.failureOption(cause)) ? "failure" : Option.isSome(Cause.dieOption(cause)) ? "defect" : "unknown";
+};
 
 /**
  * The application's external face: what code outside its definition, and outside any MESH render, may do with it.
@@ -540,7 +562,22 @@ export const start = <S, E, R extends Ambient, V extends string>(
         nexus.runtime,
         Effect.exit(
           admit(binding([])).pipe(
-            Effect.tapErrorCause((cause) => (admissionClosed || Cause.isInterruptedOnly(cause) ? Effect.void : Effect.logError("start-time work failed", cause))),
+            Effect.tapErrorCause((cause) =>
+              admissionClosed || Cause.isInterruptedOnly(cause)
+                ? Effect.void
+                : Effect.logError("start-time work failed").pipe(
+                    Effect.annotateLogs({ failure: failureIdentity(cause) }),
+                    Effect.zipRight(
+                      Effect.sync(() => {
+                        try {
+                          options.onStartFailure?.(cause);
+                        } catch {
+                          // the application's own sink failing is not the application's failure
+                        }
+                      }),
+                    ),
+                  ),
+            ),
           ),
         ),
       );
