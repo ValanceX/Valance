@@ -2,7 +2,8 @@
 // sends a tag to the template that defines it. Everything else (the language, the diagnostics, hover, completion) is the server's.
 //
 // It never fails silently: the state is in the status bar ("VALANCE: ready" or what is wrong and how to fix it), a warning says it once, and the "VALANCE" output channel has the detail. It
-// does not need a reload to recover: it watches `.valance/editor.json`, so running `vlx check` or `vlx dev` is enough.
+// does not need a reload to recover, and does not wait to be told to: it runs the project's own `vlx check` itself (which writes what the language server reads) when the window opens and whenever
+// a file that can change the result is saved, created, changed or deleted, one run at a time, so the editor follows the files without the author running anything.
 import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { LanguageClient } from "vscode-languageclient/node";
@@ -11,6 +12,7 @@ import { dirname, join } from "node:path";
 
 import { forTheCheck, place, run, UNMAPPED, unmappedMessage } from "./diagnostics";
 import { explain, findProjects, forWorkspace, readProject, templateOf } from "./project";
+import { affectsProject, coalesced, debounced } from "./sync";
 import type { LspSettings } from "./project";
 import { authoredPlace, lensesFor, readWiring, referencesOf, templateImports } from "./wiring";
 
@@ -46,6 +48,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   let wiringFile: string | undefined; // `.valance/wiring.json`, relative to the project
   const lensesChanged = new vscode.EventEmitter<void>();
   let told = new Set<Status>();
+  let synced = false; // `vlx check` has run at least once in this window, so a project with nothing generated is a fact and not just early
+  let cliMissing: string | undefined; // where the project's own `vlx` should be, when it is not
 
   bar.command = "valance.showOutput";
   context.subscriptions.push(output, collection, notes, bar, lensesChanged);
@@ -139,7 +143,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     await old?.stop().catch(() => undefined);
   };
 
-  const refresh = async (): Promise<void> => {
+  const refresh = async (force = false): Promise<void> => {
     if (root === undefined || workspace === undefined) {
       await stop();
       show("not-a-project", explain({ kind: "not-a-project" }));
@@ -149,9 +153,17 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
     const project = readProject(root);
 
+    if (project.kind === "not-generated" && !synced) {
+      // Nothing is generated yet, and the check that generates it is on its way: that is not a problem to report.
+      await stop();
+      show("starting", "Preparing the project (running vlx check)…");
+
+      return;
+    }
+
     if (project.kind !== "ready") {
       await stop();
-      show(project.kind, explain(project));
+      show(project.kind, cliMissing !== undefined ? explain({ kind: "no-cli", path: cliMissing }) : explain(project));
 
       return;
     }
@@ -167,7 +179,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
     // The server is already running: tell it what changed (a new component, a renamed file) without restarting it.
     if (client !== undefined) {
-      if (JSON.stringify(settings) !== JSON.stringify(served)) {
+      // After a run the manifest may have changed on disk with the same settings: telling the server makes it read it again.
+      if (force || JSON.stringify(settings) !== JSON.stringify(served)) {
         served = settings;
         await client.sendNotification("workspace/didChangeConfiguration", { settings: { mesh: settings } });
         output.appendLine("The project changed; the language server was told.");
@@ -253,7 +266,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
 
   // ---- everything else the project can get wrong -------------------------------------------------------------------------------------------------------------------
 
-  const check = async (): Promise<void> => {
+  const runCheck = async (): Promise<void> => {
     if (root === undefined) {
       return;
     }
@@ -261,9 +274,12 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     const command = script(root, "@valancex/cli", "bin/vlx.js");
 
     if (!existsSync(command)) {
-      output.appendLine(`vlx not found at ${command}: install @valancex/cli in the project to see content diagnostics.`);
+      cliMissing = command;
+      output.appendLine(`vlx not found at ${command}: install the project's dependencies (npm install) so @valancex/cli is there.`);
       return;
     }
+
+    cliMissing = undefined;
 
     try {
       const found = forTheCheck(await run(root, command), known).map(place);
@@ -286,6 +302,22 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
       }
     } catch (error) {
       output.appendLine(`vlx check: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  /** Brings what `vlx` generated, and what the editor shows from it, in step with the files. One run at a time; asking while one runs makes it go round once more. */
+  const check = coalesced(async () => {
+    await runCheck();
+    synced = true;
+    await refresh(true);
+  });
+  /** A burst of saves, or a branch switch, is one run. */
+  const soon = debounced(() => {
+    void check();
+  }, 300);
+  const changed = (uri: vscode.Uri): void => {
+    if (root !== undefined && affectsProject(root, uri.fsPath)) {
+      soon();
     }
   };
 
@@ -365,6 +397,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
       return places.map((place) => new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1)));
     },
   };
+  // The files themselves, however they change: this window, another program, a `git checkout`. Not `.valance/` (`affectsProject`), which the run itself writes.
+  const sources = vscode.workspace.createFileSystemWatcher("**/*.{md,mprx,ts,json}");
   const wiringWatcher = vscode.workspace.createFileSystemWatcher("**/.valance/wiring.json");
   // `import layout from "./layout.mprx"`: TypeScript resolves the specifier to its ambient declaration, so the specifier is made a link to the template itself.
   const importLinks: vscode.DocumentLinkProvider = {
@@ -399,6 +433,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
       lensesChanged.fire();
       void refresh();
     }),
+    sources,
+    sources.onDidCreate(changed),
+    sources.onDidChange(changed),
+    sources.onDidDelete(changed),
     watcher,
     watcher.onDidCreate(onProject),
     watcher.onDidChange(onProject),
@@ -407,9 +445,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     vscode.workspace.onDidOpenTextDocument(markUnmapped),
     vscode.workspace.onDidCloseTextDocument(markUnmapped),
     vscode.workspace.onDidSaveTextDocument((document) => {
-      if (root !== undefined && /\.(md|mprx|ts|json)$/.test(document.fileName) && document.uri.fsPath.startsWith(root)) {
-        void check();
-      }
+      changed(document.uri);
     }),
     vscode.commands.registerCommand("valance.check", check),
     vscode.commands.registerCommand("valance.showOutput", () => {

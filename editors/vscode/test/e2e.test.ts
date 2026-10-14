@@ -286,9 +286,9 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
       "the application's layout  ·  declared in main.ts:9",
     ]);
     expect(titles("src/theme-toggle.mprx")).toEqual([
-      "in layout  ·  declared in theme-toggle.ts:6  ·  used in layout.mprx:4",
-      "prop theme · declared in theme-toggle.ts:7 · passed from layout.mprx:4 as {theme}",
-      "event toggle · declared in theme-toggle.ts:8 · handled in layout.mprx:4 ⇒ toggleTheme()",
+      "in layout  ·  declared in theme-toggle.ts:7  ·  used in layout.mprx:4",
+      "prop theme · declared in theme-toggle.ts:8 · passed from layout.mprx:4 as {theme}",
+      "event toggle · declared in theme-toggle.ts:9 · handled in layout.mprx:4 ⇒ toggleTheme()",
     ]);
     expect(titles("src/main.ts")).toEqual(["→ layout.mprx  ·  uses theme-toggle", "state · read in layout.mprx:1, layout.mprx:4", "command · run in layout.mprx:4"]);
     expect(titles("src/theme-toggle.ts")).toEqual([

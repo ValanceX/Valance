@@ -40,7 +40,7 @@ export const forTheCheck = (all: ReadonlyArray<ValanceDiagnostic>, covered: Read
 /** The note put on a template the language server does not know, so the editor says what its log says. */
 export const UNMAPPED = "valance-unmapped";
 export const unmappedMessage = (file: string): string =>
-  `${file} is not part of the compiled project, so hover, completion and type checks are off for it. Either nothing uses it yet (\`vlx check\` says so) or the project has not been rebuilt since you added it: run \`vlx check\` or \`vlx dev\`.`;
+  `${file} is not part of the compiled project, so hover, completion and type checks are off for it. Either it is not registered in \`components\` in src/main.ts, or no template writes its tag yet (\`vlx check\` says which).`;
 
 export const parse = (stdout: string): ReadonlyArray<ValanceDiagnostic> => {
   const value = JSON.parse(stdout) as unknown;
