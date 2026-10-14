@@ -17,8 +17,13 @@ export const payloadKindOf = (realization: EventRealization): PayloadKind | unde
  * The DOM event `type` constitutes the event. With `payload`, the event carries the value `of(event, element)` builds, of the declared `kind`: `event("input", { kind: "string",
  * of: (_event, element) => (element as HTMLInputElement).value })`. Without it, the event carries nothing.
  */
-export const event = (type: string, payload?: { readonly kind: PayloadKind; readonly of: (event: Event, element: Element) => BoundaryValue }): EventRealization => {
-  const realization: EventRealization = payload === undefined ? { type } : { type, payload: payload.of };
+export const event = (
+  type: string,
+  payload?: { readonly kind: PayloadKind; readonly of: (event: Event, element: Element) => BoundaryValue },
+  options?: { readonly key?: string },
+): EventRealization => {
+  const base: EventRealization = payload === undefined ? { type } : { type, payload: payload.of };
+  const realization: EventRealization = options?.key === undefined ? base : { ...base, key: options.key };
 
   if (payload !== undefined) {
     kinds.set(realization, payload.kind);

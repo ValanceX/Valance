@@ -3,6 +3,7 @@ import { Schema } from "effect";
 import desktopLayout from "./desktop/layout.mprx";
 import themeToggle from "./web/theme-toggle.js";
 import todoAdd from "./shared/todo-add.js";
+import todoItem from "./shared/todo-item.js";
 import webLayout from "./web/layout.mprx";
 
 const Item = Schema.Struct({ id: Schema.String, title: Schema.String, done: Schema.Boolean });
@@ -46,7 +47,7 @@ export default defineApp({
     toggleNavigation: command((state) => ({ ...state, navigation: !state.navigation })),
   }),
   targets: {
-    web: { layout: component(webLayout), components: [themeToggle, todoAdd] },
-    desktop: { layout: component(desktopLayout), components: [todoAdd] },
+    web: { layout: component(webLayout), components: [themeToggle, todoAdd, todoItem] },
+    desktop: { layout: component(desktopLayout), components: [todoAdd, todoItem] },
   },
 });

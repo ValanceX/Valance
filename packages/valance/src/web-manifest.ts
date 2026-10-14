@@ -157,6 +157,7 @@ const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["pr
     case "text-property":
       return { type: { kind: "string" }, required: true };
     case "boolean-attribute":
+    case "controlled-boolean":
       return { type: { kind: "boolean" }, required: false };
     case "property":
       return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };

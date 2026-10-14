@@ -16,7 +16,7 @@ import type { GuardResult, HeadTags, Navigation, Plugin } from "./web-plugin.js"
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
-export { attribute, booleanAttribute, controlled, property, textProperty } from "@valancex/port-web";
+export { attribute, booleanAttribute, controlled, controlledBoolean, property, textProperty } from "@valancex/port-web";
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
 export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";
