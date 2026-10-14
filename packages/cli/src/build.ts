@@ -88,7 +88,13 @@ const buildDesktop = async (root: string, config: Config, stage: (stage: BuildSt
       target: "node22",
       minify: false,
       chunkSizeWarningLimit: 4000,
-      rollupOptions: { output: { format: "es", entryFileNames: "engine.mjs", banner: 'import { createRequire as __vlxRequire } from "node:module"; const require = __vlxRequire(import.meta.url);' } },
+      rollupOptions: {
+        output: {
+          format: "es",
+          entryFileNames: "engine.mjs",
+          banner: 'import { createRequire as __vlxRequire } from "node:module"; const require = __vlxRequire(import.meta.url);',
+        },
+      },
     },
   });
   copyFileSync(wasmOf(root), join(out, "mesh-runtime.wasm"));

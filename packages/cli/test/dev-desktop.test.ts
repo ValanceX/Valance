@@ -30,7 +30,10 @@ describe.skipIf(process.platform === "win32")("vlx dev on a desktop project", ()
     const log = join(tmpdir(), `vlx-window-${Date.now()}.log`);
     const stand = join(tmpdir(), `vlx-window-${Date.now()}.mjs`);
 
-    writeFileSync(stand, `#!${process.execPath}\nimport { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(log)}, process.env.VLX_ENGINE + "\\n");\nsetInterval(() => {}, 1000);\n`);
+    writeFileSync(
+      stand,
+      `#!${process.execPath}\nimport { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(log)}, process.env.VLX_ENGINE + "\\n");\nsetInterval(() => {}, 1000);\n`,
+    );
     chmodSync(stand, 0o755);
     process.env["VLX_WINDOW"] = stand;
 

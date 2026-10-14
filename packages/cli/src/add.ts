@@ -69,11 +69,7 @@ export const generatePage = (root: string, given: string, title?: string): Gener
 // ---- a component -------------------------------------------------------------------------------------------------------------------------------------------
 
 const builtIns = (): ReadonlySet<string> =>
-  new Set(
-    [...readdirSync(BUILT_IN), ...readdirSync(BUILT_IN_DESKTOP)]
-      .filter((file) => file.endsWith(".mprx"))
-      .map((file) => file.slice(0, -".mprx".length)),
-  );
+  new Set([...readdirSync(BUILT_IN), ...readdirSync(BUILT_IN_DESKTOP)].filter((file) => file.endsWith(".mprx")).map((file) => file.slice(0, -".mprx".length)));
 
 export const componentProblem = (name: string, root?: string): string | undefined => {
   if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
