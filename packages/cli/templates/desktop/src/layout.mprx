@@ -1,5 +1,7 @@
 <column>
   <row>
+    <button disabled={!canGoBack} on.click={back()}>Back</button>
+    <button disabled={!canGoForward} on.click={forward()}>Forward</button>
     <link href={home}>{site}</link>
     <button on.click={toggleNavigation()}>{#if navigation}Hide pages{:else}Show pages{/if}</button>
   </row>

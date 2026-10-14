@@ -22,7 +22,13 @@ export interface Built {
   readonly styles: ReadonlyArray<string>;
 }
 
-const PageSchema = Schema.Struct({ page: Schema.String, viewport: Schema.Literal("compact", "medium", "expanded"), colorScheme: Schema.Literal("light", "dark") });
+const PageSchema = Schema.Struct({
+  page: Schema.String,
+  trail: Schema.Array(Schema.String),
+  cursor: Schema.Number,
+  viewport: Schema.Literal("compact", "medium", "expanded"),
+  colorScheme: Schema.Literal("light", "dark"),
+});
 
 /** A mistake in `src/main.ts`, reported with what to change. */
 export class AppDefinitionError extends Error {
@@ -50,8 +56,8 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
     if (RESERVED.includes(name)) {
       throw new AppDefinitionError(`src/main.ts: the state field "${name}" is a name the layout already reads from the framework (${RESERVED.join(", ")}); choose another`);
     }
-    if (name === "page") {
-      throw new AppDefinitionError('src/main.ts: the state field "page" is the framework\'s (which page is shown); choose another');
+    if (name === "page" || name === "trail" || name === "cursor") {
+      throw new AppDefinitionError(`src/main.ts: the state field "${name}" is the framework's (which page is shown, and the pages visited); choose another`);
     }
   }
 
@@ -80,6 +86,8 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
 
   for (const [name, what] of [
     ["go", "shows a page"],
+    ["back", "goes to the page before this one in the trail"],
+    ["forward", "goes to the page after this one in the trail"],
     ["resize", "tells the layout how much room the page has"],
     ["colorScheme", "tells the layout which colors the system asks for"],
     ["persist", "keeps the fields named in `persist` between runs"],
@@ -170,7 +178,7 @@ export const commandTable =
     const command = Valance.command(state as never) as Valance.CommandMaker<AppState>;
     const own = author?.commands?.(command as never) ?? {};
 
-    for (const name of ["go", "resize", "colorScheme", "persist"]) {
+    for (const name of ["go", "back", "forward", "resize", "colorScheme", "persist"]) {
       if (name in own) {
         throw new AppDefinitionError(`src/main.ts: "${name}" is the framework's command; choose another name`);
       }
@@ -178,7 +186,13 @@ export const commandTable =
 
     return {
       ...(persisted(author).length === 0 ? {} : { persist: keepBetweenRuns(author, state, command) }),
-      go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => ({ ...current, page: id })),
+      // Going to a page puts it after the one shown in the trail, and drops the pages that were ahead.
+      go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) =>
+        id === current.page ? current : { ...current, page: id, trail: [...current.trail.slice(0, current.cursor + 1), id], cursor: current.cursor + 1 },
+      ),
+      // The page before (or after) this one in the trail: where the person has been, for a target with no browser history of its own.
+      back: command((current) => (current.cursor > 0 ? { ...current, cursor: current.cursor - 1, page: current.trail[current.cursor - 1]! } : current)),
+      forward: command((current) => (current.cursor < current.trail.length - 1 ? { ...current, cursor: current.cursor + 1, page: current.trail[current.cursor + 1]! } : current)),
       // The window changed size: the browser tells the application, which tells the layout (`viewport`).
       resize: command(Schema.Struct({ viewport: Schema.Literal("compact", "medium", "expanded") }), ({ viewport }, current) => ({ ...current, viewport })),
       // The person's system changed colors: the page or the window tells the application, which tells the layout (`colorScheme`).
@@ -187,7 +201,14 @@ export const commandTable =
     };
   };
 
-export const initialState = (author: DefinedApp | undefined): AppState => ({ page: "/", viewport: "expanded", colorScheme: "light", ...stateOf(author)?.initial });
+export const initialState = (author: DefinedApp | undefined): AppState => ({
+  page: "/",
+  trail: ["/"],
+  cursor: 0,
+  viewport: "expanded",
+  colorScheme: "light",
+  ...stateOf(author)?.initial,
+});
 
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);
@@ -201,7 +222,11 @@ export const application = (content: Content, program: Valance.Program, author?:
         scope: (state: AppState) => {
           const { page, ...own } = state;
 
-          return { ...frame(content, page, state.viewport, state.colorScheme), ...own, ...derivedValues(author, state) };
+          return {
+            ...frame(content, page, state.viewport, state.colorScheme, { canGoBack: state.cursor > 0, canGoForward: state.cursor < state.trail.length - 1 }),
+            ...own,
+            ...derivedValues(author, state),
+          };
         },
       },
     },
@@ -212,7 +237,11 @@ export const application = (content: Content, program: Valance.Program, author?:
 };
 
 /** The state a request for `pathname` starts from. */
-export const stateFor = (content: Content, pathname: string, author?: DefinedApp): AppState => ({ ...initialState(author), page: normalize(pathname, content.site.base) });
+export const stateFor = (content: Content, pathname: string, author?: DefinedApp): AppState => {
+  const page = normalize(pathname, content.site.base);
+
+  return { ...initialState(author), page, trail: [page], cursor: 0 };
+};
 
 /**
  * The title for a state: the page's and the site's name, or what the author's `title` function says. A function that throws falls back to the default (a title is never worth a failed render),

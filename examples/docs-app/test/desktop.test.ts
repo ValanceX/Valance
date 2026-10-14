@@ -44,6 +44,25 @@ describe("the documentation site in a window", () => {
       child.stdin.write(`${JSON.stringify({ op: "link", href: "/guide/getting-started" })}\n`);
       await until(() => seen.some((message) => message.op === "title" && String(message["title"]).startsWith("Getting started")));
       expect([...seen].reverse().find((message) => message.op === "title")).toMatchObject({ title: "Getting started · Notes" });
+
+      // Back goes to where the person was, and Forward to where they came from: the trail, for a window with no browser history
+      const button = (label: string) => {
+        const found: Array<{ readonly component?: string; readonly events?: Record<string, string>; readonly children?: ReadonlyArray<unknown>; readonly text?: string }> = [];
+        const walk = (node: { readonly component?: string; readonly events?: Record<string, string>; readonly children?: ReadonlyArray<never> }): void => {
+          found.push(node);
+          node.children?.forEach(walk);
+        };
+        const latest = [...seen].reverse().find((message) => message.op === "draw" || message.op === "update") as unknown as { readonly tree: { readonly root: never } };
+
+        walk(latest.tree.root);
+
+        return found.find((node) => node.component === "button" && JSON.stringify(node.children).includes(`"text":"${label}"`));
+      };
+
+      child.stdin.write(`${JSON.stringify({ op: "event", handler: button("Back")!.events!["click"]! })}\n`);
+      await until(() => [...seen].reverse().find((message) => message.op === "title")?.["title"] === "Notes");
+      child.stdin.write(`${JSON.stringify({ op: "event", handler: button("Forward")!.events!["click"]! })}\n`);
+      await until(() => [...seen].reverse().find((message) => message.op === "title")?.["title"] === "Getting started · Notes");
     } finally {
       child.stdin.write('{"op":"close"}\n');
       await new Promise((resolve) => child.on("exit", resolve));

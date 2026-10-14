@@ -35,8 +35,8 @@ describe("derived values", () => {
       { id: "c", done: false },
     ];
 
-    expect(scope({ page: "/", viewport: "expanded", items })).toMatchObject({ open: 2, summary: "2 of 3 open" });
-    expect(scope({ page: "/", viewport: "expanded", items: [] })).toMatchObject({ open: 0, summary: "0 of 0 open" });
+    expect(scope({ page: "/", trail: ["/"], cursor: 0, viewport: "expanded", colorScheme: "light", items })).toMatchObject({ open: 2, summary: "2 of 3 open" });
+    expect(scope({ page: "/", trail: ["/"], cursor: 0, viewport: "expanded", colorScheme: "light", items: [] })).toMatchObject({ open: 0, summary: "0 of 0 open" });
   });
 
   it("may not take the name of a state field or of one the framework owns", () => {

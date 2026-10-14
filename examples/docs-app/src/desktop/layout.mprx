@@ -1,5 +1,9 @@
 <column>
-  <link href={home}>{site}</link>
+  <row>
+    <button disabled={!canGoBack} on.click={back()}>Back</button>
+    <button disabled={!canGoForward} on.click={forward()}>Forward</button>
+    <link href={home}>{site}</link>
+  </row>
   {#each sections as s (s.id)}
     <column>
       {#if s.title != ""}<text>{s.title}</text>{/if}

@@ -33,6 +33,10 @@ export interface PageState {
   readonly page: string;
   /** How much room the page has: `compact` (under 600 px wide: a phone), `medium` (600 to 839) or `expanded` (840 and up). The framework keeps it current as the window changes; a layout reads it as `viewport`. */
   readonly viewport: Viewport;
+  /** The pages visited, in order, for `back` and `forward`: `go` adds the page it goes to after the one shown (and drops any that were ahead). */
+  readonly trail: ReadonlyArray<string>;
+  /** Where in `trail` the page shown is. */
+  readonly cursor: number;
   /** The colors the person's system asks for: `light` or `dark`. The framework keeps it current (the page's `prefers-color-scheme`, the window's system theme); a layout reads it as `colorScheme`. The server renders `light`; the page corrects it as it starts. */
   readonly colorScheme: ColorScheme;
 }

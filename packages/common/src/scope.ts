@@ -47,6 +47,10 @@ export const FrameScope = Schema.Struct({
   viewport: Schema.Literal("compact", "medium", "expanded"),
   /** The colors the person's system asks for: `"light"` or `"dark"`. `theme={theme == "system" ? colorScheme : theme}` lets an application offer "follow the system" beside its own choices. The server renders `light`; the page corrects it after it starts. */
   colorScheme: Schema.Literal("light", "dark"),
+  /** Whether there is a page before this one in the trail (`back()` goes to it). `disabled={!canGoBack}` greys a Back button. */
+  canGoBack: Schema.Boolean,
+  /** Whether there is a page after this one in the trail (`forward()` goes to it), as there is after a `back()`. */
+  canGoForward: Schema.Boolean,
   /** The page's body. Draw it with `<blocks items={blocks} />`, or draw each block yourself. */
   blocks: Schema.Array(BlockView),
   /** Neighbours in navigation order; `href` is empty when there is none. */
@@ -123,7 +127,13 @@ export const documentTitle = (content: Content, page: Page | undefined, parts: T
   return parts.status === undefined || parts.status === "" ? body : `(${parts.status}) ${body}`;
 };
 
-export const frame = (content: Content, path: string, viewport: Viewport = "expanded", colorScheme: ColorScheme = "light"): typeof FrameScope.Type => {
+export const frame = (
+  content: Content,
+  path: string,
+  viewport: Viewport = "expanded",
+  colorScheme: ColorScheme = "light",
+  trail: { readonly canGoBack: boolean; readonly canGoForward: boolean } = { canGoBack: false, canGoForward: false },
+): typeof FrameScope.Type => {
   const page = pageAt(content, path);
   const shown = page ?? notFoundPage(content);
   const at = page === undefined ? -1 : content.pages.indexOf(page);
@@ -145,6 +155,8 @@ export const frame = (content: Content, path: string, viewport: Viewport = "expa
     site: content.site.name,
     viewport,
     colorScheme,
+    canGoBack: trail.canGoBack,
+    canGoForward: trail.canGoForward,
     home: withBase(content.site.base, "/"),
     title: shown.title,
     description: shown.description,
