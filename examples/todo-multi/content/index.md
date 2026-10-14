@@ -5,6 +5,8 @@ description: A desktop application, written the way a VALANCE application is wri
 
 # todo-multi
 
+![A red square](/dot.png)
+
 This is a **VALANCE application** in a window. Everything you are reading is a Markdown file in `content/`; the window around it is `src/layout.mprx`.
 
 - Pages are Markdown files. Their path is their address.

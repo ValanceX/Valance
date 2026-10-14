@@ -122,6 +122,9 @@ describe("the desktop target", () => {
       expect(named(window.seen, "checkbox")).toHaveLength(0);
       expect(all(treeOf(window.seen)).some((node) => node.text === "0 of 0 open")).toBe(true);
 
+      // an image in the content is the file shipped beside the engine, by its absolute path: that is what the window decodes
+      expect(named(window.seen, "image")[0]?.props).toMatchObject({ src: join(root, "dist/desktop/public/dot.png"), label: "A red square" });
+
       // typing reports `change` with the new text; the application owns the value
       window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["change"]!, payload: "Milk" });
       await window.until(() => named(window.seen, "textfield")[0]?.props?.["value"] === "Milk");

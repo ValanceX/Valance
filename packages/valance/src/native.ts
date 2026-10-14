@@ -98,6 +98,11 @@ export interface HostOptions<S, E = unknown> {
   readonly onLink?: (href: string, handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** The window's title for a state. Absent: the window keeps its own. */
   readonly titleOf?: (state: S) => string;
+  /**
+   * What the engine does to a tree on its way to the renderer, for a screen and for an update: it is given the tree and returns the one to send. For what only the host knows and the
+   * application does not (the desktop's host turns an image's address into the file it shipped beside the engine). Absent: the tree as it is.
+   */
+  readonly present?: (tree: RenderTree) => RenderTree;
   /** May the application close now? Asked when the renderer says the person wants to close the window. Absent: always. */
   readonly mayClose?: (state: S) => Effect.Effect<boolean>;
 }
@@ -149,8 +154,8 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
         report = reportEvent;
 
         return {
-          draw: (tree) => (retitle(), send({ op: "draw", tree })),
-          update: (tree) => (retitle(), send({ op: "update", tree })),
+          draw: (tree) => (retitle(), send({ op: "draw", tree: options.present?.(tree) ?? tree })),
+          update: (tree) => (retitle(), send({ op: "update", tree: options.present?.(tree) ?? tree })),
           unmount: () => send({ op: "unmount" }),
         };
       });

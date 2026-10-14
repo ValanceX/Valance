@@ -1,7 +1,7 @@
 // `vlx build`: the project → a static site in `dist/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
 // when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only the site.
 import { build as bundle } from "vite";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
@@ -87,6 +87,13 @@ const buildDesktop = async (root: string): Promise<Built> => {
     },
   });
   copyFileSync(wasmOf(root), join(out, "mesh-runtime.wasm"));
+
+  // The files images are drawn from, beside the engine (the site's `public/`, which the desktop's content refers to the same way).
+  const publicDir = join(root, "public");
+
+  if (existsSync(publicDir)) {
+    cpSync(publicDir, join(out, "public"), { recursive: true });
+  }
 
   return { dir: out, files: ["desktop/engine.mjs", "desktop/mesh-runtime.wasm"], pages: [] };
 };

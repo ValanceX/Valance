@@ -74,12 +74,15 @@ const desktopSource = (root: string, config?: Config): string => `// Generated b
 // @ts-nocheck
 import { start } from "@valancex/common/desktop";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import content from "./content.json";
 import program from "./${programFile(config, "desktop")}";
 ${hasEntry(root) ? `import author from "../${ENTRY_FILE}";\n` : "const author = undefined;\n"}
 // the MESH runtime's module sits beside the built engine (vlx build copies it there)
 const wasm = new Uint8Array(readFileSync(new URL("./mesh-runtime.wasm", import.meta.url)));
-await start({ content, program, author, wasm });
+// (and the project's public/ files, which images are drawn from)
+const assets = fileURLToPath(new URL("./public/", import.meta.url));
+await start({ content, program, author, wasm, assets });
 // the window is closed: nothing the application left open keeps the engine alive
 process.exit(0);
 `;
