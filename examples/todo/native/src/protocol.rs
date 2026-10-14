@@ -34,10 +34,22 @@ pub struct Tree {
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(tag = "op", rename_all = "lowercase")]
 pub enum FromEngine {
-    Hello { protocol: u64, app: String },
-    Draw { tree: Tree },
-    Update { tree: Tree },
+    Hello {
+        protocol: u64,
+        app: String,
+    },
+    Draw {
+        tree: Tree,
+    },
+    Update {
+        tree: Tree,
+    },
     Unmount,
+    /// The answer to `CloseRequested`: when not allowed, the window stays open.
+    #[serde(rename = "closeAnswer")]
+    CloseAnswer {
+        allowed: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -49,6 +61,9 @@ pub enum ToEngine {
         payload: Option<Value>,
     },
     Close,
+    /// The person asked to close the window; the engine answers with `closeAnswer`.
+    #[serde(rename = "closeRequested")]
+    CloseRequested,
 }
 
 impl Node {

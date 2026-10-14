@@ -474,3 +474,52 @@ describe("starting on an address", () => {
     expect((await start("https://evil.example/x", app())).name).toBe("notFound");
   });
 });
+
+describe("moving from inside a command, and leaving altogether", () => {
+  const guarded = createRouter<App>({
+    routes: [home, inbox, route("/edit", { name: "edit", canDeactivate: ({ state }) => !state.dirty })],
+  });
+  const run = async (initial: App, work: (handle: Nexus.State.StateHandle<App>) => Effect.Effect<unknown>) => {
+    const state = await Effect.runPromise(Ref.make(initial));
+    const handle: Nexus.State.StateHandle<App> = {
+      get: Ref.get(state),
+      update: (change: (current: App) => Effect.Effect<App>) => Effect.flatMap(Ref.get(state), (current) => Effect.flatMap(change(current), (next) => Ref.set(state, next))),
+    } as never;
+    const result = await Effect.runPromise(work(handle));
+
+    return { result, state: await Effect.runPromise(Ref.get(state)) };
+  };
+
+  it("moves, and says it did; a refusal by the leaving guard leaves the application where it was and says so", async () => {
+    const allowed = await run(app({ route: { name: "edit", params: {}, query: {} } }), (handle) => guarded.moveTo(handle, "/inbox"));
+
+    expect(allowed.result).toBe(true);
+    expect(allowed.state.route.name).toBe("inbox");
+
+    const refused = await run(app({ route: { name: "edit", params: {}, query: {} }, dirty: true }), (handle) => guarded.moveTo(handle, "/inbox"));
+
+    expect(refused.result).toBe(false);
+    expect(refused.state.route.name).toBe("edit");
+  });
+
+  it("answers false for an address that is not the application's, and for where it already is", async () => {
+    expect((await run(app(), (handle) => guarded.moveTo(handle, "https://evil.example/x"))).result).toBe(false);
+    expect((await run(app(), (handle) => guarded.moveTo(handle, "/"))).result).toBe(false);
+  });
+
+  it("may be left when the current route has no leaving guard or its guard allows, and not otherwise", async () => {
+    const may = (state: App) => Effect.runPromise(guarded.mayLeave(state));
+
+    expect(await may(app())).toBe(true);
+    expect(await may(app({ route: { name: "edit", params: {}, query: {} } }))).toBe(true);
+    expect(await may(app({ route: { name: "edit", params: {}, query: {} }, dirty: true }))).toBe(false);
+  });
+
+  it("tells a leaving guard that the application is closing", async () => {
+    const seen: Array<string> = [];
+    const spy = createRouter<App>({ routes: [route("/", { name: "home", canDeactivate: ({ kind }) => (seen.push(kind), true) })] });
+
+    await Effect.runPromise(spy.mayLeave(app()));
+    expect(seen).toEqual(["close"]);
+  });
+});

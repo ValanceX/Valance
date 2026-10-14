@@ -16,10 +16,17 @@ export const MAX_LINE = 64 * 1024;
 export type Outbound =
   | { readonly op: "hello"; readonly protocol: number; readonly app: string }
   | { readonly op: "draw" | "update"; readonly tree: RenderTree }
-  | { readonly op: "unmount" };
+  | { readonly op: "unmount" }
+  /** The answer to `closeRequested`. When `allowed`, the engine is closing and `unmount` follows; when not, the window stays open. */
+  | { readonly op: "closeAnswer"; readonly allowed: boolean };
 
 /** What a renderer sends. */
-export type Inbound = { readonly op: "ready" } | { readonly op: "event"; readonly handler: string; readonly payload?: BoundaryValue } | { readonly op: "close" };
+export type Inbound =
+  | { readonly op: "ready" }
+  | { readonly op: "event"; readonly handler: string; readonly payload?: BoundaryValue }
+  | { readonly op: "close" }
+  /** The person asked to close the window. The engine decides (unsaved edits), and answers with `closeAnswer`. */
+  | { readonly op: "closeRequested" };
 
 const jsonValue = (value: unknown, depth = 0): value is BoundaryValue => {
   if (depth > 8) {
@@ -63,7 +70,7 @@ export const parseInbound = (line: string): Inbound | undefined => {
 
   const { op, handler, payload } = message as { readonly op?: unknown; readonly handler?: unknown; readonly payload?: unknown };
 
-  if (op === "ready" || op === "close") {
+  if (op === "ready" || op === "close" || op === "closeRequested") {
     return { op };
   }
   if (op === "event" && typeof handler === "string" && handler.length <= 256 && (payload === undefined || jsonValue(payload))) {
@@ -72,6 +79,11 @@ export const parseInbound = (line: string): Inbound | undefined => {
 
   return undefined;
 };
+
+export interface HostOptions<S> {
+  /** May the application close now? Asked when the renderer says the person wants to close the window. Absent: always. */
+  readonly mayClose?: (state: S) => Effect.Effect<boolean>;
+}
 
 export interface HostStreams {
   /** The renderer's messages, a line each. */
@@ -89,7 +101,11 @@ export interface Served {
  * Runs `app` for a renderer on `streams` until the renderer closes (a `close` message, or its stream ending). The application lives exactly as long as this effect; when it ends, the
  * application is closed and its work cancelled.
  */
-export const serve = <S, E, R extends Valance.Ambient, V extends string>(app: Valance.ApplicationDefinition<S, E, R, V>, streams: HostStreams): Effect.Effect<Served, unknown> =>
+export const serve = <S, E, R extends Valance.Ambient, V extends string>(
+  app: Valance.ApplicationDefinition<S, E, R, V>,
+  streams: HostStreams,
+  options: HostOptions<S> = {},
+): Effect.Effect<Served, unknown> =>
   Effect.scoped(
     Effect.gen(function* () {
       const send = (message: Outbound): void => void streams.output.write(`${JSON.stringify(message)}\n`);
@@ -125,6 +141,17 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(app: Va
             done();
           } else if (message.op === "event" && report !== undefined) {
             report(message.handler, message.payload);
+          } else if (message.op === "closeRequested") {
+            void Effect.runPromise(Effect.flatMap(handle.state, (state) => options.mayClose?.(state) ?? Effect.succeed(true))).then(
+              (allowed) => {
+                send({ op: "closeAnswer", allowed });
+
+                if (allowed) {
+                  done();
+                }
+              },
+              () => send({ op: "closeAnswer", allowed: false }),
+            );
           }
         });
         lines.on("close", done);

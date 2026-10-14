@@ -72,8 +72,20 @@ impl eframe::App for App {
 
         let mut events: Vec<ToEngine> = Vec::new();
 
+        // Closing the window is the application's to allow: unsaved edits can say no. The window stays until the engine's answer; an allowed answer ends the engine, which unmounts the screen.
+        if ctx.input(|input| input.viewport().close_requested()) && !self.screen.gone {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            events.push(ToEngine::CloseRequested);
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
+                if self.screen.close_refused {
+                    ui.colored_label(
+                        egui::Color32::LIGHT_RED,
+                        "There are unsaved changes. Save or discard them to close.",
+                    );
+                }
                 if let Some(problem) = &self.problem {
                     ui.colored_label(egui::Color32::LIGHT_RED, problem);
                 } else if let Some(tree) = &self.screen.tree {

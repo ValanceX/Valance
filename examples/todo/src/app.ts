@@ -125,7 +125,6 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
       const change = (apply: (current: TodoState) => TodoState): Effect.Effect<void> => state.update((current) => Effect.succeed(apply(current))).pipe(Effect.asVoid);
       const define = <A>(name: string, schema: Schema.Schema<A, A>, run: (input: A) => Effect.Effect<void>) => Nexus.Command.define(name, schema, run);
       const none = Schema.Struct({});
-      const goTo = (current: TodoState, path: string): TodoState => ({ ...current, route: router.match(path), entry: "", draft: null });
 
       return {
         ...router.commands(state as never),
@@ -154,7 +153,17 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
           change((current) => ({ ...current, lists: removeItem(current.lists, param(current, "id"), itemId) })),
         ),
         clearDone: define("clearDone", none, () => change((current) => ({ ...current, lists: clearDone(current.lists, param(current, "id")) }))),
-        deleteList: define("deleteList", none, () => change((current) => ({ ...goTo(current, hrefs.lists), lists: removeList(current.lists, param(current, "id")) }))),
+        // Leaving goes through the router, so the guards have their say; the change that must come first (a save before a leave guard looks at the draft) is made before, and one that needs the
+        // old screen gone (a delete) after.
+        deleteList: define("deleteList", none, () =>
+          Effect.gen(function* () {
+            const id = param(yield* state.get, "id");
+
+            if (yield* router.moveTo(state, hrefs.lists)) {
+              yield* change((current) => ({ ...current, lists: removeList(current.lists, id), entry: "" }));
+            }
+          }),
+        ),
         // Editing: `setDraft` keeps what was typed apart from what is saved, so leaving with unsaved text is something a guard can see. Typing the saved text back is not an edit.
         setDraft: define("setDraft", Schema.Struct({ text: Schema.String }), ({ text }) =>
           change((current) => {
@@ -166,21 +175,25 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
         ),
         discard: define("discard", none, () => change((current) => ({ ...current, draft: null }))),
         saveItem: define("saveItem", none, () =>
-          change((current) => {
+          Effect.gen(function* () {
+            const current = yield* state.get;
             const text = cleanText(current.draft ?? "");
 
-            return current.draft === null || text === ""
-              ? current
-              : { ...goTo(current, hrefs.list(param(current, "id"))), lists: retitleItem(current.lists, param(current, "id"), param(current, "itemId"), text) };
+            if (current.draft !== null && text !== "") {
+              yield* change((latest) => ({ ...latest, draft: null, lists: retitleItem(latest.lists, param(latest, "id"), param(latest, "itemId"), text) }));
+              yield* router.moveTo(state, hrefs.list(param(current, "id")));
+            }
           }),
         ),
         saveList: define("saveList", none, () =>
-          change((current) => {
+          Effect.gen(function* () {
+            const current = yield* state.get;
             const text = cleanText(current.draft ?? "");
 
-            return current.draft === null || text === ""
-              ? current
-              : { ...goTo(current, hrefs.list(param(current, "id"))), lists: renameList(current.lists, param(current, "id"), text) };
+            if (current.draft !== null && text !== "") {
+              yield* change((latest) => ({ ...latest, draft: null, lists: renameList(latest.lists, param(latest, "id"), text) }));
+              yield* router.moveTo(state, hrefs.list(param(current, "id")));
+            }
           }),
         ),
       };

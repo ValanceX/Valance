@@ -21,7 +21,7 @@ export const RouteState: Schema.Schema<RouteState> = Schema.Struct({
 }) as unknown as Schema.Schema<RouteState>;
 
 /** Where a navigation came from. */
-export type NavigationKind = "link" | "popstate" | "programmatic" | "initial";
+export type NavigationKind = "link" | "popstate" | "programmatic" | "initial" | "close";
 
 /** What a guard is told. `state` is the application's state now, before the navigation. */
 export interface GuardContext<S> {

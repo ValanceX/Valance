@@ -178,3 +178,31 @@ fn closing_the_window_ends_the_engine() {
         "the engine unmounts the screen, then exits and its stream ends"
     );
 }
+
+#[test]
+fn closing_is_refused_while_an_edit_is_unsaved_and_allowed_after() {
+    let mut session = Session::start("/");
+
+    session.type_into("New list", "Groceries", |screen| screen.updates > 0);
+    session.press("Add list", shows("Groceries (0 of 0 open)"));
+    session.press("Groceries", shows("Nothing to do"));
+    session.type_into("New item", "Milk", |screen| screen.readable().iter().any(|line| line == "Milk"));
+    session.press("Add item", shows("1 of 1 open"));
+    session.press("Milk", shows("Edit item"));
+    session.type_into("What needs doing?", "Oat milk", shows("Unsaved changes"));
+
+    session.engine.send(&ToEngine::CloseRequested);
+    session.until(|screen| screen.close_refused);
+    assert!(shows("Unsaved changes")(&session.screen), "the window stays open on the edit");
+
+    session.press("Discard", |screen| !shows("Unsaved changes")(screen) && !screen.close_refused);
+    session.engine.send(&ToEngine::CloseRequested);
+
+    let mut unmounted = false;
+
+    while let Ok(message) = session.engine.messages.recv_timeout(Duration::from_secs(5)) {
+        unmounted |= matches!(session.screen.apply(message), Applied::Closed);
+    }
+
+    assert!(unmounted, "an allowed close ends the engine, and the renderer sees the screen go");
+}

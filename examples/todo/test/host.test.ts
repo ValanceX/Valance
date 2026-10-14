@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { application, initial, sample, starting } from "../src/app.js";
 import { compilePrograms } from "../src/compile.js";
 import { MAX_LINE, parseInbound, PROTOCOL, serve } from "../src/host.js";
+import { router } from "../src/routes.js";
 import type { Outbound } from "../src/host.js";
 import { textTarget } from "../src/text-target.js";
 import type { TextTarget } from "../src/text-target.js";
@@ -47,7 +48,7 @@ const renderer = async (start = initial()) => {
     }
   });
 
-  const served = Effect.runPromise(serve(application(programs, start), { input: toEngine, output: fromEngine }));
+  const served = Effect.runPromise(serve(application(programs, start), { input: toEngine, output: fromEngine }, { mayClose: (state) => router.mayLeave(state) }));
 
   await until(() => seen.some((message) => message.op === "draw"));
 
@@ -112,10 +113,38 @@ describe("the wire", () => {
   });
 });
 
+describe("closing the window", () => {
+  it("is allowed when nothing is unsaved: the engine answers, unmounts and ends", async () => {
+    const r = await renderer(sample());
+
+    r.send({ op: "closeRequested" });
+    expect(await r.served).toEqual({ ignored: 0 });
+    expect(r.seen.filter((message) => message.op === "closeAnswer")).toEqual([{ op: "closeAnswer", allowed: true }]);
+    expect(r.seen.at(-1)!.op).toBe("unmount");
+  });
+
+  it("is refused while an edit is unsaved, and allowed once it is discarded", async () => {
+    const r = await renderer(await starting(sample(), "/lists/l1/items/i1"));
+
+    r.screen.type("What needs doing?", "Oat milk");
+    await until(() => r.screen.screen().includes("Unsaved changes"));
+    r.send({ op: "closeRequested" });
+    await until(() => r.seen.some((message) => message.op === "closeAnswer"));
+    expect(r.seen.filter((message) => message.op === "closeAnswer")).toEqual([{ op: "closeAnswer", allowed: false }]);
+    expect(r.screen.screen()).toContain("Unsaved changes"); // still running
+
+    r.screen.press("Discard");
+    await until(() => !r.screen.screen().includes("Unsaved changes"));
+    r.send({ op: "closeRequested" });
+    expect(await r.served).toEqual({ ignored: 0 });
+  });
+});
+
 describe("what the engine accepts from a renderer", () => {
   it("takes the three messages, with a payload that is plain data", () => {
     expect(parseInbound('{"op":"ready"}')).toEqual({ op: "ready" });
     expect(parseInbound('{"op":"close"}')).toEqual({ op: "close" });
+    expect(parseInbound('{"op":"closeRequested"}')).toEqual({ op: "closeRequested" });
     expect(parseInbound('{"op":"event","handler":"h1","payload":"text"}')).toEqual({ op: "event", handler: "h1", payload: "text" });
     expect(parseInbound('{"op":"event","handler":"h1","payload":{"x":1,"y":[true,null]}}')).toEqual({ op: "event", handler: "h1", payload: { x: 1, y: [true, null] } });
   });

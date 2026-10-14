@@ -10,6 +10,8 @@ pub struct Screen {
     pub draws: usize,
     pub updates: usize,
     pub gone: bool,
+    /// The engine said the window may not close yet (unsaved edits); cleared by the next screen it sends.
+    pub close_refused: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -32,11 +34,14 @@ impl Screen {
             FromEngine::Draw { tree } => {
                 self.tree = Some(tree);
                 self.draws += 1;
+                self.close_refused = false;
             }
             FromEngine::Update { tree } => {
                 self.tree = Some(tree);
                 self.updates += 1;
+                self.close_refused = false;
             }
+            FromEngine::CloseAnswer { allowed } => self.close_refused = !allowed,
             FromEngine::Unmount => {
                 self.tree = None;
                 self.gone = true;

@@ -496,7 +496,7 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
    * - `go` and `replace`: programmatic navigation to an address, `go({ to: "/inbox/42?tab=unread" })`; `replace` rewrites the current history entry instead of adding one. Each decides first (the guard
    *   for leaving, then the one for entering), then sets the state; a refusal leaves it where it is. They take one argument so a template can call them: `on.click={go("/inbox")}`.
    */
-  const moveTo = (state: Nexus.State.StateHandle<S>, to: string, replace: boolean): Effect.Effect<void> =>
+  const goTo = (state: Nexus.State.StateHandle<S>, to: string, replace: boolean): Effect.Effect<void> =>
     Effect.gen(function* () {
       const target = resolve(to);
 
@@ -531,13 +531,49 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
       return decision._tag === "Refuse" ? notFoundState(new URL(address.startsWith("/") ? address : "/", FALLBACK_ORIGIN)) : strip(decision.to);
     });
 
+  /**
+   * Goes to an address from inside a command: the same decision `go` makes (the guard for leaving, then the one for entering; a redirect is followed, a refusal leaves the application where it is),
+   * as an Effect a command can run after or before its own changes. It answers whether the application moved. A command that saves and then leaves should save first: the leaving guard sees
+   * the state as it is when this runs.
+   */
+  const moveTo = (state: Nexus.State.StateHandle<S>, to: string, options: { readonly replace?: boolean } = {}): Effect.Effect<boolean> =>
+    Effect.gen(function* () {
+      const before = yield* state.get;
+
+      yield* goTo(state, to, options.replace === true);
+
+      const after = yield* state.get;
+
+      const was = routeOf(before);
+      const now = routeOf(after);
+
+      return was === undefined || now === undefined ? was !== now : !sameDestination(was, now);
+    });
+
+  /**
+   * May the application be left altogether (its window closing, its process ending)? Asks the current route's `canDeactivate` as a navigation of kind `"close"` whose destination is the route
+   * it is already on, since there is none. `true` when there is nothing to ask. This is what a target's close request should consult: a native window with unsaved edits is the same case as a
+   * page with a `beforeunload`.
+   */
+  const mayLeave = (state: S): Effect.Effect<boolean> =>
+    Effect.gen(function* () {
+      const current = routeOf(state);
+      const leaving = current === undefined ? undefined : routeNamed(current.name);
+
+      if (current === undefined || leaving?.config.canDeactivate === undefined) {
+        return true;
+      }
+
+      return (yield* runGuard(leaving.config.canDeactivate, { from: current, to: current, state, kind: "close", data: leaving.config.data ?? {} })) === true;
+    });
+
   const commands = (state: Nexus.State.StateHandle<S>) => ({
     navigate: Nexus.Command.define("navigate", RouteState, (next) => state.update((current) => Effect.succeed({ ...current, [key]: strip(next) } as S)).pipe(Effect.asVoid)),
-    go: Nexus.Command.define("go", Destination, ({ to }) => moveTo(state, to, false)),
-    replace: Nexus.Command.define("replace", Destination, ({ to }) => moveTo(state, to, true)),
+    go: Nexus.Command.define("go", Destination, ({ to }) => goTo(state, to, false)),
+    replace: Nexus.Command.define("replace", Destination, ({ to }) => goTo(state, to, true)),
   });
 
-  return { base, key, notFoundName, table, plugin, commands, enter, match: stateFor, href, hrefOf, resolve, safeNext, decide, titleOf, route: routeNamed, paths };
+  return { base, key, notFoundName, table, plugin, commands, moveTo, mayLeave, enter, match: stateFor, href, hrefOf, resolve, safeNext, decide, titleOf, route: routeNamed, paths };
 };
 
 export type Router<S extends Record<string, any>, C = undefined> = ReturnType<typeof createRouter<S, C>>;

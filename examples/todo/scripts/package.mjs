@@ -14,6 +14,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const platform = process.argv[2];
 const targets = { "linux-x64": { exe: "todo-engine", node: undefined }, "win32-x64": { exe: "todo-engine.exe", node: "win-x64/node.exe" } };
+// (A Linux binary is only ever built on Linux: its `node` is the one running this.)
 
 if (targets[platform] === undefined) {
   console.error(`usage: node scripts/package.mjs ${Object.keys(targets).join("|")} [out-dir]`);
@@ -86,7 +87,10 @@ const download = async (path) => {
 const target = targets[platform];
 const exe = join(out, target.exe);
 
-copyFileSync(target.node === undefined ? process.execPath : await download(target.node), exe);
+// On the platform itself the running `node` is the binary (what CI does on Windows); for another one, the official release is downloaded.
+const hostPlatform = `${process.platform}-${process.arch}`;
+
+copyFileSync(platform === hostPlatform || target.node === undefined ? process.execPath : await download(target.node), exe);
 chmodSync(exe, 0o755);
 
 const { inject } = await import("postject");
