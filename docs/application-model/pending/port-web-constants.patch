@@ -1,8 +1,8 @@
 diff --git a/examples/todo-multi/src/desktop/layout.mprx b/examples/todo-multi/src/desktop/layout.mprx
-index da889d0..866de38 100644
+index 139058a..f87e829 100644
 --- a/examples/todo-multi/src/desktop/layout.mprx
 +++ b/examples/todo-multi/src/desktop/layout.mprx
-@@ -19,11 +19,7 @@
+@@ -20,11 +20,7 @@
      <text>{summary}</text>
      <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
      {#each items as it (it.id)}
@@ -16,7 +16,7 @@ index da889d0..866de38 100644
      <button on.click={clearDone()}>Clear done</button>
    </column>
 diff --git a/examples/todo-multi/src/main.ts b/examples/todo-multi/src/main.ts
-index 78eab52..566b269 100644
+index 9f1b2a2..95eb94a 100644
 --- a/examples/todo-multi/src/main.ts
 +++ b/examples/todo-multi/src/main.ts
 @@ -3,6 +3,7 @@ import { Schema } from "effect";
@@ -27,7 +27,7 @@ index 78eab52..566b269 100644
  import webLayout from "./web/layout.mprx";
  
  const Item = Schema.Struct({ id: Schema.String, title: Schema.String, done: Schema.Boolean });
-@@ -39,7 +40,7 @@ export default defineApp({
+@@ -46,7 +47,7 @@ export default defineApp({
      toggleNavigation: command((state) => ({ ...state, navigation: !state.navigation })),
    }),
    targets: {
@@ -37,6 +37,16 @@ index 78eab52..566b269 100644
 +    desktop: { layout: component(desktopLayout), components: [todoAdd, todoItem] },
    },
  });
+diff --git a/examples/todo-multi/src/shared/todo-add.mprx b/examples/todo-multi/src/shared/todo-add.mprx
+index 20c9af6..d2cc427 100644
+--- a/examples/todo-multi/src/shared/todo-add.mprx
++++ b/examples/todo-multi/src/shared/todo-add.mprx
+@@ -1,4 +1,4 @@
+ <row>
+-  <textfield label="New item" value={entry} placeholder="What needs doing?" on.change={type($event)} />
++  <textfield label="New item" value={entry} placeholder="What needs doing?" on.change={type($event)} on.submit={add()} />
+   <button on.click={add()}>Add</button>
+ </row>
 diff --git a/examples/todo-multi/src/shared/todo-item.mprx b/examples/todo-multi/src/shared/todo-item.mprx
 new file mode 100644
 index 0000000..a6ccda7
@@ -64,7 +74,7 @@ index 0000000..ffc1310
 +  events: { tick: Schema.Boolean, remove: Schema.Void },
 +});
 diff --git a/examples/todo-multi/src/web/layout.mprx b/examples/todo-multi/src/web/layout.mprx
-index 4a64d18..bbffcff 100644
+index aafa8b1..352b39a 100644
 --- a/examples/todo-multi/src/web/layout.mprx
 +++ b/examples/todo-multi/src/web/layout.mprx
 @@ -24,11 +24,7 @@
@@ -80,11 +90,60 @@ index 4a64d18..bbffcff 100644
            {/each}
          </list>
          <button class="todo-button" pressed="false" on.click={clearDone()}>Clear done</button>
+diff --git a/examples/todo-multi/test/multi.test.ts b/examples/todo-multi/test/multi.test.ts
+index c3e7f6a..16f4f2c 100644
+--- a/examples/todo-multi/test/multi.test.ts
++++ b/examples/todo-multi/test/multi.test.ts
+@@ -59,16 +59,22 @@ describe("the web target, in a browser", () => {
+       expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
+       expect(await page.textContent(".todo-list li")).toContain("Milk");
+ 
++      // Enter in the field is the same as pressing Add
++      await page.fill('input[placeholder="What needs doing?"]', "Bread");
++      await page.press('input[placeholder="What needs doing?"]', "Enter");
++      await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 2);
++      expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
++
+       // the items outlive the page: reloaded, they are back (the page's storage, through the Store capability)
+       await page.reload();
+       await page.waitForSelector('#app[data-valance="running"]');
+       await page.waitForSelector(".todo-list li");
+       expect(await page.textContent(".todo-list li")).toContain("Milk");
+ 
+-      await page.check('.todo-list input[type="checkbox"]');
+-      await page.waitForFunction(() => document.querySelector(".todo-summary")?.textContent === "0 of 1 open");
++      await page.check('.todo-list li:first-child input[type="checkbox"]');
++      await page.waitForFunction(() => document.querySelector(".todo-summary")?.textContent === "1 of 2 open");
+       await page.click('button:text-is("Clear done")');
+-      await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 0);
++      await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 1); // Bread is left
+       expect(errors).toEqual([]);
+     } finally {
+       await browser.close();
+@@ -169,11 +175,17 @@ describe("the desktop target", () => {
+       expect(all(treeOf(window.seen)).some((node) => node.text === "Milk")).toBe(true);
+       expect(all(treeOf(window.seen)).some((node) => node.text === "1 of 1 open")).toBe(true);
+ 
++      // Enter in the field reports `submit`: the same command as Add
++      window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["change"]!, payload: "Eggs" });
++      await window.until(() => named(window.seen, "textfield")[0]?.props?.["value"] === "Eggs");
++      window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["submit"]! });
++      await window.until(() => named(window.seen, "checkbox").length === 2);
++
+       // ticking reports `change` with a boolean; removing is a click
+       window.send({ op: "event", handler: named(window.seen, "checkbox")[0]!.events!["change"]!, payload: true });
+       await window.until(() => named(window.seen, "checkbox")[0]?.props?.["checked"] === true);
+       window.send({ op: "event", handler: buttonLabelled(window.seen, "Clear done")!.events!["click"]! });
+-      await window.until(() => named(window.seen, "checkbox").length === 0);
++      await window.until(() => named(window.seen, "checkbox").length === 1);
+     } finally {
+       await window.close();
+     }
 diff --git a/packages/common/src/primitives.ts b/packages/common/src/primitives.ts
-index 5114775..15680d4 100644
+index 5114775..683b507 100644
 --- a/packages/common/src/primitives.ts
 +++ b/packages/common/src/primitives.ts
-@@ -45,10 +45,11 @@ export const primitives: Web.WebPrimitives = {
+@@ -45,17 +45,22 @@ export const primitives: Web.WebPrimitives = {
    a: { element: "a", props: { href: Web.attribute("href") } },
    /** A link that is part of the page's furniture (navigation, a brand): it has a class, and says whether it is where you are (`aria-current`: "page" or "false"). */
    link: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
@@ -98,6 +157,18 @@ index 5114775..15680d4 100644
      events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) },
    },
    /** A text field, reporting `change` with the new text (a string); the field shows what the state says. */
+   textfield: {
+     element: "input",
+     props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label },
+-    events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
++    events: {
++      change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }),
++      // Enter: the person is done with what they typed
++      submit: Web.event("keydown", undefined, { key: "Enter" }),
++    },
+   },
+   button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
+ };
 diff --git a/packages/valance/src/web-manifest.ts b/packages/valance/src/web-manifest.ts
 index e712415..6152237 100644
 --- a/packages/valance/src/web-manifest.ts
@@ -110,6 +181,26 @@ index e712415..6152237 100644
        return { type: { kind: "boolean" }, required: false };
      case "property":
        return { type: { kind: realization.holds === "value" ? "any" : realization.holds }, required: realization.holds !== "boolean" };
+diff --git a/packages/valance/src/web-payload.ts b/packages/valance/src/web-payload.ts
+index 4ea2cd4..154c50a 100644
+--- a/packages/valance/src/web-payload.ts
++++ b/packages/valance/src/web-payload.ts
+@@ -17,8 +17,13 @@ export const payloadKindOf = (realization: EventRealization): PayloadKind | unde
+  * The DOM event `type` constitutes the event. With `payload`, the event carries the value `of(event, element)` builds, of the declared `kind`: `event("input", { kind: "string",
+  * of: (_event, element) => (element as HTMLInputElement).value })`. Without it, the event carries nothing.
+  */
+-export const event = (type: string, payload?: { readonly kind: PayloadKind; readonly of: (event: Event, element: Element) => BoundaryValue }): EventRealization => {
+-  const realization: EventRealization = payload === undefined ? { type } : { type, payload: payload.of };
++export const event = (
++  type: string,
++  payload?: { readonly kind: PayloadKind; readonly of: (event: Event, element: Element) => BoundaryValue },
++  options?: { readonly key?: string },
++): EventRealization => {
++  const base: EventRealization = payload === undefined ? { type } : { type, payload: payload.of };
++  const realization: EventRealization = options?.key === undefined ? base : { ...base, key: options.key };
+ 
+   if (payload !== undefined) {
+     kinds.set(realization, payload.kind);
 diff --git a/packages/valance/src/web.ts b/packages/valance/src/web.ts
 index c2b32e1..2112572 100644
 --- a/packages/valance/src/web.ts
