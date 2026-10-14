@@ -35,7 +35,7 @@ export const check = async (root: string): Promise<Checked> => {
     return { diagnostics: problems, pages: 0, components: [] };
   }
 
-  generateEntries(root);
+  generateEntries(root, config);
 
   const content = await collect(problems, () => generateContent(root, config));
   const server = await createLoader(root, config);
@@ -43,7 +43,7 @@ export const check = async (root: string): Promise<Checked> => {
   try {
     const author = await collect(problems, () => loadAuthor(server, root));
     const failedAuthor = problems.some((each) => each.file === "src/main.ts");
-    const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author));
+    const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
 
     return { diagnostics: problems, pages: content?.pages.length ?? 0, components: components ?? [] };
   } finally {

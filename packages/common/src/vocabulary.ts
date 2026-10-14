@@ -8,12 +8,44 @@ import type { WebPrimitives } from "@valancex/port-web";
 
 import { primitives } from "./primitives.js";
 
-export interface Vocabulary {
+/**
+ * A target's vocabulary has one of two forms. The web's is a table of PORT Web's realizations, from which the manifest is derived (`tags`). Any other target's is a MESH manifest, as data
+ * (`components`): the PORT ships it (the Desktop PORT's `vocabulary.json` and `content.json`), and the build reads it as it is.
+ */
+export interface WebVocabulary {
   /** The target's id (`web`). */
   readonly target: string;
   /** The tags, each with its props and events. */
   readonly tags: WebPrimitives;
 }
 
+export interface ManifestVocabulary {
+  readonly target: string;
+  /** MESH manifest components: each with its props and events. */
+  readonly components: Readonly<Record<string, unknown>>;
+}
+
+export type Vocabulary = WebVocabulary | ManifestVocabulary;
+
+/** The names a template may write as a primitive in this vocabulary. */
+export const namesOf = (vocabulary: Vocabulary): ReadonlyArray<string> => Object.keys("tags" in vocabulary ? vocabulary.tags : vocabulary.components);
+
+/** A vocabulary that is a MESH manifest (or several: their components are merged, and a name may not be in two). */
+export const fromManifests = (target: string, ...manifests: ReadonlyArray<{ readonly components: Readonly<Record<string, unknown>> }>): ManifestVocabulary => {
+  const components: Record<string, unknown> = {};
+
+  for (const manifest of manifests) {
+    for (const [name, each] of Object.entries(manifest.components)) {
+      if (name in components) {
+        throw new Error(`the ${target} vocabulary declares "${name}" twice`);
+      }
+
+      components[name] = each;
+    }
+  }
+
+  return { target, components };
+};
+
 /** The web's vocabulary: HTML elements, with `class`, `theme`, `id` and `aria-*` as styling and accessibility hooks. */
-export const webVocabulary: Vocabulary = { target: "web", tags: primitives };
+export const webVocabulary: WebVocabulary = { target: "web", tags: primitives };

@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import * as Web from "@valancex/valance/web";
-import { application, routes, type Vocabulary } from "@valancex/common/internal";
+import { application, routes, type WebVocabulary } from "@valancex/common/internal";
 import { init } from "@valancex/mesh-runtime";
 import type { RenderTree } from "@valancex/mesh-runtime";
 import * as Valance from "@valancex/valance";
@@ -24,7 +24,7 @@ afterEach(cleanup);
  * The vocabulary, as the tag table the build derives a manifest from. It is the web's *shape* (`Vocabulary.tags` is PORT Web's realization table) with no web in it: the element names are
  * never used, only which props and events each component has. That the type is the web's is itself a finding (see the investigation): a native vocabulary is a MESH manifest, as data.
  */
-const nativeVocabulary: Vocabulary = {
+const nativeVocabulary: WebVocabulary = {
   target: "native-experiment",
   tags: {
     // controls and layout (the Desktop PORT's own)

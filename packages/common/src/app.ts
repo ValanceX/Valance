@@ -2,14 +2,12 @@
 // `defineApp`'s state and commands. This is one Valance application (`Valance.define`): the page is its state, going to a page is its `go` command, and the layout is its one view.
 // The server renders it and the browser runs it, from the same function.
 import * as Valance from "@valancex/valance";
-import type { Plugin } from "@valancex/valance/web/plugin";
 import { Schema } from "effect";
 
 import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
-import { primitives } from "./primitives.js";
-import { normalize, routes } from "./routes.js";
+import { normalize } from "./routes.js";
 import { badDefaults, stateOf } from "./state.js";
 
 export type AppState = PageState & Record<string, unknown>;
@@ -132,7 +130,7 @@ export const stateFor = (content: Content, pathname: string, author?: DefinedApp
  * The title for a state: the page's and the site's name, or what the author's `title` function says. A function that throws falls back to the default (a title is never worth a failed render),
  * and the failure is reported by its name only.
  */
-const titleFor = (content: Content, page: ReturnType<typeof pageAt>, state: AppState, author: DefinedApp | undefined): string => {
+export const titleFor = (content: Content, page: ReturnType<typeof pageAt>, state: AppState, author: DefinedApp | undefined): string => {
   let parts: TitleParts = {};
 
   try {
@@ -145,21 +143,3 @@ const titleFor = (content: Content, page: ReturnType<typeof pageAt>, state: AppS
 
   return documentTitle(content, page, parts);
 };
-
-/** The plugin that makes the application a website: its tags, its URL policy, and its document head. */
-export const plugin = (content: Content, built: Built, author?: DefinedApp): Plugin<AppState> => ({
-  name: "valance-app",
-  primitives,
-  routes: routes(content) as never,
-  head: (state) => {
-    const page = pageAt(content, state.page);
-    const shown = page ?? { description: "" };
-    const canonical = content.site.url === "" || page === undefined ? [] : [{ rel: "canonical", href: `${content.site.url}${content.site.base}${page.path.replace(/^\//, "")}` }];
-
-    return {
-      title: titleFor(content, page, state, author),
-      meta: shown.description === "" ? [] : [{ name: "description", content: shown.description }],
-      links: [...built.styles.map((href) => ({ rel: "stylesheet", href })), ...canonical],
-    };
-  },
-});

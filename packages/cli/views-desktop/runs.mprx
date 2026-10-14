@@ -1,0 +1,3 @@
+<mesh-fragment>
+  {#each spans as s (s.id)}<inline kind={s.kind} text={s.text} href={s.href} />{/each}
+</mesh-fragment>

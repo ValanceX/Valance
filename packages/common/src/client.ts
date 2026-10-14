@@ -10,7 +10,8 @@ import { webPlatform } from "./http.js";
 import { watchViewport } from "./viewport.js";
 
 import type { AppState, Built } from "./app.js";
-import { application, plugin } from "./app.js";
+import { application } from "./app.js";
+import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 

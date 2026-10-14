@@ -23,7 +23,7 @@ import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
 import { AppError, format } from "./diagnostics.js";
 import { detectPackageManager, directoryFor, directoryProblem, execute, nameProblem, runCommand, titleOf } from "./init.js";
-import { TARGETS } from "./targets.js";
+import { DEFAULT_TARGETS, TARGETS } from "./targets.js";
 import { canAsk, canDraw } from "./tty.js";
 
 const HELP = `vlx <command>
@@ -108,7 +108,7 @@ const runInit = async (args: InitArgs, cwd: string): Promise<number> => {
   }
 
   if (args.targets.length === 0 && !args.yes) {
-    console.error(`vlx init: choose a target (${TARGETS.map((each) => `--${each.id}`).join(", ")}), or --yes for all of them`);
+    console.error(`vlx init: choose a target (${TARGETS.map((each) => `--${each.id}`).join(", ")}), or --yes for the web`);
 
     return 2;
   }
@@ -116,7 +116,7 @@ const runInit = async (args: InitArgs, cwd: string): Promise<number> => {
   const answers = {
     name: args.name,
     dir: directoryFor(args.name, cwd),
-    targets: args.targets.length === 0 ? TARGETS.map((each) => each.id) : args.targets,
+    targets: args.targets.length === 0 ? DEFAULT_TARGETS : args.targets,
     web: { base: args.base ?? "", url: args.url ?? "" },
     packageManager: args.packageManager ?? detectPackageManager(),
     install: args.install ?? true,

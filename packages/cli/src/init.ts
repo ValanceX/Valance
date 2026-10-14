@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PROJECT_FILE, WEB_FILE } from "./config.js";
+import { DESKTOP_FILE, PROJECT_FILE, WEB_FILE } from "./config.js";
 import type { TargetId } from "./targets.js";
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
@@ -141,6 +141,7 @@ export const plan = (answers: Answers): Plan => {
   const out = new Map<string, string>();
   const title = titleOf(answers.name);
   const web = answers.targets.includes("web");
+  const desktop = answers.targets.includes("desktop");
   const hasBase = answers.web.base !== "" && answers.web.base !== "/";
   const settings = [hasBase ? `base ${answers.web.base}` : "", answers.web.url !== "" ? `url ${answers.web.url}` : ""].filter((each) => each !== "");
   const tokens: Readonly<Record<string, string>> = {
@@ -150,8 +151,12 @@ export const plan = (answers: Answers): Plan => {
   };
   const fill = (text: string): string => text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => tokens[key] ?? match);
 
-  if (web) {
-    const root = new URL("web/", TEMPLATES);
+  if (web && desktop) {
+    throw new Error("a project has one target: the web or a desktop window");
+  }
+
+  for (const target of web ? ["web"] : desktop ? ["desktop"] : []) {
+    const root = new URL(`${target}/`, TEMPLATES);
 
     for (const file of files(root)) {
       out.set(written(file), fill(readFileSync(new URL(file, root), "utf8")));
@@ -170,6 +175,10 @@ export const plan = (answers: Answers): Plan => {
         ...(answers.web.url !== "" ? { url: answers.web.url } : {}),
       }),
     );
+  }
+
+  if (desktop) {
+    out.set(DESKTOP_FILE, json({ $schema: "./node_modules/@valancex/cli/schemas/valance.desktop.schema.json", version: 1 }));
   }
 
   out.set(

@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, relative } from "node:path";
-import { application, routes, type Vocabulary, webVocabulary } from "@valancex/common/internal";
+import { application, routes, type Vocabulary, type WebVocabulary, webVocabulary } from "@valancex/common/internal";
 import { readContent } from "../src/content.js";
 import { loadConfig } from "../src/config.js";
 import { loadAuthor } from "../src/author.js";
@@ -112,14 +112,14 @@ describe("navigation on a target that is not the web", () => {
 describe("a vocabulary without the web's styling and accessibility hooks", () => {
   /** The web's tags with the props that are the web's own (styling hooks, focus, ARIA, loading hints) removed. */
   const WEB_ONLY = ["class", "theme", "id", "tabindex", "label", "current", "pressed", "loading"];
-  const neutral: Vocabulary = {
+  const neutral: WebVocabulary = {
     target: "neutral",
     tags: Object.fromEntries(
       Object.entries(webVocabulary.tags).map(([tag, each]) => [
         tag,
         { ...each, props: Object.fromEntries(Object.entries(each.props ?? {}).filter(([name]) => !WEB_ONLY.includes(name))) },
       ]),
-    ) as Vocabulary["tags"],
+    ) as WebVocabulary["tags"],
   };
 
   it("rejects the built-in views and the scaffolded layout where they use those hooks, and nowhere else", async () => {

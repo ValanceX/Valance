@@ -55,8 +55,8 @@ describe("the wizard", () => {
     expect(shown.lastFrame()).toContain("What is the application called?");
     await type("my-site");
     await key(ENTER);
-    expect(shown.lastFrame()).toContain("Which targets is it for?");
-    expect(shown.lastFrame()).toContain("◉ Web");
+    expect(shown.lastFrame()).toContain("Which target is it for?");
+    expect(shown.lastFrame()).toContain("❯ Web");
     await key(ENTER);
     expect(shown.lastFrame()).toContain("where is the site served?");
     await type("/docs/");
@@ -123,16 +123,12 @@ describe("the wizard", () => {
     expect(ran[0]).toMatchObject({ name: "quick", targets: ["web"], install: true, git: true, packageManager: "pnpm" });
   });
 
-  it("does not let a bad answer through: an empty selection, a base without slashes, an address with a trailing slash", async () => {
+  it("does not let a bad answer through: a base without slashes, an address with a trailing slash", async () => {
     const { shown, ran, type, key } = wizard(args({ name: "checked" }));
 
     await tick();
-    expect(shown.lastFrame()).toContain("Which targets is it for?");
-    await key(" "); // toggles the only target off
-    await key(ENTER);
-    expect(shown.lastFrame()).toContain("choose at least one");
-    await key(" ");
-    await key(ENTER);
+    expect(shown.lastFrame()).toContain("Which target is it for?");
+    await key(ENTER); // the web, the one the list starts on
     await type("docs");
     await key(ENTER);
     expect(shown.lastFrame()).toContain("a path that starts and ends with /");

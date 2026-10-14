@@ -6,7 +6,8 @@ import { renderToHtml } from "@valancex/valance/web/server";
 import { Effect } from "effect";
 
 import type { Built } from "./app.js";
-import { application, plugin, stateFor } from "./app.js";
+import { application, stateFor } from "./app.js";
+import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { routes } from "./routes.js";

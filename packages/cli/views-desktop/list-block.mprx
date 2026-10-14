@@ -1,0 +1,3 @@
+<mesh-fragment>
+  <list ordered={ordered}><list-items items={items} /></list>
+</mesh-fragment>

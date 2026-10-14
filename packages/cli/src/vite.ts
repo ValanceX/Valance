@@ -29,7 +29,7 @@ logger.warnOnce = (message, options) => {
 
 // `import layout from "./layout.mprx"` in `src/main.ts` is the author naming a template. The import gives the file's address and nothing else: the compiler reads the file itself, and the
 // browser bundle must not carry template text it has already been compiled from.
-const templates = (root: string): Plugin => ({
+export const templates = (root: string): Plugin => ({
   name: "vlx-templates",
   enforce: "pre",
   load(id) {

@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { BUILT_IN, ROOT, SOURCE_DIR } from "./compile.js";
+import { BUILT_IN, BUILT_IN_DESKTOP, ROOT, SOURCE_DIR } from "./compile.js";
 import { ENTRY_FILE } from "./project.js";
 import { primitives } from "@valancex/common/internal";
 
@@ -70,7 +70,7 @@ export const generatePage = (root: string, given: string, title?: string): Gener
 
 const builtIns = (): ReadonlySet<string> =>
   new Set(
-    readdirSync(BUILT_IN)
+    [...readdirSync(BUILT_IN), ...readdirSync(BUILT_IN_DESKTOP)]
       .filter((file) => file.endsWith(".mprx"))
       .map((file) => file.slice(0, -".mprx".length)),
   );

@@ -40,6 +40,8 @@
     "dist",
     "bin",
     "views",
+    "views-desktop",
+    "vocabularies",
     "schemas",
     "templates"
   ],

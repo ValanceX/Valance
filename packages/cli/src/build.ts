@@ -1,17 +1,20 @@
 // `vlx build`: the project → a static site in `dist/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
 // when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only the site.
 import { build as bundle } from "vite";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
 import { loadAuthor } from "./author.js";
+import type { Config } from "./config.js";
 import { loadConfig } from "./config.js";
 import { headersFile } from "./security.js";
 import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
-import { baseConfig, createLoader, SERVER_ENTRY } from "./vite.js";
+import { baseConfig, createLoader, SERVER_ENTRY, templates } from "./vite.js";
+import { GENERATED_DIR } from "./project.js";
 
 export interface Built {
   readonly dir: string;
@@ -43,6 +46,56 @@ export interface BuildOptions {
   readonly onStage?: (stage: BuildStage) => void;
 }
 
+/** The MESH runtime's module, found the way the project's own dependency would be: through `@valancex/common`, which depends on it. */
+const wasmOf = (root: string): string => {
+  const fromRoot = createRequire(join(root, "package.json"));
+  const fromCommon = createRequire(fromRoot.resolve("@valancex/common/package.json"));
+
+  return fromCommon.resolve("@valancex/mesh-runtime/mesh-runtime.wasm");
+};
+
+/** `vlx build` for a desktop project: the engine, one ES module with everything it needs bundled in, and the MESH runtime's module beside it, in `dist/desktop/`. The window is the Desktop PORT's. */
+const buildDesktop = async (root: string, config: Config, stage: (stage: BuildStage) => void): Promise<Built> => {
+  generateEntries(root, config);
+  stage("content");
+  generateContent(root, config);
+
+  const loader = await createLoader(root, config);
+
+  try {
+    stage("templates");
+    await generateProgram(root, await loadAuthor(loader, root), config);
+  } finally {
+    await loader.close();
+  }
+
+  stage("bundle");
+
+  const out = join(root, OUTPUT_DIR, "desktop");
+
+  rmSync(out, { recursive: true, force: true });
+  await bundle({
+    root,
+    configFile: false,
+    logLevel: "warn",
+    plugins: [templates(root)],
+    cacheDir: join(root, GENERATED_DIR, "cache"),
+    ssr: { noExternal: true, target: "node" },
+    build: {
+      ssr: join(root, GENERATED_DIR, "desktop.ts"),
+      outDir: out,
+      emptyOutDir: true,
+      target: "node22",
+      minify: false,
+      chunkSizeWarningLimit: 4000,
+      rollupOptions: { output: { format: "es", entryFileNames: "engine.mjs", banner: 'import { createRequire as __vlxRequire } from "node:module"; const require = __vlxRequire(import.meta.url);' } },
+    },
+  });
+  copyFileSync(wasmOf(root), join(out, "mesh-runtime.wasm"));
+
+  return { dir: out, files: ["engine.mjs", "mesh-runtime.wasm"], pages: [] };
+};
+
 export const build = async (root: string, options: BuildOptions = {}): Promise<Built> => {
   const stage = options.onStage ?? (() => undefined);
 
@@ -50,7 +103,11 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
 
   const config = loadConfig(root);
 
-  generateEntries(root);
+  if (config.target === "desktop") {
+    return buildDesktop(root, config, stage);
+  }
+
+  generateEntries(root, config);
 
   stage("content");
 
@@ -66,7 +123,7 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
 
     const author = await loadAuthor(loader, root);
 
-    await generateProgram(root, author);
+    await generateProgram(root, author, config);
 
     // The browser bundle first: it empties dist/, and the documents are written into it after.
     stage("bundle");

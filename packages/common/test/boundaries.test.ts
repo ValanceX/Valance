@@ -81,6 +81,30 @@ describe("the runtime entries", () => {
   });
 });
 
+describe("the desktop entry", () => {
+  it("runs the application and carries nothing of the web: no PORT Web, no tag table, no build tool, no terminal", () => {
+    const loaded = [...closure("desktop.ts")];
+
+    expect(loaded).not.toContain("primitives.ts");
+    expect(loaded).not.toContain("web-app.ts");
+    expect(loaded).not.toContain("client.ts");
+    expect(loaded).not.toContain("server.ts");
+    expect(
+      externals("desktop.ts").filter(
+        (name) =>
+          name.includes("port-web") ||
+          (name.startsWith("@valancex/valance/web") && name !== "@valancex/valance/web/plugin") ||
+          name === "vite" ||
+          name === "@valancex/mesh-compiler" ||
+          name === "ink",
+      ),
+    ).toEqual([]);
+    // (`routes.ts` names the route table's *type* from the plugin entry; a type import is erased and ships nothing.)
+    expect(readFileSync(`${src}routes.ts`, "utf8")).toMatch(/import type \{ RouteTable \} from "@valancex\/valance\/web\/plugin"/);
+    expect(externals("desktop.ts")).toContain("@valancex/valance/native");
+  });
+});
+
 describe("the http entry", () => {
   it("imports NEXUS and effect and nothing that runs on a machine, and is not loaded by the authoring entry", () => {
     const allowed = ["@valancex/nexus", "effect"];

@@ -93,7 +93,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   const failed = new Map<string, ReadonlyArray<Diagnostic>>();
   let pending: Promise<void> = Promise.resolve();
 
-  generateEntries(root);
+  generateEntries(root, config);
 
   const base = baseConfig(root, config);
   const server = await createServer({
@@ -167,13 +167,13 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
     const wasFailing = failed.size > 0;
 
     if (stages.includes("entries")) {
-      generateEntries(root);
+      generateEntries(root, config);
     }
     if (stages.includes("content")) {
       await run("content", () => generateContent(root, config));
     }
     if (stages.includes("program")) {
-      await run("templates", async () => generateProgram(root, await loadAuthor(server, root)));
+      await run("templates", async () => generateProgram(root, await loadAuthor(server, root), config));
     }
 
     const open = [...failed.values()].flat();
@@ -247,7 +247,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   // First build: a mistake here is reported like any other and the server still starts, so the overlay can show it.
   for (const [name, work] of [
     ["content", () => generateContent(root, config)],
-    ["templates", async () => generateProgram(root, await loadAuthor(server, root))],
+    ["templates", async () => generateProgram(root, await loadAuthor(server, root), config)],
   ] as const) {
     try {
       await work();
