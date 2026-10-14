@@ -1,6 +1,5 @@
 // The application: state, the commands that change it, and which screen shows for the route. It names no target. The same definition is drawn by the text target in the tests, and by a native
 // renderer in the desktop apps.
-import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { Effect, Schema } from "effect";
 
@@ -140,20 +139,19 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
     view: screenOf,
     commands: (state) => {
       const change = (apply: (current: TodoState) => TodoState): Effect.Effect<void> => state.update((current) => Effect.succeed(apply(current))).pipe(Effect.asVoid);
-      const define = <A>(name: string, schema: Schema.Schema<A, A>, run: (input: A) => Effect.Effect<void>) => Nexus.Command.define(name, schema, run);
-      const none = Schema.Struct({});
+      const command = Valance.command(state);
 
       return {
         ...router.commands(state as never),
-        setEntry: define("setEntry", Schema.Struct({ text: Schema.String }), ({ text }) => change((current) => ({ ...current, entry: text.slice(0, 400) }))),
-        createList: define("createList", none, () =>
+        setEntry: command.effect(Schema.Struct({ text: Schema.String }), ({ text }) => change((current) => ({ ...current, entry: text.slice(0, 400) }))),
+        createList: command.effect(() =>
           change((current) => {
             const name = cleanText(current.entry);
 
             return name === "" ? current : { ...current, lists: addList(current.lists, `l${current.seq}`, name), entry: "", seq: current.seq + 1 };
           }),
         ),
-        addItem: define("addItem", none, () =>
+        addItem: command.effect(() =>
           change((current) => {
             const title = cleanText(current.entry);
             const id = param(current, "id");
@@ -163,16 +161,16 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
               : { ...current, lists: addItem(current.lists, id, `i${current.seq}`, title), entry: "", seq: current.seq + 1 };
           }),
         ),
-        setDone: define("setDone", Schema.Struct({ itemId: Schema.String, done: Schema.Boolean }), ({ itemId, done }) =>
+        setDone: command.effect(Schema.Struct({ itemId: Schema.String, done: Schema.Boolean }), ({ itemId, done }) =>
           change((current) => ({ ...current, lists: setDone(current.lists, param(current, "id"), itemId, done) })),
         ),
-        deleteItem: define("deleteItem", Schema.Struct({ itemId: Schema.String }), ({ itemId }) =>
+        deleteItem: command.effect(Schema.Struct({ itemId: Schema.String }), ({ itemId }) =>
           change((current) => ({ ...current, lists: removeItem(current.lists, param(current, "id"), itemId) })),
         ),
-        clearDone: define("clearDone", none, () => change((current) => ({ ...current, lists: clearDone(current.lists, param(current, "id")) }))),
+        clearDone: command.effect(() => change((current) => ({ ...current, lists: clearDone(current.lists, param(current, "id")) }))),
         // Leaving goes through the router, so the guards have their say; the change that must come first (a save before a leave guard looks at the draft) is made before, and one that needs the
         // old screen gone (a delete) after.
-        deleteList: define("deleteList", none, () =>
+        deleteList: command.effect(() =>
           Effect.gen(function* () {
             const id = param(yield* state.get, "id");
 
@@ -182,7 +180,7 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
           }),
         ),
         // Editing: `setDraft` keeps what was typed apart from what is saved, so leaving with unsaved text is something a guard can see. Typing the saved text back is not an edit.
-        setDraft: define("setDraft", Schema.Struct({ text: Schema.String }), ({ text }) =>
+        setDraft: command.effect(Schema.Struct({ text: Schema.String }), ({ text }) =>
           change((current) => {
             const saved =
               current.route.name === "item" ? itemOf(current.lists, param(current, "id"), param(current, "itemId"))?.title : listOf(current.lists, param(current, "id"))?.name;
@@ -190,8 +188,8 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
             return { ...current, draft: text === saved ? null : text.slice(0, 400) };
           }),
         ),
-        discard: define("discard", none, () => change((current) => ({ ...current, draft: null }))),
-        saveItem: define("saveItem", none, () =>
+        discard: command.effect(() => change((current) => ({ ...current, draft: null }))),
+        saveItem: command.effect(() =>
           Effect.gen(function* () {
             const current = yield* state.get;
             const text = cleanText(current.draft ?? "");
@@ -202,7 +200,7 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
             }
           }),
         ),
-        saveList: define("saveList", none, () =>
+        saveList: command.effect(() =>
           Effect.gen(function* () {
             const current = yield* state.get;
             const text = cleanText(current.draft ?? "");

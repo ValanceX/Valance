@@ -135,6 +135,12 @@ export interface CommandMaker<S> {
   (transition: (current: S) => S): Nexus.Command.Command<{}, void, never, never>;
   <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
   /**
+   * A command whose body is an Effect: for what a pure transition cannot say. It may read the state, change it in several steps, move the route, wait on something it needs from the
+   * platform (`Nexus.Capability.require`), or fail with its own typed error. Without an input schema it takes none. It is an ordinary NEXUS command, so a bare name binds it like any other.
+   */
+  effect<E = never, R extends Ambient = never>(run: () => Effect.Effect<void, E, R>): Nexus.Command.Command<{}, void, E, R>;
+  effect<I, E = never, R extends Ambient = never>(input: Schema.Schema<I>, run: (input: I) => Effect.Effect<void, E, R>): Nexus.Command.Command<I, void, E, R>;
+  /**
    * A command that waits. Once admitted it belongs to the application until it settles or is interrupted; closing the application aborts `work`'s signal and nothing commits afterwards.
    * **A newer run of the same command supersedes an older one**: the older run is NOT cancelled (its work continues, and its caller sees it complete) but its result is discarded,
    * success or failure. Whether a result is still wanted by the state is `wanted`'s question, answered per run.
@@ -145,6 +151,7 @@ export interface CommandMaker<S> {
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
 const TRANSITION_COMMAND = "valance.command";
 const WAITING_COMMAND = "valance.waiting";
+const EFFECT_COMMAND = "valance.effect";
 
 /** The input of a command that takes none. */
 const NO_INPUT = Schema.Struct({});
@@ -181,6 +188,10 @@ export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> =
       : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as unknown as (...args: ReadonlyArray<unknown>) => unknown;
 
   return Object.assign(transition, {
+    effect: (a: unknown, b?: unknown) =>
+      b === undefined
+        ? Nexus.Command.define(EFFECT_COMMAND, NO_INPUT, () => (a as () => Effect.Effect<void, unknown, Ambient>)())
+        : Nexus.Command.define(EFFECT_COMMAND, a as Schema.Schema<unknown>, (decoded) => (b as (input: unknown) => Effect.Effect<void, unknown, Ambient>)(decoded)),
     waiting: <I, A, R extends Ambient = never>(input: Schema.Schema<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R> => {
       let latest = 0; // this command's newest run: created with the command, so there is one per started application
 

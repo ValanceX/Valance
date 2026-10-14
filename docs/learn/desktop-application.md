@@ -63,12 +63,12 @@ A column holds a heading and a button. `on.click={go("/")}` says what clicking t
 
 ## 3. A command
 
-A command is the only way state changes. This one makes a list from what was typed.
+A command is the only way state changes. This one makes a list from what was typed. `command.effect` is how a command whose body is an Effect is written (a pure change of state alone is `command((current) => next)`; one that waits is `command.waiting`): one way to write a command, whatever it needs.
 
 **File:** `examples/todo/src/app.ts`
 
 ```
-createList: define("createList", none, () =>
+createList: command.effect(() =>
   change((current) => {
     const name = cleanText(current.entry);
 
