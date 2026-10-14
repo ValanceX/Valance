@@ -2,10 +2,12 @@
 // runtime's module inside as an asset, injected into a `node` binary), set beside the Desktop PORT's window program. Unsigned: signing and notarizing are not done here (the artifacts say so).
 import { build as bundle } from "vite";
 import { execFileSync } from "node:child_process";
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { delimiter, join } from "node:path";
 
+import type { Entry } from "./archive.js";
+import { checksums, tarGz, zip } from "./archive.js";
 import { loadAuthor } from "./author.js";
 import { build } from "./build.js";
 import { loadConfig } from "./config.js";
@@ -25,6 +27,8 @@ export interface PackageOptions {
   readonly window?: string;
   /** A `node` binary of the same version for that platform; by default the one running this, which is only right for the platform this runs on. */
   readonly node?: string;
+  /** Also write the package as one file: a `.tar.gz` for Linux, a `.zip` for Windows, with its SHA-256 beside it. */
+  readonly archive?: boolean;
 }
 
 export interface Packaged {
@@ -68,6 +72,19 @@ start({ content, program, author, wasm, assets }).then(
   },
 );
 `;
+
+/** Every file under `dir` as an archive entry inside `top/`, in a stable order (a program keeps its executable bit). */
+const entriesOf = (dir: string, top: string, at = ""): ReadonlyArray<Entry> =>
+  readdirSync(join(dir, at))
+    .sort()
+    .flatMap((name) => {
+      const relative = at === "" ? name : `${at}/${name}`;
+      const file = join(dir, relative);
+
+      return statSync(file).isDirectory()
+        ? entriesOf(dir, top, relative)
+        : [{ path: `${top}/${relative}`, data: readFileSync(file), mode: statSync(file).mode & 0o111 ? 0o755 : 0o644 }];
+    });
 
 export const packageDesktop = async (root: string, options: PackageOptions = {}): Promise<Packaged> => {
   const config = loadConfig(root);
@@ -163,9 +180,21 @@ export const packageDesktop = async (root: string, options: PackageOptions = {})
     cpSync(publicDir, join(out, "public"), { recursive: true });
   }
 
-  return {
-    dir: out,
-    files: [engine, app].map((file) => file.slice(out.length + 1)),
-    notes: ["unsigned: macOS notarization and Windows signing are not done here; an unsigned program draws a warning on first run"],
-  };
+  const files = [engine, app].map((file) => file.slice(out.length + 1));
+  const notes = ["unsigned: macOS notarization and Windows signing are not done here; an unsigned program draws a warning on first run"];
+
+  if (options.archive === true) {
+    const stem = `${config.name.replace(/[^\w.-]+/g, "-")}-${platform}`;
+    const archive = `${stem}.${windows ? "zip" : "tar.gz"}`;
+    const data = (windows ? zip : tarGz)(entriesOf(out, stem));
+
+    writeFileSync(join(root, OUTPUT_DIR, "package", archive), data);
+    writeFileSync(join(root, OUTPUT_DIR, "package", `${archive}.sha256`), checksums([{ name: archive, data }]));
+    files.push(`../${archive}`, `../${archive}.sha256`);
+    notes.push(
+      `${archive} is the package as one file, with its SHA-256 beside it; the checksum says the file is the one that was made, not who made it (that is what signing is for)`,
+    );
+  }
+
+  return { dir: out, files, notes };
 };

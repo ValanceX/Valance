@@ -67,7 +67,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
     "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/web/; any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
   package:
-    "vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>]\n\nBuild the desktop target and package it: the engine as one executable (Node's single executable application, with the MESH runtime inside) beside the Desktop PORT's window program, in dist/package/<platform>/. --window is the window program for that platform (default: VLX_WINDOW, else vlx-window on the PATH; build it from the PORT repository). For another platform, --node is a node binary of this version for it. The result is unsigned.\n",
+    "vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>] [--archive]\n\nBuild the desktop target and package it: the engine as one executable (Node's single executable application, with the MESH runtime inside) beside the Desktop PORT's window program, in dist/package/<platform>/. --window is the window program for that platform (default: VLX_WINDOW, else vlx-window on the PATH; build it from the PORT repository). For another platform, --node is a node binary of this version for it. --archive also writes the package as one file, a .tar.gz (Linux) or a .zip (Windows), with its SHA-256 beside it. The result is unsigned.\n",
   check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
 };
 
@@ -262,7 +262,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
       }
       case "package": {
         if (!rest.includes("--desktop")) {
-          console.error("vlx package: say what: vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>]");
+          console.error("vlx package: say what: vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>] [--archive]");
 
           return 2;
         }
@@ -274,6 +274,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
           ...(platform === undefined ? {} : { platform }),
           ...(window === undefined ? {} : { window }),
           ...(node === undefined ? {} : { node }),
+          ...(rest.includes("--archive") ? { archive: true } : {}),
         });
 
         console.log(`vlx package: ${packaged.files.join(", ")} → ${packaged.dir}`);
