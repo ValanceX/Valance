@@ -1,0 +1,25 @@
+[package]
+name = "todo-desktop"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "The native renderer for the to-do application: draws MESH render trees in a window and reports what the person does, over the host protocol (PROTOCOL.md)."
+
+[lib]
+name = "renderer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "todo-desktop"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+egui = "0.31"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
