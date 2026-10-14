@@ -59,16 +59,22 @@ describe("the web target, in a browser", () => {
       expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
       expect(await page.textContent(".todo-list li")).toContain("Milk");
 
+      // Enter in the field is the same as pressing Add
+      await page.fill('input[placeholder="What needs doing?"]', "Bread");
+      await page.press('input[placeholder="What needs doing?"]', "Enter");
+      await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 2);
+      expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
+
       // the items outlive the page: reloaded, they are back (the page's storage, through the Store capability)
       await page.reload();
       await page.waitForSelector('#app[data-valance="running"]');
       await page.waitForSelector(".todo-list li");
       expect(await page.textContent(".todo-list li")).toContain("Milk");
 
-      await page.check('.todo-list input[type="checkbox"]');
-      await page.waitForFunction(() => document.querySelector(".todo-summary")?.textContent === "0 of 1 open");
+      await page.check('.todo-list li:first-child input[type="checkbox"]');
+      await page.waitForFunction(() => document.querySelector(".todo-summary")?.textContent === "1 of 2 open");
       await page.click('button:text-is("Clear done")');
-      await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 0);
+      await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 1); // Bread is left
       expect(errors).toEqual([]);
     } finally {
       await browser.close();
@@ -169,11 +175,17 @@ describe("the desktop target", () => {
       expect(all(treeOf(window.seen)).some((node) => node.text === "Milk")).toBe(true);
       expect(all(treeOf(window.seen)).some((node) => node.text === "1 of 1 open")).toBe(true);
 
+      // Enter in the field reports `submit`: the same command as Add
+      window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["change"]!, payload: "Eggs" });
+      await window.until(() => named(window.seen, "textfield")[0]?.props?.["value"] === "Eggs");
+      window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["submit"]! });
+      await window.until(() => named(window.seen, "checkbox").length === 2);
+
       // ticking reports `change` with a boolean; removing is a click
       window.send({ op: "event", handler: named(window.seen, "checkbox")[0]!.events!["change"]!, payload: true });
       await window.until(() => named(window.seen, "checkbox")[0]?.props?.["checked"] === true);
       window.send({ op: "event", handler: buttonLabelled(window.seen, "Clear done")!.events!["click"]! });
-      await window.until(() => named(window.seen, "checkbox").length === 0);
+      await window.until(() => named(window.seen, "checkbox").length === 1);
     } finally {
       await window.close();
     }

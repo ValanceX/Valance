@@ -1,0 +1,5 @@
+<row>
+  <checkbox label="Done" checked={done} on.change={tick($event)} />
+  <text>{title}</text>
+  <button on.click={remove()}>Remove</button>
+</row>
