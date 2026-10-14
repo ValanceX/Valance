@@ -186,16 +186,23 @@ fn closing_is_refused_while_an_edit_is_unsaved_and_allowed_after() {
     session.type_into("New list", "Groceries", |screen| screen.updates > 0);
     session.press("Add list", shows("Groceries (0 of 0 open)"));
     session.press("Groceries", shows("Nothing to do"));
-    session.type_into("New item", "Milk", |screen| screen.readable().iter().any(|line| line == "Milk"));
+    session.type_into("New item", "Milk", |screen| {
+        screen.readable().iter().any(|line| line == "Milk")
+    });
     session.press("Add item", shows("1 of 1 open"));
     session.press("Milk", shows("Edit item"));
     session.type_into("What needs doing?", "Oat milk", shows("Unsaved changes"));
 
     session.engine.send(&ToEngine::CloseRequested);
     session.until(|screen| screen.close_refused);
-    assert!(shows("Unsaved changes")(&session.screen), "the window stays open on the edit");
+    assert!(
+        shows("Unsaved changes")(&session.screen),
+        "the window stays open on the edit"
+    );
 
-    session.press("Discard", |screen| !shows("Unsaved changes")(screen) && !screen.close_refused);
+    session.press("Discard", |screen| {
+        !shows("Unsaved changes")(screen) && !screen.close_refused
+    });
     session.engine.send(&ToEngine::CloseRequested);
 
     let mut unmounted = false;
@@ -204,5 +211,8 @@ fn closing_is_refused_while_an_edit_is_unsaved_and_allowed_after() {
         unmounted |= matches!(session.screen.apply(message), Applied::Closed);
     }
 
-    assert!(unmounted, "an allowed close ends the engine, and the renderer sees the screen go");
+    assert!(
+        unmounted,
+        "an allowed close ends the engine, and the renderer sees the screen go"
+    );
 }
