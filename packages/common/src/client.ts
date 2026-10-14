@@ -6,7 +6,7 @@ import * as Web from "@valancex/valance/web";
 
 import type { AppState, Built } from "./app.js";
 import { application, plugin } from "./app.js";
-import type { DefinedApp } from "@valancex/common";
+import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 
 export interface ClientParts {

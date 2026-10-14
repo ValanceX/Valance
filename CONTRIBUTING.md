@@ -26,4 +26,4 @@ The same `pnpm` commands run in PowerShell or cmd. Git should check files out wi
 
 ## Releasing
 
-`@valancex/valance` is released by a `v*` tag ([`release.yml`](.github/workflows/release.yml)); `@valancex/common` and `@valancex/cli` by a `cli-v*` tag ([`release-cli.yml`](.github/workflows/release-cli.yml)), after the `@valancex/valance` they depend on is on npm. Both run all of CI on the tagged commit, and a manual run without `publish` is a dry run.
+The three packages share one version and are released by one `v*` tag ([`release.yml`](.github/workflows/release.yml)): `@valancex/valance`, then `@valancex/common`, then `@valancex/cli`, each depending on the one before. It runs all of CI on the tagged commit, and a manual run without `publish` is a dry run. The steps are in the current release set under [`docs/releases/`](docs/releases/).

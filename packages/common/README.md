@@ -1,6 +1,6 @@
 # @valancex/common
 
-What an application's `src/main.ts` imports: `defineApp`, `component` and `field`. It describes the application; the [`vlx` command](../cli) builds, serves and checks what it describes.
+What an application's `src/main.ts` imports (`defineApp`, `component`, `field`), and the runtime a built application runs. It describes the application; the [`vlx` command](../cli) builds, serves and checks what it describes.
 
 ```console
 $ vlx init my-app --web      # a project that already depends on this package
@@ -31,7 +31,13 @@ export default defineApp({
 
 `Schema` is [Effect's](https://effect.website/docs/schema/introduction/); import it from `effect`. This package types against it and does not re-export it.
 
-Nothing here runs a build: no Node, no bundler, no compiler. A page's `src/main.ts` is loaded in the browser as well, and this package is small enough to be loaded there.
+| Entry | Is |
+|---|---|
+| `@valancex/common` | The three exports above. No Node, bundler or terminal import: `src/main.ts` is loaded in the browser as well as at build time. |
+| `@valancex/common/client`, `/server` | The browser and server halves of a built application: `start` takes over the server's HTML, `createRenderer` turns a path into a document. The files `vlx` generates import these; you do not. |
+| `@valancex/common/internal` | What the build tools share with the runtime (content model, tag table, the scope a layout reads). For `@valancex/cli`, not for applications. |
+
+A built or deployed application depends on this package and `effect`; `@valancex/cli` is only needed to develop it. This package depends on `@valancex/valance`, `@valancex/mesh-runtime` and `@valancex/port-web`.
 
 Documentation: [`@valancex/cli`](../cli/README.md) (the project layout, components, state and commands).
 

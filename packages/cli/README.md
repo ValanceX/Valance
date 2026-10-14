@@ -14,7 +14,7 @@ $ vlx sync      # refresh the generated files (it runs by itself; rarely typed)
 $ vlx help      # every command; `vlx help <command>` says more
 ```
 
-The code an application's `src/main.ts` imports (`defineApp`, `component`, `field`) is a separate package, [`@valancex/common`](../common): the command line builds your application and is not part of it.
+The code an application's `src/main.ts` imports (`defineApp`, `component`, `field`) is a separate package, [`@valancex/common`](../common), which also holds the runtime a built application runs: the command line builds your application and is not part of it, so a project has `@valancex/cli` as a dev dependency.
 
 ## Install `vlx` once, use it everywhere
 

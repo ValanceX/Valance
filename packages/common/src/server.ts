@@ -7,7 +7,7 @@ import { Effect } from "effect";
 
 import type { Built } from "./app.js";
 import { application, plugin, stateFor } from "./app.js";
-import type { DefinedApp } from "@valancex/common";
+import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { routes } from "./routes.js";
 

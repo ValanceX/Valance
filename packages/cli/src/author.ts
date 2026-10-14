@@ -1,7 +1,7 @@
 // Loads `src/main.ts` in Node (through Vite, which understands TypeScript) and checks what it exports.
 import type { ViteDevServer } from "vite";
 
-import { checkDefinition } from "./app.js";
+import { checkDefinition } from "@valancex/common/internal";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "@valancex/common";
 import { APP } from "@valancex/common";

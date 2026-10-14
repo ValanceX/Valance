@@ -81,8 +81,8 @@ The [full learning path](docs/learn/README.md) has startup work, mounting and hy
 
 | Package | Is |
 |---|---|
-| [`@valancex/cli`](packages/cli) | The `vlx` command |
-| [`@valancex/common`](packages/common) | What `src/main.ts` imports: `defineApp`, `component`, `field` |
+| [`@valancex/cli`](packages/cli) | The `vlx` command (a development tool) |
+| [`@valancex/common`](packages/common) | What `src/main.ts` imports (`defineApp`, `component`, `field`), and the runtime a built application runs |
 | [`@valancex/valance`](packages/valance) | The composition boundary over NEXUS, MESH and PORT, for embedding Valance in an application of your own |
 
 ## Examples

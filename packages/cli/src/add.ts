@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 
 import { BUILT_IN, ROOT, SOURCE_DIR } from "./compile.js";
 import { ENTRY_FILE } from "./project.js";
-import { primitives } from "./primitives.js";
+import { primitives } from "@valancex/common/internal";
 
 export const KINDS = ["page", "component"] as const;
 export type Kind = (typeof KINDS)[number];

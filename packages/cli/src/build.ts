@@ -8,7 +8,7 @@ import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
-import type { Content } from "./model.js";
+import type { Content } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
 import { baseConfig, createLoader, SERVER_ENTRY } from "./vite.js";
 

@@ -6,7 +6,7 @@ import { join, posix } from "node:path";
 import type { Config } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
-import type { Content, Page } from "./model.js";
+import type { Content, Page } from "@valancex/common/internal";
 import type { LinkRef } from "./markdown.js";
 import { parseMarkdown, plain } from "./markdown.js";
 

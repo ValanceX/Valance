@@ -44,7 +44,7 @@ Every repository's `release.yml` publishes on a pushed `v*` tag, with provenance
 4. Check: a clean project installs `@valancex/valance@0.10.0` with the registry's NEXUS 0.12.3, MESH 0.12 and PORT Web 0.4.2 and resolves one copy of each (`npm ls @valancex/nexus @valancex/mesh-runtime effect`).
 5. Mark the notes "released".
 
-`@valancex/common` and `@valancex/cli` (the `vlx` command) are not in this set. They are prepared as [`cli-v0.1`](./cli-v0.1.md), released by their own tag after this set: both depend on `@valancex/valance@^0.10.0`, which must be on the registry first.
+`@valancex/common` and `@valancex/cli` (the `vlx` command) are not in this set; they are released with VALANCE 0.11.0 ([`release-set-2026-10-c.md`](./release-set-2026-10-c.md)).
 
 ## Gates that were run on the prepared set
 

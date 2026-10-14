@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic, lineOf } from "./diagnostics.js";
-import type { SiteInfo } from "./model.js";
+import type { SiteInfo } from "@valancex/common/internal";
 
 export const PROJECT_FILE = "valance.json";
 export const WEB_FILE = "valance.web.json";

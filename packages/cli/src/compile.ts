@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { commandTable, scopeSchema } from "./app.js";
+import { commandTable, scopeSchema } from "@valancex/common/internal";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "@valancex/common";
@@ -17,7 +17,7 @@ import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
-import { primitives } from "./primitives.js";
+import { primitives } from "@valancex/common/internal";
 import { ENTRY_FILE } from "./project.js";
 
 export const SOURCE_DIR = "src";
