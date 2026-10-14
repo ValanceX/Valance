@@ -1,2 +1,4 @@
 dist
 native/target
+build
+out

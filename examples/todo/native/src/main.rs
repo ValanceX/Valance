@@ -1,3 +1,5 @@
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 //! The to-do desktop app: a window that draws what the engine sends and reports what the person does.
 //!
 //! The engine is the program named by `TODO_ENGINE` (a command line, for development: `node dist/main.js`) or else `todo-engine` next to this executable.
