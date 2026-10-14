@@ -100,7 +100,7 @@ Try it locally: [`docs/application-model/TRY-IT.md`](../../docs/application-mode
    and a `package.json` that depends on `@valancex/cli` and has `"dev": "vlx dev"`, `"build": "vlx build"`.
 2. Add pages: **`content/index.md`** is the first page (`# Notes` and some text). Every other `.md` file under `content/` is a page.
 3. `pnpm dev`. Open the address it prints. Edit a Markdown file and save: the page reloads with your change.
-4. `pnpm build`. The site is in `dist/`; any host that serves files can serve it.
+4. `pnpm build`. The site is in `dist/web/`; any host that serves files can serve it.
 
 That is a complete application. It uses a built-in layout. Everything below is how you take over a part of it.
 
@@ -117,7 +117,7 @@ That is a complete application. It uses a built-in layout. Everything below is h
 | `src/**/*.css` | Styles. Every stylesheet is loaded. | you |
 | `src/main.ts` | Optional until you own a template. `defineApp`: the `layout`, your `components`, state of your own and the commands that change it. | you |
 | `.valance/` | Generated: content, compiled templates, the entries, and for editors `manifest.json` (what a template may use) and `editor.json` (which file is which component). Git-ignored by a `.gitignore` inside it. | the tools |
-| `dist/` | The built site. | the tools |
+| `dist/web/` | The built site. | the tools |
 
 Settings are validated, unknown keys are errors, and editors can use the JSON Schemas in `schemas/` (`"$schema": "./node_modules/@valancex/cli/schemas/valance.schema.json"`).
 

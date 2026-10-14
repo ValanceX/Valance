@@ -1,4 +1,4 @@
-// Where things are in a project. Authored: `valance.json`, `valance.web.json`, `content/`, `public/`, `src/`. Generated and never edited or committed: `.valance/`. The final site: `dist/`.
+// Where things are in a project. Authored: `valance.json`, `valance.web.json`, `content/`, `public/`, `src/`. Generated and never edited or committed: `.valance/`. The final site: `dist/web/`.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const mesh = process.env["MESH_DIR"] ?? join(__dirname, "../../../../Mesh");
 
 import { forTheCheck, parse, place } from "../src/diagnostics";
-import { readProject, templateOf } from "../src/project";
+import { inWorkspace, ownerOf, readProject, templateOf } from "../src/project";
 
 const dir = (files: Record<string, string>): string => {
   const root = mkdtempSync(join(tmpdir(), "valance-vscode-"));
@@ -31,7 +31,7 @@ describe("reading a project", () => {
     const components = { "src/layout.mprx": "layout", "src/theme-toggle.mprx": "theme-toggle" };
     const project = readProject(dir({ "valance.json": "{}", ".valance/editor.json": JSON.stringify({ version: 1, model: ".valance/manifest.json", components }) }));
 
-    expect(project).toEqual({ kind: "ready", settings: { model: ".valance/manifest.json", components } });
+    expect(project).toMatchObject({ kind: "ready", settings: { model: ".valance/manifest.json", components } });
 
     if (project.kind === "ready") {
       expect(templateOf(project.settings, "theme-toggle")).toBe("src/theme-toggle.mprx");
@@ -298,7 +298,7 @@ describe("a project built by an older vlx", () => {
       dir({ "valance.json": "{}", ".valance/editor.json": JSON.stringify({ version: 1, model: ".valance/manifest.json", components: { "src/layout.mprx": "layout" } }) }),
     );
 
-    expect(old).toEqual({ kind: "ready", settings: { model: ".valance/manifest.json", components: { "src/layout.mprx": "layout" } } });
+    expect(old).toMatchObject({ kind: "ready", settings: { model: ".valance/manifest.json", components: { "src/layout.mprx": "layout" } } });
   });
 });
 
@@ -312,5 +312,55 @@ describe("the imports in src/main.ts", () => {
     expect(found.map((each) => each.specifier)).toEqual(["./layout.mprx", "../shared/chip.mprx"]);
     expect(found.map((each) => each.line)).toEqual([1, 2]);
     expect(text.split("\n")[1]!.slice(found[0]!.start, found[0]!.end)).toBe("./layout.mprx");
+  });
+});
+
+describe("a project of several targets", () => {
+  const web = { "src/web/layout.mprx": "layout", "src/shared/todo-add.mprx": "todo-add" };
+  const desktop = { "src/desktop/layout.mprx": "layout", "src/shared/todo-add.mprx": "todo-add" };
+  const several = (): ReturnType<typeof readProject> =>
+    readProject(
+      dir({
+        "valance.json": "{}",
+        ".valance/editor.json": JSON.stringify({
+          version: 1,
+          model: ".valance/manifest.web.json",
+          components: web,
+          wiring: ".valance/wiring.web.json",
+          targets: {
+            web: { model: ".valance/manifest.web.json", wiring: ".valance/wiring.web.json", components: web },
+            desktop: { model: ".valance/manifest.desktop.json", wiring: ".valance/wiring.desktop.json", components: desktop },
+          },
+        }),
+      }),
+    );
+
+  it("has one target to serve for a project of one, and one per target for a project of several, each with its own manifest and wiring", () => {
+    const one = readProject(dir({ "valance.json": "{}", ".valance/editor.json": JSON.stringify({ version: 1, model: ".valance/manifest.json", components: web }) }));
+    const both = several();
+
+    expect(one.kind === "ready" && one.targets.map((each) => each.id)).toEqual(["default"]);
+    expect(both.kind === "ready" && both.targets.map((each) => [each.id, each.settings.model, each.wiring])).toEqual([
+      ["web", ".valance/manifest.web.json", ".valance/wiring.web.json"],
+      ["desktop", ".valance/manifest.desktop.json", ".valance/wiring.desktop.json"],
+    ]);
+  });
+
+  it("answers for a template once: a template two targets share belongs to the first, and each layout to its own", () => {
+    const both = several();
+
+    if (both.kind !== "ready") {
+      throw new Error("not ready");
+    }
+
+    expect(both.targets.map((each) => each.owns)).toEqual([["src/web/layout.mprx", "src/shared/todo-add.mprx"], ["src/desktop/layout.mprx"]]);
+    expect(ownerOf(both.targets, "src/shared/todo-add.mprx")?.id).toBe("web");
+    expect(ownerOf(both.targets, "src/desktop/layout.mprx")?.id).toBe("desktop");
+    expect(ownerOf(both.targets, "src/not-compiled.mprx")?.id).toBe("web");
+  });
+
+  it("writes a file from the workspace when the project is a folder inside it", () => {
+    expect(inWorkspace("/w", "/w/app", "src/a.mprx")).toBe("app/src/a.mprx");
+    expect(inWorkspace("/w/app", "/w/app", "src/a.mprx")).toBe("src/a.mprx");
   });
 });

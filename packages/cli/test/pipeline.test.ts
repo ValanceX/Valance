@@ -107,12 +107,12 @@ describe("vlx build", () => {
     const built = await build(root);
 
     expect(built.pages).toEqual(["/", "/guide/a"]);
-    expect(existsSync(join(root, "dist/index.html"))).toBe(true);
-    expect(existsSync(join(root, "dist/guide/a/index.html"))).toBe(true);
-    expect(existsSync(join(root, "dist/404.html"))).toBe(true);
-    expect(existsSync(join(root, "dist/logo.svg"))).toBe(true);
-    expect(existsSync(join(root, "dist/.vite"))).toBe(false);
-    expect(readdirSync(join(root, "dist/assets")).some((file) => file.endsWith(".wasm"))).toBe(true);
+    expect(existsSync(join(root, "dist/web/index.html"))).toBe(true);
+    expect(existsSync(join(root, "dist/web/guide/a/index.html"))).toBe(true);
+    expect(existsSync(join(root, "dist/web/404.html"))).toBe(true);
+    expect(existsSync(join(root, "dist/web/logo.svg"))).toBe(true);
+    expect(existsSync(join(root, "dist/web/.vite"))).toBe(false);
+    expect(readdirSync(join(root, "dist/web/assets")).some((file) => file.endsWith(".wasm"))).toBe(true);
     expect(readdirSync(root).sort()).toEqual([".valance", "content", "dist", "node_modules", "public", "valance.json"]);
     expect(
       readdirSync(join(root, ".valance"))
@@ -127,14 +127,14 @@ describe("vlx build", () => {
 
     await build(root);
 
-    const home = readFileSync(join(root, "dist/index.html"), "utf8");
+    const home = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
     expect(home).toContain("<title>Home · Test</title>");
     expect(home).toContain('<meta name="description" content="The start."');
     expect(home).toContain('href="/guide/a"');
     expect(home).toContain('"state":{"page":"/","trail":["/"],"cursor":0,"viewport":"expanded","colorScheme":"light"}');
-    expect(readFileSync(join(root, "dist/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
-    expect(readFileSync(join(root, "dist/404.html"), "utf8")).toContain("Page not found");
+    expect(readFileSync(join(root, "dist/web/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
+    expect(readFileSync(join(root, "dist/web/404.html"), "utf8")).toContain("Page not found");
   });
 
   it("serves under a base path, with canonical links and a sitemap when the site has an address", async () => {
@@ -142,19 +142,19 @@ describe("vlx build", () => {
 
     await build(root);
 
-    const home = readFileSync(join(root, "dist/index.html"), "utf8");
+    const home = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
     expect(home).toContain('href="/docs/guide/a"');
     expect(home).toContain('<link rel="canonical" href="https://example.com/docs/"');
     expect(home).toMatch(/src="\/docs\/assets\/client-[\w-]+\.js"/);
-    expect(readFileSync(join(root, "dist/sitemap.xml"), "utf8")).toContain("<loc>https://example.com/docs/guide/a</loc>");
+    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).toContain("<loc>https://example.com/docs/guide/a</loc>");
   });
 
   it("fails with the diagnostics, writing no site, when the content is wrong", async () => {
     const root = project({ ...BASIC, "content/index.md": PAGE("Home", "[x](/nowhere)") });
 
     await expect(build(root)).rejects.toThrow("content/index.md:7 link-broken");
-    expect(existsSync(join(root, "dist"))).toBe(false);
+    expect(existsSync(join(root, "dist", "web"))).toBe(false);
   });
 
   it("lets a template replace a built-in by name", async () => {
@@ -167,7 +167,7 @@ describe("vlx build", () => {
     writeFileSync(join(root, "unused"), "");
     await build(root);
 
-    expect(readFileSync(join(root, "dist/index.html"), "utf8")).toContain("<em>See </em>");
+    expect(readFileSync(join(root, "dist/web/index.html"), "utf8")).toContain("<em>See </em>");
   });
 });
 
@@ -329,7 +329,7 @@ describe("state declared field by field", () => {
 
     await build(root);
 
-    const content = readFileSync(join(root, "dist/index.html"), "utf8");
+    const content = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
     expect(content).toContain("0light");
   });

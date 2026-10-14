@@ -103,7 +103,6 @@ describe("vlx generate target", () => {
 
     expect(made.created).toEqual(["valance.web.json", "valance.desktop.json", "src/desktop/layout.mprx"]);
     expect(made.changed).toEqual(["src/main.ts"]);
-    expect(made.notes.join(" ")).toContain("dist/web/");
     expect(read(join(root, "src/layout.mprx"), "utf8")).toBe(before);
     expect(read(join(root, "src/main.ts"), "utf8")).toContain("targets: { desktop: { layout: component(desktopLayout) } }");
     expect(loadConfig(root).targets).toEqual(["web", "desktop"]);

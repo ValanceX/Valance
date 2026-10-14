@@ -21,7 +21,7 @@ Open the address `vlx dev` prints. Edit this file and save: the page reloads wit
 pnpm build
 ```
 
-The finished site is in `dist/`. Anything that serves files can host it.
+The finished site is in `dist/web/`. Anything that serves files can host it.
 
 ## Where things are
 

@@ -1,5 +1,5 @@
-// `vlx build`: the project → a static site in `dist/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
-// when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only the site.
+// `vlx build`: the project → a static site in `dist/web/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
+// when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only what is built.
 import { build as bundle } from "vite";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -181,8 +181,6 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
     ]);
   }
 
-  const many = config.targets.length > 1;
-
   generateEntries(root, config);
 
   stage("content");
@@ -196,9 +194,9 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
 
     await generateProgram(root, await loadAuthor(loader, root), config, selected);
 
-    // A project of one web target writes its site to dist/, as it always has; with more targets each has a directory of its own.
+    // Each target writes to a directory of its own, whatever else the project has: dist/web/ and dist/desktop/.
     if (selected.includes("web")) {
-      built.push(await buildWeb(root, config, loader, content, many ? `${OUTPUT_DIR}/web` : OUTPUT_DIR, many ? "web/" : "", stage));
+      built.push(await buildWeb(root, config, loader, content, `${OUTPUT_DIR}/web`, "web/", stage));
     }
 
     if (selected.includes("desktop")) {

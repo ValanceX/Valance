@@ -8,12 +8,12 @@ import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { LanguageClient } from "vscode-languageclient/node";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 import { forTheCheck, place, run, UNMAPPED, unmappedMessage } from "./diagnostics";
-import { explain, findProjects, forWorkspace, readProject, templateOf } from "./project";
+import { explain, findProjects, forWorkspace, inWorkspace, ownerOf, readProject, templateOf } from "./project";
 import { affectsProject, coalesced, debounced } from "./sync";
-import type { LspSettings } from "./project";
+import type { LspSettings, TargetSettings } from "./project";
 import { authoredPlace, lensesFor, readWiring, referencesOf, templateImports } from "./wiring";
 
 /** `partial`: the language server runs, but the project has no wiring data, so navigation to the author's files and the connection lenses are off. */
@@ -25,6 +25,17 @@ export interface Api {
   /** The templates the project compiled (what the language server is told are components), relative to the project. */
   readonly known: () => ReadonlyArray<string>;
   readonly project: () => string | undefined;
+  /** The targets whose template language server is running (one per target: a target's templates are checked against its own manifest). */
+  readonly servers: () => ReadonlyArray<string>;
+}
+
+/** One target's language server, and what it was last told. */
+interface Seat {
+  readonly target: TargetSettings;
+  readonly client: LanguageClient;
+  served: LspSettings; // written from the workspace
+  /** The manifest (relative to the project): the one generated JSON file this server answers every definition with. */
+  readonly model: string;
 }
 
 /** A tool the project installed, as the script Node runs: the package's own entry, not the `.bin` shim (a `.cmd` file on Windows, which only a shell can start). */
@@ -39,13 +50,12 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   const notes = vscode.languages.createDiagnosticCollection("valance-editor");
   const bar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
 
-  let client: LanguageClient | undefined;
+  let seats: Array<Seat> = [];
   let status: Status = "starting";
   let root: string | undefined;
   let workspace: string | undefined;
-  let served: LspSettings | undefined; // what the running server was last told, written from the workspace
+  let targets: ReadonlyArray<TargetSettings> = []; // what the project generated, in the order of its targets
   let known = new Set<string>(); // the templates the project compiled, from the project (not the workspace)
-  let wiringFile: string | undefined; // `.valance/wiring.json`, relative to the project
   const lensesChanged = new vscode.EventEmitter<void>();
   let told = new Set<Status>();
   let synced = false; // `vlx check` has run at least once in this window, so a project with nothing generated is a fact and not just early
@@ -118,31 +128,33 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
     }
   };
 
-  // The manifest the project's `editor.json` names (`manifest.json` for a project of one target, the first target's `manifest.<id>.json` for one of several).
-  let modelFile = ".valance/manifest.json";
-  const manifestFile = (): string => join(root!, modelFile);
+  /** The target whose server answers for the file `path` (absolute), and so whose manifest and wiring describe it. */
+  const targetFor = (path: string): TargetSettings | undefined => ownerOf(targets, root === undefined ? path : relative(root, path).split("\\").join("/"));
+  const wiringOf = (target: TargetSettings | undefined): ReturnType<typeof readWiring> =>
+    root === undefined || target === undefined ? undefined : readWiring(root, target.wiring);
+  const manifestOf = (seat: Seat): string => join(root!, seat.model);
 
-  /** The lines of manifest.json that a definition answer points into. */
-  const manifestLines = (answer: unknown): ReadonlyArray<number> => {
-    if (root === undefined || !existsSync(manifestFile())) {
+  /** The lines of a manifest that a definition answer points into. */
+  const manifestLines = (seat: Seat, answer: unknown): ReadonlyArray<number> => {
+    if (root === undefined || !existsSync(manifestOf(seat))) {
       return [];
     }
 
     return ([] as Array<{ uri?: vscode.Uri; range?: vscode.Range; targetUri?: vscode.Uri; targetRange?: vscode.Range }>).concat((answer ?? []) as never).flatMap((item) => {
       const uri = item.targetUri ?? item.uri;
       const range = item.targetRange ?? item.range;
-      return uri?.fsPath === manifestFile() && range !== undefined ? [range.start.line] : [];
+      return uri?.fsPath === manifestOf(seat) && range !== undefined ? [range.start.line] : [];
     });
   };
 
   // ---- template language server -----------------------------------------------------------------------------------------------------------------------------------
 
+  const stopSeat = async (seat: Seat): Promise<void> => {
+    seats = seats.filter((each) => each !== seat);
+    await seat.client.stop().catch(() => undefined);
+  };
   const stop = async (): Promise<void> => {
-    const old = client;
-
-    client = undefined;
-    served = undefined;
-    await old?.stop().catch(() => undefined);
+    await Promise.all([...seats].map(stopSeat));
   };
 
   const refresh = async (force = false): Promise<void> => {
@@ -170,101 +182,125 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
       return;
     }
 
-    known = new Set(Object.keys(project.settings.components));
-    wiringFile = project.wiring;
-    modelFile = project.settings.model;
+    targets = project.targets;
+    known = new Set(project.targets.flatMap((each) => Object.keys(each.settings.components)));
 
     // A project built by an older `vlx` has no wiring data. Everything else works; say what does not, and why.
-    const working: "ready" | "partial" = readWiring(root, project.wiring) === undefined ? "partial" : "ready";
+    const working: "ready" | "partial" = project.targets.some((each) => readWiring(root!, each.wiring) === undefined) ? "partial" : "ready";
     lensesChanged.fire();
 
-    const settings = forWorkspace(workspace, root, project.settings);
-
-    // The server is already running: tell it what changed (a new component, a renamed file) without restarting it.
-    if (client !== undefined) {
-      // After a run the manifest may have changed on disk with the same settings: telling the server makes it read it again.
-      if (force || JSON.stringify(settings) !== JSON.stringify(served)) {
-        served = settings;
-        await client.sendNotification("workspace/didChangeConfiguration", { settings: { mesh: settings } });
-        output.appendLine("The project changed; the language server was told.");
-      }
-
-      show(working, explain(working === "ready" ? project : { kind: "partial" as const }));
-      markUnmapped();
-
-      return;
-    }
+    // A target that is gone (the project dropped it) has no server any more.
+    await Promise.all(seats.filter((seat) => !project.targets.some((each) => each.id === seat.target.id)).map(stopSeat));
 
     const configured = vscode.workspace.getConfiguration("valance").get<string>("meshLsp.path", "");
     const command = configured !== "" ? configured : script(root, "@valancex/mesh-lsp", "dist/cli.js");
+    const several = project.targets.length > 1;
+    const failures: Array<string> = [];
 
-    if (!existsSync(command)) {
-      show("no-server", explain({ kind: "no-server", path: command }));
+    for (const target of project.targets) {
+      const settings = forWorkspace(workspace, root, target.settings);
+      const seat = seats.find((each) => each.target.id === target.id);
+
+      // The server is already running: tell it what changed (a new component, a renamed file) without restarting it.
+      if (seat !== undefined) {
+        // After a run the manifest may have changed on disk with the same settings: telling the server makes it read it again.
+        if (force || JSON.stringify(settings) !== JSON.stringify(seat.served)) {
+          seat.served = settings;
+          await seat.client.sendNotification("workspace/didChangeConfiguration", { settings: { mesh: settings } });
+          output.appendLine(`The project changed; the language server${several ? ` of ${target.id}` : ""} was told.`);
+        }
+
+        continue;
+      }
+
+      if (!existsSync(command)) {
+        show("no-server", explain({ kind: "no-server", path: command }));
+
+        return;
+      }
+
+      show("starting", `Starting the template language server${several ? ` for ${target.id}` : ""}…`);
+
+      // A path the author configured is started as it is (a native binary); the project's own server is its script, run by Node.
+      const server: ServerOptions =
+        configured !== ""
+          ? { command, args: [], options: { shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(command) } }
+          : { command: process.execPath, args: [command], options: { env: NODE_ENV } };
+      // One target: every template. Several: each server answers for the templates it owns and its own manifest, so a template is never answered twice.
+      const documentSelector: LanguageClientOptions["documentSelector"] = several
+        ? [
+            ...target.owns.map((file) => ({ language: "mprx", pattern: `${workspace}/${inWorkspace(workspace!, root!, file)}` })),
+            { language: "json", pattern: `${workspace}/${settings.model}` },
+          ]
+        : [{ language: "mprx" }, { language: "json", pattern: `${workspace}/${settings.model}` }];
+      const current = (): Seat | undefined => seats.find((each) => each.target.id === target.id);
+      const options: LanguageClientOptions = {
+        documentSelector,
+        initializationOptions: settings,
+        outputChannel: output,
+        middleware: {
+          // The server asks for its settings whenever they change; answer with the project's.
+          workspace: {
+            configuration: async (params, token, next) => {
+              const base = (await next(params, token)) as ReadonlyArray<unknown>;
+
+              return params.items.map((item, at) => (item.section === "mesh" && current() !== undefined ? current()!.served : base[at]));
+            },
+          },
+          // The server answers every definition with the manifest (generated JSON), because that is all MESH knows. `vlx` knows where each name was declared: translate to that one place.
+          // (The many places a name is USED are references, below: a jump cannot choose among them.)
+          provideDefinition: async (document, position, token, next) => {
+            const answer = await next(document, position, token);
+            const here = current();
+            const wiring = wiringOf(target);
+            const translated: Array<vscode.Location> = [];
+
+            for (const line of here === undefined ? [] : manifestLines(here, answer)) {
+              const place = authoredPlace(wiring, readFileSync(manifestOf(here!), "utf8"), line);
+
+              if (place !== undefined) {
+                translated.push(new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1)));
+              }
+            }
+
+            if (translated.length > 0) {
+              return translated;
+            }
+
+            // Without a record (a project built by an older `vlx`): a component's tag still goes to its template.
+            const tag = document.getText(document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_-]*/));
+            const file = here === undefined ? undefined : templateOf(here.served, tag);
+
+            return file !== undefined ? new vscode.Location(vscode.Uri.file(join(workspace!, file)), new vscode.Position(0, 0)) : answer;
+          },
+        },
+      };
+
+      try {
+        const started = new LanguageClient(`valance-mesh-${target.id}`, several ? `MPRX (MESH, ${target.id})` : "MPRX (MESH)", server, options);
+
+        seats.push({ target, client: started, served: settings, model: target.settings.model });
+        await started.start();
+      } catch (error) {
+        const failed = seats.find((each) => each.target.id === target.id);
+
+        if (failed !== undefined) {
+          await stopSeat(failed);
+        }
+
+        failures.push(`${target.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    if (failures.length > 0) {
+      await stop();
+      show("failed", `The template language server did not start: ${failures.join("; ")}`);
 
       return;
     }
 
-    show("starting", "Starting the template language server…");
-
-    // A path the author configured is started as it is (a native binary); the project's own server is its script, run by Node.
-    const server: ServerOptions =
-      configured !== ""
-        ? { command, args: [], options: { shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(command) } }
-        : { command: process.execPath, args: [command], options: { env: NODE_ENV } };
-    const options: LanguageClientOptions = {
-      documentSelector: [{ language: "mprx" }, { language: "json", pattern: `${workspace}/${settings.model}` }],
-      initializationOptions: settings,
-      outputChannel: output,
-      middleware: {
-        // The server asks for its settings whenever they change; answer with the project's.
-        workspace: {
-          configuration: async (params, token, next) => {
-            const base = (await next(params, token)) as ReadonlyArray<unknown>;
-
-            return params.items.map((item, at) => (item.section === "mesh" && served !== undefined ? served : base[at]));
-          },
-        },
-        // The server answers every definition with the manifest (generated JSON), because that is all MESH knows. `vlx` knows where each name was declared: translate to that one place.
-        // (The many places a name is USED are references, below: a jump cannot choose among them.)
-        provideDefinition: async (document, position, token, next) => {
-          const answer = await next(document, position, token);
-          const wiring = readWiring(root!, wiringFile);
-          const translated: Array<vscode.Location> = [];
-
-          for (const line of manifestLines(answer)) {
-            const place = authoredPlace(wiring, readFileSync(manifestFile(), "utf8"), line);
-
-            if (place !== undefined) {
-              translated.push(new vscode.Location(vscode.Uri.file(join(root!, place.file)), new vscode.Position(place.line - 1, place.column - 1)));
-            }
-          }
-
-          if (translated.length > 0) {
-            return translated;
-          }
-
-          // Without a record (a project built by an older `vlx`): a component's tag still goes to its template.
-          const tag = document.getText(document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_-]*/));
-          const file = served === undefined ? undefined : templateOf(served, tag);
-
-          return file !== undefined ? new vscode.Location(vscode.Uri.file(join(workspace!, file)), new vscode.Position(0, 0)) : answer;
-        },
-      },
-    };
-
-    served = settings;
-
-    try {
-      const started = new LanguageClient("valance-mesh", "MPRX (MESH)", server, options);
-
-      client = started;
-      await started.start();
-      show(working, explain(working === "ready" ? project : { kind: "partial" as const }));
-      markUnmapped();
-    } catch (error) {
-      await stop();
-      show("failed", `The template language server did not start: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    show(working, explain(working === "ready" ? project : { kind: "partial" as const }));
+    markUnmapped();
   };
 
   // ---- everything else the project can get wrong -------------------------------------------------------------------------------------------------------------------
@@ -346,8 +382,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
         return [];
       }
 
-      const wiring = readWiring(root, wiringFile);
       const path = document.uri.fsPath;
+      const wiring = wiringOf(targetFor(path));
 
       if (wiring === undefined || !path.startsWith(root)) {
         return [];
@@ -378,20 +414,23 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   // Find All References, from the name under the cursor. The server says which manifest key it is (its definition); `vlx` says everywhere that key is used.
   const referenceProvider: vscode.ReferenceProvider = {
     provideReferences: async (document, position, context) => {
-      if (root === undefined || client === undefined || !existsSync(manifestFile())) {
+      const target = targetFor(document.uri.fsPath);
+      const seat = seats.find((each) => each.target.id === target?.id);
+
+      if (root === undefined || seat === undefined || !existsSync(manifestOf(seat))) {
         return [];
       }
 
-      const answer = await client.sendRequest("textDocument/definition", {
+      const answer = await seat.client.sendRequest("textDocument/definition", {
         textDocument: { uri: document.uri.toString() },
         position: { line: position.line, character: position.character },
       });
-      const wiring = readWiring(root, wiringFile);
+      const wiring = wiringOf(target);
       const asked = ([] as Array<{ uri: string; range: { start: { line: number } } }>).concat((answer ?? []) as never);
       const places = asked
-        .filter((item) => vscode.Uri.parse(item.uri).fsPath === manifestFile())
+        .filter((item) => vscode.Uri.parse(item.uri).fsPath === manifestOf(seat))
         .flatMap((item) => {
-          const text = readFileSync(manifestFile(), "utf8");
+          const text = readFileSync(manifestOf(seat), "utf8");
           const declared = context.includeDeclaration ? [authoredPlace(wiring, text, item.range.start.line)] : [];
 
           return [...declared, ...referencesOf(wiring, text, item.range.start.line)].filter((place): place is NonNullable<typeof place> => place !== undefined);
@@ -471,7 +510,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
   await refresh();
   await check();
 
-  return { status: () => status, known: () => [...known], project: () => root };
+  return { status: () => status, known: () => [...known], project: () => root, servers: () => seats.map((seat) => seat.target.id) };
 };
 
 export const deactivate = (): void => undefined;

@@ -70,7 +70,7 @@ describe("the security headers", () => {
 
     await build(root);
 
-    const file = readFileSync(join(root, "dist/_headers"), "utf8");
+    const file = readFileSync(join(root, "dist/web/_headers"), "utf8");
 
     expect(file).toContain("\n/docs/*\n");
     expect(file).toContain("  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'");
@@ -80,7 +80,7 @@ describe("the security headers", () => {
     const off = project({ ...BASE, "valance.web.json": '{ "headers": false }' });
 
     await build(off);
-    expect(() => readFileSync(join(off, "dist/_headers"))).toThrow();
+    expect(() => readFileSync(join(off, "dist/web/_headers"))).toThrow();
   }, 60_000);
 });
 
@@ -92,29 +92,29 @@ describe("the title", () => {
     const plain = project(BASE);
 
     await build(plain);
-    expect(readFileSync(join(plain, "dist/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
+    expect(readFileSync(join(plain, "dist/web/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
 
     const formatted = project({ ...BASE, "valance.json": '{ "name": "Test", "title": "{site} / {page}" }' });
 
     await build(formatted);
-    expect(readFileSync(join(formatted, "dist/guide/a/index.html"), "utf8")).toContain("<title>Test / A</title>");
+    expect(readFileSync(join(formatted, "dist/web/guide/a/index.html"), "utf8")).toContain("<title>Test / A</title>");
 
     const own = project({ ...BASE, "src/main.ts": MAIN("(state) => ({ status: String(state.unread) })") });
 
     await build(own);
-    expect(readFileSync(join(own, "dist/guide/a/index.html"), "utf8")).toContain("<title>(3) A · Test</title>");
+    expect(readFileSync(join(own, "dist/web/guide/a/index.html"), "utf8")).toContain("<title>(3) A · Test</title>");
 
     const hostile = project({ ...BASE, "src/main.ts": MAIN('() => "Inbox\\u202e gnp.exe\\n  "') });
 
     await build(hostile);
-    expect(readFileSync(join(hostile, "dist/guide/a/index.html"), "utf8")).toContain("<title>Inbox gnp.exe · Test</title>");
+    expect(readFileSync(join(hostile, "dist/web/guide/a/index.html"), "utf8")).toContain("<title>Inbox gnp.exe · Test</title>");
   }, 90_000);
 
   it("falls back to the default when the application's title function throws, and the page is still built", async () => {
     const root = project({ ...BASE, "src/main.ts": MAIN("() => { throw new Error('nope'); }") });
 
     await build(root);
-    expect(readFileSync(join(root, "dist/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
+    expect(readFileSync(join(root, "dist/web/guide/a/index.html"), "utf8")).toContain("<title>A · Test</title>");
   }, 60_000);
 });
 

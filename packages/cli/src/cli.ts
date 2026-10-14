@@ -2,7 +2,7 @@
 //
 //   vlx init [name] [--web ...]     make a new application (asks what the flags do not say)
 //   vlx dev [--port N] [--host H]   serve the project and rebuild it as it changes
-//   vlx build                       write the site to dist/
+//   vlx build                       write the site to dist/web/
 //   vlx check [--json]              find mistakes in authored files without building
 //   vlx generate page|component <name>   add a page, or a component registered in src/main.ts (alias: g)
 //   vlx sync                        bring .valance/ (generated types, manifest, entries) up to date; runs by itself after install and generate
@@ -32,7 +32,7 @@ const HELP = `vlx <command>
 
   init [name] [--web]              make a new application
   dev [--port N] [--host H]        serve it and rebuild as it changes
-  build                            write the site to dist/
+  build                            write the site to dist/web/
   check [--json]                   find mistakes in your files without building
   generate page|component <name>  add a page, or a component (alias: g)
   generate target web|desktop      add a target to the project
@@ -64,7 +64,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   g: GENERATE_HELP,
   dev: "vlx dev [--web|--desktop] [--port N] [--host H]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
   build:
-    "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/ (dist/web/ when the project has more than one target); any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
+    "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/web/; any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
   package:
     "vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>]\n\nBuild the desktop target and package it: the engine as one executable (Node's single executable application, with the MESH runtime inside) beside the Desktop PORT's window program, in dist/package/<platform>/. --window is the window program for that platform (default: VLX_WINDOW, else vlx-window on the PATH; build it from the PORT repository). For another platform, --node is a node binary of this version for it. The result is unsigned.\n",

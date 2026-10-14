@@ -11,6 +11,8 @@ export interface EditorFile {
   readonly components: Readonly<Record<string, string>>;
   /** Where every name came from and what uses it (`wiring.json`), relative to the project. Absent in a project built by an older `vlx`. */
   readonly wiring?: string;
+  /** For a project of several targets: each target's own manifest, wiring and components. Absent for one target (`model`, `wiring` and `components` are then its). */
+  readonly targets?: Readonly<Record<string, { readonly model: string; readonly components: Readonly<Record<string, string>>; readonly wiring?: string }>>;
 }
 
 /** What `mesh-lsp` takes as its `"mesh"` settings. */
@@ -19,8 +21,18 @@ export interface LspSettings {
   readonly components: Readonly<Record<string, string>>;
 }
 
+/** One target of a project, as one language server sees it: a target's template files are checked against that target's manifest. */
+export interface TargetSettings {
+  readonly id: string;
+  readonly settings: LspSettings;
+  /** Its `wiring.json`, relative to the project. Absent in a project built by an older `vlx`. */
+  readonly wiring?: string;
+  /** The template files this target's server answers for: those it compiles that no earlier target does (a template shared by two targets is answered once, by the first; `vlx check` checks it for both). */
+  readonly owns: ReadonlyArray<string>;
+}
+
 export type Readiness =
-  | { readonly kind: "ready"; readonly settings: LspSettings; readonly wiring?: string }
+  | { readonly kind: "ready"; readonly settings: LspSettings; readonly wiring?: string; readonly targets: ReadonlyArray<TargetSettings> }
   /** `valance.json` is there but nothing has been generated (the extension runs `vlx check` to make it, so this is a state to report only when that did not produce it). */
   | { readonly kind: "not-generated" }
   | { readonly kind: "not-a-project" };
@@ -43,8 +55,23 @@ export const readProject = (root: string): Readiness => {
     return { kind: "not-generated" };
   }
 
-  return { kind: "ready", settings: { model: parsed.model, components: parsed.components }, ...(typeof parsed.wiring === "string" ? { wiring: parsed.wiring } : {}) };
+  const listed = Object.entries(parsed.targets ?? {}).filter(([, each]) => typeof each.model === "string" && typeof each.components === "object" && each.components !== null);
+  const claimed = new Set<string>();
+  const targets: Array<TargetSettings> = (listed.length > 1 ? listed : [["default", { model: parsed.model, components: parsed.components, wiring: parsed.wiring }] as const]).map(
+    ([id, each]) => {
+      const owns = Object.keys(each.components).filter((file) => !claimed.has(file));
+
+      owns.forEach((file) => claimed.add(file));
+
+      return { id, settings: { model: each.model, components: each.components }, ...(typeof each.wiring === "string" ? { wiring: each.wiring } : {}), owns };
+    },
+  );
+
+  return { kind: "ready", settings: { model: parsed.model, components: parsed.components }, ...(typeof parsed.wiring === "string" ? { wiring: parsed.wiring } : {}), targets };
 };
+
+/** The target whose server answers for `file` (relative to the project), and so whose manifest and wiring describe it: the first that owns it, else the first target. */
+export const ownerOf = (targets: ReadonlyArray<TargetSettings>, file: string): TargetSettings | undefined => targets.find((each) => each.owns.includes(file)) ?? targets[0];
 
 /** The template file that defines `<tag>`: the author's `src/<tag>.mprx` if the project has one. */
 export const templateOf = (settings: LspSettings, tag: string): string | undefined => Object.entries(settings.components).find(([, component]) => component === tag)?.[0];
@@ -111,16 +138,19 @@ export const findProjects = (folder: string, depth = 3): ReadonlyArray<string> =
  * (`model` and each component's file) are written from the workspace, with `/`.
  */
 export const forWorkspace = (workspace: string, project: string, settings: LspSettings): LspSettings => {
+  const at = (file: string): string => inWorkspace(workspace, project, file);
+
+  return { model: at(settings.model), components: Object.fromEntries(Object.entries(settings.components).map(([file, component]) => [at(file), component])) };
+};
+
+/** A file of the project (relative to it, `/` separated), written from the workspace folder, with `/`. */
+export const inWorkspace = (workspace: string, project: string, file: string): string => {
   const prefix = relative(workspace, project)
     .split(sep)
     .filter((part) => part !== "")
     .join("/");
 
-  if (prefix === "") {
-    return settings;
-  }
-
-  return { model: `${prefix}/${settings.model}`, components: Object.fromEntries(Object.entries(settings.components).map(([file, component]) => [`${prefix}/${file}`, component])) };
+  return prefix === "" ? file : `${prefix}/${file}`;
 };
 
 /** What to tell the author when the server is not running, and what to do about it. */

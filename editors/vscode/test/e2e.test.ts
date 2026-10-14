@@ -303,3 +303,39 @@ describe("ctrl+click: from the generated manifest to the files the author wrote,
     ]);
   });
 });
+
+// A project of two targets: one server per target, each told its own manifest. The template the two share is clean against both.
+describe("one language server per target", () => {
+  const multi = resolve(__dirname, "../../../examples/todo-multi");
+  const mine = resolve(multi, "node_modules/@valancex/mesh-lsp/dist/cli.js");
+
+  it("checks each target's templates against that target's manifest, and the shared template against both", async () => {
+    execFileSync(process.execPath, [valance, "check"], { cwd: multi });
+
+    const project = readProject(multi);
+
+    if (project.kind !== "ready") {
+      throw new Error(`the example is not ready: ${project.kind}`);
+    }
+
+    expect(project.targets.map((each) => each.id)).toEqual(["web", "desktop"]);
+
+    const clients = await Promise.all(project.targets.map((each) => connect(process.execPath, multi, each.settings, [mine])));
+
+    try {
+      for (const [at, each] of project.targets.entries()) {
+        const mineClient = clients[at]!;
+        const files = Object.keys(each.settings.components);
+
+        files.forEach((file) => mineClient.open(file, "mprx", readFileSync(join(multi, file), "utf8")));
+        await mineClient.until(() => files.every((file) => mineClient.diagnostics.has(mineClient.uri(file))));
+
+        for (const file of files) {
+          expect({ target: each.id, file, diagnostics: mineClient.diagnostics.get(mineClient.uri(file)) }).toEqual({ target: each.id, file, diagnostics: [] });
+        }
+      }
+    } finally {
+      await Promise.all(clients.map((each) => each.stop()));
+    }
+  }, 60_000);
+});
