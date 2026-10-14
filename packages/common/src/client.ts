@@ -34,7 +34,7 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       state: boot.state,
       plugins: [plugin(content, boot.built, author)],
       // What the application's commands may ask the page for: the backend (`Http`), at `api.base` of valance.web.json.
-      platform: webPlatform({ base: content.site.api }),
+      platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [] }),
       shutdown: { grace: "250 millis" },
     });
 

@@ -180,3 +180,14 @@ Size: large. It is the one feature in this document that is a new concept, and Â
 Built: `@valancex/router` (route definitions, Schema'd params and query, `canMatch`/`canActivate`/`canDeactivate`/`beforeEach`, redirects by route name, `safeNext`, per-route titles, `go`/`replace`/`navigate`), plus the engine seams `RouteTable.modeOf` and `RouteTable.guard` with position tracking and undo via `history.go`.
 
 Deferred: CLI `defineApp({ routes })` integration; the `go` normalization bug in the CLI framework `go`; a `Navigation` capability for back/forward; typed `Transport` interceptors and `defineApp({ platform })`; a `beforeunload` guard; nested routes.
+
+## Outcome: interceptors (0.11.0)
+
+Built in `@valancex/common/http` (decision I1, shape as proposed):
+
+- **One shape.** `Transport = (TransportRequest) => Effect<TransportResponse, HttpError>` and `Interceptor = (next: Transport) => Transport`. Every interceptor has the same input and output, so they chain by composition (`chain(a, b)`, first outermost) and differ only in what they do. `only(applies, interceptor)` narrows one by anything the request says.
+- **Where they sit.** After the client has checked the request (path, method, body) and before it judges and decodes the answer (status, content type, Schema); so none can skip those. The final address is checked again as the wire gets it: an interceptor that moves a request outside the API's origin gets `Unsafe`.
+- **Three scopes**, outermost first: the application (`defineApp({ http: { interceptors } })`), a piece of work (`withInterceptors(effect, ...)`, a fiber-scoped addition that nests and ends with the effect), and one request (`RequestSpec.interceptors`).
+- **Helpers with the origin guard built in:** `bearer`, `refreshOn401` (one refresh for any number of simultaneous 401s), `retryGet` (never an unsafe method).
+
+Still deferred: `defineApp({ platform })` (tests and other targets supplying their own `Http`), and interceptors for non-web transports.

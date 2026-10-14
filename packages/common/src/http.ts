@@ -12,9 +12,11 @@
 // The defaults are the safe ones: a request goes to the application's own origin (or the one `api.base` names), carries no credentials to another origin, sends and accepts JSON, is
 // bounded in time and size, and its response is *decoded by a Schema* before it can reach state. A failure says what kind it was and never what it carried.
 import * as Nexus from "@valancex/nexus";
-import { Effect, Schema } from "effect";
+import { Effect, FiberRef, Schema } from "effect";
 
-export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+import type { HttpError, Interceptor, Method, Transport, TransportRequest, TransportResponse } from "./transport.js";
+
+export type { HttpError, Interceptor, Method, Transport, TransportRequest, TransportResponse } from "./transport.js";
 
 /** One request: where, what is sent, and what the answer must be. */
 export interface RequestSpec<A> {
@@ -27,19 +29,11 @@ export interface RequestSpec<A> {
   readonly body?: unknown;
   /** What the answer must be. The decoded value is what the command receives; an answer that is not this is `Decode`, and nothing else gets through. */
   readonly response: Schema.Schema<A, any, never>;
-  /** Milliseconds before the request is given up (`Timeout`). Default 15 000. */
+  /** Milliseconds before the request is given up (`Timeout`), for each attempt. Default 15 000. */
   readonly timeoutMs?: number;
+  /** Interceptors for this request alone: the innermost, the closest to the wire (see `Interceptor`). */
+  readonly interceptors?: ReadonlyArray<Interceptor>;
 }
-
-/** Why a request did not give a value. None of them carries the response text, the address or a header: those can hold a secret. */
-export type HttpError =
-  | { readonly _tag: "Offline" }
-  | { readonly _tag: "Status"; readonly status: number }
-  | { readonly _tag: "Decode" }
-  | { readonly _tag: "Timeout" }
-  | { readonly _tag: "Aborted" }
-  | { readonly _tag: "TooLarge" }
-  | { readonly _tag: "Unsafe"; readonly reason: string };
 
 export interface HttpClient {
   readonly request: <A>(spec: RequestSpec<A>) => Effect.Effect<A, HttpError>;
@@ -54,7 +48,7 @@ export const request = <A>(spec: RequestSpec<A>): Effect.Effect<A, HttpError | N
     client.request(spec),
   );
 
-// ---- the web's implementation ------------------------------------------------------------------------------------------------------------------------------------
+// ---- web options ------------------------------------------------------------------------------------------------------------------------------------
 
 export interface WebHttpOptions {
   /** `api.base` in `valance.web.json`: `""` (the site's own origin), a path (`/api`) or an absolute https address. */
@@ -65,6 +59,8 @@ export interface WebHttpOptions {
   readonly credentials?: "same-origin" | "include";
   /** The largest answer read, in characters. Default 5 000 000. */
   readonly maxResponse?: number;
+  /** The application's interceptors, outermost first: the ones that hold for every request (`defineApp({ http: { interceptors } })`). Scoped ones are added by `withInterceptors` and `RequestSpec.interceptors`. */
+  readonly interceptors?: ReadonlyArray<Interceptor>;
 }
 
 const UNSAFE_METHODS = new Set<Method>(["POST", "PUT", "PATCH", "DELETE"]);
@@ -94,9 +90,162 @@ export const addressOf = (base: string, path: string, query: RequestSpec<unknown
   return { url: `${base.replace(/\/+$/, "")}${path}${tail}` };
 };
 
-export const webHttp = (options: WebHttpOptions): HttpClient => {
+// ---- interceptors ------------------------------------------------------------------------------------------------------------------------------------------
+//
+// One shape for all of them. A `Transport` takes the request the client built and checked, and gives the answer before the client decodes it. An `Interceptor` takes the next `Transport` and gives
+// a `Transport`: so every interceptor has the same input and the same output, they chain by plain composition, and the only thing that differs between two is what they do. The client's own
+// checks come first (the path, the method, the body) and last (the answer's status, type and Schema), so no interceptor can skip them. Failures are `HttpError`s, which carry no address, header or body.
+
+/** Several interceptors as one, the first listed outermost: `chain(a, b)(t)` is `a(b(t))`. */
+export const chain =
+  (...interceptors: ReadonlyArray<Interceptor>): Interceptor =>
+  (next) =>
+    interceptors.reduceRight<Transport>((inner, intercept) => intercept(inner), next);
+
+/** An interceptor that applies only to the requests `applies` accepts; every other request goes straight to the next. This is how a scope narrows: by address, by method, by anything the request says. */
+export const only =
+  (applies: (request: TransportRequest) => boolean, interceptor: Interceptor): Interceptor =>
+  (next) => {
+    const inner = interceptor(next);
+
+    return (request) => (applies(request) ? inner(request) : next(request));
+  };
+
+/** The interceptors in force for the requests made inside `withInterceptors`. The client reads it for each request, so a scope reaches every request its effect makes, however deep. */
+const scope = FiberRef.unsafeMake<ReadonlyArray<Interceptor>>([]);
+
+/**
+ * Runs `effect` with `interceptors` added for the requests it makes: a scope narrower than the application's. A scope inside another is inside it (the outer ones see the request first and the
+ * answer last). It ends with the effect; a request made outside it is not touched.
+ *
+ *   work: () => withInterceptors(Http.request({ path: "/admin/users", response: Users }), bearer(...adminToken))
+ */
+export const withInterceptors = <A, E, R>(effect: Effect.Effect<A, E, R>, ...interceptors: ReadonlyArray<Interceptor>): Effect.Effect<A, E, R> =>
+  Effect.locallyWith(effect, scope, (current) => [...current, ...interceptors]);
+
+/** Whether the request goes to the origin the application's API is on (the base's, or the page's for a relative base). */
+const sameApi = (base: string, url: string): boolean => {
+  const origin = (value: string): string => {
+    try {
+      return new URL(value, "http://page.invalid").origin;
+    } catch {
+      return "";
+    }
+  };
+
+  return origin(url) !== "" && origin(url) === origin(base === "" ? "/" : base);
+};
+
+/** Adds `Authorization: Bearer <token>` to requests for the API's origin and to no other: a credential never follows a request somewhere else. `base` is `api.base`. */
+export const bearer =
+  (base: string, token: () => string | undefined | Promise<string | undefined>): Interceptor =>
+  (next) =>
+  (request) =>
+    !sameApi(base, request.url)
+      ? next(request)
+      : Effect.flatMap(
+          Effect.promise(async () => token()),
+          (value) => next(value === undefined ? request : { ...request, headers: { ...request.headers, authorization: `Bearer ${value}` } }),
+        );
+
+/** On a 401, runs `refresh` once however many requests failed together, then sends each of them once more. A second 401 is the answer. */
+export const refreshOn401 = (refresh: () => Promise<void>): Interceptor => {
+  let refreshing: Promise<void> | undefined;
+
+  return (next) => (request) =>
+    Effect.flatMap(next(request), (first) =>
+      first.status !== 401
+        ? Effect.succeed(first)
+        : Effect.flatMap(
+            Effect.tryPromise({
+              try: async () => {
+                refreshing ??= refresh().finally(() => void (refreshing = undefined));
+
+                return refreshing;
+              },
+              catch: (): HttpError => ({ _tag: "Offline" }),
+            }),
+            () => next(request),
+          ),
+    );
+};
+
+/** Sends a GET again, up to `times` more, when it did not connect or the server failed (5xx). Never another method: a repeated POST is a second order. */
+export const retryGet =
+  (times: number): Interceptor =>
+  (next) =>
+  (request) => {
+    const attempt = (n: number): Effect.Effect<TransportResponse, HttpError> =>
+      request.method !== "GET"
+        ? next(request)
+        : next(request).pipe(
+            Effect.flatMap((response) => (response.status >= 500 && n < times ? attempt(n + 1) : Effect.succeed(response))),
+            Effect.catchTag("Offline", (error) => (n < times ? attempt(n + 1) : Effect.fail(error))),
+          );
+
+    return attempt(0);
+  };
+
+// ---- the web's implementation ------------------------------------------------------------------------------------------------------------------------------------
+
+/** The last transport: `fetch`, with the timeout, the size bound and the safe defaults. It returns any status; the client judges it after the interceptors have seen it. */
+const fetchTransport = (options: WebHttpOptions, crossOrigin: boolean): Transport => {
   const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
+
+  return (request) =>
+    Effect.tryPromise({
+      try: async (signal) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort("timeout"), request.timeoutMs);
+        const stop = (): void => controller.abort("aborted");
+
+        signal.addEventListener("abort", stop, { once: true });
+
+        try {
+          const response = await send(request.url, {
+            method: request.method,
+            headers: { ...request.headers },
+            ...(request.body === undefined ? {} : { body: request.body }),
+            credentials: crossOrigin ? (options.credentials ?? "omit") : "same-origin",
+            redirect: "follow",
+            referrerPolicy: "strict-origin-when-cross-origin",
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const headers: Record<string, string> = {};
+
+          response.headers.forEach((value, name) => void (headers[name.toLowerCase()] = value));
+
+          const text = response.status === 204 ? "" : await response.text();
+
+          if (text.length > (options.maxResponse ?? DEFAULT_MAX)) {
+            throw { _tag: "TooLarge" } satisfies HttpError;
+          }
+
+          return { status: response.status, headers, text } satisfies TransportResponse;
+        } catch (error) {
+          // A fetch that was aborted rejects with the abort's reason, whatever that was: what we passed says who stopped it.
+          if (controller.signal.aborted) {
+            throw { _tag: controller.signal.reason === "timeout" ? "Timeout" : "Aborted" } satisfies HttpError;
+          }
+
+          throw error;
+        } finally {
+          clearTimeout(timer);
+          signal.removeEventListener("abort", stop);
+          if (controller.signal.aborted === false) {
+            controller.abort("done");
+          }
+        }
+      },
+      catch: (error): HttpError => (typeof error === "object" && error !== null && "_tag" in error ? (error as HttpError) : { _tag: "Offline" }),
+    });
+};
+
+export const webHttp = (options: WebHttpOptions): HttpClient => {
   const crossOrigin = /^https?:\/\//i.test(options.base);
+  const wire = fetchTransport(options, crossOrigin);
+  const global = chain(...(options.interceptors ?? []));
 
   return {
     request: <A>(spec: RequestSpec<A>): Effect.Effect<A, HttpError> =>
@@ -114,74 +263,32 @@ export const webHttp = (options: WebHttpOptions): HttpClient => {
           return yield* Effect.fail<HttpError>({ _tag: "Unsafe", reason: "a GET request has no body" });
         }
 
-        const timeout = spec.timeoutMs ?? DEFAULT_TIMEOUT;
-        const text = yield* Effect.tryPromise({
-          try: async (signal) => {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort("timeout"), timeout);
-            const stop = (): void => controller.abort("aborted");
-
-            signal.addEventListener("abort", stop, { once: true });
-
-            try {
-              const response = await send(address.url, {
-                method,
-                headers: {
-                  accept: "application/json",
-                  ...(body === undefined ? {} : { "content-type": "application/json" }),
-                  // A header a plain cross-site form cannot send: with the backend checking it (or SameSite cookies), a forged request from another page has nothing to ride on.
-                  ...(UNSAFE_METHODS.has(method) ? { "x-requested-with": "valance" } : {}),
-                },
-                ...(body === undefined ? {} : { body }),
-                credentials: crossOrigin ? (options.credentials ?? "omit") : "same-origin",
-                redirect: "follow",
-                referrerPolicy: "strict-origin-when-cross-origin",
-                cache: "no-store",
-                signal: controller.signal,
-              });
-
-              if (!response.ok) {
-                throw { _tag: "Status", status: response.status } satisfies HttpError;
-              }
-              if (response.status === 204) {
-                return "";
-              }
-              if (!/^application\/(?:[\w.+-]+\+)?json\b/i.test(response.headers.get("content-type") ?? "")) {
-                throw { _tag: "Decode" } satisfies HttpError; // an HTML error page or a proxy's reply is not the API's answer
-              }
-
-              const read = await response.text();
-
-              if (read.length > (options.maxResponse ?? DEFAULT_MAX)) {
-                throw { _tag: "TooLarge" } satisfies HttpError;
-              }
-
-              return read;
-            } catch (error) {
-              // A fetch that was aborted rejects with the abort's reason, whatever that was: what we passed says who stopped it.
-              if (controller.signal.aborted) {
-                throw { _tag: controller.signal.reason === "timeout" ? "Timeout" : "Aborted" } satisfies HttpError;
-              }
-
-              throw error;
-            } finally {
-              clearTimeout(timer);
-              signal.removeEventListener("abort", stop);
-              if (controller.signal.aborted === false) {
-                controller.abort("done");
-              }
-            }
+        const request: TransportRequest = {
+          method,
+          url: address.url,
+          headers: {
+            accept: "application/json",
+            ...(body === undefined ? {} : { "content-type": "application/json" }),
+            // A header a plain cross-site form cannot send: with the backend checking it (or SameSite cookies), a forged request from another page has nothing to ride on.
+            ...(UNSAFE_METHODS.has(method) ? { "x-requested-with": "valance" } : {}),
           },
-          catch: (error): HttpError => {
-            if (typeof error === "object" && error !== null && "_tag" in error) {
-              return error as HttpError;
-            }
+          ...(body === undefined ? {} : { body }),
+          timeoutMs: spec.timeoutMs ?? DEFAULT_TIMEOUT,
+        };
+        // Whatever the interceptors did to the request, it goes where the API is: the address is checked again as the wire gets it.
+        const guarded: Transport = (final) =>
+          sameApi(options.base, final.url) ? wire(final) : Effect.fail<HttpError>({ _tag: "Unsafe", reason: "an interceptor sent the request outside the API's origin" });
+        const scoped = yield* FiberRef.get(scope);
+        const response = yield* chain(global, ...scoped, ...(spec.interceptors ?? []))(guarded)(request);
 
-            return { _tag: "Offline" };
-          },
-        });
+        if (response.status < 200 || response.status >= 300) {
+          return yield* Effect.fail<HttpError>({ _tag: "Status", status: response.status });
+        }
+        if (response.status !== 204 && !/^application\/(?:[\w.+-]+\+)?json\b/i.test(response.headers["content-type"] ?? "")) {
+          return yield* Effect.fail<HttpError>({ _tag: "Decode" }); // an HTML error page or a proxy's reply is not the API's answer
+        }
 
-        const json = yield* Effect.try({ try: () => (text === "" ? undefined : (JSON.parse(text) as unknown)), catch: (): HttpError => ({ _tag: "Decode" }) });
+        const json = yield* Effect.try({ try: () => (response.text === "" ? undefined : (JSON.parse(response.text) as unknown)), catch: (): HttpError => ({ _tag: "Decode" }) });
 
         return yield* Schema.decodeUnknown(spec.response)(json).pipe(Effect.mapError((): HttpError => ({ _tag: "Decode" })));
       }),

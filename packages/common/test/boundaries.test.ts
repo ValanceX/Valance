@@ -11,7 +11,7 @@ describe("@valancex/common", () => {
   it("imports only VALANCE and effect: no Node, no Vite, no MESH compiler, no CLI", () => {
     const names = Array.from(source.replace(/^\s*\/\/.*$/gm, "").matchAll(/from\s+"([^"]+)"/g), (match) => match[1]);
 
-    expect(names.sort()).toEqual(["@valancex/valance", "effect"]);
+    expect(names.sort()).toEqual(["./transport.js", "@valancex/valance", "effect"]);
   });
 
   it("does not re-export Schema: it comes from effect", () => {
@@ -75,7 +75,9 @@ describe("the runtime entries", () => {
   });
 
   it("is what the generated entries import, and the author entry loads none of it", () => {
-    expect([...closure("index.ts")]).toEqual(["index.ts"]);
+    // the one file it loads is the types of an interceptor: nothing in it runs
+    expect([...closure("index.ts")]).toEqual(["index.ts", "./transport.ts"]);
+    expect(readFileSync(`${src}transport.ts`, "utf8")).not.toMatch(/^export (?:const|function|class)/m);
   });
 });
 

@@ -26,6 +26,8 @@
 import type * as Valance from "@valancex/valance";
 import { Schema } from "effect";
 
+import type { Interceptor } from "./transport.js";
+
 /** The part of the application's state the framework owns: which page is shown. A command's `state` always has it. */
 export interface PageState {
   readonly page: string;
@@ -144,6 +146,12 @@ export interface AppDefinition<S extends StateInput = {}> {
    * every committed state, on the server for the state it renders and in the browser after each one; it should be cheap and must not throw (a throw is logged and the title stays).
    */
   readonly title?: (state: PageState & StateOf<S>, page: { readonly path: string; readonly title: string }) => TitleParts | string;
+  /**
+   * What the application sends to its backend, for every request: `http: { interceptors: [bearer(base, token), refreshOn401(refresh), retryGet(2)] }`, outermost first. Interceptors
+   * (`@valancex/common/http`) all have one shape, `(next) => next`, so they chain; a narrower scope is `withInterceptors(effect, ...)` around a command's work, or `interceptors` on one request.
+   * Used by the page; the server makes no requests.
+   */
+  readonly http?: { readonly interceptors?: ReadonlyArray<Interceptor> };
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */
   readonly commands?: (command: Valance.CommandMaker<PageState & StateOf<S>>) => Valance.CommandTable<any, Valance.Ambient>;
 }
