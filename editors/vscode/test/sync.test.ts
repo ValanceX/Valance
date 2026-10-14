@@ -5,7 +5,7 @@ import { affectsProject, coalesced, debounced } from "../src/sync";
 
 describe("one run at a time, none missed", () => {
   it("runs once for one ask", async () => {
-    const work = vi.fn(async () => undefined);
+    const work = vi.fn<() => Promise<void>>(async () => undefined);
 
     await coalesced(work)();
     expect(work).toHaveBeenCalledTimes(1);
@@ -40,7 +40,7 @@ describe("one run at a time, none missed", () => {
   });
 
   it("can be asked again after it finished", async () => {
-    const work = vi.fn(async () => undefined);
+    const work = vi.fn<() => Promise<void>>(async () => undefined);
     const run = coalesced(work);
 
     await run();
