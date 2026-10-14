@@ -4,6 +4,9 @@ import type { DefinedApp } from "./index.js";
 
 export type TargetName = "web" | "desktop";
 
+/** On a definition made by `forTarget`: the definition it was made from, so the toolchain can still see every target's templates. */
+export const WHOLE = Symbol.for("valancex.common.whole");
+
 /** The definition as `target` sees it: its own layout in place of the top-level one, its components and overrides added. */
 export const forTarget = (author: DefinedApp | undefined, target: TargetName): DefinedApp | undefined => {
   if (author === undefined) {
@@ -20,6 +23,7 @@ export const forTarget = (author: DefinedApp | undefined, target: TargetName): D
 
   return {
     ...author,
+    ...({ [WHOLE]: author } as object),
     ...(layout === undefined ? {} : { layout }),
     components: [...(author.components ?? []), ...(parts.components ?? [])],
     override: [...(author.override ?? []), ...(parts.override ?? [])],

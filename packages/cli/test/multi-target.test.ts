@@ -91,3 +91,37 @@ describe("a project of two targets", () => {
     expect(only.files.every((file) => file.startsWith("desktop/"))).toBe(true);
   }, 180_000);
 });
+
+describe("vlx generate target", () => {
+  it("adds the desktop to a web project without moving anything, and both build", async () => {
+    const { generateTarget } = await import("../src/add.js");
+    const { writeFileSync, readFileSync: read } = await import("node:fs");
+    const web = plan({ ...answers, targets: ["web"] }).files;
+    const root = project(Object.fromEntries([...web].filter(([name]) => name !== "package.json" && name !== "valance.json")));
+    const before = read(join(root, "src/layout.mprx"), "utf8");
+    const made = generateTarget(root, "desktop");
+
+    expect(made.created).toEqual(["valance.web.json", "valance.desktop.json", "src/desktop/layout.mprx"]);
+    expect(made.changed).toEqual(["src/main.ts"]);
+    expect(read(join(root, "src/layout.mprx"), "utf8")).toBe(before);
+    expect(read(join(root, "src/main.ts"), "utf8")).toContain("targets: { desktop: { layout: component(desktopLayout) } }");
+    expect(loadConfig(root).targets).toEqual(["web", "desktop"]);
+    expect((await check(root)).diagnostics).toEqual([]);
+    expect(() => generateTarget(root, "desktop")).toThrow(/already has the desktop target/);
+    expect(() => generateTarget(root, "mobile")).toThrow(/is not a target/);
+    writeFileSync(join(root, "valance.json"), '{ "name": "Test" }');
+
+    const built = await build(root);
+
+    expect(built.files).toContain("web/index.html");
+    expect(built.files).toContain("desktop/engine.mjs");
+  }, 180_000);
+
+  it("makes a project with no main.ts one, for a content-only project", async () => {
+    const { generateTarget } = await import("../src/add.js");
+    const root = project({ "content/index.md": "---\ntitle: Home\n---\n\n# Home\n", "valance.web.json": '{ "version": 1 }' });
+
+    generateTarget(root, "desktop");
+    expect((await check(root)).diagnostics).toEqual([]);
+  }, 120_000);
+});

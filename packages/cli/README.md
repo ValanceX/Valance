@@ -72,6 +72,10 @@ A project has the targets whose settings file it has; `vlx init my-app --web --d
 
 `vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx dev` builds the engine, opens the Desktop PORT's window on it (the `vlx-window` program, installed with `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`, found on the PATH or at `VLX_WINDOW`), and opens it anew when a file changes. Closing the window ends `vlx dev`.
 
+## Adding a target: `vlx generate target desktop`
+
+A web project becomes a project of two targets without moving anything: `vlx generate target desktop` writes `valance.desktop.json` (and `valance.web.json`, which a project needs once it has another target's), a layout of its own in `src/desktop/`, and registers it in `targets` in `src/main.ts`. The layout the project has stays the default for a target with none of its own. See `docs/application-model/MULTI-TARGET.md`.
+
 ## Adding to an application: `vlx generate`
 
 ```console

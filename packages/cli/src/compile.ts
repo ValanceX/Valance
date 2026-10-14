@@ -17,7 +17,7 @@ import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
-import { namesOf, webVocabulary } from "@valancex/common/internal";
+import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
 import { ENTRY_FILE } from "./project.js";
 
@@ -143,7 +143,9 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   // Every template under src/ must be somewhere in a tree: this target's, or another target's (a project for more than one target keeps each one's templates side by side).
   const claimed = new Set(files.values());
 
-  for (const parts of Object.values(author?.targets ?? {})) {
+  const whole = ((author as unknown as Record<symbol, DefinedApp | undefined> | undefined)?.[WHOLE] ?? author) as DefinedApp | undefined;
+
+  for (const parts of [whole, ...Object.values(whole?.targets ?? {})]) {
     for (const node of treeOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
       claimed.add(node.file);
     }

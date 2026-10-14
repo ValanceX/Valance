@@ -155,7 +155,8 @@ export const generateProgram = async (root: string, author: DefinedApp | undefin
   // of several targets the first one is what the editor reads (`model`, `wiring`), and `targets` lists each.
   const first = editor[0];
 
-  if (first !== undefined) {
+  // Only a pass over every target writes it (a pass over one, as `vlx dev --web` is, would leave the others out of it).
+  if (first !== undefined && editor.length === (config?.targets ?? ["web"]).length) {
     writeIfChanged(
       generated(root, "editor.json"),
       `${JSON.stringify({ version: 1, model: first.model, components: first.components, wiring: first.wiring, ...(editor.length > 1 ? { targets: Object.fromEntries(editor.map((each) => [each.id, { model: each.model, wiring: each.wiring, components: each.components }])) } : {}) }, null, 2)}\n`,

@@ -16,7 +16,10 @@ D1, D2 and D3 were decided as recommended below; D4 is decided as "unsigned for 
 | Phase 2 vendored copies | **not done**: the drift test stays; deriving them needs the Port to publish its vocabulary as data |
 | Phase 3 gap 5 (derived values) | **done**: `derived: (derive) => ({ summary: derive(Schema.String, (state) => ...) })`; typed, computed per state, same on every target; a name collision is an error. `todo-multi` shows "N of M open" on both targets from one definition |
 | Phase 3 gap 4 (presentation state) | **decided (D3)**: stays in the shared state |
-| Phase 1 gaps 6, 7, 9, 10 | not done |
+| Phase 1 gap 6 (one to two targets) | **done** as `vlx generate target desktop` (the verb `generate` already adds a page or a component): writes the settings file(s) and a layout of its own in `src/<target>/`, registers it in `targets`, and moves nothing: the layout the project has stays the default for a target with none of its own |
+| Phase 1 gap 10 (dev) | **half done**: `vlx dev` with no flag in a multi-target project serves the web and opens the window; `--web` / `--desktop` name one. Not done: the window keeping its process when the engine restarts (a Port change) |
+| Phase 1 gap 7 (output directory) | announced in the release notes (`dist/` for one web target stays; `dist/<target>/` for more); no change to the one-target layout |
+| Phase 1 gap 9 (editors) | **not done**: `editor.json` lists every target, but the extension runs one language server on one manifest. A shared component belongs to two manifests, so this needs one server per target and a rule for `src/shared/`; a design of its own |
 | Phase 4, Phase 5 | not done |
 
 ## 1. The standards the plan is held to

@@ -15,7 +15,7 @@ import { pathToFileURL } from "node:url";
 import { INIT_HELP, parseInit } from "./args.js";
 import type { InitArgs } from "./args.js";
 import { build } from "./build.js";
-import { generateComponent, generatePage, GenerateError, KINDS } from "./add.js";
+import { generateComponent, generatePage, generateTarget, GenerateError, KINDS } from "./add.js";
 import type { Kind } from "./add.js";
 import { check } from "./check.js";
 import { findRoot } from "./config.js";
@@ -34,6 +34,7 @@ const HELP = `vlx <command>
   build                            write the site to dist/
   check [--json]                   find mistakes in your files without building
   generate page|component <name>  add a page, or a component (alias: g)
+  generate target web|desktop      add a target to the project
   sync                             refresh the generated files (this runs by itself; see vlx help sync)
   help [command]                   say more about one command
 
@@ -41,13 +42,16 @@ Run it in a project (a directory with a valance.json), or any directory inside o
 In a terminal the commands draw an interface; --plain (or a pipe, or CI) prints plain text.
 `;
 
-const GENERATE_HELP = `vlx generate <page|component> <name>   (alias: vlx g)
+const GENERATE_HELP = `vlx generate <page|component|target> <name>   (alias: vlx g)
 
   vlx generate page guide/getting-started   content/guide/getting-started.md, with its front matter
                                             (--title "Getting started" to say the title)
   vlx generate component post-card          src/post-card.mprx and src/post-card.ts, imported in
                                             src/main.ts and listed in its \`components\`. Write
                                             <post-card></post-card> in a template to use it.
+  vlx generate target desktop               valance.desktop.json and a layout of its own in src/desktop/,
+                                            registered in \`targets\` of src/main.ts; the content, the state and
+                                            the commands are shared. Nothing the project has is moved.
 
 Nothing is overwritten: a name that is taken is refused.
 `;
@@ -56,7 +60,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   init: INIT_HELP,
   generate: GENERATE_HELP,
   g: GENERATE_HELP,
-  dev: "vlx dev [--web|--desktop] [--port N] [--host H]\n\nServe the project (a project of more than one target says which: the web is served, a desktop one opens its window) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
+  dev: "vlx dev [--web|--desktop] [--port N] [--host H]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
   build:
     "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/ (dist/web/ when the project has more than one target); any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
@@ -198,7 +202,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const picked = targetFlags(rest);
 
         if (picked.length > 1) {
-          console.error("vlx dev: one target at a time: vlx dev --web or vlx dev --desktop");
+          console.error("vlx dev: name one target, or none for all of them: vlx dev --web or vlx dev --desktop");
 
           return 2;
         }
@@ -302,7 +306,8 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const root = findRoot(cwd);
 
         try {
-          const made = kind === "page" ? generatePage(root, positional[1], title) : generateComponent(root, positional[1]);
+          const made =
+            kind === "page" ? generatePage(root, positional[1], title) : kind === "target" ? generateTarget(root, positional[1]) : generateComponent(root, positional[1]);
 
           made.created.forEach((file) => console.log(`vlx generate: created ${file}`));
           made.changed.forEach((file) => console.log(`vlx generate: changed ${file}`));

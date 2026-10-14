@@ -288,22 +288,31 @@ export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> 
   const config = loadConfig(root);
   const target = options.target ?? (config.targets.length === 1 ? config.targets[0] : undefined);
 
-  if (target === undefined) {
-    throw new AppError([
-      {
-        file: "valance.json",
-        line: 0,
-        column: 0,
-        code: "dev-target",
-        message: `this project has more than one target (${config.targets.join(", ")}): choose one, vlx dev --${config.targets[0]}`,
-      },
-    ]);
-  }
-  if (!config.targets.includes(target)) {
+  if (target !== undefined && !config.targets.includes(target)) {
     throw new AppError([
       { file: "valance.json", line: 0, column: 0, code: "dev-target", message: `this project is not built for ${target} (its targets: ${config.targets.join(", ")})` },
     ]);
   }
+
+  // A project of more than one target, and none named: serve the web and open the desktop's window, each as it would be alone.
+  if (target === undefined) {
+    const web = await dev(root, { ...options, target: "web" });
+    const desktop = await devDesktop(root, options);
+
+    return {
+      url: web.url,
+      closed: desktop.closed,
+      settled: async () => {
+        await web.settled();
+        await desktop.settled();
+      },
+      close: async () => {
+        await desktop.close();
+        await web.close();
+      },
+    } as Dev;
+  }
+
   if (target === "desktop") {
     return devDesktop(root, options);
   }
