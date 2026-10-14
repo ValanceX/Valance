@@ -39,5 +39,17 @@ export const primitives: Web.WebPrimitives = {
   a: { element: "a", props: { href: Web.attribute("href") } },
   /** A link that is part of the page's furniture (navigation, a brand): it has a class, and says whether it is where you are (`aria-current`: "page" or "false"). */
   link: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
+  /** A box to tick, reporting `change` with the new value (a boolean). PORT Web's table cannot give an element a fixed attribute, so a template says `type="checkbox"` itself. */
+  checkbox: {
+    element: "input",
+    props: { type: Web.attribute("type"), checked: Web.property("checked", "boolean"), label },
+    events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) },
+  },
+  /** A text field, reporting `change` with the new text (a string); the field shows what the state says. */
+  textfield: {
+    element: "input",
+    props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label },
+    events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
+  },
   button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed") }, events: { click: { type: "click" } } },
 };

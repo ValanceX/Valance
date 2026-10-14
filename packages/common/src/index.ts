@@ -129,7 +129,20 @@ export interface TitleParts {
   readonly status?: string;
 }
 
+/** What differs between targets: the templates. Everything else in the definition (state, commands, title, http) is the application's, and the same on every target. */
+export interface TargetParts {
+  readonly layout?: Component;
+  readonly components?: ReadonlyArray<Component>;
+  readonly override?: ReadonlyArray<Component>;
+}
+
 export interface AppDefinition<S extends StateInput = {}> {
+  /**
+   * The templates of one target, for a project with more than one (`valance.web.json` and `valance.desktop.json`): `targets: { web: { layout, components }, desktop: { layout } }`. A target's
+   * `layout` replaces the top-level one, and its `components` and `override` are added to it. A target's templates are compiled against that target's vocabulary only; the state, the commands and
+   * the content are the one application's.
+   */
+  readonly targets?: { readonly web?: TargetParts; readonly desktop?: TargetParts };
   /** The page's shell. Omit it to use the built-in layout. Its template must be named `layout.mprx`, and it has no props or events: its inputs are the state and the commands. */
   readonly layout?: Component;
   /** Every component of the application besides the layout and the overrides. A template uses one by writing its tag; one that no template writes yet is not part of the program. */

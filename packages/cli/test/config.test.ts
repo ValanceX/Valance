@@ -23,7 +23,7 @@ describe("valance.json and valance.web.json", () => {
   it("resolves defaults: the web target is served at / with no published address", () => {
     expect(loadConfig(project({}))).toEqual({
       name: "Test",
-      target: "web",
+      targets: ["web"],
       title: "{page} · {site}",
       web: { base: "/", url: "", headers: true, announce: true },
       api: { base: "", proxy: "" },

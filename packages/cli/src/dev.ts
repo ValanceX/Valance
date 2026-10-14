@@ -20,12 +20,15 @@ import type { Config } from "./config.js";
 import { loadConfig, PROJECT_FILE, WEB_FILE } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, format } from "./diagnostics.js";
+import type { TargetId } from "./targets.js";
 import { devDesktop } from "./dev-desktop.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 import { baseConfig, SERVER_ENTRY } from "./vite.js";
 
 export interface DevOptions {
+  /** Which target to serve, for a project of more than one. */
+  readonly target?: TargetId;
   readonly port?: number;
   readonly host?: string;
   /** Called with each report (a rebuild, a mistake); defaults to the console. */
@@ -174,7 +177,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
       await run("content", () => generateContent(root, config));
     }
     if (stages.includes("program")) {
-      await run("templates", async () => generateProgram(root, await loadAuthor(server, root), config));
+      await run("templates", async () => generateProgram(root, await loadAuthor(server, root), config, ["web"]));
     }
 
     const open = [...failed.values()].flat();
@@ -248,7 +251,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   // First build: a mistake here is reported like any other and the server still starts, so the overlay can show it.
   for (const [name, work] of [
     ["content", () => generateContent(root, config)],
-    ["templates", async () => generateProgram(root, await loadAuthor(server, root), config)],
+    ["templates", async () => generateProgram(root, await loadAuthor(server, root), config, ["web"])],
   ] as const) {
     try {
       await work();
@@ -282,7 +285,26 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
 /** Starts the development server for the project at `root`. */
 export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> => {
-  if (loadConfig(root).target === "desktop") {
+  const config = loadConfig(root);
+  const target = options.target ?? (config.targets.length === 1 ? config.targets[0] : undefined);
+
+  if (target === undefined) {
+    throw new AppError([
+      {
+        file: "valance.json",
+        line: 0,
+        column: 0,
+        code: "dev-target",
+        message: `this project has more than one target (${config.targets.join(", ")}): choose one, vlx dev --${config.targets[0]}`,
+      },
+    ]);
+  }
+  if (!config.targets.includes(target)) {
+    throw new AppError([
+      { file: "valance.json", line: 0, column: 0, code: "dev-target", message: `this project is not built for ${target} (its targets: ${config.targets.join(", ")})` },
+    ]);
+  }
+  if (target === "desktop") {
     return devDesktop(root, options);
   }
 
@@ -330,7 +352,7 @@ export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> 
     timer.unref();
   };
 
-  const config = loadConfig(root);
+  // (the configuration is read above)
 
   current = await start(root, config, options, restart);
 

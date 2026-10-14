@@ -1,0 +1,5 @@
+{
+  "$schema": "./node_modules/@valancex/cli/schemas/valance.schema.json",
+  "version": 1,
+  "name": "todo-multi"
+}

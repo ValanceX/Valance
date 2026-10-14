@@ -24,7 +24,7 @@ export const INIT_HELP = `vlx init [app-name] [options]
 
 Make a new application. Without options it asks what it needs to know.
 
-  --web, --desktop           the target: the web, or a desktop window (one per project; a flag per target: ${TARGETS.map((each) => `--${each.id}`).join(", ")})
+  --web, --desktop           the targets: the web, a desktop window, or both (a flag per target: ${TARGETS.map((each) => `--${each.id}`).join(", ")})
   -y, --yes                  answer every question with its default (the web)
   --pm <npm|pnpm|yarn|bun>   the package manager (default: the one that ran this, else npm)
   --no-install               do not install the dependencies
@@ -89,10 +89,6 @@ export const parseInit = (args: ReadonlyArray<string>): InitArgs | string => {
     } else {
       positional.push(arg);
     }
-  }
-
-  if (targets.length > 1) {
-    return `one target per project, not ${targets.length}: ${targets.map((id) => `--${id}`).join(" and ")}`;
   }
 
   if (positional.length > 1) {

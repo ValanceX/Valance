@@ -140,11 +140,19 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
     found.set(node.name, { component: node.name, path: node.file, source: readFileSync(join(root, node.file), "utf8"), builtIn: false });
   }
 
-  // Every template under src/ must be somewhere in the tree.
+  // Every template under src/ must be somewhere in a tree: this target's, or another target's (a project for more than one target keeps each one's templates side by side).
+  const claimed = new Set(files.values());
+
+  for (const parts of Object.values(author?.targets ?? {})) {
+    for (const node of treeOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
+      claimed.add(node.file);
+    }
+  }
+
   for (const file of mprxIn(join(root, SOURCE_DIR))) {
     const path = `${SOURCE_DIR}/${file}`;
 
-    if (![...files.values()].includes(path)) {
+    if (!claimed.has(path)) {
       problems.push(
         diagnostic(
           path,

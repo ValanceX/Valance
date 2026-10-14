@@ -1,4 +1,5 @@
 // Putting the views on the terminal. Ink and React are loaded only here, and only when a command is going to draw: a command that prints plain text never pays for them.
+import type { TargetId } from "../targets.js";
 import { render } from "ink";
 import type { ReactElement } from "react";
 
@@ -61,12 +62,15 @@ export const drawCheck = async (root: string): Promise<Checked> => {
   }
 };
 
-export const drawBuild = async (root: string): Promise<Built> => {
+export const drawBuild = async (root: string, targets: ReadonlyArray<TargetId> = []): Promise<Built> => {
   const started = Date.now();
   const shown = show(<BuildProgress current="configuration" />);
 
   try {
-    const built = await runBuild(root, { onStage: ((stage) => shown.rerender(<BuildProgress current={stage} />)) satisfies BuildOptions["onStage"] });
+    const built = await runBuild(root, {
+      ...(targets.length === 0 ? {} : { targets }),
+      onStage: ((stage) => shown.rerender(<BuildProgress current={stage} />)) satisfies BuildOptions["onStage"],
+    });
 
     shown.rerender(<BuildResult built={built} seconds={(Date.now() - started) / 1000} />);
 
@@ -80,7 +84,7 @@ export const drawBuild = async (root: string): Promise<Built> => {
 /** Mistakes that stopped a command, drawn the way `check` draws them. */
 export const drawDiagnostics = (diagnostics: ReadonlyArray<Diagnostic>): Promise<void> => leave(<Diagnostics diagnostics={diagnostics} />);
 
-export const drawDev = async (root: string, options: { readonly port?: number; readonly host?: string }): Promise<void> => {
+export const drawDev = async (root: string, options: { readonly target?: TargetId; readonly port?: number; readonly host?: string }): Promise<void> => {
   let state: DevState = { open: [], lines: [], starting: true };
   const shown = show(<DevScreen state={state} />);
   const update = (patch: Partial<DevState>): void => {

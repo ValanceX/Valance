@@ -1,0 +1,26 @@
+{
+  "name": "@valancex/todo-multi",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vlx dev",
+    "build": "vlx build",
+    "check": "vlx check",
+    "typecheck": "vlx sync && tsc --noEmit",
+    "prepare": "vlx sync",
+    "test:smoke": "vitest run"
+  },
+  "dependencies": {
+    "@valancex/common": "workspace:*",
+    "effect": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/cli": "workspace:*",
+    "@valancex/mesh-lsp": "0.11.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "playwright": "1.56.1"
+  }
+}

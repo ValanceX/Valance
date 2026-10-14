@@ -151,21 +151,25 @@ export const plan = (answers: Answers): Plan => {
   };
   const fill = (text: string): string => text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => tokens[key] ?? match);
 
-  if (web && desktop) {
-    throw new Error("a project has one target: the web or a desktop window");
-  }
+  // A project for more than one target keeps what they share (the content, the state and the commands) and gives each its own templates (`src/web/`, `src/desktop/`): the "multi" template, on
+  // top of the web's files that are not templates.
+  const layers = web && desktop ? ["web", "multi"] : web ? ["web"] : desktop ? ["desktop"] : [];
 
-  for (const target of web ? ["web"] : desktop ? ["desktop"] : []) {
+  for (const target of layers) {
     const root = new URL(`${target}/`, TEMPLATES);
 
     for (const file of files(root)) {
+      if (target === "web" && layers.includes("multi") && (file.startsWith("src/") || file.startsWith("content/") || file === "README.md")) {
+        continue;
+      }
+
       out.set(written(file), fill(readFileSync(new URL(file, root), "utf8")));
     }
   }
 
   out.set(PROJECT_FILE, json({ $schema: "./node_modules/@valancex/cli/schemas/valance.schema.json", version: 1, name: title }));
 
-  if (web && (hasBase || answers.web.url !== "")) {
+  if (web && (hasBase || answers.web.url !== "" || desktop)) {
     out.set(
       WEB_FILE,
       json({

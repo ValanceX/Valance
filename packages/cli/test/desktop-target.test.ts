@@ -18,7 +18,7 @@ const scaffolded = (): string =>
   project(Object.fromEntries([...plan({ ...answers, targets: ["desktop"] }).files].filter(([name]) => name !== "package.json" && name !== "valance.json")));
 
 describe("vlx init --desktop", () => {
-  it("makes a project with the desktop's marker file, its own layout and no web files, and one target only", () => {
+  it("makes a project with the desktop's marker file, its own layout and no web files", () => {
     const { files } = plan({ ...answers, targets: ["desktop"] });
 
     expect([...files.keys()].sort()).toEqual([
@@ -34,8 +34,7 @@ describe("vlx init --desktop", () => {
       "valance.desktop.json",
       "valance.json",
     ]);
-    expect(() => plan({ ...answers, targets: ["web", "desktop"] })).toThrow(/one target/);
-    expect(parseInit(["x", "--web", "--desktop"])).toMatch(/one target/);
+    expect(parseInit(["x", "--web", "--desktop"])).toMatchObject({ targets: ["web", "desktop"] });
     expect(parseInit(["x", "--desktop"])).toMatchObject({ targets: ["desktop"] });
   });
 });
@@ -63,11 +62,11 @@ describe("a desktop project", () => {
     const root = scaffolded();
     const built = await build(root);
 
-    expect(built.files).toEqual(["engine.mjs", "mesh-runtime.wasm"]);
-    expect(existsSync(join(built.dir, "engine.mjs"))).toBe(true);
-    expect(readFileSync(join(built.dir, "engine.mjs"), "utf8")).not.toContain("port-web");
+    expect(built.files).toEqual(["desktop/engine.mjs", "desktop/mesh-runtime.wasm"]);
+    expect(existsSync(join(built.dir, "desktop", "engine.mjs"))).toBe(true);
+    expect(readFileSync(join(built.dir, "desktop", "engine.mjs"), "utf8")).not.toContain("port-web");
 
-    const child = spawn(process.execPath, [join(built.dir, "engine.mjs")], { stdio: ["pipe", "pipe", "inherit"] });
+    const child = spawn(process.execPath, [join(built.dir, "desktop", "engine.mjs")], { stdio: ["pipe", "pipe", "inherit"] });
     const seen: Array<{ readonly op: string; readonly [key: string]: unknown }> = [];
 
     createInterface({ input: child.stdout }).on("line", (line) => void seen.push(JSON.parse(line)));

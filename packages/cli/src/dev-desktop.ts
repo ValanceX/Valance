@@ -72,13 +72,13 @@ export const devDesktop = async (root: string, options: DevOptions = {}): Promis
 
   const rebuild = async (): Promise<void> => {
     try {
-      const built = await build(root);
+      const built = await build(root, { targets: ["desktop"] });
 
       options.onStatus?.([]);
       await stopWindow();
 
       if (!stopping) {
-        openWindow(join(built.dir, "engine.mjs"));
+        openWindow(join(built.dir, "desktop", "engine.mjs"));
         log("vlx: built; the window is open");
       }
     } catch (error) {

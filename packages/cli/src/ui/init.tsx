@@ -9,7 +9,7 @@ import { directoryFor, directoryProblem, execute as defaultExecute, nameProblem,
 import type { TargetId } from "../targets.js";
 import { DEFAULT_TARGETS, TARGETS } from "../targets.js";
 import { Spinner } from "./Spinner.js";
-import { Answered, Confirm, Select, TextPrompt } from "./prompts.js";
+import { Answered, Confirm, MultiSelect, Select, TextPrompt } from "./prompts.js";
 
 type Question = "name" | "targets" | "base" | "url" | "pm" | "install" | "git";
 
@@ -180,13 +180,13 @@ export const Wizard = ({ args, cwd, detected, version, execute = defaultExecute,
           />
         ) : null}
         {question === "targets" ? (
-          <Select
-            label="Which target is it for?"
-            hint="one per project"
+          <MultiSelect
+            label="Which targets is it for?"
+            hint="one application, built for each"
             choices={TARGETS.map((each) => ({ value: each.id, label: each.label, hint: each.hint }))}
-            initial="web"
-            onSubmit={(value) => {
-              answer({ targets: [value] }, "Target", TARGETS.find((each) => each.id === value)?.label ?? value);
+            initial={DEFAULT_TARGETS}
+            onSubmit={(values) => {
+              answer({ targets: values }, "Targets", values.map((id) => TARGETS.find((each) => each.id === id)?.label ?? id).join(", "));
             }}
           />
         ) : null}

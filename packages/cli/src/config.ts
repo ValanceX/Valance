@@ -17,8 +17,8 @@ export const CONFIG_VERSION = 1;
 
 export interface Config {
   readonly name: string;
-  /** Which target the project is for: the one whose settings file it has (`valance.desktop.json`), else the web. One target per project. */
-  readonly target: "web" | "desktop";
+  /** The targets the project is built for: each one whose settings file it has (`valance.web.json`, `valance.desktop.json`), else the web alone. One application, one build per target. */
+  readonly targets: ReadonlyArray<"web" | "desktop">;
   /** How the document's title is written from a page's title and the site's name: `{page}` and `{site}`. */
   readonly title: string;
   readonly web: {
@@ -149,9 +149,6 @@ export const loadConfig = (root: string): Config => {
   const web = read(root, WEB_FILE);
   const desktop = read(root, DESKTOP_FILE);
   const problems = [
-    ...(web !== undefined && desktop !== undefined
-      ? [diagnostic(DESKTOP_FILE, 1, "config-target", `a project has one target: ${WEB_FILE} and ${DESKTOP_FILE} cannot both exist (a project for both needs a template for each)`)]
-      : []),
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
     ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
     ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
@@ -172,7 +169,7 @@ export const loadConfig = (root: string): Config => {
 
   return {
     name: named.name,
-    target: desktop === undefined ? "web" : "desktop",
+    targets: desktop === undefined ? ["web"] : web === undefined ? ["desktop"] : ["web", "desktop"],
     title: named.title ?? DEFAULT_TITLE,
     web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },

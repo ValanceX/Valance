@@ -41,7 +41,7 @@ export const templates = (root: string): Plugin => ({
   handleHotUpdate: ({ file }) => (file.endsWith(".mprx") ? [] : undefined),
 });
 
-export const baseConfig = (root: string, config: Config): InlineConfig => ({
+export const baseConfig = (root: string, config: Config, out: string = OUTPUT_DIR): InlineConfig => ({
   root,
   configFile: false,
   base: config.web.base,
@@ -52,7 +52,7 @@ export const baseConfig = (root: string, config: Config): InlineConfig => ({
   cacheDir: join(root, GENERATED_DIR, "cache"),
   customLogger: logger,
   clearScreen: false,
-  build: { outDir: join(root, OUTPUT_DIR), emptyOutDir: true, target: "esnext", manifest: true, chunkSizeWarningLimit: 1500, rollupOptions: { input: join(root, CLIENT_ENTRY) } },
+  build: { outDir: join(root, out), emptyOutDir: true, target: "esnext", manifest: true, chunkSizeWarningLimit: 1500, rollupOptions: { input: join(root, CLIENT_ENTRY) } },
   // The MESH runtime refers to node:fs/promises on a path the browser never takes.
   optimizeDeps: { exclude: ["@valancex/mesh-runtime", "@valancex/cli", "@valancex/common"] },
 });

@@ -42,5 +42,5 @@ export type TargetId = Target["id"];
 
 export const isTarget = (name: string): name is TargetId => TARGETS.some((each) => each.id === name);
 
-/** What `--yes` makes: a project has one target, and the web is the one that needs nothing else installed. */
+/** What `--yes` makes: the web alone is the one that needs nothing else installed. */
 export const DEFAULT_TARGETS: ReadonlyArray<TargetId> = ["web"];

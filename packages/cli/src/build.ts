@@ -13,6 +13,7 @@ import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
+import type { TargetId } from "./targets.js";
 import { baseConfig, createLoader, SERVER_ENTRY, templates } from "./vite.js";
 import { GENERATED_DIR } from "./project.js";
 
@@ -44,6 +45,8 @@ export type BuildStage = "configuration" | "content" | "templates" | "bundle" | 
 export interface BuildOptions {
   /** Called as each stage begins. */
   readonly onStage?: (stage: BuildStage) => void;
+  /** Which of the project's targets to build; all of them by default. */
+  readonly targets?: ReadonlyArray<TargetId>;
 }
 
 /** The MESH runtime's module, found the way the project's own dependency would be: through `@valancex/common`, which depends on it. */
@@ -54,29 +57,15 @@ const wasmOf = (root: string): string => {
   return fromCommon.resolve("@valancex/mesh-runtime/mesh-runtime.wasm");
 };
 
-/** `vlx build` for a desktop project: the engine, one ES module with everything it needs bundled in, and the MESH runtime's module beside it, in `dist/desktop/`. The window is the Desktop PORT's. */
-const buildDesktop = async (root: string, config: Config, stage: (stage: BuildStage) => void): Promise<Built> => {
-  generateEntries(root, config);
-  stage("content");
-  generateContent(root, config);
-
-  const loader = await createLoader(root, config);
-
-  try {
-    stage("templates");
-    await generateProgram(root, await loadAuthor(loader, root), config);
-  } finally {
-    await loader.close();
-  }
-
-  stage("bundle");
-
+/** The desktop build: the engine, one ES module with everything it needs bundled in, and the MESH runtime's module beside it, in `dist/desktop/`. The window is the Desktop PORT's. */
+const buildDesktop = async (root: string): Promise<Built> => {
   const out = join(root, OUTPUT_DIR, "desktop");
 
   rmSync(out, { recursive: true, force: true });
   await bundle({
     root,
     configFile: false,
+    publicDir: false, // the site's public files are the web's
     logLevel: "warn",
     plugins: [templates(root)],
     cacheDir: join(root, GENERATED_DIR, "cache"),
@@ -99,57 +88,36 @@ const buildDesktop = async (root: string, config: Config, stage: (stage: BuildSt
   });
   copyFileSync(wasmOf(root), join(out, "mesh-runtime.wasm"));
 
-  return { dir: out, files: ["engine.mjs", "mesh-runtime.wasm"], pages: [] };
+  return { dir: out, files: ["desktop/engine.mjs", "desktop/mesh-runtime.wasm"], pages: [] };
 };
 
-export const build = async (root: string, options: BuildOptions = {}): Promise<Built> => {
-  const stage = options.onStage ?? (() => undefined);
+/** The web build: the browser bundle into `out`, then one document per page. The loader is the one the templates were compiled with. */
+const buildWeb = async (
+  root: string,
+  config: Config,
+  loader: Awaited<ReturnType<typeof createLoader>>,
+  content: Content,
+  out: string,
+  prefix: string,
+  stage: (stage: BuildStage) => void,
+): Promise<Built> => {
+  // The browser bundle first: it empties its directory, and the documents are written into it after.
+  stage("bundle");
 
-  stage("configuration");
+  await bundle({ ...baseConfig(root, config, out), mode: "production" });
 
-  const config = loadConfig(root);
-
-  if (config.target === "desktop") {
-    return buildDesktop(root, config, stage);
-  }
-
-  generateEntries(root, config);
-
-  stage("content");
-
-  const content = generateContent(root, config);
-  const loader = await createLoader(root, config);
-  let rendered: {
+  const rendered = (await loader.ssrLoadModule(SERVER_ENTRY)) as {
     readonly render: (pathname: string, built: { readonly script: string; readonly styles: ReadonlyArray<string> }) => Promise<{ readonly status: number; readonly html: string }>;
     readonly paths: () => ReadonlyArray<string>;
   };
 
-  try {
-    stage("templates");
-
-    const author = await loadAuthor(loader, root);
-
-    await generateProgram(root, author, config);
-
-    // The browser bundle first: it empties dist/, and the documents are written into it after.
-    stage("bundle");
-
-    await bundle({ ...baseConfig(root, config), mode: "production" });
-
-    rendered = (await loader.ssrLoadModule(SERVER_ENTRY)) as typeof rendered;
-  } catch (error) {
-    await loader.close();
-
-    throw error;
-  }
-
-  try {
-    const dist = join(root, OUTPUT_DIR);
+  {
+    const dist = join(root, out);
     const manifest = JSON.parse(readFileSync(join(dist, ".vite", "manifest.json"), "utf8")) as Record<string, ManifestChunk>;
     const entry = Object.values(manifest).find((chunk) => chunk.isEntry === true);
 
     if (entry === undefined) {
-      throw new AppError([{ file: OUTPUT_DIR, line: 0, column: 0, code: "build-entry", message: "the bundle has no entry chunk" }]);
+      throw new AppError([{ file: out, line: 0, column: 0, code: "build-entry", message: "the bundle has no entry chunk" }]);
     }
 
     rmSync(join(dist, ".vite"), { recursive: true, force: true }); // the bundler's bookkeeping is not part of the site
@@ -181,8 +149,58 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
       write("_headers", headersFile(config));
     }
 
-    return { dir: dist, files, pages };
+    return { dir: dist, files: files.map((file) => `${prefix}${file}`), pages };
+  }
+};
+
+export const build = async (root: string, options: BuildOptions = {}): Promise<Built> => {
+  const stage = options.onStage ?? (() => undefined);
+
+  stage("configuration");
+
+  const config = loadConfig(root);
+  const selected = options.targets ?? config.targets;
+  const unknown = selected.filter((id) => !config.targets.includes(id));
+
+  if (unknown.length > 0) {
+    throw new AppError([
+      {
+        file: "valance.json",
+        line: 0,
+        column: 0,
+        code: "build-target",
+        message: `this project is not built for ${unknown.join(", ")} (its targets: ${config.targets.join(", ")}): add valance.${unknown[0]}.json`,
+      },
+    ]);
+  }
+
+  const many = config.targets.length > 1;
+
+  generateEntries(root, config);
+
+  stage("content");
+
+  const content = generateContent(root, config);
+  const loader = await createLoader(root, config);
+  const built: Array<Built> = [];
+
+  try {
+    stage("templates");
+
+    await generateProgram(root, await loadAuthor(loader, root), config, selected);
+
+    // A project of one web target writes its site to dist/, as it always has; with more targets each has a directory of its own.
+    if (selected.includes("web")) {
+      built.push(await buildWeb(root, config, loader, content, many ? `${OUTPUT_DIR}/web` : OUTPUT_DIR, many ? "web/" : "", stage));
+    }
+
+    if (selected.includes("desktop")) {
+      stage("bundle");
+      built.push(await buildDesktop(root));
+    }
   } finally {
     await loader.close();
   }
+
+  return { dir: join(root, OUTPUT_DIR), files: built.flatMap((each) => each.files), pages: built.flatMap((each) => each.pages) };
 };

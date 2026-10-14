@@ -23,6 +23,7 @@ import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
 import { AppError, format } from "./diagnostics.js";
 import { detectPackageManager, directoryFor, directoryProblem, execute, nameProblem, runCommand, titleOf } from "./init.js";
+import type { TargetId } from "./targets.js";
 import { DEFAULT_TARGETS, TARGETS } from "./targets.js";
 import { canAsk, canDraw } from "./tty.js";
 
@@ -55,8 +56,9 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   init: INIT_HELP,
   generate: GENERATE_HELP,
   g: GENERATE_HELP,
-  dev: "vlx dev [--port N] [--host H]\n\nServe the project and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
-  build: "vlx build\n\nWrite the site to dist/. Any host that serves files can serve it.\n",
+  dev: "vlx dev [--web|--desktop] [--port N] [--host H]\n\nServe the project (a project of more than one target says which: the web is served, a desktop one opens its window) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
+  build:
+    "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/ (dist/web/ when the project has more than one target); any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
   check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
 };
@@ -73,6 +75,9 @@ const sync = async (from: string): Promise<string> => {
     return `skipped (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`;
   }
 };
+
+/** The targets named by flags (`--web`, `--desktop`), in the order given. */
+const targetFlags = (args: ReadonlyArray<string>): ReadonlyArray<TargetId> => TARGETS.map((each) => each.id).filter((id) => args.includes(`--${id}`));
 
 const option = (args: ReadonlyArray<string>, name: string): string | undefined => {
   const at = args.indexOf(name);
@@ -190,16 +195,33 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
       case "dev": {
         const port = option(rest, "--port");
         const host = option(rest, "--host");
+        const picked = targetFlags(rest);
+
+        if (picked.length > 1) {
+          console.error("vlx dev: one target at a time: vlx dev --web or vlx dev --desktop");
+
+          return 2;
+        }
+
+        const target = picked[0];
 
         if (draws) {
           const { drawDev } = await import("./ui/run.js");
 
-          await drawDev(findRoot(cwd), { ...(port === undefined ? {} : { port: Number(port) }), ...(host === undefined ? {} : { host }) });
+          await drawDev(findRoot(cwd), {
+            ...(target === undefined ? {} : { target }),
+            ...(port === undefined ? {} : { port: Number(port) }),
+            ...(host === undefined ? {} : { host }),
+          });
 
           return 0;
         }
 
-        const running = await dev(findRoot(cwd), { ...(port === undefined ? {} : { port: Number(port) }), ...(host === undefined ? {} : { host }) });
+        const running = await dev(findRoot(cwd), {
+          ...(target === undefined ? {} : { target }),
+          ...(port === undefined ? {} : { port: Number(port) }),
+          ...(host === undefined ? {} : { host }),
+        });
 
         console.log(`vlx dev: ${running.url}`);
 
@@ -217,13 +239,14 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         if (draws) {
           const { drawBuild } = await import("./ui/run.js");
 
-          await drawBuild(findRoot(cwd));
+          await drawBuild(findRoot(cwd), targetFlags(rest));
 
           return 0;
         }
 
         const started = Date.now();
-        const built = await build(findRoot(cwd));
+        const flagged = targetFlags(rest);
+        const built = await build(findRoot(cwd), flagged.length === 0 ? {} : { targets: flagged });
 
         console.log(`vlx build: ${built.pages.length} pages, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
 
