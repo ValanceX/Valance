@@ -35,8 +35,9 @@ export const addItem = (lists: ReadonlyArray<TodoList>, listId: string, id: stri
 const inItem = (lists: ReadonlyArray<TodoList>, listId: string, itemId: string, change: (item: Item) => Item): ReadonlyArray<TodoList> =>
   inList(lists, listId, (list) => ({ ...list, items: list.items.map((item) => (item.id === itemId ? change(item) : item)) }));
 
-export const toggleItem = (lists: ReadonlyArray<TodoList>, listId: string, itemId: string): ReadonlyArray<TodoList> =>
-  inItem(lists, listId, itemId, (item) => ({ ...item, done: !item.done }));
+/** Sets whether an item is done. It sets, and does not flip: the same answer twice is the same state. */
+export const setDone = (lists: ReadonlyArray<TodoList>, listId: string, itemId: string, done: boolean): ReadonlyArray<TodoList> =>
+  inItem(lists, listId, itemId, (item) => ({ ...item, done }));
 
 export const retitleItem = (lists: ReadonlyArray<TodoList>, listId: string, itemId: string, title: string): ReadonlyArray<TodoList> =>
   inItem(lists, listId, itemId, (item) => ({ ...item, title }));

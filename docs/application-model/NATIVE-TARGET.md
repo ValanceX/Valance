@@ -9,7 +9,7 @@ Written 2026-10-14 from `examples/todo` (since then the renderer is the Desktop 
 | NEXUS state and commands, MESH templates with blocks and event payloads, `{#each}` with keys | The application never names a platform. The same definition ran on a text target in tests and in a native window. |
 | `@valancex/router` core: `match`, `decide`, guards, `go`, `canDeactivate` | Used as is. A refused leave over the wire (unsaved edit) held; discard released it. |
 | The `Target` seam (`draw`, `update`, `unmount`, `report`) | Enough for a target that is a process: a serializing target is 40 lines (`host.ts`). |
-| A vocabulary of its own | `window`, `column`, `row`, `heading`, `text`, `button`, `checkbox`, `field`: eight components in a manifest, compiled by the published MESH compiler. The web's tag table was not needed. |
+| A vocabulary of its own | `column`, `row`, `heading`, `text`, `button`, `checkbox`, `field` (now `textfield`): seven components in a manifest, compiled by the published MESH compiler. The web's tag table was not needed. |
 
 ## What it found (and what was done)
 

@@ -4,7 +4,7 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { Effect, Schema } from "effect";
 
-import { addItem, addList, cleanText, clearDone, itemOf, listOf, openCount, removeItem, removeList, renameList, retitleItem, toggleItem } from "./domain.js";
+import { addItem, addList, cleanText, clearDone, itemOf, listOf, openCount, removeItem, removeList, renameList, retitleItem, setDone } from "./domain.js";
 import type { TodoList } from "./domain.js";
 import { hrefs, router } from "./routes.js";
 import type { TodoState } from "./routes.js";
@@ -63,6 +63,23 @@ const summary = (list: TodoList): string => {
 
 /** What the item and list edit screens show, and whether it differs from what is saved. */
 const shown = (state: TodoState, saved: string): { readonly value: string; readonly dirty: boolean } => ({ value: state.draft ?? saved, dirty: state.draft !== null });
+
+/** The window's title for a state: the page, then the application. The window is the host's, so the application says what its title is; a template never does. */
+export const titleOf = (state: TodoState): string => {
+  const list = listOf(state.lists, param(state, "id"))?.name;
+  const page =
+    state.route.name === "list"
+      ? (list ?? "List")
+      : state.route.name === "item"
+        ? "Edit item"
+        : state.route.name === "listEdit"
+          ? "Rename list"
+          : state.route.name === "notFound"
+            ? "Not found"
+            : undefined;
+
+  return page === undefined ? "To-do" : `${page} · To-do`;
+};
 
 export interface Programs {
   readonly lists: Parameters<typeof Valance.define>[0]["views"][string]["program"];
@@ -146,8 +163,8 @@ export const application = (programs: Programs, start: TodoState = initial()) =>
               : { ...current, lists: addItem(current.lists, id, `i${current.seq}`, title), entry: "", seq: current.seq + 1 };
           }),
         ),
-        toggleItem: define("toggleItem", Schema.Struct({ itemId: Schema.String }), ({ itemId }) =>
-          change((current) => ({ ...current, lists: toggleItem(current.lists, param(current, "id"), itemId) })),
+        setDone: define("setDone", Schema.Struct({ itemId: Schema.String, done: Schema.Boolean }), ({ itemId, done }) =>
+          change((current) => ({ ...current, lists: setDone(current.lists, param(current, "id"), itemId, done) })),
         ),
         deleteItem: define("deleteItem", Schema.Struct({ itemId: Schema.String }), ({ itemId }) =>
           change((current) => ({ ...current, lists: removeItem(current.lists, param(current, "id"), itemId) })),

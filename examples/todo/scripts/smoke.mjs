@@ -56,10 +56,10 @@ try {
   send({ op: "event", handler: field, payload: "Smoke" });
   await until(
     () =>
-      handlerOf((node) => node.component === "button" && JSON.stringify(node).includes("Add list"), "press") !== undefined && JSON.stringify(tree()).includes('"value":"Smoke"'),
+      handlerOf((node) => node.component === "button" && JSON.stringify(node).includes("Add list"), "click") !== undefined && JSON.stringify(tree()).includes('"value":"Smoke"'),
     "the typed name",
   );
-  send({ op: "event", handler: handlerOf((node) => node.component === "button" && JSON.stringify(node).includes("Add list"), "press") });
+  send({ op: "event", handler: handlerOf((node) => node.component === "button" && JSON.stringify(node).includes("Add list"), "click") });
   await until(() => JSON.stringify(tree()).includes("Smoke (0 of 0 open)"), "the new list");
 
   send({ op: "closeRequested" });

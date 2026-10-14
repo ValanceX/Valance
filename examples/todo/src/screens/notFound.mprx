@@ -1,6 +1,4 @@
-<window title="Not found">
-  <column>
-    <heading>There is nothing here</heading>
-    <button on.press={go("/")}>Back to lists</button>
-  </column>
-</window>
+<column>
+  <heading>There is nothing here</heading>
+  <button on.click={go("/")}>Back to lists</button>
+</column>

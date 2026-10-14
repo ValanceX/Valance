@@ -14,6 +14,7 @@ describe("docs/learn/desktop-application.md", () => {
       "examples/todo/src/screens/lists.mprx",
       "examples/todo/src/app.ts",
       "examples/todo/src/routes.ts",
+      "examples/todo/src/app.ts",
     ]);
   });
 
@@ -27,9 +28,9 @@ describe("docs/learn/desktop-application.md", () => {
     });
   }
 
-  it("names the eight words the vocabulary declares, and no other", () => {
+  it("names the seven words the vocabulary declares, and no other", () => {
     const declared = Object.keys((JSON.parse(readFileSync(new URL("examples/todo/src/desktop-vocabulary.json", root), "utf8")) as { components: object }).components).sort();
-    const table = page.slice(page.indexOf("## The eight words"), page.indexOf("## 1. A screen"));
+    const table = page.slice(page.indexOf("## The seven words"), page.indexOf("## 1. A screen"));
     const named = [...table.matchAll(/`([a-z]+)`/g)].map((match) => match[1]!).filter((word) => declared.includes(word));
 
     expect([...new Set(named)].sort()).toEqual(declared);

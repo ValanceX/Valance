@@ -1,4 +1,4 @@
-// Is the to-do vocabulary the desktop's alone? The same application, with the same compiled screens, is realized on the web by a table of eight entries (PORT Web's own mechanism) and used in a
+// Is the to-do vocabulary the desktop's alone? The same application, with the same compiled screens, is realized on the web by a table of seven entries (PORT Web's own mechanism) and used in a
 // DOM. What it takes, and what it cannot do, is the evidence for the vocabulary investigation (docs/application-model/NATIVE-VOCABULARY.md).
 import * as Web from "@valancex/valance/web";
 import { JSDOM } from "jsdom";
@@ -22,14 +22,17 @@ const wait = async (done: () => boolean): Promise<void> => {
 
 /** The whole realization: one entry per component of the vocabulary. */
 const primitives: Web.WebPrimitives = {
-  window: { element: "main", props: { title: Web.attribute("aria-label") } },
   column: { element: "div" },
   row: { element: "div" },
   heading: { element: "h1" },
   text: { element: "p" },
-  button: { element: "button", props: { disabled: Web.booleanAttribute("disabled") }, events: { press: { type: "click" } } },
+  button: { element: "button", props: { disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
   // A checkbox is an `<input type="checkbox">`, and this table has no way to give an element a fixed attribute: it can only be realized as a bare `<input>`.
-  checkbox: { element: "input", props: { checked: Web.property("checked", "boolean") }, events: { toggle: { type: "click" } } },
+  checkbox: {
+    element: "input",
+    props: { checked: Web.property("checked", "boolean") },
+    events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) },
+  },
   textfield: {
     element: "input",
     props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder") },
@@ -51,14 +54,14 @@ const page = async (state: TodoState) => {
   const host = await Web.run(application(programs, state), { container, primitives, present: "mount" });
 
   closers.push(() => host.stop());
-  await wait(() => container.querySelector("main") !== null);
+  await wait(() => container.querySelector("h1") !== null);
 
   const win = dom.window as unknown as { Event: typeof Event; MouseEvent: typeof MouseEvent };
 
   return {
     container,
     html: () => container.innerHTML,
-    press: (label: string) =>
+    click: (label: string) =>
       Array.from(container.querySelectorAll("button"))
         .find((button) => button.textContent?.startsWith(label))!
         .dispatchEvent(new win.MouseEvent("click", { bubbles: true })),
@@ -72,17 +75,16 @@ const page = async (state: TodoState) => {
 };
 
 describe("the to-do vocabulary realized as HTML", () => {
-  it("draws the lists, takes typing and a press, and shows the new list: the same application, on the web", async () => {
+  it("draws the lists, takes typing and a click, and shows the new list: the same application, on the web", async () => {
     const p = await page(initial());
 
-    expect(p.container.querySelector("main")!.getAttribute("aria-label")).toBe("To-do");
     expect(p.html()).toContain("No lists yet");
 
     p.type("New list", "Groceries");
     await wait(() => p.container.querySelector<HTMLInputElement>("input")!.value === "Groceries");
-    p.press("Add list");
+    p.click("Add list");
     await wait(() => p.html().includes("Groceries (0 of 0 open)"));
-    p.press("Groceries");
+    p.click("Groceries");
     await wait(() => p.html().includes("Nothing to do"));
     expect(p.container.querySelector("h1")!.textContent).toBe("Groceries");
   });
@@ -92,7 +94,7 @@ describe("the to-do vocabulary realized as HTML", () => {
 
     p.type("What needs doing?", "Oat milk");
     await wait(() => p.html().includes("Unsaved changes"));
-    p.press("Back to list");
+    p.click("Back to list");
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(p.html()).toContain("Edit item");
   });

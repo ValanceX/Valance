@@ -66,8 +66,8 @@ impl Harness {
         }
     }
 
-    fn press(&mut self, label: &str, until: impl Fn(&Session) -> bool) {
-        let report = inspect::press(&self.session.port, label, 0).unwrap_or_else(|| {
+    fn click(&mut self, label: &str, until: impl Fn(&Session) -> bool) {
+        let report = inspect::click(&self.session.port, label, 0).unwrap_or_else(|| {
             panic!(
                 "no enabled button {label}: {:?}",
                 inspect::buttons(&self.session.port)
@@ -105,15 +105,15 @@ fn updated(session: &Session) -> bool {
 /// The lists, one named list with one item, opened on the item's edit screen.
 fn on_an_item_edit(harness: &mut Harness) {
     harness.type_into("New list", "Groceries", updated);
-    harness.press("Add list", shows("Groceries (0 of 0 open)"));
-    harness.press("Groceries", shows("Nothing to do"));
+    harness.click("Add list", shows("Groceries (0 of 0 open)"));
+    harness.click("Groceries", shows("Nothing to do"));
     harness.type_into("New item", "Milk", |session| {
         inspect::readable(&session.port)
             .iter()
             .any(|line| line == "Milk")
     });
-    harness.press("Add item", shows("1 of 1 open"));
-    harness.press("Milk", shows("Edit item"));
+    harness.click("Add item", shows("1 of 1 open"));
+    harness.click("Milk", shows("Edit item"));
 }
 
 #[test]
@@ -121,10 +121,7 @@ fn speaks_the_protocol_and_draws_the_lists() {
     let harness = Harness::start("/");
 
     assert_eq!(harness.session.app.as_deref(), Some("todo"));
-    assert_eq!(
-        inspect::title(&harness.session.port).as_deref(),
-        Some("To-do")
-    );
+    assert_eq!(harness.session.title.as_deref(), Some("To-do"));
     assert!(shows("Your lists")(&harness.session));
     assert!(shows("No lists yet")(&harness.session));
 }
@@ -134,12 +131,9 @@ fn makes_a_list_and_an_item() {
     let mut harness = Harness::start("/");
 
     harness.type_into("New list", "Groceries", updated);
-    harness.press("Add list", shows("Groceries (0 of 0 open)"));
-    harness.press("Groceries", shows("Nothing to do"));
-    assert_eq!(
-        inspect::title(&harness.session.port).as_deref(),
-        Some("Groceries")
-    );
+    harness.click("Add list", shows("Groceries (0 of 0 open)"));
+    harness.click("Groceries", shows("Nothing to do"));
+    assert_eq!(harness.session.title.as_deref(), Some("Groceries · To-do"));
     assert_eq!(harness.session.port.counts().0, 2); // the lists, then the list
 
     harness.type_into("New item", "Milk", |session| {
@@ -147,7 +141,7 @@ fn makes_a_list_and_an_item() {
             .iter()
             .any(|line| line == "Milk")
     });
-    harness.press("Add item", shows("1 of 1 open"));
+    harness.click("Add item", shows("1 of 1 open"));
     assert!(inspect::buttons(&harness.session.port)
         .iter()
         .any(|label| label == "Milk"));
@@ -170,7 +164,7 @@ fn the_guard_holds_over_the_wire_and_discard_releases_it() {
 
     // Back to the list is refused by the application's guard; the screen is still the edit.
     let back =
-        inspect::press(&harness.session.port, "Back to list", 0).expect("the button is there");
+        inspect::click(&harness.session.port, "Back to list", 0).expect("the button is there");
 
     harness.engine.send(&back.into());
     std::thread::sleep(Duration::from_millis(300));
@@ -178,8 +172,8 @@ fn the_guard_holds_over_the_wire_and_discard_releases_it() {
     assert!(shows("Edit item")(&harness.session));
     assert!(shows("Unsaved changes")(&harness.session));
 
-    harness.press("Discard", |session| !shows("Unsaved changes")(session));
-    harness.press("Back to list", shows("1 of 1 open"));
+    harness.click("Discard", |session| !shows("Unsaved changes")(session));
+    harness.click("Back to list", shows("1 of 1 open"));
 }
 
 #[test]
@@ -214,7 +208,7 @@ fn closing_is_refused_while_an_edit_is_unsaved_and_allowed_after() {
         "the window stays open on the edit"
     );
 
-    harness.press("Discard", |session| {
+    harness.click("Discard", |session| {
         !shows("Unsaved changes")(session) && !session.close_refused
     });
     harness.engine.send(&ToEngine::CloseRequested);

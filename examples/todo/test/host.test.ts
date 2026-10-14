@@ -66,14 +66,14 @@ describe("the wire", () => {
     await r.served;
   });
 
-  it("carries a person's press and typing to the application, and the new screen back", async () => {
+  it("carries a person's click and typing to the application, and the new screen back", async () => {
     const r = await renderer(sample());
 
     r.screen.type("New list", "Errands");
     await until(() => r.seen.some((message) => message.op === "update"));
-    r.screen.press("Add list");
+    r.screen.click("Add list");
     await until(() => r.screen.screen().includes("Errands (0 of 0 open)"));
-    r.screen.press("Errands");
+    r.screen.click("Errands");
     await until(() => r.screen.screen().includes("# Errands"));
     expect(r.seen.filter((message) => message.op === "draw")).toHaveLength(2); // the lists, then the list
     r.close();
@@ -85,7 +85,7 @@ describe("the wire", () => {
 
     r.screen.type("What needs doing?", "Oat milk");
     await until(() => r.screen.screen().includes("Unsaved changes"));
-    r.screen.press("Back to list");
+    r.screen.click("Back to list");
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(r.screen.screen()).toContain("# Edit item");
     r.close();
@@ -133,7 +133,7 @@ describe("closing the window", () => {
     expect(r.seen.filter((message) => message.op === "closeAnswer")).toEqual([{ op: "closeAnswer", allowed: false }]);
     expect(r.screen.screen()).toContain("Unsaved changes"); // still running
 
-    r.screen.press("Discard");
+    r.screen.click("Discard");
     await until(() => !r.screen.screen().includes("Unsaved changes"));
     r.send({ op: "closeRequested" });
     expect(await r.served).toEqual({ ignored: 0 });

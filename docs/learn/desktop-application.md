@@ -1,6 +1,6 @@
 # Your first desktop application
 
-You will build a to-do application that runs as a window on Linux and Windows. You need to know JavaScript or TypeScript. You do not need to know anything about native toolkits: the screen is described with eight words, and a ready-made window draws them.
+You will build a to-do application that runs as a window on Linux and Windows. You need to know JavaScript or TypeScript. You do not need to know anything about native toolkits: the screen is described with seven words, and a ready-made window draws them.
 
 The finished application is [`examples/todo`](../../examples/todo/README.md). Every code block on this page is a piece of a real file there, and a test checks that it still is.
 
@@ -8,13 +8,12 @@ The finished application is [`examples/todo`](../../examples/todo/README.md). Ev
 
 An application is **state** (what is true), **commands** (the only ways state changes) and **screens** (what to show). That is [the same model as on the web](what-is-valance.md). What is new here is only how a screen is drawn: a **window** (the Desktop PORT) draws it, and your application runs beside it in a small program called the **engine**. You write screens, state and commands. You do not write the window.
 
-## The eight words
+## The seven words
 
-A screen can use these and nothing else (the [reference](../use/desktop-vocabulary.md) has each one's details):
+A screen can use these and nothing else. There is no word for the window: the window belongs to the machine's desktop, and the application only says what it is called (step 4) (the [reference](../use/desktop-vocabulary.md) has each one's details):
 
 | Word | What it is |
 |---|---|
-| `window` | the top of a screen, with a title |
 | `column`, `row` | children one under the next, or side by side |
 | `heading`, `text` | a title for what follows, and a run of text |
 | `button` | something to press |
@@ -30,41 +29,37 @@ The smallest screen in the application is the one shown for an address that is n
 **File:** `examples/todo/src/screens/notFound.mprx`
 
 ```
-<window title="Not found">
-  <column>
-    <heading>There is nothing here</heading>
-    <button on.press={go("/")}>Back to lists</button>
-  </column>
-</window>
+<column>
+  <heading>There is nothing here</heading>
+  <button on.click={go("/")}>Back to lists</button>
+</column>
 ```
 
-A window holds a column; the column holds a heading and a button. `on.press={go("/")}` says what pressing the button does: run the command `go` with the address `/`. A person presses a button; they do not click or tap it, so the same screen suits a mouse, a finger and a keyboard.
+A column holds a heading and a button. `on.click={go("/")}` says what clicking the button does: run the command `go` with the address `/`. A button has one event, `click`, and it is not only a mouse: it is also what a keyboard or a screen reader does to a button, and what a finger does on a touch screen.
 
 ## 2. A list of things, and a place to type
 
 **File:** `examples/todo/src/screens/lists.mprx`
 
 ```
-<window title="To-do">
-  <column>
-    <heading>Your lists</heading>
-    {#if none}
-      <text>No lists yet. Name one below.</text>
-    {/if}
-    {#each lists as entryList (entryList.id)}
-      <row>
-        <button on.press={go(entryList.href)}>{entryList.name} ({entryList.open} of {entryList.total} open)</button>
-      </row>
-    {/each}
+<column>
+  <heading>Your lists</heading>
+  {#if none}
+    <text>No lists yet. Name one below.</text>
+  {/if}
+  {#each lists as entryList (entryList.id)}
     <row>
-      <textfield value={entry} placeholder="New list" on.change={setEntry($event)} />
-      <button on.press={createList()}>Add list</button>
+      <button on.click={go(entryList.href)}>{entryList.name} ({entryList.open} of {entryList.total} open)</button>
     </row>
-  </column>
-</window>
+  {/each}
+  <row>
+    <textfield value={entry} placeholder="New list" on.change={setEntry($event)} />
+    <button on.click={createList()}>Add list</button>
+  </row>
+</column>
 ```
 
-`{#if none}` shows its content only when `none` is true. `{#each lists as entryList (entryList.id)}` makes one row for each list, and the part in parentheses says which row is which when the lists change. The text field shows `entry` and, whenever the person types, runs `setEntry` with what they typed (`$event`). The values `none`, `lists` and `entry` come from the application's state; the next step says how.
+`{#if none}` shows its content only when `none` is true. `{#each lists as entryList (entryList.id)}` makes one row for each list, and the part in parentheses says which row is which when the lists change. The text field shows `entry` and, whenever its value changes, runs `setEntry` with the new value (`$event`). A checkbox works the same way: its `change` event carries `true` or `false`, and the application decides what to do with it. The values `none`, `lists` and `entry` come from the application's state; the next step says how.
 
 ## 3. A command
 
@@ -105,6 +100,16 @@ export const router = createRouter<TodoState>({
 ```
 
 `canDeactivate: saved` means: you cannot leave an edit while there is text that has not been saved. The same rule stops the window from closing: the person is told to save or discard first. Nobody wrote that twice; it is the guard.
+
+The window's title is the application's too, and it follows where you are:
+
+**File:** `examples/todo/src/app.ts`
+
+```
+export const titleOf = (state: TodoState): string => {
+```
+
+It takes the state and returns the title (the list's name, then the application's), and the window shows it. A template never sets a title, because the window is not part of any screen.
 
 ## 5. Run it
 

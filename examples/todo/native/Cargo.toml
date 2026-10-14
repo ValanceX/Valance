@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 # The Desktop PORT is its own package in the PORT repository. Until it is published to crates.io the build takes it from there, at a fixed revision (Cargo.lock records it too).
-valancex-port-desktop = { git = "https://github.com/ValanceX/Port", rev = "5d25bd9b5e0079d33f52c21532d92889efb73dbb" }
+valancex-port-desktop = { git = "https://github.com/ValanceX/Port", rev = "f7f0b7a91effddc5071c4f23928538643842dc88" }
 eframe = { version = "0.31", default-features = false }
 serde_json = "1"
 

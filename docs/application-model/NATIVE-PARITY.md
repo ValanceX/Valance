@@ -12,7 +12,7 @@ Two different applications exist, and they stand in different places:
 |---|---|---|
 | Runs with no DOM | **run** | **run** (the scaffolded project, with a text target; its pages, layout, component, state, theme command) |
 | Draws in a native window | **run** (Linux; Windows built) | **not built**: no engine entry for it, and its tags (`shell`, `nav`, `para`, `h1`, `list`, `link`, `image`, `code`…) are the web's |
-| Own vocabulary | yes, eight components | no: the web's tag table; a second vocabulary compiles it only if it keeps the web's hooks |
+| Own vocabulary | yes, seven components | no: the web's tag table; a second vocabulary compiles it only if it keeps the web's hooks |
 
 So the **model** (state, commands, templates, slots, blocks, events, router, content) is portable and proven so. What is not portable is exactly what the earlier investigation said: the **vocabulary**, plus a set of things the browser does for the application that nothing does yet on native. The table below is those things.
 
@@ -60,7 +60,7 @@ So the **model** (state, commands, templates, slots, blocks, events, router, con
 ## What the matrix says
 
 1. **Three things are one small piece of work each and unblock a `vlx` application on native:** a link message (#15), a title message (#21) and a viewport message (#9). The page, navigation and responsive layout of a content application then work. The probe shows the application already does the rest: the `go` command moves between pages, and the screen follows.
-2. **The vocabulary (#4) is the one real decision.** Everything a `vlx` application draws is named in the web's tags. The native renderer can draw them (it is a table of eight today; the web's has 26), but a "paragraph" or "navigation bar" with no styling language (#7) is a poor native screen. This is the question that needs a person to choose, and the to-do app only answers it for applications that are written for native.
+2. **The vocabulary (#4) is the one real decision.** Everything a `vlx` application draws is named in the web's tags. The native renderer can draw them (it is a table of seven today; the web's has 26), but a "paragraph" or "navigation bar" with no styling language (#7) is a poor native screen. This is the question that needs a person to choose, and the to-do app only answers it for applications that are written for native.
 3. **Four things the web gets from the browser that no native target gets for free:** a back stack (#17), storage (#24), accessibility (#10) and opening external addresses (#16). Each is a platform capability, each has a web implementation already (history, `localStorage`, ARIA, the browser), and none is built. They belong behind capabilities, not in the router or the renderer.
 4. **Some web features are simply the web's:** server rendering, static export, head metadata, CSP, hydration (#6, #22, part of #26). They have no native counterpart and should not get one.
 5. **Mobile is a different problem, not a bigger version of this one.** The engine here is Node, and a Node single executable cannot be shipped in an iOS or Android app (**reasoned**: iOS does not allow an embedded JIT runtime outside the system's; both platforms want a smaller engine). What does carry over is the render-tree protocol, MESH's WebAssembly runtime, and the router's logic. The engine would need a different JavaScript runtime (the platform's) or a rewrite of the parts of Valance the application needs. This should be investigated before anyone promises mobile.

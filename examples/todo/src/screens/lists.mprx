@@ -1,17 +1,15 @@
-<window title="To-do">
-  <column>
-    <heading>Your lists</heading>
-    {#if none}
-      <text>No lists yet. Name one below.</text>
-    {/if}
-    {#each lists as entryList (entryList.id)}
-      <row>
-        <button on.press={go(entryList.href)}>{entryList.name} ({entryList.open} of {entryList.total} open)</button>
-      </row>
-    {/each}
+<column>
+  <heading>Your lists</heading>
+  {#if none}
+    <text>No lists yet. Name one below.</text>
+  {/if}
+  {#each lists as entryList (entryList.id)}
     <row>
-      <textfield value={entry} placeholder="New list" on.change={setEntry($event)} />
-      <button on.press={createList()}>Add list</button>
+      <button on.click={go(entryList.href)}>{entryList.name} ({entryList.open} of {entryList.total} open)</button>
     </row>
-  </column>
-</window>
+  {/each}
+  <row>
+    <textfield value={entry} placeholder="New list" on.change={setEntry($event)} />
+    <button on.click={createList()}>Add list</button>
+  </row>
+</column>

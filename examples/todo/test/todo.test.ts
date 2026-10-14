@@ -67,7 +67,7 @@ describe("the lists", () => {
       expect(ui.screen()).toContain("No lists yet");
 
       await ui.act((t) => t.type("New list", "  Groceries  "));
-      await ui.act((t) => t.press("Add list"));
+      await ui.act((t) => t.click("Add list"));
       expect(ui.screen()).toContain("[ Groceries (0 of 0 open) ]");
       expect(ui.screen()).not.toContain("No lists yet");
       expect((await ui.state()).entry).toBe("");
@@ -77,7 +77,7 @@ describe("the lists", () => {
   it("ignores an empty name", async () => {
     await session(initial(), async (ui) => {
       await ui.act((t) => t.type("New list", "   "));
-      await ui.act((t) => t.press("Add list"));
+      await ui.act((t) => t.click("Add list"));
       expect((await ui.state()).lists).toEqual([]);
     });
   });
@@ -87,12 +87,12 @@ describe("one list", () => {
   it("opens, shows its items, and ticks one off", async () => {
     await session(sample(), async (ui) => {
       expect(ui.screen()).toContain("Groceries (1 of 2 open)");
-      await ui.act((t) => t.press("Groceries"));
+      await ui.act((t) => t.click("Groceries"));
       expect(ui.screen()).toContain("# Groceries");
       expect(ui.screen()).toContain("1 of 2 open");
       expect((await ui.state()).route).toMatchObject({ name: "list", params: { id: "l1" } });
 
-      await ui.act((t) => t.toggle("Milk"));
+      await ui.act((t) => t.check("Milk"));
       expect(ui.screen()).toContain("0 of 2 open");
     });
   });
@@ -100,14 +100,14 @@ describe("one list", () => {
   it("adds items, clears the done ones, and deletes one", async () => {
     await session(sample("/lists/l1"), async (ui) => {
       await ui.act((t) => t.type("New item", "Eggs"));
-      await ui.act((t) => t.press("Add item"));
+      await ui.act((t) => t.click("Add item"));
       expect((await ui.state()).lists[0]!.items.map((item) => item.title)).toEqual(["Milk", "Bread", "Eggs"]);
 
-      await ui.act((t) => t.press("Clear done"));
+      await ui.act((t) => t.click("Clear done"));
       expect((await ui.state()).lists[0]!.items.map((item) => item.title)).toEqual(["Milk", "Eggs"]);
       expect(ui.screen()).toContain("[ Clear done ] (disabled)");
 
-      await ui.act((t) => t.press("Delete", 0));
+      await ui.act((t) => t.click("Delete", 0));
       expect((await ui.state()).lists[0]!.items.map((item) => item.title)).toEqual(["Eggs"]);
     });
   });
@@ -115,7 +115,7 @@ describe("one list", () => {
   it("shows a hint for an empty list, and deleting a list returns to the lists", async () => {
     await session(sample("/lists/l2"), async (ui) => {
       expect(ui.screen()).toContain("Nothing to do");
-      await ui.act((t) => t.press("Delete list"));
+      await ui.act((t) => t.click("Delete list"));
       expect((await ui.state()).route.name).toBe("lists");
       expect((await ui.state()).lists.map((list) => list.id)).toEqual(["l1"]);
     });
@@ -129,7 +129,7 @@ describe("editing, and the guards", () => {
       await ui.act((t) => t.type("What needs doing?", "Oat milk"));
       expect(ui.screen()).toContain("Unsaved changes");
 
-      await ui.act((t) => t.press("Save"));
+      await ui.act((t) => t.click("Save"));
       const state = await ui.state();
 
       expect(state.route.name).toBe("list");
@@ -142,15 +142,15 @@ describe("editing, and the guards", () => {
   it("will not leave an edit with unsaved text until it is discarded", async () => {
     await session(sample("/lists/l1/items/i1"), async (ui) => {
       await ui.act((t) => t.type("What needs doing?", "Oat milk"));
-      await ui.act((t) => t.press("Back to list"));
+      await ui.act((t) => t.click("Back to list"));
       expect((await ui.state()).route.name).toBe("item"); // the guard said no
       expect(ui.screen()).toContain("Unsaved changes");
 
-      await ui.act((t) => t.press("Discard"));
+      await ui.act((t) => t.click("Discard"));
       expect(ui.screen()).not.toContain("Unsaved changes");
       expect(ui.screen()).toContain("<Milk>");
 
-      await ui.act((t) => t.press("Back to list"));
+      await ui.act((t) => t.click("Back to list"));
       expect((await ui.state()).route.name).toBe("list");
     });
   });
@@ -160,17 +160,17 @@ describe("editing, and the guards", () => {
       await ui.act((t) => t.type("What needs doing?", "Oat milk"));
       await ui.act((t) => t.type("What needs doing?", "Milk"));
       expect((await ui.state()).draft).toBeNull();
-      await ui.act((t) => t.press("Back to list"));
+      await ui.act((t) => t.click("Back to list"));
       expect((await ui.state()).route.name).toBe("list");
     });
   });
 
   it("renames a list", async () => {
     await session(sample("/lists/l1"), async (ui) => {
-      await ui.act((t) => t.press("Rename"));
+      await ui.act((t) => t.click("Rename"));
       expect((await ui.state()).route.name).toBe("listEdit");
       await ui.act((t) => t.type("List name", "Food"));
-      await ui.act((t) => t.press("Save"));
+      await ui.act((t) => t.click("Save"));
       expect((await ui.state()).lists[0]!.name).toBe("Food");
       expect(ui.screen()).toContain("# Food");
     });
@@ -189,7 +189,7 @@ describe("editing, and the guards", () => {
     });
     await session(sample("/elsewhere"), async (ui) => {
       expect(ui.screen()).toContain("There is nothing here");
-      await ui.act((t) => t.press("Back to lists"));
+      await ui.act((t) => t.click("Back to lists"));
       expect((await ui.state()).route.name).toBe("lists");
     });
   });
@@ -198,8 +198,8 @@ describe("editing, and the guards", () => {
     await session(sample(), async (ui) => {
       const first = ui.drawn();
 
-      await ui.act((t) => t.press("Groceries"));
-      await ui.act((t) => t.toggle("Milk"));
+      await ui.act((t) => t.click("Groceries"));
+      await ui.act((t) => t.check("Milk"));
 
       const after = ui.drawn();
 

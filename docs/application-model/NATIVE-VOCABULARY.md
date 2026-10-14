@@ -2,7 +2,7 @@
 
 Written 2026-10-14. The question: **what should a template be allowed to say when the target is a native window, so that a developer who has never written a native app can pick it up?** It is judged by the ecosystem's own measure: the [API design principles](https://github.com/ValanceX/Mesh/blob/main/docs/standards/api-design-principles.md) (fewest concepts for the task, names people already know, one mental model, progressive disclosure) and the severity and layer scale of the [cognitive-load log](../../examples/tracer-web/src/docs-benchmark/COGNITIVE_LOAD.md) (0 natural, 1 minor friction, 2 framework knowledge, 3 abstraction failure; App, FW or Eng).
 
-**Evidence** is marked: **run** (a test or run on this machine), **read** (read from the code), **general** (knowledge of other toolkits, from memory and not looked up: check before quoting). The vocabulary this note recommends is built: it is the Desktop PORT's own ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop), [its architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md)), and [`examples/todo`](../../examples/todo/README.md) is written against it.
+**Evidence.** The first version of this note quoted other toolkits from memory. It was then re-done from primary sources (listed at the end, read on 2026-10-14), and **it corrected three of its own recommendations** (marked *corrected* below). Every claim about another toolkit now cites a source; the one toolkit that could not be read in full (WPF) is marked. Claims about this repository are **run** (a test or a run on this machine) or **read** (read from the code). The vocabulary this note recommends is built: it is the Desktop PORT's own ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop), [its architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md)), and [`examples/todo`](../../examples/todo/README.md) is written against it.
 
 ## The criteria, from the principles
 
@@ -17,48 +17,76 @@ Written 2026-10-14. The question: **what should a template be allowed to say whe
 | C7 | Secure and accessible by default | §10 | Text is text; an unlabeled control is not the easy path |
 | C8 | Discoverable and documented in layers | §12, §13 | One table to find everything; Learn, Use, Understand; examples that run |
 
-## What a newcomer already knows
+## What a newcomer already knows (from the toolkits' own sources)
 
-The same ten things in the toolkits a developer is likely to have met (**general**; the names are from memory):
+Each cell is a name found in the toolkit's documentation or source; the numbers are the sources at the end.
 
-| Thing | SwiftUI | Compose | Flutter | WPF | GTK 4 | Qt | React Native | HTML | Valance Desktop |
+| Thing | SwiftUI [1] | Compose [2] | Flutter [3] | GTK 4 [4] | Qt [5] | React Native [6] | DOM / ARIA [7, 8] | egui [9] | Valance Desktop |
 |---|---|---|---|---|---|---|---|---|---|
-| the top of a screen | Window | Window | Scaffold | Window | Window | Window | (App) | body | `window` |
-| children stacked down | VStack | Column | Column | StackPanel | Box | VBoxLayout / Column | View | div | `column` |
-| children side by side | HStack | Row | Row | StackPanel (horizontal) | Box (horizontal) | HBoxLayout / Row | View (row) | div | `row` |
-| text | Text | Text | Text | TextBlock | Label | Label / Text | Text | p, span | `text` |
-| a title for what follows | Text (a style) | Text (a style) | Text (a style) | TextBlock (a style) | Label (a style) | Label (a style) | Text (a style) | h1 | `heading` |
-| a button | Button | Button | ElevatedButton | Button | Button | Button | Button / Pressable | button | `button` |
-| a box to tick | Toggle | Checkbox | Checkbox | CheckBox | CheckButton | CheckBox | Switch | input | `checkbox` |
-| a line of text to edit | TextField | TextField | TextField | TextBox | Entry | LineEdit / TextField | TextInput | input | `textfield` |
-| what a person does to a button | action | onClick | onPressed | Click | clicked | clicked | onPress | click | `press` |
+| children stacked down | `VStack` | `Column` | `Column` | `Box` (orientation) | `QVBoxLayout` | `View` (`flexDirection`) | block layout | `ui.vertical` | `column` |
+| children side by side | `HStack` | `Row` | `Row` | `Box` (orientation) | `QHBoxLayout` | `View` (`flexDirection: row`) | flex | `ui.horizontal` | `row` |
+| text | `Text` | `Text` | `Text` | `Label` | `QLabel` | `Text` | (text) | `label` | `text` |
+| a title for what follows | `Text` with a header trait | semantics | `Semantics(header: true)` | `Label` | `QLabel` | `accessibilityRole="header"` | role `heading` (with a level) | `heading` | `heading` |
+| a button | `Button` | `Button` | `ElevatedButton` | `Button` | `QPushButton` | `Button` | `button` | `Button` | `button` |
+| activating it | `action` | `onClick` | `onPressed` | `clicked` | `clicked` | `onPress` | `click` | `.clicked()` | `click` |
+| a box to tick | `Toggle` | `Checkbox` | `Checkbox` | `CheckButton` | `QCheckBox` | `Switch` | `checkbox` | `checkbox` | `checkbox` |
+| a tick changing | `isOn` (a binding) | `onCheckedChange` | `onChanged` | `toggled` | `stateChanged` | `onValueChange` | `change` | `.changed()` | `change` |
+| a line of text to edit | `TextField` | `TextField` | `TextField` | `Entry` | `QLineEdit` | `TextInput` | `textbox` / `input` | `TextEdit` | `textfield` |
+| the text changing | a binding | `onValueChange` | `onChanged` | `changed` | `textChanged` | `onChangeText` | `input` / `change` | `.changed()` | `change` |
 
-Read down the first column and the agreement is wide: where toolkits name a thing at all they name it alike, which is what C2 asks a vocabulary to exploit. Where they disagree is mostly the layout container (a stack with a direction, or two names) and the event (click, press, action).
+What the evidence says, thing by thing:
+
+- **Activating a button is "click" in five of the eight sources, "press" in two (Flutter, React Native), "action" in one** (SwiftUI); a sixth, WPF's `Click`, was seen only in search snippets (`learn.microsoft.com` could not be read). The DOM's `click` is stated to be device-independent: "The event is a device-independent event — meaning it can be activated by touch, keyboard, mouse, and any other mechanism provided by assistive technology" [7]. Qt's `clicked` is also emitted "when the shortcut key is typed" [5]; Compose, an Android toolkit, names its callback `onClick` and describes it as "when the user presses the button" [2]; SwiftUI says "a method or closure property that does something when a user clicks or taps the button ... How the user activates the button varies by platform" [1]. **So "click" is the established word, and it is already device-independent; the first version of this note was wrong that it is mouse-only.** *Corrected: `click`, not `press`.*
+- **A value changing is "change" almost everywhere, and it carries the new value.** Flutter `onChanged(bool?)` and `onChanged(String)` [3], Compose `onCheckedChange` ("the function that the app calls when the user taps the checkbox", the new value is `it`) and `onValueChange` [2], React Native `onValueChange` and `onChangeText` ("Changed text is passed as a single string argument") [6], Qt `textChanged` and `stateChanged` [5], the DOM `change` and `input` [7]. The toolkits that bind instead of calling (SwiftUI's `isOn`) are saying the same thing: **the control reports its value and the app owns it.** React Native states it as a rule ("a controlled component that requires an `onValueChange` callback that updates the `value` prop in order for the component to reflect user actions") [6] and so does Compose ("You are responsible for updating the `value` in your own state based on the changes reported by `onValueChange`") [2]. That is Valance's rule too. A value, unlike a "toggle", is also **idempotent**: the same report twice is the same state. *Corrected: a checkbox's event is `change` with a boolean, not `toggle`.*
+- **`textfield` is `TextField` in three of the eight sources** (SwiftUI [1], Compose [2], Flutter [3]); the others are `TextInput`, `QLineEdit`, `Entry`, `TextEdit` and the DOM's `input`, each used once. It is also Valance's own word (`Web.textField`). **`checkbox`** is `Checkbox` or `CheckBox` in five, and `Toggle` or `Switch` in two (SwiftUI, React Native, whose core has no checkbox [6]).
+- **`column` and `row`** are Compose's and Flutter's names, and the values of `flexDirection` in React Native and CSS; `VStack`/`HStack`, `QVBoxLayout`/`QHBoxLayout` and `ui.vertical`/`ui.horizontal` are the other family. Both are direction words; neither family needs a property.
+- **A heading is not a widget in any native toolkit read.** It is text with a role: Flutter `Semantics.header` ("A header is typically the top element of a page or section, such as a page title or app bar title") [3], React Native `accessibilityRole` `header`/`heading` ("an element acts as a header for a content section") [6], and the cross-platform accessibility layer's `Role::Heading` [10]. On the web it is `heading` with a required level [8].
+
+Where the evidence does not decide, it is said: `column`/`row` against `vertical`/`horizontal` is a tie.
+
+## The content layer: a closed set that already has names
+
+Valance's content model is **closed**: `packages/common/src/model.ts` (**read**) has six block kinds, `heading` (level 1 to 3), `paragraph`, `list` (ordered or not), `code`, `quote`, `image`, and five inline kinds, `text`, `strong`, `emphasis`, `code`, `link`. Every one has a role of the same meaning in WAI-ARIA [8], and AccessKit, the accessibility layer egui (and so the Desktop PORT) uses for UI Automation, AT-SPI and NSAccessibility, says "the majority of these roles come from the ARIA specification" and has the same names [10]:
+
+| Content model | ARIA role [8] | AccessKit `Role` [10] |
+|---|---|---|
+| `heading` (level) | `heading` ("authors MUST use the aria-level attribute") | `Heading` |
+| `paragraph` | `paragraph` | `Paragraph` |
+| `list`, an item | `list`, `listitem` | `List`, `ListItem` |
+| `code` | `code` | `Code` |
+| `quote` | `blockquote` | `Blockquote` |
+| `image` | `img` | `Image` |
+| `strong`, `emphasis` | `strong`, `emphasis` | `Strong`, `Emphasis` |
+| `link` | `link` ("an interactive reference to an internal or external resource") | `Link` |
+
+And the structure around a page (the web table's `header`, `footer`, `main`, `nav`, `aside`, `section`) is ARIA's landmarks (`banner`, `contentinfo`, `main`, `navigation`, `complementary`, `region`) [8], which AccessKit also has (`Banner`, `ContentInfo`, `Main`, `Navigation`, `Complementary`, `Region`) [10]. A native toolkit has no widget for any of them; they exist for assistive technology. **The web's 26 tags are therefore three different things**: the content layer (above), landmarks, and controls and layout (`div`, `shell`, `button`).
+
+This is the evidence for the layering below. It is also an argument about names: the web table's `para`, `quote`, `item`, `olist` and `em` are not HTML's (`p`, `blockquote`, `li`, `ol`, `em`) and not ARIA's (`paragraph`, `blockquote`, `listitem`, `list`, `emphasis`); they are Valance's own short forms. §3.2 prefers established terminology, so the content layer, if it becomes shared, should use the ARIA names. (Renaming the web's published, Provisional names is a separate decision, below.)
 
 ## Candidates
 
 | | Idea | C1 few | C2 known | C3 behavior | C4 one model | C5 layers | Verdict |
 |---|---|---|---|---|---|---|---|
-| **A** | Reuse the web's tag table (26 tags: `shell`, `div`, `nav`, `para`, `h1`, `list`, `link`…) | no: 26 | partly (HTML's) | no (`div`, `span`, `shell`) | no: web hooks (`class`, `theme`, `tabindex`, `id`, `label`, `current`, `pressed`, `loading`) | no | **Rejected.** A second vocabulary built without those eight props rejects the scaffolded project at 33 places (**run**, `packages/cli/test/second-target.test.ts`) |
-| **B** | A small vocabulary of intent, owned by each PORT as data | yes: 8 | yes (table above) | yes | yes: one layout model, one event per intent | yes (below) | **Recommended; built** |
+| **A** | Reuse the web's tag table (26 tags: `shell`, `div`, `nav`, `para`, `h1`, `list`, `link`…) | no: 26 | partly (HTML's, and Valance's own short forms) | no (`div`, `span`, `shell`) | no: web hooks (`class`, `theme`, `tabindex`, `id`, `label`, `current`, `pressed`, `loading`) | no | **Rejected.** A second vocabulary built without those eight props rejects the scaffolded project at 33 places (**run**, `packages/cli/test/second-target.test.ts`) |
+| **B** | A small vocabulary of intent for controls and layout, owned by each PORT as data | yes: 7 | yes (the table above) | yes | yes: one layout model, two events | yes | **Recommended; built** |
+| **B+** | B, plus a **content layer** named by ARIA, for what Markdown produces | yes: +10 names | yes (a W3C standard that every accessibility API maps to) | yes | yes | yes | **Recommended; tested below** |
 | **C** | Pass the toolkit's widgets through (egui's, Qt's) | no: hundreds | only to that toolkit's users | partly | no: a different model per target | no | **Rejected.** It is "Valance API to platform API", the wrong mental model (PORT architecture) |
-| **D** | One semantic core shared by every PORT, as code | yes | yes | yes | yes | yes | **Rejected for now.** PORT's rule is to generalize from evidence, and two PORTs share a contract and no code. The *names* are shared by convention instead (decision D1) |
+| **D** | One semantic core shared by every PORT, as code | yes | yes | yes | yes | yes | **Rejected for now.** PORT's rule is to generalize from evidence, and two PORTs share a contract and no code. The *names* are shared by convention instead (D1) |
 
-## Evidence
+## Evidence from this repository
 
 ### One. The application was written against B (**run**)
 
-`examples/todo` has eight components and five screens, all in 5 template files. It runs on a text target, in a DOM, and in a native window, from the same compiled screens. The Desktop PORT's [contract tests](https://github.com/ValanceX/Port/blob/main/packages/port-desktop/tests/contract.rs) run on trees MESH produced from it.
+`examples/todo` has seven components and five screens, in five template files. It runs on a text target, in a DOM, and in a native window, from the same compiled screens. The Desktop PORT's [contract tests](https://github.com/ValanceX/Port/blob/main/packages/port-desktop/tests/contract.rs) run on trees MESH produced from it.
 
 ### Two. The same vocabulary on the web (**run**, `examples/todo/test/web-realization.test.ts`)
 
-A table of **eight entries** realizes the whole vocabulary with PORT Web's own mechanism, and the application then runs in a DOM: typing, pressing, the unsaved-edit guard. So a vocabulary of intent is not native-only; the same templates can serve both targets, which is what C4 wants. What the experiment could not do, and what it needs:
+A table of **seven entries** realizes the whole vocabulary with PORT Web's own mechanism, and the application then runs in a DOM: typing, clicking, the unsaved-edit guard. So a vocabulary of intent is not native-only; the same templates can serve both targets, which is what C4 wants. The names pay off here: `button`'s event is `click` on both, so the realization maps nothing. What the experiment could not do:
 
 | Could not | Why | What it needs |
 |---|---|---|
 | a real checkbox | the table cannot give an element a fixed attribute (`type="checkbox"`), so `checkbox` realizes as a text box | PORT Web needs element constants: a small addition |
 | a column and a row | they are `div`s with no layout; CSS does that on the web | a stylesheet shipped with the vocabulary's web realization |
-| the window's title | `title` has no home on a page; it was put in `aria-label` | the web realization would set the document title |
 
 ### Three. The web's table on native (**read**, **run**)
 
@@ -69,36 +97,41 @@ A table of **eight entries** realizes the whole vocabulary with PORT Web's own m
 | # | What a newcomer has to do | What it took | Layer | Sev | What was done |
 |---|---|---|---|---|---|
 | 1 | Say which components exist | a 60-line manifest object, written by hand: every prop, event and type | FW/Eng (MESH) | **2** | **Fixed**: the PORT ships its components as data (`vocabulary.json`, a MESH manifest); the application only adds its screens |
-| 2 | Name the text box | I wrote `field`; every toolkit above says `TextField`, and Valance's own `Web.textField` is the same word | FW | 1 | **Fixed**: `textfield` (C2, C4) |
-| 3 | Give a button an address to go to | a template cannot build a string, so each row's scope carries its own `href` | FW | 1 | Open (#5 in the [parity matrix](./NATIVE-PARITY.md)) |
-| 4 | Change state from an event | two ways to define a command (`Valance.command` with `entry`, or `Nexus.Command.define`), and the key names that connect them | FW/Eng | **2** | Open; the to-do app used the second, which exposes Effect |
-| 5 | Start the application on a window | I wrote `serve` (stdin, stdout, Scope, `Effect.async`) | FW | **3** | Open: needs a `Native.run`, the way `Web.run` is for a page |
-| 6 | Package it | I wrote a bundler step, a blob step and a download | tooling | **3** | Open: a `vlx` target |
-| 7 | Type into a field | a keystroke was lost when the engine answered late | PORT | **3** for a PORT author, 0 for an app author | **Fixed** in the PORT (`Field`) |
-| 8 | Know which components do what | one table, one page of docs | | 0 | the [Learn page](../learn/desktop-application.md) and the [reference](../use/desktop-vocabulary.md) |
+| 2 | Name the text box | I wrote `field`; three toolkits say `TextField`, and Valance's own `Web.textField` is the same word | FW | 1 | **Fixed**: `textfield` (C2, C4) |
+| 3 | Name the checkbox's event | I wrote `toggle`, which flips: a repeated or late report flips twice | FW | **2** | **Fixed**: `change` with the new value, as the toolkits do; the command is `setDone`, not `toggleItem` |
+| 4 | Say what the window is called | a `window` component with a `title` prop, which no toolkit read does | FW | 1 | **Fixed**: the application's `titleOf(state)`, sent by the host |
+| 5 | Give a button an address to go to | a template cannot build a string, so each row's scope carries its own `href` | FW | 1 | Open (#5 in the [parity matrix](./NATIVE-PARITY.md)) |
+| 6 | Change state from an event | two ways to define a command (`Valance.command` with `entry`, or `Nexus.Command.define`), and the key names that connect them | FW/Eng | **2** | Open; the to-do app used the second, which exposes Effect |
+| 7 | Start the application on a window | I wrote `serve` (stdin, stdout, Scope, `Effect.async`) | FW | **3** | Open: needs a `Native.run`, the way `Web.run` is for a page |
+| 8 | Package it | I wrote a bundler step, a blob step and a download | tooling | **3** | Open: a `vlx` target |
+| 9 | Type into a field | a keystroke was lost when the engine answered late | PORT | **3** for a PORT author, 0 for an app author | **Fixed** in the PORT (`Field`) |
+| 10 | Know which components do what | one table, one page of docs | | 0 | the [Learn page](../learn/desktop-application.md) and the [reference](../use/desktop-vocabulary.md) |
 
-Three of the Sev 3 or 2 rows are not the vocabulary: they are the host (#5), the packaging (#6) and the command authoring (#4). **The vocabulary is the part that is now at Sev 0 to 1; the work that would stop a newcomer is around it.**
+Rows 3 and 4 were found by checking the vocabulary against the toolkits' sources, not by building: they were my own inventions. Rows 6 to 8 are not the vocabulary at all. **The vocabulary is the part that is now at Sev 0 to 1; the work that would stop a newcomer is around it.**
 
 ## Decisions
 
-| # | Decision | Chosen | Alternatives | Why | Status |
-|---|---|---|---|---|---|
-| D1 | One vocabulary for all targets, or one per PORT | **One per PORT, as data, with names kept aligned by convention** (a component both have has the same name, props and events) | a shared core as code (candidate D) | Two PORTs now share a contract and no code; a template that stays inside the shared names can serve both (evidence two). The rule to keep: a new component starts in one PORT, and moves to a shared name only when a second PORT realizes it | Decided in code |
-| D2 | The names | `window`, `column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield` | `VStack`/`HStack`; `label`, `input` | C2, from the table; `column` and `row` are two words in three toolkits and say direction without a property | Decided in code |
-| D3 | The events | `press`, `toggle`, `change` | `click`, `tap`, `input` | They say what a person does and not the device: a mouse, a finger, a key and a voice command can all press. `click` is the web's and a phone has none | **Open for you.** The cost: the web's `button` event is `click` today, so a shared template needs the web realization to map `press` to it (it can: evidence two) |
-| D4 | The root of a screen | `window` | `screen`, `page` | Desktop developers expect a window; a title belongs to it. On a device with no windows the same component is the screen | **Open for you** (mobile) |
-| D5 | Layout | `column` and `row` only; spacing and alignment are the PORT's defaults | flex properties, grid, absolute position | C4 and C5: one model for the first hour. Advanced use adds enumerated props (`gap`, `align`) later, never free-form CSS-like values | Decided for tier 1 |
-| D6 | Styling | none in tier 1; tier 2 adds an `intent` (`primary`, `danger`) and the OS theme | style props, a theme file | A native screen with no styling looks like the platform's own, which is correct for a first app | Proposal |
-| D7 | Accessibility | roles come from the names (`heading`, `button`, `checkbox`, `textfield` are already semantic); tier 2 makes a `label` **required** on a control with no text | optional `label` | C7: the unlabeled path must not be the easy one | Proposal |
-| D8 | Escape hatch | an extra, clearly marked component in the PORT's own vocabulary, never a toolkit widget passed through | a `native` pass-through | PORT's architecture: escape hatches exist and are marked as leaving the portable layer | Proposal |
+| # | Decision | Chosen | Evidence | Status |
+|---|---|---|---|---|
+| D1 | Layers, by purpose | **Controls and layout** (7 components, owned by each PORT as data), a **content layer** (what Markdown produces, named by ARIA), and a PORT's own extras. Names are aligned by convention across PORTs; no shared code | the toolkits have no widgets for content, and ARIA and AccessKit name it alike (above); two PORTs share a contract and no code (PORT ROADMAP) | Controls built; content layer being tested |
+| D2 | The names | `column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield` | the table above | Built |
+| D3 | The event of a button | **`click`** | five of eight sources; the DOM defines it as device-independent; Compose uses it on touch; the first version's `press` was an invention (*corrected*) | Built |
+| D4 | The event of a control with a value | **`change`**, carrying the new value (`string` for a textfield, `boolean` for a checkbox) | every toolkit that reports calls it a change and passes the value; React Native and Compose state the controlled rule; a value is idempotent where a toggle is not (*corrected*) | Built |
+| D5 | The root, the window | **No component.** The window's title, size and close are the host's | SwiftUI: a `Window` scene takes the title, and `navigationTitle` makes it follow the navigation state; GTK: `gtk_window_set_title`, "a good title might include the application name and current document" [1, 4]. Valance already works this way on the web (`defineApp({ title })` is applied to `document.title`) (**read**) (*corrected*: the first version proposed `window`, then `screen`) | Built (`title` message; `router.mayLeave` guards close) |
+| D6 | Layout | `column` and `row` only; spacing and alignment are the PORT's defaults; later, enumerated `gap` and `align` | SwiftUI's `VStack(alignment:spacing:)` and Compose's `horizontalArrangement`/`verticalAlignment` [1, 2] put exactly two things on a stack, how its children line up and how far apart they are, and nothing like CSS | Tier 1 built |
+| D7 | Styling | none in tier 1; tier 2 an **`intent`** (`primary`, `danger`) and the OS theme | SwiftUI `ButtonRole` (`.destructive`): "The system uses the button's role to style the button appropriately" [1]. (SwiftUI calls it a role; ARIA's `role` means something else, so `intent`.) | Proposal |
+| D8 | Accessibility | roles come from the names; tier 2 makes a **`label` required** on a control with no text | SwiftUI: "Avoid labels that only use images or exclusively visual components without an accessibility label" [1]; React Native: "It is recommended to set accessibilityLabel" [6]. Both recommend; the principles (§10) say the unlabeled path must not be the easy one | Proposal |
+| D9 | Escape hatch | a clearly marked component in the PORT's own vocabulary, never a toolkit widget passed through | PORT's architecture: escape hatches exist and are marked as leaving the portable layer | Proposal |
+| D10 | The content layer's names | **ARIA's**: `heading` (with `level`), `paragraph`, `list`, `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | the content model has exactly these meanings, ARIA defines them, AccessKit has them; the web table's `para`, `item`, `olist`, `quote`, `em` are Valance's own short forms | **Open for you**: it renames words in the web's published, Provisional table |
 
 ## Tiers
 
 | Tier | Components and props | Built | Justified by |
 |---|---|---|---|
-| **1: first hour** | `window` (`title`), `column`, `row`, `heading`, `text`, `button` (`disabled`, `press`), `checkbox` (`checked`, `toggle`), `textfield` (`value`, `placeholder`, `change`) | yes | the to-do app |
-| **2: next** | `image` (`src`, required `label`), `link` (`href`; a link is an address, [parity](./NATIVE-PARITY.md) #15), `divider`, a `submit` event on `textfield`, `intent` on `button` and `text`, `gap` and `align` on `column` and `row` | no | parity matrix #7, #10, #11, #13, #15 |
-| **3: deep** | a list with many rows (virtualized), tables, menus, dialogs, drag and drop | no | not planned; D8 |
+| **1: first hour** | `column`, `row`, `heading`, `text`, `button` (`disabled`, `click`), `checkbox` (`checked`, `change`), `textfield` (`value`, `placeholder`, `change`) | yes | the to-do app |
+| **content** | `heading` (`level`), `paragraph`, `list` (`ordered`), `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | tested in an experiment (below), not in the PORT | the content model is exactly this |
+| **2: next** | a `submit` event on `textfield`, `intent` on `button` and `text`, `gap` and `align` on `column` and `row`, required `label` | no | parity matrix #7, #10, #11; D7, D8 |
+| **3: deep** | a list with many rows (virtualized), tables, menus, dialogs, drag and drop | no | not planned; D9 |
 
 ## How the documentation reflects this
 
@@ -106,12 +139,27 @@ The principles ask for three layers (§13.1) and examples that run (§13.2):
 
 | Layer | Where | What it is |
 |---|---|---|
-| **Learn** | [Your first desktop application](../learn/desktop-application.md) | the to-do app in six steps, from a window with a heading to a guarded edit, in the vocabulary and nothing else; every code block is checked against the real file by a test |
+| **Learn** | [Your first desktop application](../learn/desktop-application.md) | the to-do app in six steps, in the vocabulary and nothing else; every code block is checked against the real file by a test |
 | **Use** | [The desktop vocabulary](../use/desktop-vocabulary.md) | one table: each component, its props, its events, and what it is |
 | **Understand** | the PORT's [architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md) and this note | why the names, why the protocol, what is not yet |
 
+## Sources
+
+Read on 2026-10-14. `learn.microsoft.com`, `docs.flutter.dev`, `doc.qt.io`, `docs.gtk.org`, `reactnative.dev`, `developer.mozilla.org` and `www.w3.org` could not be reached from the environment this was written in, so those toolkits were read from the repositories that hold their documentation and API comments, at the default branch on that date; for Apple and Android the official documentation pages were read. **WPF could not be read** and appears only through search snippets, so it is left out of the table.
+
+1. Apple, SwiftUI: `developer.apple.com/documentation/swiftui/` `vstack.md`, `hstack.md`, `button.md`, `toggle.md`, `window.md`, `view/navigationtitle(_:).md`.
+2. Android, Jetpack Compose: `developer.android.com/develop/ui/compose/` `layouts/basics`, `components/button`, `components/checkbox`, `text/user-input`.
+3. Flutter: `flutter/flutter` `packages/flutter/lib/src/` `material/elevated_button.dart`, `material/checkbox.dart`, `material/text_field.dart`, `widgets/basic.dart` (`Row`, `Column`), `semantics/semantics.dart` (`header`).
+4. GTK 4: `GNOME/gtk` `gtk/` `gtkbutton.c` ("clicked: Emitted when the button has been activated (pressed and released)"), `gtkbox.c`, `gtkcheckbutton.c`, `gtkentry.c`, `gtkwindow.c` (`gtk_window_set_title`).
+5. Qt: `qt/qtbase` `src/widgets/` `widgets/qabstractbutton.cpp` (`clicked`), `widgets/qcheckbox.cpp`, `widgets/qlineedit.cpp`, `kernel/qboxlayout.cpp`.
+6. React Native: `facebook/react-native-website` `docs/` `button.md`, `switch.md`, `textinput.md`, `view.md`, `accessibility.md`.
+7. MDN: `mdn/content` `files/en-us/web/api/element/click_event/index.md`.
+8. WAI-ARIA 1.2: `w3c/aria` `index.html` (roles `button`, `checkbox`, `textbox`, `heading`, `paragraph`, `list`, `listitem`, `blockquote`, `code`, `strong`, `emphasis`, `img`, `link` and the landmarks).
+9. egui: `emilk/egui` `crates/egui/src/` `widgets/button.rs`, `ui.rs` (`vertical`, `horizontal`).
+10. AccessKit 0.25.1: `accesskit` crate, `src/lib.rs` (`Role`): "The majority of these roles come from the ARIA specification."
+
 ## Open questions for you
 
-1. **D3, the event names.** `press` (intent) or `click` (the web's, and desktop's most common). It decides whether a template is portable to the web without a mapping.
-2. **D4, the root.** `window` or `screen`. It decides how natural mobile will be.
-3. **The three Sev 3 rows (#5, #6, #4)** are what would stop a newcomer, not the vocabulary: a `Native.run` for a window, a `vlx` desktop target, and one way to define a command. Which first?
+1. **D10, the content layer's names.** Adopt ARIA's (`paragraph`, `listitem`, `blockquote`, `emphasis`) for the shared content layer, leaving the web's published table as it is until a migration is decided?
+2. **The content layer experiment** (next section, once run) decides whether it goes into the Desktop PORT.
+3. **The three Sev 3 and 2 rows (#6 to #8)** are what would stop a newcomer, not the vocabulary: a `Native.run` for a window, a `vlx` desktop target, and one way to define a command. Which first?

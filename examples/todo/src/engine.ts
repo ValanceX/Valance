@@ -2,7 +2,7 @@
 import { init } from "@valancex/mesh-runtime";
 import { Effect } from "effect";
 
-import { application, initial, starting } from "./app.js";
+import { application, initial, starting, titleOf } from "./app.js";
 import { router } from "./routes.js";
 import type { Programs } from "./app.js";
 import { serve } from "./host.js";
@@ -23,5 +23,5 @@ export const run = async ({ programs, wasm }: Parts, address: string): Promise<v
   const start = await starting(initial(), address);
 
   process.stdin.setEncoding("utf8");
-  await Effect.runPromise(serve(application(programs, start), { input: process.stdin, output: process.stdout }, { mayClose: (state) => router.mayLeave(state) }));
+  await Effect.runPromise(serve(application(programs, start), { input: process.stdin, output: process.stdout }, { mayClose: (state) => router.mayLeave(state), titleOf }));
 };

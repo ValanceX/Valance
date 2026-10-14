@@ -1,14 +1,12 @@
-<window title="Rename list">
-  <column>
-    <heading>Rename list</heading>
-    <textfield value={value} placeholder="List name" on.change={setDraft($event)} />
-    {#if dirty}
-      <text>Unsaved changes</text>
-    {/if}
-    <row>
-      <button on.press={saveList()}>Save</button>
-      <button on.press={discard()} disabled={clean}>Discard</button>
-      <button on.press={go(listHref)}>Back to list</button>
-    </row>
-  </column>
-</window>
+<column>
+  <heading>Rename list</heading>
+  <textfield value={value} placeholder="List name" on.change={setDraft($event)} />
+  {#if dirty}
+    <text>Unsaved changes</text>
+  {/if}
+  <row>
+    <button on.click={saveList()}>Save</button>
+    <button on.click={discard()} disabled={clean}>Discard</button>
+    <button on.click={go(listHref)}>Back to list</button>
+  </row>
+</column>

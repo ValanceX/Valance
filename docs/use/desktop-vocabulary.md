@@ -6,13 +6,12 @@ What a template may write when the target is a window (the [Desktop PORT](https:
 
 | Component | Props (required unless marked) | Events | What it is |
 |---|---|---|---|
-| `window` | `title` (text) | | The top of a screen. Its title is the window's title. |
 | `column` | | | Its children, one under the next. |
 | `row` | | | Its children side by side, wrapping when the window is narrow. |
 | `heading` | | | A title for what follows. |
 | `text` | | | A run of text. Text is text: nothing in it is markup. |
-| `button` | `disabled` (yes or no; optional) | `press` | Something to press. What is inside it is its label. A disabled button does nothing. |
-| `checkbox` | `checked` (yes or no) | `toggle` | A box that is ticked or not. The application decides whether it is: a press reports `toggle`, and the box shows what comes back. |
+| `button` | `disabled` (yes or no; optional) | `click` | Something to press. What is inside it is its label. A disabled button does nothing. |
+| `checkbox` | `checked` (yes or no) | `change` (the new value, `true` or `false`) | A box that is ticked or not. The application decides whether it is: a click reports the value the box is going to, and the box shows what comes back. |
 | `textfield` | `value` (text), `placeholder` (text; optional) | `change` (the text) | A line of text the person edits. The person's typing wins until the application changes the value itself (a save, a clear). |
 
 ## Not components
@@ -25,9 +24,13 @@ What a template may write when the target is a window (the [Desktop PORT](https:
 
 Each screen is a component of its own, and it states two things in the application's manifest: the values it reads (its **scope**) and the commands it can run. A template can only use what is stated, and a mistake is an error that names the file and line.
 
+## The window
+
+There is no component for it. The window's title comes from the application (a function of its state: where you are), its size from the host, and whether it may close from the application's guards. The same is true of a page's title on the web.
+
 ## Naming rules
 
-One word per thing, lower case. Events say what a person does, not what device they used: **press**, **toggle**, **change**. If a word you expected is missing (an image, a link, a divider), it is not built yet; the [investigation](../application-model/NATIVE-VOCABULARY.md#tiers) says what is planned and why.
+One word per thing, lower case. Two events: **click** (a button) and **change** (the value of a checkbox or a text field changed; it carries the new value). If a word you expected is missing (an image, a link, a divider), it is not built yet; the [investigation](../application-model/NATIVE-VOCABULARY.md#tiers) says what is planned and why.
 
 ## Where the web is different
 

@@ -1,4 +1,4 @@
-// A target that draws the screen as indented text and lets a test "use" it: press a button by its label, type into a field by its placeholder. It stands for a person at a native window, and it
+// A target that draws the screen as indented text and lets a test "use" it: click a button by its label, type into a field by its placeholder. It stands for a person at a native window, and it
 // knows nothing the render tree does not say. No DOM, no PORT.
 import type { RenderTree } from "@valancex/mesh-runtime";
 import type { Report, Target, TargetFactory } from "@valancex/valance";
@@ -17,8 +17,6 @@ const draw = (node: Node, depth: number): ReadonlyArray<string> => {
   const props = node.props as Readonly<Record<string, unknown>>;
 
   switch (node.component) {
-    case "window":
-      return [`${pad}[window: ${String(props["title"])}]`, ...node.children.flatMap((child) => draw(child, depth + 1))];
     case "heading":
       return [`${pad}# ${textOf(node)}`];
     case "button":
@@ -39,10 +37,10 @@ const elements = (node: Node): ReadonlyArray<Element> => (node.type === "text" ?
 export interface TextTarget extends Target {
   /** The screen as text. */
   readonly screen: () => string;
-  /** Press the nth button whose label starts with `label` (a checkbox is pressed by the label of the row's button: `toggle("Milk")`). */
-  readonly press: (label: string, nth?: number) => void;
-  /** Tick or untick the checkbox in the row of the button labelled `label`. */
-  readonly toggle: (label: string) => void;
+  /** Click the nth button whose label starts with `label`. */
+  readonly click: (label: string, nth?: number) => void;
+  /** Tick or untick the checkbox in the row of the button labelled `label`: reports its new value. */
+  readonly check: (label: string) => void;
   /** Type into the field with this placeholder, replacing its text. */
   readonly type: (placeholder: string, text: string) => void;
   /** How many times the screen was drawn afresh (a different screen) and updated (the same one). */
@@ -76,7 +74,7 @@ export const textTarget = (): TargetFactory<TextTarget> => (report: Report) => {
     unmount: () => void (tree = undefined),
     screen: () => (tree === undefined ? "" : draw(tree.root, 0).join("\n")),
     drawn: () => ({ draws, updates }),
-    press: (label, nth = 0) => {
+    click: (label, nth = 0) => {
       const hit = elements(now().root)
         .filter((element) => element.component === "button" && textOf(element).startsWith(label))
         .at(nth);
@@ -88,9 +86,9 @@ export const textTarget = (): TargetFactory<TextTarget> => (report: Report) => {
         return; // a disabled button does nothing, as on a screen
       }
 
-      report(handlerOf(hit, "press"));
+      report(handlerOf(hit, "click"));
     },
-    toggle: (label) => {
+    check: (label) => {
       const row = elements(now().root).find(
         (element) => element.component === "row" && element.children.some((child) => child.type !== "text" && child.component === "button" && textOf(child).startsWith(label)),
       );
@@ -100,7 +98,7 @@ export const textTarget = (): TargetFactory<TextTarget> => (report: Report) => {
         throw new Error(`no checkbox in the row of: ${label}`);
       }
 
-      report(handlerOf(box, "toggle"));
+      report(handlerOf(box, "change"), (box.props as Readonly<Record<string, unknown>>)["checked"] !== true);
     },
     type: (placeholder, text) => {
       const field = elements(now().root).find(

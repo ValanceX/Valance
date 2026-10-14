@@ -17,6 +17,8 @@ export type Outbound =
   | { readonly op: "hello"; readonly protocol: number; readonly app: string }
   | { readonly op: "draw" | "update"; readonly tree: RenderTree }
   | { readonly op: "unmount" }
+  /** What the window is called. Sent before the first screen and whenever it changes: the window is the host's, so the application says its title, not a template. */
+  | { readonly op: "title"; readonly title: string }
   /** The answer to `closeRequested`. When `allowed`, the engine is closing and `unmount` follows; when not, the window stays open. */
   | { readonly op: "closeAnswer"; readonly allowed: boolean };
 
@@ -81,6 +83,8 @@ export const parseInbound = (line: string): Inbound | undefined => {
 };
 
 export interface HostOptions<S> {
+  /** The window's title for a state. Absent: the window keeps its own. */
+  readonly titleOf?: (state: S) => string;
   /** May the application close now? Asked when the renderer says the person wants to close the window. Absent: always. */
   readonly mayClose?: (state: S) => Effect.Effect<boolean>;
 }
@@ -115,12 +119,25 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
 
       send({ op: "hello", protocol: PROTOCOL, app: app.name }); // before the first screen: a renderer checks the protocol before it draws anything
 
+      let titled: string | undefined;
+      // The title follows the state a screen is drawn for; sent only when it changed, and before the screen that goes with it.
+      const retitle = (): void => {
+        if (options.titleOf !== undefined) {
+          const title = options.titleOf(Effect.runSync(handle.state));
+
+          if (title !== titled) {
+            titled = title;
+            send({ op: "title", title });
+          }
+        }
+      };
+
       yield* Valance.mount(handle, (reportEvent): Target => {
         report = reportEvent;
 
         return {
-          draw: (tree) => send({ op: "draw", tree }),
-          update: (tree) => send({ op: "update", tree }),
+          draw: (tree) => (retitle(), send({ op: "draw", tree })),
+          update: (tree) => (retitle(), send({ op: "update", tree })),
           unmount: () => send({ op: "unmount" }),
         };
       });

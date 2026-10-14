@@ -43,7 +43,7 @@ export const manifest = {
     lists: screen({ lists: list(ListRow), entry: string, none: boolean }, { go: { to: string }, setEntry: { text: string }, createList: {} }),
     list: screen(
       { name: string, editHref: string, items: list(ItemRow), entry: string, none: boolean, nothingDone: boolean, summary: string },
-      { go: { to: string }, setEntry: { text: string }, addItem: {}, toggleItem: { itemId: string }, deleteItem: { itemId: string }, clearDone: {}, deleteList: {} },
+      { go: { to: string }, setEntry: { text: string }, addItem: {}, setDone: { itemId: string, done: boolean }, deleteItem: { itemId: string }, clearDone: {}, deleteList: {} },
     ),
     item: screen(
       { listHref: string, listName: string, value: string, dirty: boolean, clean: boolean },
