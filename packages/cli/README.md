@@ -70,7 +70,7 @@ Without a terminal (a pipe, CI) it cannot ask, so it needs a name and a target: 
 
 One target per project. `vlx init my-app --desktop` makes the same project as for the web (Markdown in `content/`, a layout, state and commands in `src/main.ts`) with `valance.desktop.json` in place of `valance.web.json`. Its templates are written against the Desktop PORT's vocabulary (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, and the content layer: `paragraph`, `list`, `listitem`, `blockquote`, `emphasis`, …), not the web's tags: `<div>` in a desktop project is an error from `vlx check`.
 
-`vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx dev` does not open a window yet.
+`vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx dev` builds the engine, opens the Desktop PORT's window on it (the `vlx-window` program, installed with `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`, found on the PATH or at `VLX_WINDOW`), and opens it anew when a file changes. Closing the window ends `vlx dev`.
 
 ## Adding to an application: `vlx generate`
 

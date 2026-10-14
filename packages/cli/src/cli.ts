@@ -203,10 +203,11 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         console.log(`vlx dev: ${running.url}`);
 
-        // Until interrupted.
+        // Until interrupted (or, for a desktop project, until the window is closed).
         await new Promise<void>((resolve) => {
           process.once("SIGINT", resolve);
           process.once("SIGTERM", resolve);
+          void (running as { readonly closed?: Promise<void> }).closed?.then(resolve);
         });
         await running.close();
 

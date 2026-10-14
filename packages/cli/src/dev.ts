@@ -20,6 +20,7 @@ import type { Config } from "./config.js";
 import { loadConfig, PROJECT_FILE, WEB_FILE } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, format } from "./diagnostics.js";
+import { devDesktop } from "./dev-desktop.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 import { baseConfig, SERVER_ENTRY } from "./vite.js";
@@ -281,6 +282,10 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
 /** Starts the development server for the project at `root`. */
 export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> => {
+  if (loadConfig(root).target === "desktop") {
+    return devDesktop(root, options);
+  }
+
   let current: Dev & { readonly server: ViteDevServer };
   const log =
     options.log ??
