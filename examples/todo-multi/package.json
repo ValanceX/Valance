@@ -8,7 +8,6 @@
     "build": "vlx build",
     "check": "vlx check",
     "typecheck": "vlx sync && tsc --noEmit",
-    "prepare": "vlx sync",
     "test:smoke": "vitest run"
   },
   "dependencies": {
