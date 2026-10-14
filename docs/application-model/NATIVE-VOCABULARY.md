@@ -109,11 +109,33 @@ A table of **seven entries** realizes the whole vocabulary with PORT Web's own m
 
 Rows 3 and 4 were found by checking the vocabulary against the toolkits' sources, not by building: they were my own inventions. Rows 6 to 8 are not the vocabulary at all. **The vocabulary is the part that is now at Sev 0 to 1; the work that would stop a newcomer is around it.**
 
+### Five. The content layer, tested (**run**)
+
+The hypothesis: what Markdown produces is a closed set with ARIA names, so a `vlx`-style project can draw a whole content site from the controls vocabulary plus ten content components, with the application model unchanged.
+
+| What was done | Result |
+|---|---|
+| A project built the way `vlx` builds one (`packages/cli/test/native-content.test.ts`): its own layout and the six built-in views overridden by native templates (seven `.mprx` files), compiled against a native vocabulary, started with no DOM and no PORT Web | **Held.** Every block and inline kind the content model has was drawn, by **13 distinct components**: four controls-and-layout (`column`, `row`, `text`, and `heading`) and nine content words. No web tag reached the screen |
+| The application's own `go` command, given the address a link carries (`routes(content).stateOf`) | **Held.** The page changed; its headings came back as levels 1 and 2 |
+| A link in the tree | It carries an address and **no event**: nothing to report but the address, so the PORT reports it as `{"op":"link","href"}` and the engine turns it into `go` (`examples/todo/src/reader-main.ts`) |
+| The Desktop PORT drawing it | The window draws a whole content page from real MESH output without a display (a test in the PORT), and in a real window under a virtual display it showed the heading, a paragraph with strong, emphasis, inline code and a link, both kinds of list, a quotation, a code block and the navigation; **clicking a link moved to the next page and the title followed** (by hand: a screenshot before and after, not a test) |
+
+What it found, none of which the hypothesis predicted:
+
+1. **A built-in view's name collided with a content word.** The framework's `heading` view (the thing that draws a heading block) and the vocabulary's `heading` are one name in one namespace. The result was eleven diagnostics inside `heading.mprx`, a file the author did not write. The built-ins were already inconsistent (`list-block` is the list's block, `heading` was the heading's); the view is now `heading-block`. This breaks anyone who overrides `heading` (0.11 documented it); it is in the 0.12 notes.
+2. **`Vocabulary.tags` is PORT Web's realization table.** The experiment had to write a stand-in with `element` names nobody uses, only so the build could derive a manifest. A native vocabulary is a MESH manifest (`vocabulary.json`, `content.json`); the build should take one as data.
+3. **Images are not drawn.** The window shows their description. Decoding needs an image loader and files shipped with the app.
+4. **What a web layout carries and a native one does not.** `class`, `theme`, `current`, and the landmarks (`header`, `nav`, `main`). On the web the landmarks are what a screen reader navigates by; natively that is the accessibility layer's job (`Banner`, `Navigation`, `Main` in AccessKit [10]) and is not built.
+5. **An address that is not on the site does nothing.** Opening `https:` or `mailto:` addresses needs a capability ([parity](./NATIVE-PARITY.md) #16).
+6. **Heading anchors are dropped**, so `#fragment` links do not scroll.
+
+This is the evidence for D1's second layer and for D10; it does not decide D10's names.
+
 ## Decisions
 
 | # | Decision | Chosen | Evidence | Status |
 |---|---|---|---|---|
-| D1 | Layers, by purpose | **Controls and layout** (7 components, owned by each PORT as data), a **content layer** (what Markdown produces, named by ARIA), and a PORT's own extras. Names are aligned by convention across PORTs; no shared code | the toolkits have no widgets for content, and ARIA and AccessKit name it alike (above); two PORTs share a contract and no code (PORT ROADMAP) | Controls built; content layer being tested |
+| D1 | Layers, by purpose | **Controls and layout** (7 components, owned by each PORT as data), a **content layer** (what Markdown produces, named by ARIA), and a PORT's own extras. Names are aligned by convention across PORTs; no shared code | the toolkits have no widgets for content, and ARIA and AccessKit name it alike (above); two PORTs share a contract and no code (PORT ROADMAP) | Controls built; the content layer held in the experiment above and is drawn by the PORT, experimental |
 | D2 | The names | `column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield` | the table above | Built |
 | D3 | The event of a button | **`click`** | five of eight sources; the DOM defines it as device-independent; Compose uses it on touch; the first version's `press` was an invention (*corrected*) | Built |
 | D4 | The event of a control with a value | **`change`**, carrying the new value (`string` for a textfield, `boolean` for a checkbox) | every toolkit that reports calls it a change and passes the value; React Native and Compose state the controlled rule; a value is idempotent where a toggle is not (*corrected*) | Built |
@@ -129,7 +151,7 @@ Rows 3 and 4 were found by checking the vocabulary against the toolkits' sources
 | Tier | Components and props | Built | Justified by |
 |---|---|---|---|
 | **1: first hour** | `column`, `row`, `heading`, `text`, `button` (`disabled`, `click`), `checkbox` (`checked`, `change`), `textfield` (`value`, `placeholder`, `change`) | yes | the to-do app |
-| **content** | `heading` (`level`), `paragraph`, `list` (`ordered`), `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | tested in an experiment (below), not in the PORT | the content model is exactly this |
+| **content** | `heading` (`level`), `paragraph`, `list` (`ordered`), `listitem`, `code`, `blockquote`, `image`, `strong`, `emphasis`, `link` | `content.json` in the PORT, experimental; tested as above | the content model is exactly this |
 | **2: next** | a `submit` event on `textfield`, `intent` on `button` and `text`, `gap` and `align` on `column` and `row`, required `label` | no | parity matrix #7, #10, #11; D7, D8 |
 | **3: deep** | a list with many rows (virtualized), tables, menus, dialogs, drag and drop | no | not planned; D9 |
 
@@ -161,5 +183,5 @@ Read on 2026-10-14. `learn.microsoft.com`, `docs.flutter.dev`, `doc.qt.io`, `doc
 ## Open questions for you
 
 1. **D10, the content layer's names.** Adopt ARIA's (`paragraph`, `listitem`, `blockquote`, `emphasis`) for the shared content layer, leaving the web's published table as it is until a migration is decided?
-2. **The content layer experiment** (next section, once run) decides whether it goes into the Desktop PORT.
+2. **Promote the content layer?** The experiment held, so `content.json` is in the Desktop PORT, marked experimental. Make it part of what the PORT promises, or keep it experimental until a second PORT (the web) realizes the same ten names?
 3. **The three Sev 3 and 2 rows (#6 to #8)** are what would stop a newcomer, not the vocabulary: a `Native.run` for a window, a `vlx` desktop target, and one way to define a command. Which first?

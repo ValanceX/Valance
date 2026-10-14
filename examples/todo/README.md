@@ -20,3 +20,5 @@ $ scripts/dist.sh win32-x64                      # out/todo-win32-x64.zip (cross
 Development run: `TODO_ENGINE="node dist/main.js" cargo run` in `native/`. A packaged app keeps `todo-desktop` and `todo-engine` side by side.
 
 **What has been run.** Everything above on Linux, including the packaged app under a virtual display. The Windows archive is cross-built (`x86_64-pc-windows-gnu`, Node's official `node.exe` with the engine injected, checked against its published SHA-256); **it has not been run on Windows**.
+
+**An experiment beside it.** `src/reader-main.ts` runs a content site (a `vlx`-style project compiled against the native vocabulary, see [the content layer experiment](../../docs/application-model/NATIVE-VOCABULARY.md#five-the-content-layer-tested-run)) in the same window: `NATIVE_READER_OUT=/some/dir pnpm --filter @valancex/cli exec vitest run test/native-content.test.ts` writes the compiled site, then `TODO_ENGINE="node dist/reader-main.js /some/dir" cargo run` in `native/` shows it.

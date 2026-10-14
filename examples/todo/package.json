@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@valancex/common": "workspace:*",
     "@valancex/router": "workspace:*",
     "@valancex/valance": "workspace:*"
   },

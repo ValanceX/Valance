@@ -11,6 +11,8 @@ import type { Readable, Writable } from "node:stream";
 export const PROTOCOL = 1;
 /** The longest inbound line the engine reads, in characters. A renderer that sends more is cut off. */
 export const MAX_LINE = 64 * 1024;
+/** The longest address a link may carry, in characters. */
+export const MAX_HREF = 2048;
 
 /** What the engine sends. */
 export type Outbound =
@@ -27,6 +29,8 @@ export type Inbound =
   | { readonly op: "ready" }
   | { readonly op: "event"; readonly handler: string; readonly payload?: BoundaryValue }
   | { readonly op: "close" }
+  /** The person activated a link. A link is an address, not an event: the tree has its `href` and no handler, so the PORT says which address and the application decides what it means. */
+  | { readonly op: "link"; readonly href: string }
   /** The person asked to close the window. The engine decides (unsaved edits), and answers with `closeAnswer`. */
   | { readonly op: "closeRequested" };
 
@@ -70,10 +74,14 @@ export const parseInbound = (line: string): Inbound | undefined => {
     return undefined;
   }
 
-  const { op, handler, payload } = message as { readonly op?: unknown; readonly handler?: unknown; readonly payload?: unknown };
+  const { op, handler, payload, href } = message as { readonly op?: unknown; readonly handler?: unknown; readonly payload?: unknown; readonly href?: unknown };
 
   if (op === "ready" || op === "close" || op === "closeRequested") {
     return { op };
+  }
+  // oxlint-disable-next-line no-control-regex -- refusing control characters in an address is the point
+  if (op === "link" && typeof href === "string" && href.length <= MAX_HREF && !/[\u0000-\u001f\u007f]/.test(href)) {
+    return { op, href };
   }
   if (op === "event" && typeof handler === "string" && handler.length <= 256 && (payload === undefined || jsonValue(payload))) {
     return payload === undefined ? { op, handler } : { op, handler, payload };
@@ -82,7 +90,9 @@ export const parseInbound = (line: string): Inbound | undefined => {
   return undefined;
 };
 
-export interface HostOptions<S> {
+export interface HostOptions<S, E = unknown> {
+  /** What a link means. Called with the address the person activated and the application's handle; absent: links do nothing. The address is untrusted text from another program. */
+  readonly onLink?: (href: string, handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** The window's title for a state. Absent: the window keeps its own. */
   readonly titleOf?: (state: S) => string;
   /** May the application close now? Asked when the renderer says the person wants to close the window. Absent: always. */
@@ -158,6 +168,10 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
             done();
           } else if (message.op === "event" && report !== undefined) {
             report(message.handler, message.payload);
+          } else if (message.op === "link") {
+            if (options.onLink !== undefined) {
+              void Effect.runPromise(options.onLink(message.href, handle)).catch(() => undefined);
+            }
           } else if (message.op === "closeRequested") {
             void Effect.runPromise(Effect.flatMap(handle.state, (state) => options.mayClose?.(state) ?? Effect.succeed(true))).then(
               (allowed) => {

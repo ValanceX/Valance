@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { application, initial, sample, starting } from "../src/app.js";
 import { compilePrograms } from "../src/compile.js";
-import { MAX_LINE, parseInbound, PROTOCOL, serve } from "../src/host.js";
+import { MAX_HREF, MAX_LINE, parseInbound, PROTOCOL, serve } from "../src/host.js";
 import { router } from "../src/routes.js";
 import type { Outbound } from "../src/host.js";
 import { textTarget } from "../src/text-target.js";
@@ -140,11 +140,39 @@ describe("closing the window", () => {
   });
 });
 
+describe("links", () => {
+  it("are an address the engine is told, and what it means is the application's", async () => {
+    const asked: Array<string> = [];
+    const toEngine = new PassThrough();
+    const fromEngine = new PassThrough();
+    const served = Effect.runPromise(
+      serve(application(programs, initial()), { input: toEngine, output: fromEngine }, { onLink: (href) => Effect.sync(() => void asked.push(href)) }),
+    );
+
+    toEngine.write(`${JSON.stringify({ op: "link", href: "/lists/l1" })}\n`);
+    toEngine.write(`${JSON.stringify({ op: "link", href: "x\ny" })}\n`); // not an address: ignored
+    toEngine.write(`${JSON.stringify({ op: "link" })}\n`);
+    toEngine.write(`${JSON.stringify({ op: "close" })}\n`);
+    expect((await served).ignored).toBe(2);
+    expect(asked).toEqual(["/lists/l1"]);
+  });
+
+  it("are ignored when the application says nothing about them", async () => {
+    const toEngine = new PassThrough();
+    const served = Effect.runPromise(serve(application(programs, initial()), { input: toEngine, output: new PassThrough() }));
+
+    toEngine.write(`${JSON.stringify({ op: "link", href: "/anything" })}\n`);
+    toEngine.write(`${JSON.stringify({ op: "close" })}\n`);
+    expect((await served).ignored).toBe(0);
+  });
+});
+
 describe("what the engine accepts from a renderer", () => {
   it("takes the three messages, with a payload that is plain data", () => {
     expect(parseInbound('{"op":"ready"}')).toEqual({ op: "ready" });
     expect(parseInbound('{"op":"close"}')).toEqual({ op: "close" });
     expect(parseInbound('{"op":"closeRequested"}')).toEqual({ op: "closeRequested" });
+    expect(parseInbound('{"op":"link","href":"/guide/start"}')).toEqual({ op: "link", href: "/guide/start" });
     expect(parseInbound('{"op":"event","handler":"h1","payload":"text"}')).toEqual({ op: "event", handler: "h1", payload: "text" });
     expect(parseInbound('{"op":"event","handler":"h1","payload":{"x":1,"y":[true,null]}}')).toEqual({ op: "event", handler: "h1", payload: { x: 1, y: [true, null] } });
   });
@@ -164,6 +192,8 @@ describe("what the engine accepts from a renderer", () => {
       expect(parseInbound(line), line.slice(0, 40)).toBeUndefined();
     }
 
+    expect(parseInbound(`{"op":"link","href":"/${"a".repeat(MAX_HREF)}"}`)).toBeUndefined();
+    expect(parseInbound('{"op":"link","href":7}')).toBeUndefined();
     expect(parseInbound(`{"op":"event","handler":"h","payload":${"[".repeat(20)}${"]".repeat(20)}}`)).toBeUndefined();
     expect(parseInbound('{"op":"event","handler":"h","payload":{"__proto__":1}}')).toBeUndefined();
   });

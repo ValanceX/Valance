@@ -85,6 +85,9 @@ importers:
 
   examples/todo:
     dependencies:
+      '@valancex/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@valancex/router':
         specifier: workspace:*
         version: link:../../packages/router

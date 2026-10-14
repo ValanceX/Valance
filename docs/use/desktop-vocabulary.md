@@ -35,3 +35,19 @@ One word per thing, lower case. Two events: **click** (a button) and **change** 
 ## Where the web is different
 
 The web's vocabulary is a different, larger table (26 tags, with `class`, `theme` and the like). A template written in this one can also run in a browser, with a realization table of eight entries; see [the investigation](../application-model/NATIVE-VOCABULARY.md#evidence).
+
+## The content layer (experimental)
+
+For a site of Markdown pages, the PORT also draws what Markdown produces, named as WAI-ARIA names the same things. It is drawn and tested, and not yet part of what the PORT promises.
+
+| Component | Props | What it is |
+|---|---|---|
+| `heading` | `level` (1 to 3; optional) | a title for what follows (it is also in the table above) |
+| `paragraph` | | a paragraph of text; strong, emphasis, code and links sit inside it |
+| `list` | `ordered` (yes or no; optional) | a list; each item is a `listitem` |
+| `listitem` | | one item of a list |
+| `code` | | code: a box on its own, or monospace inside a run of text |
+| `blockquote` | | a quotation |
+| `image` | `src`, `label` | an image. Today its description is drawn instead of the picture |
+| `strong`, `emphasis` | | important text, and stressed text |
+| `link` | `href` | a link. It is an address with no event: activating it tells the application which address, and the application decides what it means |
