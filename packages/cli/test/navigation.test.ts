@@ -1,0 +1,83 @@
+// The trail: where the person has been, for a target with no browser history of its own. `go` adds a page after the one shown, `back` and `forward` move along it, and a layout knows whether
+// there is anywhere to go (`canGoBack`, `canGoForward`).
+import { init } from "@valancex/mesh-runtime";
+import * as Valance from "@valancex/valance";
+import { application } from "@valancex/common/internal";
+import { Effect, Exit, Scope } from "effect";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { loadAuthor } from "../src/author.js";
+import { compileViews } from "../src/compile.js";
+import { readContent } from "../src/content.js";
+import { loadConfig } from "../src/config.js";
+import { createLoader } from "../src/vite.js";
+import { cleanup, PAGE, project } from "./fixture.js";
+
+afterEach(cleanup);
+
+const started = async () => {
+  const root = project({ "content/index.md": PAGE("Home"), "content/a.md": PAGE("A"), "content/b.md": PAGE("B") });
+  const config = loadConfig(root);
+  const loader = await createLoader(root, config);
+
+  try {
+    const author = await loadAuthor(loader, root);
+    const built = await compileViews(root, author);
+    const app = application(readContent(root, config), built.program, author);
+
+    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
+
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+    const state = () => Effect.runPromise(handle.state) as Promise<{ readonly page: string; readonly trail: ReadonlyArray<string>; readonly cursor: number }>;
+    const run = (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(handle.invoke(key, values.map((value) => ({ value })) as never));
+    const canGo = async () => {
+      const current = (await state()) as never;
+      const view = (app as unknown as { views: { layout: { scope: (state: never) => { canGoBack: boolean; canGoForward: boolean } } } }).views.layout.scope(current);
+
+      return [view.canGoBack, view.canGoForward];
+    };
+
+    return { state, run, canGo, close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
+  } finally {
+    await loader.close();
+  }
+};
+
+describe("the trail", () => {
+  it("starts at the page it opened on, with nowhere to go", async () => {
+    const t = await started();
+
+    expect(await t.state()).toMatchObject({ page: "/", trail: ["/"], cursor: 0 });
+    expect(await t.canGo()).toEqual([false, false]);
+    await t.run("app/back");
+    await t.run("app/forward");
+    expect(await t.state()).toMatchObject({ page: "/", cursor: 0 }); // nothing to go to is not an error
+    await t.close();
+  }, 120_000);
+
+  it("grows with `go`, moves with `back` and `forward`, and drops what was ahead when the person goes somewhere new", async () => {
+    const t = await started();
+
+    await t.run("app/go", "/a");
+    await t.run("app/go", "/b");
+    await t.run("app/go", "/b"); // the page already shown is not a new place
+    expect(await t.state()).toMatchObject({ page: "/b", trail: ["/", "/a", "/b"], cursor: 2 });
+    expect(await t.canGo()).toEqual([true, false]);
+
+    await t.run("app/back");
+    expect(await t.state()).toMatchObject({ page: "/a", cursor: 1 });
+    expect(await t.canGo()).toEqual([true, true]);
+    await t.run("app/back");
+    expect(await t.canGo()).toEqual([false, true]);
+    await t.run("app/forward");
+    expect(await t.state()).toMatchObject({ page: "/a", cursor: 1 });
+
+    await t.run("app/go", "/");
+    expect(await t.state()).toMatchObject({ page: "/", trail: ["/", "/a", "/"], cursor: 2 }); // /b was ahead and is gone
+    expect(await t.canGo()).toEqual([true, false]);
+    await t.close();
+  }, 120_000);
+});

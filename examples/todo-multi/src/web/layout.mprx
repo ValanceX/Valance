@@ -1,0 +1,42 @@
+<shell class="layout" theme={theme == "system" ? colorScheme : theme}>
+  <header class="bar">
+    <link class="brand" href={home} current="false">{site}</link>
+    <theme-toggle theme={theme == "system" ? colorScheme : theme} on.toggle={toggleTheme()} />
+  </header>
+  <div class="frame">
+    <nav class="sidebar" label="Pages">
+      {#each sections as s (s.id)}
+        <section>
+          {#if s.title != ""}<para class="nav-title">{s.title}</para>{/if}
+          <list class="nav-list">
+            {#each s.items as n (n.id)}
+              <item><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></item>
+            {/each}
+          </list>
+        </section>
+      {/each}
+    </nav>
+    <main id="content" tabindex="-1">
+      <blocks items={blocks} />
+      <section>
+        <para class="todo-title">To do</para>
+        <para class="todo-summary">{summary}</para>
+        <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
+        <list class="todo-list">
+          {#each items as it (it.id)}
+            <item>
+              <checkbox type="checkbox" label="Done" checked={it.done} on.change={setDone(it.id, $event)} />
+              <span class="todo-text">{it.title}</span>
+              <button class="todo-button" pressed="false" on.click={removeItem(it.id)}>Remove</button>
+            </item>
+          {/each}
+        </list>
+        <button class="todo-button" pressed="false" on.click={clearDone()}>Clear done</button>
+      </section>
+      <nav class="pager" label="Previous and next page">
+        {#if prev.href != ""}<link class="pager-link" href={prev.href} current="false">{prev.label}</link>{/if}
+        {#if next.href != ""}<link class="pager-link" href={next.href} current="false">{next.label}</link>{/if}
+      </nav>
+    </main>
+  </div>
+</shell>

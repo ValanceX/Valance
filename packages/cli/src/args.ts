@@ -24,8 +24,8 @@ export const INIT_HELP = `vlx init [app-name] [options]
 
 Make a new application. Without options it asks what it needs to know.
 
-  --web                      develop for the web (a flag per target: ${TARGETS.map((each) => `--${each.id}`).join(", ")})
-  -y, --yes                  answer every question with its default (all targets)
+  --web, --desktop           the targets: the web, a desktop window, or both (a flag per target: ${TARGETS.map((each) => `--${each.id}`).join(", ")})
+  -y, --yes                  answer every question with its default (the web)
   --pm <npm|pnpm|yarn|bun>   the package manager (default: the one that ran this, else npm)
   --no-install               do not install the dependencies
   --no-git                   do not run git init

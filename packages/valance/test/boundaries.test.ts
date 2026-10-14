@@ -36,8 +36,15 @@ describe("dependency boundary", () => {
     }
 
     for (const file of readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts")) {
-      expect(file.startsWith("web")).toBe(true);
+      expect(file.startsWith("web") || file === "native.ts", file).toBe(true);
     }
+  });
+
+  it("the native host names no PORT package and nothing Web: it speaks a protocol, and a PORT is whatever is on the other end", () => {
+    const native = source("native.ts");
+
+    expect(importsOf(native).filter((name) => name.includes("port") || name.includes("web"))).toEqual([]);
+    expect([...new Set(importsOf(native))].sort()).toEqual(["./index.js", "@valancex/mesh-runtime", "effect", "node:readline", "node:stream"]);
   });
 
   it("Valance depends on NEXUS, and on PORT Web only optionally", () => {

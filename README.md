@@ -35,7 +35,7 @@ $ vlx init my-app --web
 $ cd my-app && npm run dev
 ```
 
-Open the address it prints. Edit a Markdown file in `content/` and save: the page reloads with your change. `npm run build` writes the finished site to `dist/`, for any host that serves files.
+Open the address it prints. Edit a Markdown file in `content/` and save: the page reloads with your change. `npm run build` writes the finished site to `dist/web/`, for any host that serves files.
 
 `vlx init` asks for what it needs, installs the dependencies and makes this:
 
@@ -56,7 +56,7 @@ Everything you do to a Valance application starts here.
 |---|---|
 | `vlx init [name]` | Makes a new application |
 | `vlx dev` | Serves it and rebuilds as you edit |
-| `vlx build` | Writes the site to `dist/` |
+| `vlx build` | Writes the site to `dist/web/` |
 | `vlx check` | Finds mistakes in your files without building |
 | `vlx generate page <path>` | Adds a Markdown page |
 | `vlx generate component <name>` | Adds a component and registers it |

@@ -17,7 +17,7 @@ import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
-import { webVocabulary } from "@valancex/common/internal";
+import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
 import { ENTRY_FILE } from "./project.js";
 
@@ -26,6 +26,8 @@ export const SOURCE_DIR = "src";
 export const ROOT = "layout";
 
 export const BUILT_IN = fileURLToPath(new URL("../views/", import.meta.url));
+/** The desktop target's built-in views: the same components as the web's, written in the desktop vocabulary. */
+export const BUILT_IN_DESKTOP = fileURLToPath(new URL("../views-desktop/", import.meta.url));
 /** The package directory: where its README, which documents the framework's own names, is. */
 export const PACKAGE_DIR = fileURLToPath(new URL("../", import.meta.url));
 
@@ -62,13 +64,13 @@ export interface Templates {
  * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout`, `components` and `override`. A file under `src/` that is not declared is an error, not
  * a guess; a registered component that no template writes is allowed (it is not part of the program until one does). Which components a template uses is read from the template. A name that is a built-in's replaces it only through `override`.
  */
-export const templatesOf = (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary): Templates => {
+export const templatesOf = (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Templates => {
   const found = new Map<string, Template>();
 
-  for (const file of mprxIn(BUILT_IN)) {
+  for (const file of mprxIn(views)) {
     const component = basename(file, ".mprx");
 
-    found.set(component, { component, path: `@valancex/cli/views/${file}`, source: readFileSync(join(BUILT_IN, file), "utf8"), builtIn: true });
+    found.set(component, { component, path: `@valancex/cli/${basename(views)}/${file}`, source: readFileSync(join(views, file), "utf8"), builtIn: true });
   }
 
   const layout = author?.layout;
@@ -121,7 +123,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
       problem(place, "template-duplicate", `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`);
       continue;
     }
-    if (node.name in vocabulary.tags) {
+    if (namesOf(vocabulary).includes(node.name)) {
       problem(place, "template-primitive", `<${node.name}> is already a tag the framework draws as an element; name the file something else`);
       continue;
     }
@@ -138,11 +140,21 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
     found.set(node.name, { component: node.name, path: node.file, source: readFileSync(join(root, node.file), "utf8"), builtIn: false });
   }
 
-  // Every template under src/ must be somewhere in the tree.
+  // Every template under src/ must be somewhere in a tree: this target's, or another target's (a project for more than one target keeps each one's templates side by side).
+  const claimed = new Set(files.values());
+
+  const whole = ((author as unknown as Record<symbol, DefinedApp | undefined> | undefined)?.[WHOLE] ?? author) as DefinedApp | undefined;
+
+  for (const parts of [whole, ...Object.values(whole?.targets ?? {})]) {
+    for (const node of treeOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
+      claimed.add(node.file);
+    }
+  }
+
   for (const file of mprxIn(join(root, SOURCE_DIR))) {
     const path = `${SOURCE_DIR}/${file}`;
 
-    if (![...files.values()].includes(path)) {
+    if (!claimed.has(path)) {
       problems.push(
         diagnostic(
           path,
@@ -188,12 +200,34 @@ const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
   return all.filter((template) => seen.has(template.component));
 };
 
-export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary) =>
-  manifest({
-    primitives: vocabulary.tags,
+export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary) => {
+  const derived = manifest({
+    // A web vocabulary is a table the manifest is derived from; any other is a manifest already, and its components are merged in as they are.
+    primitives: "tags" in vocabulary ? vocabulary.tags : {},
     scopes: { [ROOT]: scopeSchema(author) },
     commands: commandTable(author) as never,
   });
+
+  if (!("tags" in vocabulary)) {
+    return { ...derived, components: { ...vocabulary.components, ...derived.components } };
+  }
+
+  // The props the vocabulary says a template may leave out.
+  const components = { ...derived.components } as Record<string, (typeof derived.components)[string]>;
+
+  for (const [tag, names] of Object.entries(vocabulary.optional ?? {})) {
+    const entry = components[tag];
+
+    if (entry !== undefined) {
+      components[tag] = {
+        ...entry,
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, names.includes(name) ? { ...prop, required: false } : prop])),
+      };
+    }
+  }
+
+  return { ...derived, components };
+};
 
 const isManifestError = (error: unknown): error is Error & { readonly path: string } => error instanceof Error && (error as { readonly _tag?: string })._tag === "ManifestError";
 
@@ -283,8 +317,8 @@ export interface Compiled {
 }
 
 /** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
-export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary): Promise<Compiled> => {
-  const { all, tree } = templatesOf(root, author, vocabulary);
+export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
+  const { all, tree } = templatesOf(root, author, vocabulary, views);
   const used = reachable(all);
   const model = modelOf(root, author, tree, vocabulary);
 
@@ -345,7 +379,7 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
     templates: used.map((template) => ({
       component: template.component,
       file: template.builtIn
-        ? relative(root, join(BUILT_IN, `${template.component}.mprx`))
+        ? relative(root, join(views, `${template.component}.mprx`))
             .split(sep)
             .join("/")
         : template.path,

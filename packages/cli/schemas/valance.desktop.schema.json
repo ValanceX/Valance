@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schemas/valance.desktop.schema.json",
+  "title": "valance.desktop.json",
+  "description": "Marks the project as a desktop one: it is built to an engine that a native window runs. It has no settings yet.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "description": "The version of this file's format."
+    }
+  }
+}

@@ -1,0 +1,3 @@
+<mesh-fragment>
+  {#if b.kind == "heading"}<heading level={b.level}><runs spans={b.spans} /></heading>{:else if b.kind == "list"}<list-block ordered={b.ordered} items={b.items} />{:else if b.kind == "code"}<code>{b.text}</code>{:else if b.kind == "quote"}<blockquote><runs spans={b.spans} /></blockquote>{:else if b.kind == "image"}<image src={b.src} label={b.alt} />{:else}<paragraph><runs spans={b.spans} /></paragraph>{/if}
+</mesh-fragment>

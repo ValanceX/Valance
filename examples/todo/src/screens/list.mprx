@@ -1,0 +1,26 @@
+<column>
+  <row>
+    <button on.click={go("/")}>Back to lists</button>
+    <button on.click={go(editHref)}>Rename</button>
+  </row>
+  <heading>{name}</heading>
+  <text>{summary}</text>
+  {#if none}
+    <text>Nothing to do. Add the first item below.</text>
+  {/if}
+  {#each items as item (item.id)}
+    <row>
+      <checkbox checked={item.done} on.change={setDone(item.id, $event)} />
+      <button on.click={go(item.href)}>{item.title}</button>
+      <button on.click={deleteItem(item.id)}>Delete</button>
+    </row>
+  {/each}
+  <row>
+    <textfield value={entry} placeholder="New item" on.change={setEntry($event)} />
+    <button on.click={addItem()}>Add item</button>
+  </row>
+  <row>
+    <button on.click={clearDone()} disabled={nothingDone}>Clear done</button>
+    <button on.click={deleteList()}>Delete list</button>
+  </row>
+</column>

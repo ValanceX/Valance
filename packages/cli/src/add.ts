@@ -3,11 +3,14 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { BUILT_IN, ROOT, SOURCE_DIR } from "./compile.js";
+import { BUILT_IN, BUILT_IN_DESKTOP, ROOT, SOURCE_DIR } from "./compile.js";
+import { DESKTOP_FILE, loadConfig, WEB_FILE } from "./config.js";
+import type { TargetId } from "./targets.js";
+import { isTarget } from "./targets.js";
 import { ENTRY_FILE } from "./project.js";
 import { primitives } from "@valancex/common/internal";
 
-export const KINDS = ["page", "component"] as const;
+export const KINDS = ["page", "component", "target"] as const;
 export type Kind = (typeof KINDS)[number];
 
 export interface Generated {
@@ -69,11 +72,7 @@ export const generatePage = (root: string, given: string, title?: string): Gener
 // ---- a component -------------------------------------------------------------------------------------------------------------------------------------------
 
 const builtIns = (): ReadonlySet<string> =>
-  new Set(
-    readdirSync(BUILT_IN)
-      .filter((file) => file.endsWith(".mprx"))
-      .map((file) => file.slice(0, -".mprx".length)),
-  );
+  new Set([...readdirSync(BUILT_IN), ...readdirSync(BUILT_IN_DESKTOP)].filter((file) => file.endsWith(".mprx")).map((file) => file.slice(0, -".mprx".length)));
 
 export const componentProblem = (name: string, root?: string): string | undefined => {
   if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
@@ -191,6 +190,91 @@ export const generateComponent = (root: string, name: string): Generated => {
   }
 
   notes.push(`use it by writing <${name}></${name}> in a template`);
+
+  return { created, changed, notes };
+};
+
+// ---- a target ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * `main.ts` with a `targets` entry for `id`: its layout, from `src/<id>/layout.mprx`. `undefined` when the definition is not written in the plain form this can edit (or already has `targets`).
+ * The layout the project already has stays the default for every target that has none of its own, so nothing is moved.
+ */
+export const registerTarget = (text: string, id: TargetId): string | undefined => {
+  const define = /defineApp\(\s*\{/.exec(text);
+
+  if (define === null || /\btargets\s*:/.test(text)) {
+    return undefined;
+  }
+
+  const ident = `${id}Layout`;
+  const at = define.index + define[0].length;
+  let edited = `${text.slice(0, at)}\n  targets: { ${id}: { layout: component(${ident}) } },${text.slice(at)}`;
+
+  edited = withImport(edited, `import ${ident} from "./${id}/layout.mprx";`);
+
+  return /import\s*\{[^}]*\bcomponent\b[^}]*\}\s*from\s*"@valancex\/common"/.test(edited) ? edited : withImport(edited, 'import { component } from "@valancex/common";');
+};
+
+/** Adds a target to the project: its settings file, and a starting layout of its own in `src/<id>/`, registered in `src/main.ts`. Nothing the project has is moved or changed but `src/main.ts`. */
+export const generateTarget = (root: string, given: string): Generated => {
+  if (!isTarget(given)) {
+    throw new GenerateError(`"${given}" is not a target: the targets are web and desktop (vlx generate target desktop)`);
+  }
+
+  const id: TargetId = given;
+  const config = loadConfig(root);
+
+  if (config.targets.includes(id)) {
+    throw new GenerateError(`this project already has the ${id} target`);
+  }
+
+  const settings = id === "web" ? WEB_FILE : DESKTOP_FILE;
+  const layout = `${SOURCE_DIR}/${id}/layout.mprx`;
+  const entry = join(root, ENTRY_FILE);
+
+  if (existsSync(join(root, layout))) {
+    throw new GenerateError(`${layout} already exists`);
+  }
+
+  const marker = (target: TargetId): string => `${JSON.stringify({ $schema: `./node_modules/@valancex/cli/schemas/valance.${target}.schema.json`, version: 1 }, null, 2)}\n`;
+  const created: Array<string> = [];
+
+  // A project is for the web when it has no settings file at all; once it has another target's, the web needs its own to stay a target.
+  if (id === "desktop" && !existsSync(join(root, WEB_FILE))) {
+    write(root, WEB_FILE, marker("web"));
+    created.push(WEB_FILE);
+  }
+
+  write(root, settings, marker(id));
+  created.push(settings);
+  // The framework's own layout for the target is the starting point: the page's shell, the sections and the previous and next pages.
+  write(root, layout, readFileSync(join(id === "web" ? BUILT_IN : BUILT_IN_DESKTOP, "layout.mprx"), "utf8"));
+
+  created.push(layout);
+
+  const changed: Array<string> = [];
+  const notes: Array<string> = [];
+
+  if (!existsSync(entry)) {
+    write(
+      root,
+      ENTRY_FILE,
+      `import { component, defineApp } from "@valancex/common";\nimport ${id}Layout from "./${id}/layout.mprx";\n\nexport default defineApp({\n  targets: { ${id}: { layout: component(${id}Layout) } },\n});\n`,
+    );
+    created.push(ENTRY_FILE);
+  } else {
+    const edited = registerTarget(readFileSync(entry, "utf8"), id);
+
+    if (edited === undefined) {
+      notes.push(`add it to ${ENTRY_FILE} yourself: import ${id}Layout from "./${id}/layout.mprx"; and give defineApp \`targets: { ${id}: { layout: component(${id}Layout) } }\``);
+    } else {
+      writeFileSync(entry, edited);
+      changed.push(ENTRY_FILE);
+    }
+  }
+
+  notes.push(`the ${id} target is drawn with its own vocabulary: write its templates in ${SOURCE_DIR}/${id}/, and the state, the commands and the content are shared`);
 
   return { created, changed, notes };
 };

@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, relative } from "node:path";
-import { application, type Vocabulary, webVocabulary } from "@valancex/common/internal";
+import { application, routes, type Vocabulary, type WebVocabulary, webVocabulary } from "@valancex/common/internal";
 import { readContent } from "../src/content.js";
 import { loadConfig } from "../src/config.js";
 import { loadAuthor } from "../src/author.js";
@@ -72,17 +72,54 @@ describe("the application model on a target that is not the web", () => {
   }, 120_000);
 });
 
+describe("navigation on a target that is not the web", () => {
+  it("has links that carry an address and no event, and the application's own `go` command is what moves between pages", async () => {
+    const root = scaffolded();
+    const { config, author, built } = await compiled(root);
+    const content = readContent(root, config);
+
+    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
+
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(application(content, built.program, author)).pipe(Scope.extend(scope)));
+    const factory = textTarget();
+    let target: ReturnType<typeof factory> | undefined;
+
+    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
+
+    // On the web a click on `<a href>` is taken by the history listener, not by a template event: the render tree has the address and no handler. A target has nothing to report for a link.
+    const links = target!
+      .screen()
+      .split("\n")
+      .filter((line) => /^\s*<(link|a)>/.test(line));
+
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.every((line) => !line.includes("{"))).toBe(true);
+
+    // What `Web.history` does for a link, by hand: the address → the route table's navigation fact → the application's own navigate command.
+    const table = routes(content);
+    const other = content.pages.find((page) => page.path !== "/");
+
+    expect(other).toBeDefined();
+    await Effect.runPromise(handle.invoke("app/go", [{ value: (table.stateOf(new URL(other!.path, "http://app.invalid/")) as { readonly id: string }).id }] as never));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(await Effect.runPromise(handle.state)).toMatchObject({ page: other!.path });
+    expect(target!.screen()).toContain(other!.title);
+    await Effect.runPromise(Scope.close(scope, (await import("effect")).Exit.void));
+  }, 120_000);
+});
+
 describe("a vocabulary without the web's styling and accessibility hooks", () => {
   /** The web's tags with the props that are the web's own (styling hooks, focus, ARIA, loading hints) removed. */
   const WEB_ONLY = ["class", "theme", "id", "tabindex", "label", "current", "pressed", "loading"];
-  const neutral: Vocabulary = {
+  const neutral: WebVocabulary = {
     target: "neutral",
     tags: Object.fromEntries(
       Object.entries(webVocabulary.tags).map(([tag, each]) => [
         tag,
         { ...each, props: Object.fromEntries(Object.entries(each.props ?? {}).filter(([name]) => !WEB_ONLY.includes(name))) },
       ]),
-    ) as Vocabulary["tags"],
+    ) as WebVocabulary["tags"],
   };
 
   it("rejects the built-in views and the scaffolded layout where they use those hooks, and nowhere else", async () => {

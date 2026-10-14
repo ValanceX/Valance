@@ -16,7 +16,7 @@ let origin: string;
 
 beforeAll(async () => {
   await build(root);
-  ({ origin, server } = await serveStatic(join(root, "dist")));
+  ({ origin, server } = await serveStatic(join(root, "dist/web")));
   browser = await chromium.launch();
 });
 

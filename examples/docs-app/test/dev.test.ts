@@ -37,6 +37,7 @@ beforeAll(async () => {
   }
 
   running = await dev(copy, {
+    target: "web", // the project has two targets; this is the web's dev server
     port: 5400 + Math.floor(Math.random() * 400),
     log: (line) => {
       logs.push(line);

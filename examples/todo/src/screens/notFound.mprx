@@ -1,0 +1,4 @@
+<column>
+  <heading>There is nothing here</heading>
+  <button on.click={go("/")}>Back to lists</button>
+</column>

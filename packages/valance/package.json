@@ -35,6 +35,10 @@
       "types": "./dist/web-manifest.d.ts",
       "default": "./dist/web-manifest.js"
     },
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "default": "./dist/native.js"
+    },
     "./internal": {
       "types": "./dist/internal.d.ts",
       "default": "./dist/internal.js"

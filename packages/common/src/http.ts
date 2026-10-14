@@ -14,6 +14,9 @@
 import * as Nexus from "@valancex/nexus";
 import { Effect, FiberRef, Schema } from "effect";
 
+import { Open, webOpen } from "./open.js";
+import { Store } from "./store.js";
+import type { StoreClient } from "./store.js";
 import type { HttpError, Interceptor, Method, Transport, TransportRequest, TransportResponse } from "./transport.js";
 
 export type { HttpError, Interceptor, Method, Transport, TransportRequest, TransportResponse } from "./transport.js";
@@ -296,5 +299,11 @@ export const webHttp = (options: WebHttpOptions): HttpClient => {
 };
 
 /** The platform for a web page: the `Http` capability, made from `api.base`. Merged with the application's own by `Web.run`. */
-export const webPlatform = (options: WebHttpOptions): Nexus.Application.Platform =>
-  Nexus.Capability.EnvironmentLive(new Map([[Http.id, { _tag: "Available" as const, implementation: webHttp(options) }]]));
+export const webPlatform = (options: WebHttpOptions & { readonly store?: StoreClient }): Nexus.Application.Platform =>
+  Nexus.Capability.EnvironmentLive(
+    new Map<string, { readonly _tag: "Available"; readonly implementation: unknown }>([
+      [Http.id, { _tag: "Available" as const, implementation: webHttp(options) }],
+      [Open.id, { _tag: "Available" as const, implementation: webOpen() }],
+      ...(options.store === undefined ? [] : [[Store.id, { _tag: "Available" as const, implementation: options.store }] as const]),
+    ]) as never,
+  );

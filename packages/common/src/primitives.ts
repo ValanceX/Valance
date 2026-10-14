@@ -12,6 +12,12 @@ const label = Web.attribute("aria-label");
 // A prop a tag declares is a prop every use of it must write (docs/application-model/HANDOFF.md, finding D1: MESH derives "required" from the realization and has no optional prop). So the
 // table is many narrow tags rather than a few wide ones: a tag carries only what its uses always have.
 export const primitives: Web.WebPrimitives = {
+  // The portable core (the same names, props, events and payloads as the Desktop PORT's vocabulary: a component written with only these runs on both targets). `column` and `row` are custom
+  // elements, because this table cannot give a `div` a fixed attribute to tell them apart; `vlx` ships their layout (`core.css`). `heading` is an `h2` with its level as `aria-level`.
+  column: { element: "vlx-column" },
+  row: { element: "vlx-row" },
+  heading: { element: "h2", props: { level: Web.attribute("aria-level") } },
+  text: { element: "span" },
   shell: { element: "div", props: { class: klass, theme: Web.attribute("data-theme") } },
   div: { element: "div", props: { class: klass } },
   header: { element: "header", props: { class: klass } },
@@ -39,5 +45,17 @@ export const primitives: Web.WebPrimitives = {
   a: { element: "a", props: { href: Web.attribute("href") } },
   /** A link that is part of the page's furniture (navigation, a brand): it has a class, and says whether it is where you are (`aria-current`: "page" or "false"). */
   link: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
-  button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed") }, events: { click: { type: "click" } } },
+  /** A box to tick, reporting `change` with the new value (a boolean). PORT Web's table cannot give an element a fixed attribute, so a template says `type="checkbox"` itself. */
+  checkbox: {
+    element: "input",
+    props: { type: Web.attribute("type"), checked: Web.property("checked", "boolean"), label },
+    events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) },
+  },
+  /** A text field, reporting `change` with the new text (a string); the field shows what the state says. */
+  textfield: {
+    element: "input",
+    props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label },
+    events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
+  },
+  button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
 };

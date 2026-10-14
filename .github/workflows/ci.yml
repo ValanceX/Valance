@@ -89,3 +89,61 @@ jobs:
         env:
           VSCODE_VERSION: ${{ matrix.vscode }}
         run: xvfb-run -a pnpm test:host
+
+  # The to-do desktop app (examples/todo), built and run on the platforms it ships for: the application and its engine with Node, the native renderer with Rust, then the packaged engine
+  # (a Node single executable) is run through the wire. Windows is a real Windows build here, not the Linux cross-build. It builds only what it needs from the workspace.
+  desktop:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: windows-latest
+            platform: win32-x64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the application and its engine
+        run: pnpm --filter "@valancex/todo..." build
+      - name: Test the application (headless, through a text target)
+        run: pnpm --filter @valancex/todo test
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            examples/todo/native/target
+          key: desktop-${{ matrix.platform }}-${{ hashFiles('examples/todo/native/Cargo.lock') }}
+      - name: Native renderer lints and tests (against the real engine, no window)
+        working-directory: examples/todo/native
+        run: |
+          cargo fmt --check
+          cargo test --locked
+      - name: Package the engine as one executable and run it through the wire
+        working-directory: examples/todo
+        run: |
+          node scripts/package.mjs ${{ matrix.platform }}
+          node scripts/smoke.mjs out/${{ matrix.platform }}/todo-engine${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+      - name: Build the renderer
+        working-directory: examples/todo/native
+        run: cargo build --release --locked
+      - name: Gather the app
+        working-directory: examples/todo
+        run: cp native/target/release/todo-desktop${{ matrix.os == 'windows-latest' && '.exe' || '' }} out/${{ matrix.platform }}/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todo-${{ matrix.platform }}
+          path: examples/todo/out/${{ matrix.platform }}/
+          if-no-files-found: error

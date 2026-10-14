@@ -67,7 +67,7 @@ describe("the runtime entries", () => {
   });
 
   it("keeps the server to VALANCE, effect and its own files, and never loads the browser's", () => {
-    const allowed = ["@valancex/valance", "@valancex/valance/web", "@valancex/valance/web/plugin", "@valancex/valance/web/server", "effect"];
+    const allowed = ["@valancex/nexus", "@valancex/valance", "@valancex/valance/web", "@valancex/valance/web/plugin", "@valancex/valance/web/server", "effect"];
 
     expect(externals("server.ts").filter((name) => !allowed.includes(name))).toEqual([]);
     expect(externals("server.ts")).not.toContain("@valancex/mesh-runtime");
@@ -78,6 +78,30 @@ describe("the runtime entries", () => {
     // the one file it loads is the types of an interceptor: nothing in it runs
     expect([...closure("index.ts")]).toEqual(["index.ts", "./transport.ts"]);
     expect(readFileSync(`${src}transport.ts`, "utf8")).not.toMatch(/^export (?:const|function|class)/m);
+  });
+});
+
+describe("the desktop entry", () => {
+  it("runs the application and carries nothing of the web: no PORT Web, no tag table, no build tool, no terminal", () => {
+    const loaded = [...closure("desktop.ts")];
+
+    expect(loaded).not.toContain("primitives.ts");
+    expect(loaded).not.toContain("web-app.ts");
+    expect(loaded).not.toContain("client.ts");
+    expect(loaded).not.toContain("server.ts");
+    expect(
+      externals("desktop.ts").filter(
+        (name) =>
+          name.includes("port-web") ||
+          (name.startsWith("@valancex/valance/web") && name !== "@valancex/valance/web/plugin") ||
+          name === "vite" ||
+          name === "@valancex/mesh-compiler" ||
+          name === "ink",
+      ),
+    ).toEqual([]);
+    // (`routes.ts` names the route table's *type* from the plugin entry; a type import is erased and ships nothing.)
+    expect(readFileSync(`${src}routes.ts`, "utf8")).toMatch(/import type \{ RouteTable \} from "@valancex\/valance\/web\/plugin"/);
+    expect(externals("desktop.ts")).toContain("@valancex/valance/native");
   });
 });
 

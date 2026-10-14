@@ -187,8 +187,8 @@ describe("the scaffold", () => {
 
     expect(await main(["check"], dir)).toBe(0);
     expect(await main(["build"], dir)).toBe(0);
-    expect(existsSync(join(dir, "dist", "index.html"))).toBe(true);
-    expect(readFileSync(join(dir, "dist", "index.html"), "utf8")).toContain("My Notes");
+    expect(existsSync(join(dir, "dist", "web", "index.html"))).toBe(true);
+    expect(readFileSync(join(dir, "dist", "web", "index.html"), "utf8")).toContain("My Notes");
   });
 
   it.skipIf(process.platform === "win32")("reports each step, and a failed install is a note, not a failure of the whole", async () => {

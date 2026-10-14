@@ -11,11 +11,14 @@ import type { SiteInfo } from "@valancex/common/internal";
 
 export const PROJECT_FILE = "valance.json";
 export const WEB_FILE = "valance.web.json";
+export const DESKTOP_FILE = "valance.desktop.json";
 /** The only version of both files there is. */
 export const CONFIG_VERSION = 1;
 
 export interface Config {
   readonly name: string;
+  /** The targets the project is built for: each one whose settings file it has (`valance.web.json`, `valance.desktop.json`), else the web alone. One application, one build per target. */
+  readonly targets: ReadonlyArray<"web" | "desktop">;
   /** How the document's title is written from a page's title and the site's name: `{page}` and `{site}`. */
   readonly title: string;
   readonly web: {
@@ -144,7 +147,9 @@ export const loadConfig = (root: string): Config => {
   }
 
   const web = read(root, WEB_FILE);
+  const desktop = read(root, DESKTOP_FILE);
   const problems = [
+    ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
     ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
     ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
   ];
@@ -164,6 +169,7 @@ export const loadConfig = (root: string): Config => {
 
   return {
     name: named.name,
+    targets: desktop === undefined ? ["web"] : web === undefined ? ["desktop"] : ["web", "desktop"],
     title: named.title ?? DEFAULT_TITLE,
     web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },

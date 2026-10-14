@@ -1,0 +1,37 @@
+<column>
+  <row>
+    <button disabled={!canGoBack} on.click={back()}>Back</button>
+    <button disabled={!canGoForward} on.click={forward()}>Forward</button>
+    <link href={home}>{site}</link>
+    <button on.click={cycleTheme()}>Appearance: {theme}</button>
+    <button on.click={toggleNavigation()}>{#if navigation}Hide pages{:else}Show pages{/if}</button>
+  </row>
+  {#if navigation}
+    {#each sections as s (s.id)}
+      <column>
+        {#if s.title != ""}<text>{s.title}</text>{/if}
+        <list ordered={false}>
+          {#each s.items as n (n.id)}<listitem><link href={n.href}>{n.label}</link></listitem>{/each}
+        </list>
+      </column>
+    {/each}
+  {/if}
+  <blocks items={blocks} />
+  <column>
+    <heading level={2}>To do</heading>
+    <text>{summary}</text>
+    <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
+    {#each items as it (it.id)}
+      <row>
+        <checkbox label="Done" checked={it.done} on.change={setDone(it.id, $event)} />
+        <text>{it.title}</text>
+        <button on.click={removeItem(it.id)}>Remove</button>
+      </row>
+    {/each}
+    <button on.click={clearDone()}>Clear done</button>
+  </column>
+  <row>
+    {#if prev.href != ""}<link href={prev.href}>{prev.label}</link>{/if}
+    {#if next.href != ""}<link href={next.href}>{next.label}</link>{/if}
+  </row>
+</column>

@@ -1,0 +1,4 @@
+<row>
+  <textfield label="New item" value={entry} placeholder="What needs doing?" on.change={type($event)} />
+  <button on.click={add()}>Add</button>
+</row>

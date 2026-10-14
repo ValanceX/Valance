@@ -1,0 +1,4 @@
+{
+  "$schema": "./node_modules/@valancex/cli/schemas/valance.desktop.schema.json",
+  "version": 1
+}

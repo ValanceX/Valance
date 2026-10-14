@@ -7,7 +7,7 @@ import type { InitArgs } from "../args.js";
 import type { Answers, Outcome, PackageManager, Progress, Step } from "../init.js";
 import { directoryFor, directoryProblem, execute as defaultExecute, nameProblem, PACKAGE_MANAGERS, runCommand, titleOf } from "../init.js";
 import type { TargetId } from "../targets.js";
-import { TARGETS } from "../targets.js";
+import { DEFAULT_TARGETS, TARGETS } from "../targets.js";
 import { Spinner } from "./Spinner.js";
 import { Answered, Confirm, MultiSelect, Select, TextPrompt } from "./prompts.js";
 
@@ -118,7 +118,7 @@ export const Wizard = ({ args, cwd, detected, version, execute = defaultExecute,
 
     finished.current = true;
 
-    const targets = draft.targets.length === 0 ? TARGETS.map((each) => each.id) : draft.targets;
+    const targets = draft.targets.length === 0 ? DEFAULT_TARGETS : draft.targets;
     const name = draft.name ?? "my-app";
     const answers: Answers = {
       name,
@@ -154,7 +154,7 @@ export const Wizard = ({ args, cwd, detected, version, execute = defaultExecute,
   }, [outcome, failure]);
 
   const question = running ? undefined : ORDER[at]!;
-  const picked = draft.targets.length === 0 ? TARGETS.map((each) => each.id) : draft.targets;
+  const picked = draft.targets.length === 0 ? DEFAULT_TARGETS : draft.targets;
 
   return (
     <Box flexDirection="column">
@@ -182,8 +182,9 @@ export const Wizard = ({ args, cwd, detected, version, execute = defaultExecute,
         {question === "targets" ? (
           <MultiSelect
             label="Which targets is it for?"
+            hint="one application, built for each"
             choices={TARGETS.map((each) => ({ value: each.id, label: each.label, hint: each.hint }))}
-            initial={TARGETS.map((each) => each.id)}
+            initial={DEFAULT_TARGETS}
             onSubmit={(values) => {
               answer({ targets: values }, "Targets", values.map((id) => TARGETS.find((each) => each.id === id)?.label ?? id).join(", "));
             }}

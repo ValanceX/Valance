@@ -94,3 +94,7 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 ## Going further
 
 The contract names NEXUS and MESH types where they appear in a signature (`Command`, `StateHandle`, `MeshDiagnostics`). A command that waits is written with NEXUS's `Command.define` and Effect, which is why those packages are application-level dependencies ([Learn: Async work](../learn/async-work.md#where-the-imports-come-from)). Their own rules are in those packages' documentation; the way VALANCE uses them, and why, is in [Understand](../understand/README.md). Why a rule exists: [concept → evidence](../understand/README.md#from-a-concept-to-its-evidence).
+
+## The desktop vocabulary
+
+What a template may write for a native window: [the desktop vocabulary](desktop-vocabulary.md).

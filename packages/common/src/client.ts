@@ -1,4 +1,5 @@
 // The browser half, for the generated entry (`.valance/client.ts`): start the MESH runtime and run the application, taking over the HTML the server wrote. An author never imports this.
+import { webStore } from "./store.js";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import type * as Valance from "@valancex/valance";
@@ -7,10 +8,12 @@ import * as Web from "@valancex/valance/web";
 import { Effect } from "effect";
 
 import { webPlatform } from "./http.js";
+import { watchColorScheme } from "./color-scheme.js";
 import { watchViewport } from "./viewport.js";
 
 import type { AppState, Built } from "./app.js";
-import { application, plugin } from "./app.js";
+import { application } from "./app.js";
+import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 
@@ -34,11 +37,15 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       state: boot.state,
       plugins: [plugin(content, boot.built, author)],
       // What the application's commands may ask the page for: the backend (`Http`), at `api.base` of valance.web.json.
-      platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [] }),
+      platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [], store: webStore(content.site.name) }),
       shutdown: { grace: "250 millis" },
     });
 
     // The server rendered for a wide window; tell the application how wide this one is (and keep telling it).
+    const unwatchScheme = watchColorScheme(window, (scheme) => {
+      container.dataset["colorScheme"] = scheme; // for a stylesheet or a test; the layout reads the state's own `colorScheme`
+      void Effect.runPromise(host.handle.invoke("app/colorScheme", [{ value: scheme }])).catch(() => undefined);
+    });
     const unwatch = watchViewport(window, (viewport) => {
       container.dataset["viewport"] = viewport; // for a stylesheet or a test; the layout reads the state's own `viewport`
       void Effect.runPromise(host.handle.invoke("app/resize", [{ value: viewport }])).catch(() => undefined);
@@ -48,6 +55,7 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
     addEventListener("pagehide", (event) => {
       if (!event.persisted) {
         unwatch();
+        unwatchScheme();
         void host.stop();
       }
     });

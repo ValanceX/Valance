@@ -20,11 +20,15 @@ import type { Config } from "./config.js";
 import { loadConfig, PROJECT_FILE, WEB_FILE } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, format } from "./diagnostics.js";
+import type { TargetId } from "./targets.js";
+import { devDesktop } from "./dev-desktop.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 import { baseConfig, SERVER_ENTRY } from "./vite.js";
 
 export interface DevOptions {
+  /** Which target to serve, for a project of more than one. */
+  readonly target?: TargetId;
   readonly port?: number;
   readonly host?: string;
   /** Called with each report (a rebuild, a mistake); defaults to the console. */
@@ -93,7 +97,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   const failed = new Map<string, ReadonlyArray<Diagnostic>>();
   let pending: Promise<void> = Promise.resolve();
 
-  generateEntries(root);
+  generateEntries(root, config);
 
   const base = baseConfig(root, config);
   const server = await createServer({
@@ -167,13 +171,13 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
     const wasFailing = failed.size > 0;
 
     if (stages.includes("entries")) {
-      generateEntries(root);
+      generateEntries(root, config);
     }
     if (stages.includes("content")) {
       await run("content", () => generateContent(root, config));
     }
     if (stages.includes("program")) {
-      await run("templates", async () => generateProgram(root, await loadAuthor(server, root)));
+      await run("templates", async () => generateProgram(root, await loadAuthor(server, root), config, ["web"]));
     }
 
     const open = [...failed.values()].flat();
@@ -247,7 +251,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   // First build: a mistake here is reported like any other and the server still starts, so the overlay can show it.
   for (const [name, work] of [
     ["content", () => generateContent(root, config)],
-    ["templates", async () => generateProgram(root, await loadAuthor(server, root))],
+    ["templates", async () => generateProgram(root, await loadAuthor(server, root), config, ["web"])],
   ] as const) {
     try {
       await work();
@@ -281,6 +285,38 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
 /** Starts the development server for the project at `root`. */
 export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> => {
+  const config = loadConfig(root);
+  const target = options.target ?? (config.targets.length === 1 ? config.targets[0] : undefined);
+
+  if (target !== undefined && !config.targets.includes(target)) {
+    throw new AppError([
+      { file: "valance.json", line: 0, column: 0, code: "dev-target", message: `this project is not built for ${target} (its targets: ${config.targets.join(", ")})` },
+    ]);
+  }
+
+  // A project of more than one target, and none named: serve the web and open the desktop's window, each as it would be alone.
+  if (target === undefined) {
+    const web = await dev(root, { ...options, target: "web" });
+    const desktop = await devDesktop(root, options);
+
+    return {
+      url: web.url,
+      closed: desktop.closed,
+      settled: async () => {
+        await web.settled();
+        await desktop.settled();
+      },
+      close: async () => {
+        await desktop.close();
+        await web.close();
+      },
+    } as Dev;
+  }
+
+  if (target === "desktop") {
+    return devDesktop(root, options);
+  }
+
   let current: Dev & { readonly server: ViteDevServer };
   const log =
     options.log ??
@@ -325,7 +361,7 @@ export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> 
     timer.unref();
   };
 
-  const config = loadConfig(root);
+  // (the configuration is read above)
 
   current = await start(root, config, options, restart);
 

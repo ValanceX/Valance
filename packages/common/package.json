@@ -32,6 +32,10 @@
       "types": "./dist/client.d.ts",
       "default": "./dist/client.js"
     },
+    "./desktop": {
+      "types": "./dist/desktop.d.ts",
+      "default": "./dist/desktop.js"
+    },
     "./http": {
       "types": "./dist/http.d.ts",
       "default": "./dist/http.js"

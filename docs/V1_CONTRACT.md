@@ -390,3 +390,20 @@ It is a command (§3) and an ordinary NEXUS command underneath: admission, owner
 - **What it costs.** Each entry is its own module and nothing registers on import; `test/tree-shaking.test.ts` bundles the source and reads the output, so an entry that only writes a head or lists static paths ships neither history, composition, PORT nor NEXUS (the last once NEXUS declares `sideEffects: false`, 0.12.2).
 - **Re-exports (policy).** A package built against these seams may be re-exported from VALANCE as its own subpath (`@valancex/valance/web/<name>`), never from the root entry, as one named re-export per name, with the package an *optional* peer (as PORT Web is), so a subpath nobody imports costs nothing and needs nothing installed. VALANCE owns the contract types (`./web/plugin`) and the package implements them structurally without importing VALANCE at run time, so the two do not depend on each other. A re-export carries the stability tier of what it re-exports, stated in `stability.md`; re-exporting does not make a package Stable.
   *(Tripwires: `test/plugin.test.ts`, `test/history-seams.test.ts`, `test/tree-shaking.test.ts`, `examples/tracer-web/test/plugins-host.test.ts`.)*
+
+## 20. The native host: `Native.run`
+
+`@valancex/valance/native` (Node only) is to a window what `Web.run` is to a page: the engine side of a native application. The application runs in the process; a PORT (the Desktop PORT's window) is another program that draws what it sends and reports what the person does. The protocol is the PORT's (one JSON object per line over stdin and stdout; `github.com/ValanceX/Port`, `docs/architecture/2026-10-14-port-desktop.md`), and this entry implements the engine's half.
+
+```ts
+await Native.run(app, { titleOf: (state) => string, mayClose: (state) => Effect<boolean>, onLink: (href, handle) => Effect<void> });
+```
+
+- **`run`** serves `app` on the process's stdin and stdout and returns (with `{ ignored }`) when the renderer closes: a `close` message, or its stream ending. The application is closed and its work cancelled first (§9). `serve(app, { input, output }, options)` is the same on any two streams, for tests and tools.
+- **The order of what is sent.** `hello` (with the protocol number and the application's name) first, before anything is drawn; then, for each screen, `title` when it changed, then `draw` (a different view) or `update` (the same view), as for any mount (§5); `unmount` when the application ends.
+- **The window is the host's.** `titleOf(state)` is the application's say about the window's title: it follows the state a screen is drawn for. A template has no title, and no window component.
+- **Closing.** When the person asks to close the window, the PORT sends `closeRequested`; `mayClose(state)` decides (absent: always), the engine answers `closeAnswer`, and an allowed close ends `run`. A router's `mayLeave` is what an application with guards passes.
+- **Links.** A link in a tree is an address and carries no handler. The PORT sends `link` with the address; `onLink(href, handle)` says what it means (absent: nothing). The address is untrusted text from another program: it is bounded (2048 characters) and has no control character before the application sees it. The PORT never opens an address.
+- **The renderer is another program.** Nothing it sends is trusted until it has the shape of a message: a line over 64 KiB, a line that is not JSON, an unknown `op`, a handler that is not text or is over 256 characters, a payload that is not plain data (deeper than 8, a non-finite number, a `__proto__` key) is ignored and counted in `ignored`.
+- **stdout is the protocol.** `run` sends the application's log (Effect's logger, and `console.log`, `info` and `debug`) to stderr. A program that writes its own bytes to stdout corrupts the conversation, and the PORT will say it ignored a line.
+- **It names no PORT and nothing Web** (a test holds it to that): a PORT is whatever is on the other end of the streams.

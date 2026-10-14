@@ -66,6 +66,16 @@ Then it writes the project (the same files as `examples/docs-app`: a layout, a c
 
 Without a terminal (a pipe, CI) it cannot ask, so it needs a name and a target: `vlx init my-app --web`.
 
+## A desktop application: `vlx init --desktop`
+
+A project has the targets whose settings file it has; `vlx init my-app --web --desktop` makes both, and `defineApp`'s `targets` gives each its templates (an experiment: `docs/application-model/MULTI-TARGET.md`). `vlx init my-app --desktop` makes the same project as for the web (Markdown in `content/`, a layout, state and commands in `src/main.ts`) with `valance.desktop.json` in place of `valance.web.json`. Its templates are written against the Desktop PORT's vocabulary (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, and the content layer: `paragraph`, `list`, `listitem`, `blockquote`, `emphasis`, …), not the web's tags: `<div>` in a desktop project is an error from `vlx check`.
+
+`vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx package --desktop` packs the engine into one executable (Node's single executable application, with the MESH runtime inside) and sets it beside the window program (`--window <path>`, or `VLX_WINDOW`, or `vlx-window` on the PATH) in `dist/package/<platform>/`. **Unsigned**: signing and notarization are not done by `vlx`. For another platform, `--platform win32-x64 --node <that platform's node> --window <that platform's window>`. `vlx dev` builds the engine, opens the Desktop PORT's window on it (the `vlx-window` program, installed with `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`, found on the PATH or at `VLX_WINDOW`), and opens it anew when a file changes. Closing the window ends `vlx dev`.
+
+## Adding a target: `vlx generate target desktop`
+
+A web project becomes a project of two targets without moving anything: `vlx generate target desktop` writes `valance.desktop.json` (and `valance.web.json`, which a project needs once it has another target's), a layout of its own in `src/desktop/`, and registers it in `targets` in `src/main.ts`. The layout the project has stays the default for a target with none of its own. **The site moves**: a project of one web target builds to `dist/`, one of several to `dist/<target>/` (`dist/web/`, `dist/desktop/`), so a deploy step that serves `dist/` is pointed at `dist/web/` when the second target is added (the command says so). See `docs/application-model/MULTI-TARGET.md`.
+
 ## Adding to an application: `vlx generate`
 
 ```console
@@ -90,7 +100,7 @@ Try it locally: [`docs/application-model/TRY-IT.md`](../../docs/application-mode
    and a `package.json` that depends on `@valancex/cli` and has `"dev": "vlx dev"`, `"build": "vlx build"`.
 2. Add pages: **`content/index.md`** is the first page (`# Notes` and some text). Every other `.md` file under `content/` is a page.
 3. `pnpm dev`. Open the address it prints. Edit a Markdown file and save: the page reloads with your change.
-4. `pnpm build`. The site is in `dist/`; any host that serves files can serve it.
+4. `pnpm build`. The site is in `dist/web/`; any host that serves files can serve it.
 
 That is a complete application. It uses a built-in layout. Everything below is how you take over a part of it.
 
@@ -107,7 +117,7 @@ That is a complete application. It uses a built-in layout. Everything below is h
 | `src/**/*.css` | Styles. Every stylesheet is loaded. | you |
 | `src/main.ts` | Optional until you own a template. `defineApp`: the `layout`, your `components`, state of your own and the commands that change it. | you |
 | `.valance/` | Generated: content, compiled templates, the entries, and for editors `manifest.json` (what a template may use) and `editor.json` (which file is which component). Git-ignored by a `.gitignore` inside it. | the tools |
-| `dist/` | The built site. | the tools |
+| `dist/web/` | The built site. | the tools |
 
 Settings are validated, unknown keys are errors, and editors can use the JSON Schemas in `schemas/` (`"$schema": "./node_modules/@valancex/cli/schemas/valance.schema.json"`).
 
@@ -176,7 +186,7 @@ export default component(template, {
 - `import x from "./x.mprx"` names a template file; `component(x, …)` defines it. The tag is the file's name (`theme-toggle.mprx` is `<theme-toggle>`). Register it once, in `components`.
 - **Which components a template uses is read from the template.** Write `<theme-toggle … />` in the layout (or in another component) and it is used; there is no list of uses to keep in step. A registered component no template writes yet is not part of the program, and is not an error. A file under `src/` that is not registered is an error (`template-unused`).
 - **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and where it is used. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`, and props have no defaults. A schema with no MESH type is a diagnostic at the declaration (`component-schema`). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
-- `override: [component(runs, { props: { spans: … } })]` replaces a built-in (`runs`, `heading`, …) with your template of the same name.
+- `override: [component(runs, { props: { spans: … } })]` replaces a built-in (`runs`, `heading-block`, …) with your template of the same name.
 - `layout` is optional; without it the built-in layout draws the page. Its template must be named `layout.mprx`.
 
 ### Children and slots
