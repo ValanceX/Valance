@@ -1,8 +1,11 @@
-// `vlx dev` for a desktop project: build the engine, open the Desktop PORT's window on it, and when a file changes build again and open the window anew. The window is a separate program
+// `vlx dev` for a desktop project: build the engine, open the Desktop PORT's window on it, and when a file changes build again and tell the window (by touching the file `VLX_RELOAD` names) to start the engine anew
+// in place, keeping its position and size; a window that is not running is opened again. The window is a separate program
 // (`vlx-window`, from the PORT's crate: `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`), found on the PATH or at `VLX_WINDOW`.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { watch } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { build } from "./build.js";
@@ -36,6 +39,18 @@ export const devDesktop = async (root: string, options: DevOptions = {}): Promis
     leave = resolve;
   });
 
+  const reloadDir = mkdtempSync(join(tmpdir(), "vlx-reload-"));
+  const reloadFile = join(reloadDir, "reload");
+  let reloads = 0;
+
+  writeFileSync(reloadFile, "0");
+
+  /** Tells a running window the engine was rebuilt: a new modification time on the file it watches. */
+  const touch = (): void => {
+    reloads += 1;
+    writeFileSync(reloadFile, String(reloads));
+  };
+
   const stopWindow = async (): Promise<void> => {
     const running = window;
 
@@ -50,7 +65,7 @@ export const devDesktop = async (root: string, options: DevOptions = {}): Promis
   };
 
   const openWindow = (engine: string): void => {
-    const child = spawn(program, [], { stdio: "inherit", env: { ...process.env, VLX_ENGINE: `${process.execPath} ${engine}` } });
+    const child = spawn(program, [], { stdio: "inherit", env: { ...process.env, VLX_ENGINE: `${process.execPath} ${engine}`, VLX_RELOAD: reloadFile } });
 
     window = child;
     child.once("error", (error: NodeJS.ErrnoException) => {
@@ -75,9 +90,15 @@ export const devDesktop = async (root: string, options: DevOptions = {}): Promis
       const built = await build(root, { targets: ["desktop"] });
 
       options.onStatus?.([]);
-      await stopWindow();
 
-      if (!stopping) {
+      if (stopping) {
+        return;
+      }
+
+      if (window !== undefined && window.exitCode === null) {
+        touch();
+        log("vlx: built; the window restarts the engine");
+      } else {
         openWindow(join(built.dir, "desktop", "engine.mjs"));
         log("vlx: built; the window is open");
       }
@@ -117,6 +138,7 @@ export const devDesktop = async (root: string, options: DevOptions = {}): Promis
       watcher.close();
       await working;
       await stopWindow();
+      rmSync(reloadDir, { recursive: true, force: true });
       leave();
     },
   };

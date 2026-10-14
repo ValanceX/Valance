@@ -1,4 +1,4 @@
-// `vlx dev` for a desktop project, with a stand-in for the window program: it is started with the engine's command line in VLX_ENGINE, and started again after a change.
+// `vlx dev` for a desktop project, with a stand-in for the window program: it is started with the engine's command line in VLX_ENGINE, and told by VLX_RELOAD, not started again, after a change.
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,7 +24,7 @@ describe("which changes the engine is built again for", () => {
 });
 
 describe.skipIf(process.platform === "win32")("vlx dev on a desktop project", () => {
-  it("builds the engine, opens the window on it, and opens it anew after a change", async () => {
+  it("builds the engine, opens the window on it, and tells the running window to restart the engine after a change", async () => {
     const answers = { name: "Notes", dir: "/unused", web: { base: "", url: "" }, packageManager: "npm", install: false, git: false, cli: "^0.0.0", targets: ["desktop"] } as never;
     const root = project(Object.fromEntries([...plan(answers).files].filter(([name]) => name !== "package.json" && name !== "valance.json")));
     const log = join(tmpdir(), `vlx-window-${Date.now()}.log`);
@@ -32,7 +32,7 @@ describe.skipIf(process.platform === "win32")("vlx dev on a desktop project", ()
 
     writeFileSync(
       stand,
-      `#!${process.execPath}\nimport { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(log)}, process.env.VLX_ENGINE + "\\n");\nsetInterval(() => {}, 1000);\n`,
+      `#!${process.execPath}\nimport { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(log)}, process.env.VLX_ENGINE + "|" + process.env.VLX_RELOAD + "\\n");\nsetInterval(() => {}, 1000);\n`,
     );
     chmodSync(stand, 0o755);
     process.env["VLX_WINDOW"] = stand;
@@ -53,9 +53,14 @@ describe.skipIf(process.platform === "win32")("vlx dev on a desktop project", ()
       };
 
       await until(() => opened().length === 1);
-      expect(opened()[0]).toMatch(/engine\.mjs$/);
+      expect(opened()[0]).toMatch(/engine\.mjs\|/);
+
+      const file = opened()[0]!.split("|")[1]!;
+      const before = readFileSync(file, "utf8");
+
       writeFileSync(join(root, "content/index.md"), "---\ntitle: Changed\n---\n\n# Changed\n");
-      await until(() => opened().length === 2);
+      await until(() => readFileSync(file, "utf8") !== before);
+      expect(opened()).toHaveLength(1); // the same window, not a new one
     } finally {
       await running.close();
       delete process.env["VLX_WINDOW"];
