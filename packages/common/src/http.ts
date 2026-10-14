@@ -14,6 +14,7 @@
 import * as Nexus from "@valancex/nexus";
 import { Effect, FiberRef, Schema } from "effect";
 
+import { Open, webOpen } from "./open.js";
 import { Store } from "./store.js";
 import type { StoreClient } from "./store.js";
 import type { HttpError, Interceptor, Method, Transport, TransportRequest, TransportResponse } from "./transport.js";
@@ -302,6 +303,7 @@ export const webPlatform = (options: WebHttpOptions & { readonly store?: StoreCl
   Nexus.Capability.EnvironmentLive(
     new Map<string, { readonly _tag: "Available"; readonly implementation: unknown }>([
       [Http.id, { _tag: "Available" as const, implementation: webHttp(options) }],
+      [Open.id, { _tag: "Available" as const, implementation: webOpen() }],
       ...(options.store === undefined ? [] : [[Store.id, { _tag: "Available" as const, implementation: options.store }] as const]),
     ]) as never,
   );

@@ -10,7 +10,10 @@ import { resolve, sep } from "node:path";
 import type * as Valance from "@valancex/valance";
 
 import { application, titleFor } from "./app.js";
-import { storePlatform } from "./store.js";
+import { Open } from "./open.js";
+import { systemOpen } from "./open-system.js";
+import { platformOf } from "./platform.js";
+import { Store } from "./store.js";
 import { fileStore, userDataDir } from "./store-file.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
@@ -27,7 +30,7 @@ export interface DesktopParts {
   readonly wasm?: Uint8Array | undefined;
 }
 
-/** Whether a link's address is one of the application's own pages (it starts with `/`, once). An address anywhere else would need a capability that opens it, which does not exist yet. */
+/** Whether a link's address is one of the application's own pages (it starts with `/`, once). An address anywhere else is the `Open` capability's. */
 const onSite = (href: string): boolean => href.startsWith("/") && !href.startsWith("//");
 
 /** Runs the application on stdin and stdout until the window closes. */
@@ -69,15 +72,22 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
   }
 
   const table = routes(content);
+  const opener = systemOpen();
 
   await Native.run(application(content, program, author), {
     // What the desktop supplies: a store, in the user's data directory for the application.
-    platform: storePlatform(fileStore(userDataDir(content.site.name))),
+    platform: platformOf([
+      [Store, fileStore(userDataDir(content.site.name))],
+      [Open, opener],
+    ]),
     ...(assets === undefined ? {} : { present: (tree: RenderTree) => withAssets(tree, assets) }),
     // The window's title follows the page, in the project's format (`valance.json`), or whatever the author's `title` function says.
     titleOf: (state) => titleFor(content, pageAt(content, state.page), state, author),
     // A link is an address, and navigation is the application's own `go` command, as it is for a page.
     onLink: (href, handle) =>
-      onSite(href) ? handle.invoke("app/go", [{ value: (table.stateOf(new URL(href, "http://app.invalid/")) as { readonly id: string }).id }] as never) : Effect.void,
+      onSite(href)
+        ? handle.invoke("app/go", [{ value: (table.stateOf(new URL(href, "http://app.invalid/")) as { readonly id: string }).id }] as never)
+        : // an address elsewhere goes to the person's own program for it, when it is one a link may open; anything else is dropped
+          opener.open(href).pipe(Effect.catchAll((error) => Effect.sync(() => console.error(`a link was not opened: ${error.message}`)))),
   });
 };

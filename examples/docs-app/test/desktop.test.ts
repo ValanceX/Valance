@@ -2,6 +2,8 @@
 // pages in the window's vocabulary and follows a link by the application's own `go` command, as the browser's click does.
 import { build } from "@valancex/cli/node";
 import { spawn } from "node:child_process";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -42,6 +44,49 @@ describe("the documentation site in a window", () => {
       child.stdin.write(`${JSON.stringify({ op: "link", href: "/guide/getting-started" })}\n`);
       await until(() => seen.some((message) => message.op === "title" && String(message["title"]).startsWith("Getting started")));
       expect([...seen].reverse().find((message) => message.op === "title")).toMatchObject({ title: "Getting started · Notes" });
+    } finally {
+      child.stdin.write('{"op":"close"}\n');
+      await new Promise((resolve) => child.on("exit", resolve));
+    }
+  }, 120_000);
+});
+
+describe.skipIf(process.platform !== "linux")("a link to an address elsewhere", () => {
+  it("goes to the system's opener when it is a web page, and to nothing when it is not", async () => {
+    const bin = mkdtempSync(join(tmpdir(), "vlx-bin-"));
+    const log = join(bin, "opened.log");
+
+    // a stand-in for the system's opener, first on the engine's PATH
+    writeFileSync(join(bin, "xdg-open"), `#!/bin/sh\necho "$1" >> ${JSON.stringify(log)}\n`);
+    chmodSync(join(bin, "xdg-open"), 0o755);
+
+    const child = spawn(process.execPath, [join(root, "dist/desktop/engine.mjs")], {
+      stdio: ["pipe", "pipe", "inherit"],
+      env: { ...process.env, PATH: `${bin}:${process.env["PATH"] ?? ""}` },
+    });
+    const seen: Array<Message> = [];
+
+    createInterface({ input: child.stdout }).on("line", (line) => void seen.push(JSON.parse(line) as Message));
+
+    try {
+      for (let tries = 0; !seen.some((message) => message.op === "draw"); tries += 1) {
+        if (tries > 1000) {
+          throw new Error("timed out");
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      for (const href of ["https://example.com/docs", "file:///etc/passwd", "javascript:alert(1)"]) {
+        child.stdin.write(`${JSON.stringify({ op: "link", href })}\n`);
+      }
+
+      for (let tries = 0; !existsSync(log) && tries < 200; tries += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(readFileSync(log, "utf8").trim().split("\n")).toEqual(["https://example.com/docs"]);
     } finally {
       child.stdin.write('{"op":"close"}\n');
       await new Promise((resolve) => child.on("exit", resolve));
