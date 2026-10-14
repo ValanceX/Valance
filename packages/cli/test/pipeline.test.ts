@@ -118,7 +118,7 @@ describe("vlx build", () => {
       readdirSync(join(root, ".valance"))
         .filter((name) => name !== "cache")
         .sort(),
-    ).toEqual([".gitignore", "client.ts", "content.json", "editor.json", "manifest.json", "program.json", "server.ts", "wiring.json"]);
+    ).toEqual([".gitignore", "client.ts", "content.json", "core.css", "editor.json", "manifest.json", "program.json", "server.ts", "wiring.json"]);
     expect(readFileSync(join(root, ".valance/.gitignore"), "utf8")).toContain("*");
   });
 

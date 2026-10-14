@@ -16,13 +16,11 @@
   <blocks items={blocks} />
   <column>
     <heading level={2}>To do</heading>
-    <row>
-      <textfield value={entry} placeholder="What needs doing?" on.change={setEntry($event)} />
-      <button on.click={addItem()}>Add</button>
-    </row>
+    <text>{summary}</text>
+    <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
     {#each items as it (it.id)}
       <row>
-        <checkbox checked={it.done} on.change={setDone(it.id, $event)} />
+        <checkbox label="Done" checked={it.done} on.change={setDone(it.id, $event)} />
         <text>{it.title}</text>
         <button on.click={removeItem(it.id)}>Remove</button>
       </row>

@@ -19,6 +19,8 @@
 | The content is shared | one `content/`; the web draws it as a page, the desktop as the content layer |
 | A mistake is reported per target and per file | the desktop layout with a `<div>`: every diagnostic is in `src/desktop/` |
 
+**Update:** gaps 1 (partly), 3, 4, 5, 8 and 13 have fillings; see [the plan](./MULTI-TARGET-PLAN.md#decisions-made-and-progress-2026-10-14).
+
 ## The gaps, and the filling each suggests
 
 | # | Gap | Seen as | Filling to plan |

@@ -49,6 +49,32 @@ describe("a project of two targets", () => {
     expect(found.every((each) => each.file.startsWith("src/desktop/"))).toBe(true);
   }, 120_000);
 
+  it("compiles a component written with the portable core only against both vocabularies, and a web button needs neither class nor pressed", async () => {
+    const root = scaffolded();
+    const { writeFileSync, readFileSync: read, mkdirSync } = await import("node:fs");
+
+    mkdirSync(join(root, "src/shared"), { recursive: true });
+    writeFileSync(join(root, "src/shared/note.mprx"), "<row><heading>Note</heading><text>hello</text><button>Ok</button></row>");
+    writeFileSync(join(root, "src/shared/note.ts"), 'import { component } from "@valancex/common";\nimport template from "./note.mprx";\n\nexport default component(template);\n');
+
+    const main = read(join(root, "src/main.ts"), "utf8")
+      .replace("import desktopLayout", 'import note from "./shared/note.js";\nimport desktopLayout')
+      .replace("components: [themeToggle]", "components: [themeToggle, note]")
+      .replace("desktop: { layout: component(desktopLayout) }", "desktop: { layout: component(desktopLayout), components: [note] }");
+
+    writeFileSync(join(root, "src/main.ts"), main);
+    writeFileSync(join(root, "src/web/layout.mprx"), read(join(root, "src/web/layout.mprx"), "utf8").replace("<blocks", "<note /><blocks"));
+    writeFileSync(join(root, "src/desktop/layout.mprx"), read(join(root, "src/desktop/layout.mprx"), "utf8").replace("<blocks", "<note /><blocks"));
+    expect((await check(root)).diagnostics).toEqual([]);
+
+    const manifest = JSON.parse(read(join(root, ".valance/manifest.web.json"), "utf8")) as {
+      readonly components: Record<string, { readonly props: Record<string, { readonly required: boolean }> }>;
+    };
+
+    expect(manifest.components["button"]!.props["class"]!.required).toBe(false);
+    expect(manifest.components["heading"]!.props["level"]!.required).toBe(false);
+  }, 120_000);
+
   it("builds the site into dist/web and the engine into dist/desktop, and one target alone when asked", async () => {
     const root = scaffolded();
     const built = await build(root);

@@ -8,6 +8,7 @@ import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
 import { normalize } from "./routes.js";
+import { derivedOf } from "./index.js";
 import { badDefaults, stateOf } from "./state.js";
 
 export type AppState = PageState & Record<string, unknown>;
@@ -30,7 +31,11 @@ export class AppDefinitionError extends Error {
   }
 }
 
-const authorFields = (author: DefinedApp | undefined): ReadonlyArray<string> => Object.keys(stateOf(author)?.schema.fields ?? {});
+const authorFields = (author: DefinedApp | undefined): ReadonlyArray<string> => [...Object.keys(stateOf(author)?.schema.fields ?? {}), ...Object.keys(derivedOf(author))];
+
+/** The derived values for a state, by name. */
+const derivedValues = (author: DefinedApp | undefined, state: AppState): Readonly<Record<string, unknown>> =>
+  Object.fromEntries(Object.entries(derivedOf(author)).map(([name, each]) => [name, each.from(state)]));
 
 /** Checks the author's definition against the names the framework owns. */
 export const checkDefinition = (author: DefinedApp | undefined): void => {
@@ -40,6 +45,14 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
     }
     if (name === "page") {
       throw new AppDefinitionError('src/main.ts: the state field "page" is the framework\'s (which page is shown); choose another');
+    }
+  }
+
+  const fields = Object.keys(stateOf(author)?.schema.fields ?? {});
+
+  for (const name of Object.keys(derivedOf(author))) {
+    if (fields.includes(name)) {
+      throw new AppDefinitionError(`src/main.ts: "${name}" is both a state field and a derived value; a name is one or the other`);
     }
   }
 
@@ -69,8 +82,13 @@ export const ownNames = (author: DefinedApp | undefined): { readonly state: Read
 /** The scope schema a layout is compiled against: the framework's names and the author's state fields. */
 export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
   const state = stateOf(author);
+  const derived = Object.entries(derivedOf(author));
+  const base = state === undefined ? FrameScope : (Schema.extend(FrameScope, state.schema) as unknown as Schema.Schema<any, any, never>);
 
-  return state === undefined ? FrameScope : (Schema.extend(FrameScope, state.schema) as unknown as Schema.Schema<any, any, never>);
+  // A derived value is a name the layout reads, with the type it was given.
+  return derived.length === 0
+    ? base
+    : (Schema.extend(base, Schema.Struct(Object.fromEntries(derived.map(([name, each]) => [name, each.schema])))) as unknown as Schema.Schema<any, any, never>);
 };
 
 export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
@@ -114,7 +132,7 @@ export const application = (content: Content, program: Valance.Program, author?:
         scope: (state: AppState) => {
           const { page, ...own } = state;
 
-          return { ...frame(content, page, state.viewport), ...own };
+          return { ...frame(content, page, state.viewport), ...own, ...derivedValues(author, state) };
         },
       },
     },

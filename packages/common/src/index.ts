@@ -53,6 +53,20 @@ export interface Field<A = unknown> {
  * Declares one field of the application's state with its type and its default in one place. The framework builds the state's schema and its initial value from the fields; the default is
  * checked against the type (by TypeScript, and again when the application is built).
  */
+export const DERIVED = Symbol.for("valancex.common.derived");
+
+/** A value worked out from the state, and the type it has. A template reads it by name, like a state field, and no command changes it. */
+export interface Derived<A = unknown> {
+  readonly [DERIVED]: true;
+  readonly schema: Schema.Schema<A, any, never>;
+  readonly from: (state: any) => A;
+}
+
+/** What `derived` is given: `derive(type, (state) => value)`. The state is the application's, as a command sees it. */
+export type DeriveMaker<S> = <A, I = A>(schema: Schema.Schema<A, I, never>, from: (state: S) => A) => Derived<A>;
+
+const derive: DeriveMaker<any> = (schema, from) => ({ [DERIVED]: true, schema: schema as Schema.Schema<any, any, never>, from });
+
 export const field = <A, I = A>(schema: Schema.Schema<A, I, never>, initial: NoInfer<A>): Field<A> => ({ [FIELD]: true, schema: schema as Schema.Schema<A, any, never>, initial });
 
 /** Fields declared one by one. */
@@ -165,6 +179,12 @@ export interface AppDefinition<S extends StateInput = {}> {
    * Used by the page; the server makes no requests.
    */
   readonly http?: { readonly interceptors?: ReadonlyArray<Interceptor> };
+  /**
+   * Values worked out from the state, for a template to read: `derived: (derive) => ({ open: derive(Schema.Number, (state) => state.items.filter((item) => !item.done).length) })`. Each has its
+   * type, as a state field does. They are computed from the state each time it changes, on every target, and a command cannot change one (change the state they come from). The function must
+   * be pure and must not throw.
+   */
+  readonly derived?: (derive: DeriveMaker<PageState & StateOf<S>>) => { readonly [name: string]: Derived<any> };
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */
   readonly commands?: (command: Valance.CommandMaker<PageState & StateOf<S>>) => Valance.CommandTable<any, Valance.Ambient>;
 }
@@ -177,4 +197,7 @@ export interface DefinedApp extends AppDefinition<any> {
 }
 
 /** Declares the application's component tree, state and commands. It starts nothing; the framework runs it. */
+/** What `derived` makes, for the toolchain: the function is called with the one `derive`. */
+export const derivedOf = (author: { readonly derived?: AppDefinition<any>["derived"] } | undefined): Readonly<Record<string, Derived<any>>> => author?.derived?.(derive) ?? {};
+
 export const defineApp = <S extends StateInput = {}>(definition: AppDefinition<S>): DefinedApp => ({ ...definition, [APP]: true }) as unknown as DefinedApp;

@@ -33,6 +33,7 @@ describe("the web target", () => {
     expect(html).toContain("To do");
     expect(html).toMatch(/<input[^>]*placeholder="What needs doing\?"/);
     expect(html).toContain("Clear done");
+    expect(html).toContain("0 of 0 open");
     expect(html).toContain("<script");
   });
 });
@@ -53,10 +54,12 @@ describe("the web target, in a browser", () => {
       await page.fill('input[placeholder="What needs doing?"]', "Milk");
       await page.click('button:text-is("Add")');
       await page.waitForSelector(".todo-list li");
+      expect(await page.textContent(".todo-summary")).toBe("1 of 1 open");
       expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
       expect(await page.textContent(".todo-list li")).toContain("Milk");
 
       await page.check('.todo-list input[type="checkbox"]');
+      await page.waitForFunction(() => document.querySelector(".todo-summary")?.textContent === "0 of 1 open");
       await page.click('button:text-is("Clear done")');
       await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 0);
       expect(errors).toEqual([]);
@@ -117,6 +120,7 @@ describe("the desktop target", () => {
       await window.until(() => buttonLabelled(window.seen, "Clear done") !== undefined);
       expect(named(window.seen, "textfield")).toHaveLength(1);
       expect(named(window.seen, "checkbox")).toHaveLength(0);
+      expect(all(treeOf(window.seen)).some((node) => node.text === "0 of 0 open")).toBe(true);
 
       // typing reports `change` with the new text; the application owns the value
       window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["change"]!, payload: "Milk" });
@@ -125,6 +129,7 @@ describe("the desktop target", () => {
       await window.until(() => named(window.seen, "checkbox").length === 1);
       expect(named(window.seen, "textfield")[0]!.props!["value"]).toBe("");
       expect(all(treeOf(window.seen)).some((node) => node.text === "Milk")).toBe(true);
+      expect(all(treeOf(window.seen)).some((node) => node.text === "1 of 1 open")).toBe(true);
 
       // ticking reports `change` with a boolean; removing is a click
       window.send({ op: "event", handler: named(window.seen, "checkbox")[0]!.events!["change"]!, payload: true });

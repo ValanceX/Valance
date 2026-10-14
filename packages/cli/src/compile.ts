@@ -206,7 +206,25 @@ export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabular
     commands: commandTable(author) as never,
   });
 
-  return "tags" in vocabulary ? derived : { ...derived, components: { ...vocabulary.components, ...derived.components } };
+  if (!("tags" in vocabulary)) {
+    return { ...derived, components: { ...vocabulary.components, ...derived.components } };
+  }
+
+  // The props the vocabulary says a template may leave out.
+  const components = { ...derived.components } as Record<string, (typeof derived.components)[string]>;
+
+  for (const [tag, names] of Object.entries(vocabulary.optional ?? {})) {
+    const entry = components[tag];
+
+    if (entry !== undefined) {
+      components[tag] = {
+        ...entry,
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, names.includes(name) ? { ...prop, required: false } : prop])),
+      };
+    }
+  }
+
+  return { ...derived, components };
 };
 
 const isManifestError = (error: unknown): error is Error & { readonly path: string } => error instanceof Error && (error as { readonly _tag?: string })._tag === "ManifestError";

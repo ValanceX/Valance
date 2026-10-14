@@ -20,10 +20,8 @@
       <blocks items={blocks} />
       <section>
         <para class="todo-title">To do</para>
-        <div class="todo-add">
-          <textfield label="New item" placeholder="What needs doing?" value={entry} on.change={setEntry($event)} />
-          <button class="todo-button" pressed="false" on.click={addItem()}>Add</button>
-        </div>
+        <para class="todo-summary">{summary}</para>
+        <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
         <list class="todo-list">
           {#each items as it (it.id)}
             <item>

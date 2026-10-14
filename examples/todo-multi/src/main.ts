@@ -2,6 +2,7 @@ import { component, defineApp, field } from "@valancex/common";
 import { Schema } from "effect";
 import desktopLayout from "./desktop/layout.mprx";
 import themeToggle from "./web/theme-toggle.js";
+import todoAdd from "./shared/todo-add.js";
 import webLayout from "./web/layout.mprx";
 
 const Item = Schema.Struct({ id: Schema.String, title: Schema.String, done: Schema.Boolean });
@@ -17,6 +18,10 @@ export default defineApp({
     theme: field(Schema.Literal("light", "dark"), "light"), // the web layout's
     navigation: field(Schema.Boolean, true), // the desktop layout's
   },
+  // Worked out from the state, on every target: a layout reads `summary` as it reads a field.
+  derived: (derive) => ({
+    summary: derive(Schema.String, (state) => `${state.items.filter((item) => !item.done).length} of ${state.items.length} open`),
+  }),
   commands: (command) => ({
     setEntry: command(Schema.Struct({ text: Schema.String }), ({ text }, state) => ({ ...state, entry: text.slice(0, 200) })),
     addItem: command((state) => {
@@ -34,7 +39,7 @@ export default defineApp({
     toggleNavigation: command((state) => ({ ...state, navigation: !state.navigation })),
   }),
   targets: {
-    web: { layout: component(webLayout), components: [themeToggle] },
-    desktop: { layout: component(desktopLayout) },
+    web: { layout: component(webLayout), components: [themeToggle, todoAdd] },
+    desktop: { layout: component(desktopLayout), components: [todoAdd] },
   },
 });

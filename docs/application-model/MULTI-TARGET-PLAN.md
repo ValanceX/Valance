@@ -2,6 +2,23 @@
 
 Written 2026-10-14. The gaps are the 13 in [MULTI-TARGET.md](./MULTI-TARGET.md). This plan orders them, ties each to the standard it falls under, and says how each is proved. **Nothing here is built.** Decisions the plan needs from a person are in "Decisions".
 
+## Decisions made, and progress (2026-10-14)
+
+D1, D2 and D3 were decided as recommended below; D4 is decided as "unsigned for now": the desktop builds stay unsigned until the authoring and signing of compiled applications is covered as its own piece of work (nothing in this plan signs or notarizes anything).
+
+| Step | State |
+|---|---|
+| Phase 1 gap 8 (stylesheets per target) | **done**: `src/desktop/` stylesheets are not loaded by the web |
+| Phase 2 gap 3 (optional props) | **done**: the web vocabulary has an `optional` rule beside PORT Web's table; the manifest marks those props optional; an absent prop is not in the tree and PORT Web realizes it as no attribute. **Verified** by the shared component and the browser test, not only reasoned |
+| Phase 2 gap 1 (shared core names) | **done on the web**: `column`, `row`, `heading` (`level`), `text` join `button`, `checkbox`, `textfield`. **Proved**: `src/shared/todo-add.mprx` is written once and compiled against both vocabularies; the browser and window tests use it. `column` and `row` are custom elements (`vlx-column`, `vlx-row`) with a generated `core.css`, because PORT Web cannot give a `div` a fixed attribute |
+| Phase 2 gap 2 (fixed attributes) | **not done**: needs a PORT Web release; until then the web `checkbox` needs `type="checkbox"`, so a component with a checkbox is still written per target. This is now the one thing between the experiment and a shared item row |
+| Phase 2 gap 13 (names for controls) | **done in the Desktop PORT**: an optional `label` on `button`, `checkbox` and `textfield`, passed to the accessibility tree through AccessKit (enabled in the window); a headless test reads the names back. Not yet done: a `vlx check` warning for an unnamed control; the W3C name computation was not reachable, so the order of name sources is egui's, not yet checked against it |
+| Phase 2 vendored copies | **not done**: the drift test stays; deriving them needs the Port to publish its vocabulary as data |
+| Phase 3 gap 5 (derived values) | **done**: `derived: (derive) => ({ summary: derive(Schema.String, (state) => ...) })`; typed, computed per state, same on every target; a name collision is an error. `todo-multi` shows "N of M open" on both targets from one definition |
+| Phase 3 gap 4 (presentation state) | **decided (D3)**: stays in the shared state |
+| Phase 1 gaps 6, 7, 9, 10 | not done |
+| Phase 4, Phase 5 | not done |
+
 ## 1. The standards the plan is held to
 
 **The ecosystem's own** ([API Design Principles](https://github.com/ValanceX/Mesh/blob/main/docs/standards/api-design-principles.md), adopted 2026-10-09). The ones that decide this plan:

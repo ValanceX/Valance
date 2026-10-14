@@ -17,6 +17,11 @@ export interface WebVocabulary {
   readonly target: string;
   /** The tags, each with its props and events. */
   readonly tags: WebPrimitives;
+  /**
+   * The props a template may leave out, by tag. PORT Web's table says how a prop is realized, not whether it is required, so the manifest derived from it makes every prop required but a boolean
+   * one; this is the author-facing rule beside it. An absent prop is not in the render tree, and PORT Web realizes an absent prop as no attribute (or the element's own initial value).
+   */
+  readonly optional?: Readonly<Record<string, ReadonlyArray<string>>>;
 }
 
 export interface ManifestVocabulary {
@@ -48,4 +53,14 @@ export const fromManifests = (target: string, ...manifests: ReadonlyArray<{ read
 };
 
 /** The web's vocabulary: HTML elements, with `class`, `theme`, `id` and `aria-*` as styling and accessibility hooks. */
-export const webVocabulary: WebVocabulary = { target: "web", tags: primitives };
+export const webVocabulary: WebVocabulary = {
+  target: "web",
+  tags: primitives,
+  optional: {
+    // styling and accessibility hooks are the web's, and a template for both targets does not write them
+    button: ["class", "pressed"],
+    checkbox: ["label"],
+    textfield: ["label", "placeholder"],
+    heading: ["level"],
+  },
+};
