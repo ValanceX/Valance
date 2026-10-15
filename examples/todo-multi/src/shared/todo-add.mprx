@@ -1,4 +1,4 @@
 <row>
-  <textfield label="New item" value={entry} placeholder="What needs doing?" on.change={type($event)} on.submit={add()} />
+  <textfield label="New item" value={entry} placeholder="What needs doing?" on.change={type($event)} on.submit={add()} on.cancel={cancel()} />
   <button on.click={add()}>Add</button>
 </row>

@@ -29,6 +29,8 @@ export default defineApp({
   }),
   commands: (command) => ({
     setEntry: command(Schema.Struct({ text: Schema.String }), ({ text }, state) => ({ ...state, entry: text.slice(0, 200) })),
+    // Escape in the field: back out of what was typed
+    clearEntry: command((state) => ({ ...state, entry: "" })),
     addItem: command((state) => {
       const title = state.entry.trim();
 
