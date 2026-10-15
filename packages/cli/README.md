@@ -68,9 +68,9 @@ Without a terminal (a pipe, CI) it cannot ask, so it needs a name and a target: 
 
 ## A desktop application: `vlx init --desktop`
 
-A project has the targets whose settings file it has; `vlx init my-app --web --desktop` makes both, and `defineApp`'s `targets` gives each its templates (an experiment: `docs/application-model/MULTI-TARGET.md`). `vlx init my-app --desktop` makes the same project as for the web (Markdown in `content/`, a layout, state and commands in `src/main.ts`) with `valance.desktop.json` in place of `valance.web.json`. Its templates are written against the Desktop PORT's vocabulary (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, and the content layer: `paragraph`, `list`, `listitem`, `blockquote`, `emphasis`, …), not the web's tags: `<div>` in a desktop project is an error from `vlx check`.
+A project has the targets whose settings file it has; `vlx init my-app --web --desktop` makes both, and `defineApp`'s `targets` gives each its templates (how it was designed and what it found: `docs/application-model/MULTI-TARGET.md` and `MULTI-TARGET-PLAN.md`). `vlx init my-app --desktop` makes the same project as for the web (Markdown in `content/`, a layout, state and commands in `src/main.ts`) with `valance.desktop.json` in place of `valance.web.json`. Its templates are written against the Desktop PORT's vocabulary (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, and the content layer: `paragraph`, `list`, `listitem`, `blockquote`, `emphasis`, …), not the web's tags: `<div>` in a desktop project is an error from `vlx check`.
 
-`vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx package --desktop` packs the engine into one executable (Node's single executable application, with the MESH runtime inside) and sets it beside the window program (`--window <path>`, or `VLX_WINDOW`, or `vlx-window` on the PATH) in `dist/package/<platform>/`. **Unsigned**: signing and notarization are not done by `vlx`. For another platform, `--platform win32-x64 --node <that platform's node> --window <that platform's window>`. `vlx dev` builds the engine, opens the Desktop PORT's window on it (the `vlx-window` program, installed with `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`, found on the PATH or at `VLX_WINDOW`), and opens it anew when a file changes. Closing the window ends `vlx dev`.
+`vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx package --desktop` packs the engine into one executable (Node's single executable application, with the MESH runtime inside) and sets it beside the window program (`--window <path>`, or `VLX_WINDOW`, or `vlx-window` on the PATH) in `dist/package/<platform>/`. `--archive` also writes the package as one reproducible file, a `.tar.gz` (Linux) or a `.zip` (Windows), with its SHA-256 beside it. **Unsigned**: signing and notarization are not done by `vlx`. For another platform, `--platform win32-x64 --node <that platform's node> --window <that platform's window>`. `vlx dev` builds the engine, opens the Desktop PORT's window on it (the `vlx-window` program, installed with `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`, found on the PATH or at `VLX_WINDOW`), and when a file changes it builds again and tells the running window to start the engine again in place (the window keeps its position and size). Closing the window ends `vlx dev`.
 
 ## Adding a target: `vlx generate target desktop`
 
@@ -239,6 +239,27 @@ export default defineApp({
 
 A state field is its type and its default in one declaration. Hand-building `state: { schema, initial }` is still accepted; giving both forms is the same definition error as a clash. `theme` is now a name the layout reads (`<shell theme={theme}>`) and `toggleTheme()` a command it runs (`on.click={toggleTheme()}`). A component raises an event (`on.click={toggle()}`, declared in `events`) and its user binds it (`<theme-toggle on.toggle={toggleTheme()} />`). A state field may not reuse a framework name (`site`, `title`, `blocks`…), and `go` is the framework's command. Both are errors that say so.
 
+### Values worked out, kept, and moved between
+
+`defineApp` has more than state and commands. All of it is the same on every target:
+
+```ts
+export default defineApp({
+  state: { items: field(Schema.Array(Item), []), theme: field(Schema.Literal("system", "light", "dark"), "system") },
+  // Worked out from the state, with their types, for a template to read: `{summary}`.
+  derived: (derive) => ({ summary: derive(Schema.String, (state) => `${state.items.length} items`) }),
+  // Kept between runs through the platform's `Store` (the page's storage; a file in the user's data directory on the desktop).
+  // "navigation" keeps the pages visited, where the engine keeps them (a window; a page's list is the browser's).
+  persist: ["items", "theme", "navigation"],
+  // What the window asks to look like (`"light"`, `"dark"` or `"system"`); the layout reads `colorScheme`, the system's.
+  appearance: (state) => state.theme,
+  // Asked before `go`, `back` and `forward` (the router's `Guard`): `false` stops the move, `redirect(page)` sends it elsewhere.
+  guard: ({ to, kind }) => to.name !== "/private",
+});
+```
+
+The framework's own names are `page`, `trail`, `cursor`, `viewport`, `colorScheme`, `canGoBack` and `canGoForward` (state a layout reads) and the commands `go`, `back`, `forward`, `resize`, `colorScheme` and `persist`; an application's own state and commands cannot take them. A text field reports `change`, `submit` (Enter) and `cancel` (Escape). `Store` and `Open` (send a person to an address outside the application: a new tab, or the system's opener) are capabilities in `@valancex/common`. How navigation is modelled across a page, a window and a phone: `docs/application-model/NAVIGATION.md`.
+
 ## The document's title
 
 A page's title is its front-matter `title` (else its first heading), written with the project's format in `valance.json`:
@@ -330,7 +351,7 @@ A mistake leaves the last good build serving and appears in the terminal and as 
 $ pnpm add -D @valancex/mesh-lsp
 ```
 
-The VS Code extension in [`editors/vscode`](../../editors/vscode) (not published yet) starts it, highlights `.mprx`, and shows `vlx check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/guides/editor-setup.md)).
+The VS Code extension (**VALANCE**, in [`editors/vscode`](../../editors/vscode)) starts it, highlights `.mprx`, and shows `vlx check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/guides/editor-setup.md)).
 
 ## Diagnostics
 
@@ -341,5 +362,5 @@ Every mistake the tools can attribute to a file has one shape: `{ file, line, co
 - The whole content model ships in the page bundle. Fine for tens of pages; a per-page payload is the known answer for hundreds (the documentation verifier does it).
 - The Markdown dialect is a subset; no syntax highlighting, tables, callouts, tabs, search, versions or languages (the verifier has these as stand-ins).
 - The tag table is fixed, and it is the web's: `class`, `theme`, `tabindex`, `label`, `current`, `pressed`, `id` and `loading` are web hooks (a build against a vocabulary without them rejects the built-in views). An application cannot declare new primitives.
-- Only the web target exists, delivered as a static site. No server rendering command, no `preview` command.
+- The web target is delivered as a static site, with no server rendering command and no `preview` command; the desktop target needs the Desktop PORT's window built from its source (it is not yet published). A third target (a phone) does not exist.
 - Updates are reloads, not hot swaps (except styles).

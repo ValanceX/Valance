@@ -6,7 +6,7 @@
 
 **Verdict: feasible, and most of it already exists.** Diagnostics, quick fixes, hover, go-to-definition and completion for templates are provided by MESH's published language server and were driven end to end against `examples/docs-app` with the real server. Syntax highlighting needs one new artifact, a TextMate grammar, which was written and checked with VS Code's own engine. The one thing **not** run is VS Code itself: its download host is not reachable from this sandbox (only the npm registry is), so activation, the diagnostics collection and the language-client wiring are type-checked but unexecuted.
 
-The spike is [`editors/vscode`](../../editors/vscode) (private, outside the workspace and CI). Nothing is published.
+The spike is now the **VALANCE** extension, [`editors/vscode`](../../editors/vscode): its own root and lockfile, a CI job in a real VS Code, and a release of its own (tag `vscode-v<version>`; 0.1.0 prepared, see its `CHANGELOG.md`). This document is the study that led there; the questions below were asked of the spike.
 
 ## What already exists upstream (MESH, checked in `/Mesh`)
 

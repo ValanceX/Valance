@@ -39,7 +39,7 @@ Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser ta
 
 ## Plugins: `@valancex/valance/web/plugin`
 
-*Unreleased (0.8).*
+*Stable (since 0.8.0).*
 
 | Name | What it is | Rules |
 |---|---|---|

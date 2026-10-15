@@ -6,7 +6,7 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
-const EXTENSION = "valancex.valance-vscode";
+const EXTENSION = "valancex.valance";
 /** What the extension exposes (src/extension.ts `Api`). */
 interface Api {
   readonly status: () => string;

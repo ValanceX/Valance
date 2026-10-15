@@ -1,19 +1,36 @@
 {
-  "name": "valance-vscode",
+  "name": "valance",
   "displayName": "VALANCE",
-  "description": "VALANCE for VS Code: wires mesh-lsp and `vlx check` diagnostics into a project. A feasibility spike: not published.",
-  "version": "0.0.0",
-  "private": true,
-  "license": "MIT",
-  "type": "commonjs",
+  "description": "Language support for VALANCE projects: MPRX templates (highlighting, diagnostics, hover, completion, go to definition, formatting), project checks, and the connections between a template and the code that feeds it.",
+  "version": "0.1.0",
   "publisher": "valancex",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ValanceX/Valance.git",
+    "directory": "editors/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/ValanceX/Valance/issues"
+  },
+  "homepage": "https://github.com/ValanceX/Valance/tree/main/editors/vscode#readme",
+  "keywords": [
+    "valance",
+    "mprx",
+    "mesh",
+    "template",
+    "language server",
+    "diagnostics"
+  ],
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": [
-    "Programming Languages",
-    "Linters"
-  ],
+  "type": "commonjs",
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:mprx",
@@ -105,7 +122,10 @@
     "test": "vitest run",
     "sync-grammar": "node scripts/sync-grammar.mjs",
     "build:host": "tsc -p tsconfig.host.json",
-    "test:host": "pnpm build && pnpm build:host && node dist-host/run.js"
+    "test:host": "pnpm build && pnpm bundle && pnpm build:host && node dist-host/run.js",
+    "bundle": "node scripts/bundle.mjs",
+    "vscode:prepublish": "node scripts/bundle.mjs",
+    "package": "vsce package --no-dependencies"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -114,6 +134,8 @@
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "0.28.2",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0",
     "vscode-oniguruma": "^2.0.1",

@@ -26,4 +26,5 @@ await Web.run(app, { container, primitives, present: "mount", plugins: [router.p
 - `router.commands(state)` gives `navigate`, `go` and `replace` commands for the application's state.
 - Guards: `canMatch` (sync), `canActivate`, `canDeactivate`, and `beforeEach`; each answers a boolean, a `redirect(...)`, or a Promise/Effect of one. A refused Back/Forward is undone.
 - Redirects name a route, never a URL; `router.safeNext(address)` only accepts an address on the application.
-- Not yet: nested routes, a `beforeunload` guard, typed HTTP interceptors.
+- `History`: the list of places visited and its moves (`History.start`, `push`, `replace`, `go`, `canGo`, `restore`), pure and serializable. A target with no history of its own (a window) keeps one in its state; `restore` drops entries that are no longer routes and starts again at the first when none is left. Guards are told why a move is made, including `"history"` for Back and Forward along such a list. `permit` runs a guard; one that throws or fails refuses. See `docs/application-model/NAVIGATION.md`.
+- Not yet: nested routes, a `beforeunload` guard, a mobile adapter.

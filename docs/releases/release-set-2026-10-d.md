@@ -1,6 +1,6 @@
 # Release set: VALANCE 0.12.0 (`@valancex/valance`, `@valancex/common`, `@valancex/cli`, `@valancex/router`)
 
-Prepared 2026-10-14. Nothing is tagged or published. The earlier set ([`release-set-2026-10-c.md`](./release-set-2026-10-c.md): VALANCE 0.11.0 with `common` and `cli`) is released. This set needs none of NEXUS, PORT or MESH to change.
+Prepared 2026-10-14; **released** (tag `v0.12.0`, on npm 2026-10-14). The next set is [`release-set-2026-10-e.md`](./release-set-2026-10-e.md). The earlier set ([`release-set-2026-10-c.md`](./release-set-2026-10-c.md): VALANCE 0.11.0 with `common` and `cli`) is released. This set needs none of NEXUS, PORT or MESH to change.
 
 | # | Repository | Packages | Kind | Tag | Notes file |
 |---|---|---|---|---|---|
