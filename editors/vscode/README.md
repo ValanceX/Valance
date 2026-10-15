@@ -53,4 +53,4 @@ On Windows the same commands run in PowerShell, without `xvfb-run` (the host sui
 
 ## Publishing
 
-Maintainers: a pushed tag `vscode-v<version>` (equal to `version` in `package.json`) runs `.github/workflows/release-vscode.yml`: the tests, the `.vsix`, a GitHub release carrying it, and, when the secrets exist, publication to the Visual Studio Marketplace (`VSCE_PAT`, publisher `valancex`) and Open VSX (`OVSX_PAT`). Without a tag the workflow only builds and checks the package.
+Maintainers: a pushed tag `vscode-v<version>` (equal to `version` in `package.json`) runs `.github/workflows/release-vscode.yml`: the tests, the `.vsix`, a GitHub release carrying it, and, when they are set up, publication to the Visual Studio Marketplace (publisher `valancex`) with **Microsoft Entra ID** (no stored token), and to Open VSX with `OVSX_PAT` when that secret is set. The setup is described at the top of the workflow and in `docs/releases/release-set-2026-10-e.md`. Without a tag the workflow only builds and checks the package.
