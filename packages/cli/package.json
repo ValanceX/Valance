@@ -41,7 +41,6 @@
     "bin",
     "views",
     "views-desktop",
-    "vocabularies",
     "schemas",
     "templates"
   ],
@@ -58,6 +57,7 @@
   "dependencies": {
     "@valancex/common": "workspace:^",
     "@valancex/mesh-compiler": "^0.11.0",
+    "@valancex/port-desktop-vocabulary": "^0.6.0",
     "@valancex/valance": "workspace:^",
     "effect": "^3.10.0",
     "ink": "7.1.1",

@@ -163,12 +163,30 @@ describe("the window's colors", () => {
   });
 });
 
+describe("Back and Forward from the window", () => {
+  it("tells the application which way the person asked to go, and ignores a direction it does not know", async () => {
+    const w = wire();
+    const asked: Array<string> = [];
+    const served = Effect.runPromise(serve(await app(), { input: w.toEngine, output: w.fromEngine }, { onNavigate: (direction) => Effect.sync(() => void asked.push(direction)) }));
+
+    await until(() => w.seen.some((message) => message.op === "draw"));
+    w.send({ op: "navigate", direction: "back" });
+    w.send({ op: "navigate", direction: "forward" });
+    w.send({ op: "navigate", direction: "sideways" });
+    w.send({ op: "close" });
+    expect((await served).ignored).toBe(1);
+    expect(asked).toEqual(["back", "forward"]);
+  });
+});
+
 describe("what the engine accepts from a renderer", () => {
   it("takes the messages of the protocol, with plain data", () => {
     expect(parseInbound('{"op":"ready"}')).toEqual({ op: "ready" });
     expect(parseInbound('{"op":"close"}')).toEqual({ op: "close" });
     expect(parseInbound('{"op":"closeRequested"}')).toEqual({ op: "closeRequested" });
     expect(parseInbound('{"op":"scheme","scheme":"dark"}')).toEqual({ op: "scheme", scheme: "dark" });
+    expect(parseInbound('{"op":"navigate","direction":"back"}')).toEqual({ op: "navigate", direction: "back" });
+    expect(parseInbound('{"op":"navigate","direction":"up"}')).toBeUndefined();
     expect(parseInbound('{"op":"link","href":"/guide/start"}')).toEqual({ op: "link", href: "/guide/start" });
     expect(parseInbound('{"op":"event","handler":"h1","payload":{"x":1,"y":[true,null]}}')).toEqual({ op: "event", handler: "h1", payload: { x: 1, y: [true, null] } });
   });

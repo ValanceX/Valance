@@ -15,7 +15,8 @@ fn the_vendored_vocabulary_is_the_ports() {
     );
 }
 
-/// `vlx` compiles a desktop project against copies of the PORT's two vocabulary files (`packages/cli/vocabularies/desktop/`); they are the PORT's, or a template could pass `vlx check` and fail in the window.
+/// `vlx` compiles a desktop project against the vocabulary the PORT publishes as a package (`@valancex/port-desktop-vocabulary`, installed under `packages/cli`); that package is the PORT's own
+/// files for the crate this application is built with, or a template could pass `vlx check` and fail in the window. (A new PORT revision here needs the package version that was made from it.)
 #[test]
 fn the_vocabularies_vlx_compiles_against_are_the_ports() {
     for (file, theirs) in [
@@ -23,16 +24,16 @@ fn the_vocabularies_vlx_compiles_against_are_the_ports() {
         ("content.json", port_desktop::vocabulary::CONTENT_JSON),
     ] {
         let ours = std::fs::read_to_string(format!(
-            "{}/../../../packages/cli/vocabularies/desktop/{file}",
+            "{}/../../../packages/cli/node_modules/@valancex/port-desktop-vocabulary/{file}",
             env!("CARGO_MANIFEST_DIR")
         ))
-        .expect("the copy exists");
+        .expect("the package is installed (pnpm install)");
         let ours: serde_json::Value = serde_json::from_str(&ours).unwrap();
         let theirs: serde_json::Value = serde_json::from_str(theirs).unwrap();
 
         assert_eq!(
             ours, theirs,
-            "copy the PORT's {file} to packages/cli/vocabularies/desktop/{file}"
+            "@valancex/port-desktop-vocabulary's {file} differs from the PORT revision this application is built with: use the package version made from that revision"
         );
     }
 }

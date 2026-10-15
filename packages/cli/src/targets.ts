@@ -3,6 +3,7 @@
 import { fromManifests, webVocabulary } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 
 import { BUILT_IN, BUILT_IN_DESKTOP } from "./compile.js";
 
@@ -17,10 +18,14 @@ export interface Target {
   readonly views: string;
 }
 
-/** The Desktop PORT's vocabulary: its components as data (`vocabulary.json`: columns, rows, text, a button, a checkbox, a text field; `content.json`: what Markdown produces). Copies of the PORT's files. */
+/**
+ * The Desktop PORT's vocabulary: its components as data (`vocabulary.json`: columns, rows, text, a button, a checkbox, a text field; `content.json`: what Markdown produces), read from the
+ * PORT's own package (`@valancex/port-desktop-vocabulary`), not from a copy kept here.
+ */
 const desktopVocabulary = (): Vocabulary => {
+  const need = createRequire(import.meta.url);
   const read = (name: string): { readonly components: Readonly<Record<string, unknown>> } =>
-    JSON.parse(readFileSync(new URL(`../vocabularies/desktop/${name}`, import.meta.url), "utf8")) as { readonly components: Readonly<Record<string, unknown>> };
+    JSON.parse(readFileSync(need.resolve(`@valancex/port-desktop-vocabulary/${name}`), "utf8")) as { readonly components: Readonly<Record<string, unknown>> };
 
   return fromManifests("desktop", read("vocabulary.json"), read("content.json"));
 };

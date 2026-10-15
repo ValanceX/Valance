@@ -79,6 +79,8 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
     // The window follows the system's colors unless the application asks otherwise (`appearance` in `defineApp`), and the application learns the system's (`colorScheme`).
     appearanceOf: (state) => author?.appearance?.(state as never) ?? "system",
     onScheme: (scheme, handle) => handle.invoke("app/colorScheme", [{ value: scheme }]),
+    // Back and Forward, as the window's keys and mouse buttons ask for them: the framework's own commands, which the author's `guard` may refuse.
+    onNavigate: (direction, handle) => handle.invoke(direction === "back" ? "app/back" : "app/forward", []),
     // What the desktop supplies: a store, in the user's data directory for the application.
     platform: platformOf([
       [Store, fileStore(userDataDir(content.site.name))],

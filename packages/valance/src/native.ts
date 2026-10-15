@@ -38,6 +38,8 @@ export type Inbound =
   | { readonly op: "link"; readonly href: string }
   /** The system's colors, as the window sees them: sent when the window opens and whenever they change. The application learns them as state (`colorScheme`). */
   | { readonly op: "scheme"; readonly scheme: "light" | "dark" }
+  /** The person asked to move along the pages they visited (a key or a mouse button the platform has a convention for). The application owns the list and may refuse. */
+  | { readonly op: "navigate"; readonly direction: "back" | "forward" }
   /** The person asked to close the window. The engine decides (unsaved edits), and answers with `closeAnswer`. */
   | { readonly op: "closeRequested" };
 
@@ -81,12 +83,13 @@ export const parseInbound = (line: string): Inbound | undefined => {
     return undefined;
   }
 
-  const { op, handler, payload, href, scheme } = message as {
+  const { op, handler, payload, href, scheme, direction } = message as {
     readonly op?: unknown;
     readonly handler?: unknown;
     readonly payload?: unknown;
     readonly href?: unknown;
     readonly scheme?: unknown;
+    readonly direction?: unknown;
   };
 
   if (op === "ready" || op === "close" || op === "closeRequested") {
@@ -98,6 +101,9 @@ export const parseInbound = (line: string): Inbound | undefined => {
   }
   if (op === "scheme" && (scheme === "light" || scheme === "dark")) {
     return { op, scheme };
+  }
+  if (op === "navigate" && (direction === "back" || direction === "forward")) {
+    return { op, direction };
   }
   if (op === "event" && typeof handler === "string" && handler.length <= 256 && (payload === undefined || jsonValue(payload))) {
     return payload === undefined ? { op, handler } : { op, handler, payload };
@@ -113,6 +119,11 @@ export interface HostOptions<S, E = unknown> {
   readonly onScheme?: (scheme: "light" | "dark", handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** What a link means. Called with the address the person activated and the application's handle; absent: links do nothing. The address is untrusted text from another program. */
   readonly onLink?: (href: string, handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
+  /**
+   * The person asked to move along the pages they visited (Alt+Left or Alt+Right, or the mouse's back and forward buttons; the window sends nothing for a key its platform has no convention for).
+   * Called with `"back"` or `"forward"` and the application's handle; absent: ignored. The application owns the list and may refuse (a navigation guard).
+   */
+  readonly onNavigate?: (direction: "back" | "forward", handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** The window's title for a state. Absent: the window keeps its own. */
   readonly titleOf?: (state: S) => string;
   /**
@@ -207,6 +218,10 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
           } else if (message.op === "scheme") {
             if (options.onScheme !== undefined) {
               void Effect.runPromise(options.onScheme(message.scheme, handle)).catch(() => undefined);
+            }
+          } else if (message.op === "navigate") {
+            if (options.onNavigate !== undefined) {
+              void Effect.runPromise(options.onNavigate(message.direction, handle)).catch(() => undefined);
             }
           } else if (message.op === "link") {
             if (options.onLink !== undefined) {
