@@ -63,6 +63,12 @@ describe("the documentation site in a window", () => {
       await until(() => [...seen].reverse().find((message) => message.op === "title")?.["title"] === "Notes");
       child.stdin.write(`${JSON.stringify({ op: "event", handler: button("Forward")!.events!["click"]! })}\n`);
       await until(() => [...seen].reverse().find((message) => message.op === "title")?.["title"] === "Getting started · Notes");
+
+      // the window's own Back and Forward (Alt+Left, Alt+Right, the mouse buttons) are the same two commands
+      child.stdin.write('{"op":"navigate","direction":"back"}\n');
+      await until(() => [...seen].reverse().find((message) => message.op === "title")?.["title"] === "Notes");
+      child.stdin.write('{"op":"navigate","direction":"forward"}\n');
+      await until(() => [...seen].reverse().find((message) => message.op === "title")?.["title"] === "Getting started · Notes");
     } finally {
       child.stdin.write('{"op":"close"}\n');
       await new Promise((resolve) => child.on("exit", resolve));

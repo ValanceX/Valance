@@ -214,6 +214,9 @@ importers:
       '@valancex/mesh-compiler':
         specifier: ^0.11.0
         version: 0.11.0
+      '@valancex/port-desktop-vocabulary':
+        specifier: ^0.6.0
+        version: 0.6.0
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -1010,6 +1013,10 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.10.0
+
+  '@valancex/port-desktop-vocabulary@0.6.0':
+    resolution: {integrity: sha512-BJj+a5hVitQM1E8RSXhNi72AtIgPS7RIVUTciEMjVJqVZu1Ev2z5m1d3PjVeVBnXuc2W3AgNzHS60E2SZKP19Q==}
+    engines: {node: '>=22'}
 
   '@valancex/port-web@0.5.0':
     resolution: {integrity: sha512-52N468fm/ixWt7R809E7Ox+eisL1GEcn1itxluVoD5Xbb4mGJeoE2yoARU0An4fcZv3qIWLWmO7UB9FSzWsJQQ==}
@@ -2093,6 +2100,8 @@ snapshots:
     dependencies:
       '@valancex/mesh-runtime': 0.11.0
       effect: 3.22.2
+
+  '@valancex/port-desktop-vocabulary@0.6.0': {}
 
   '@valancex/port-web@0.5.0(@valancex/mesh-runtime@0.11.0)':
     dependencies:
