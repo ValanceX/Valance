@@ -10,11 +10,22 @@ name: Release the VS Code extension
 # - A pull request that changes the extension's version or this workflow runs the dry run, so a
 #   release is checked before it is tagged.
 #
-# Publishing needs secrets, and each destination is skipped (with a warning) when its secret is absent:
-#   VSCE_PAT   a Personal Access Token for the Visual Studio Marketplace publisher `valancex`
-#              (Azure DevOps, scope Marketplace > Manage). It expires.
-#   OVSX_PAT   an Open VSX access token, for the namespace `valancex`.
-# The GitHub release (the .vsix and the version's changelog entry) needs neither.
+# Publishing stores NO long-lived token. Each destination authenticates the workflow itself, and is
+# skipped (with a warning) when it is not set up:
+#
+#   Visual Studio Marketplace (publisher `valancex`) - Microsoft Entra ID, because global Azure DevOps
+#   Personal Access Tokens are retired. Either of:
+#     * Entra ID, with GitHub's OIDC token federated to an Entra app (a "federated credential" for this
+#       repository and the tag environment): set the repository VARIABLES AZURE_CLIENT_ID and
+#       AZURE_TENANT_ID. The app's service principal must be a member of the publisher. The workflow
+#       signs in with azure/login and runs `vsce publish --azure-credential`.
+#     * the Marketplace's own trusted publishing policy for this repository and workflow: set the
+#       repository VARIABLE VSCE_OIDC to `true`. The workflow runs `vsce publish --oidc`.
+#   Open VSX (namespace `valancex`) - a trusted publisher registered for this repository and workflow
+#   at https://open-vsx.org/user-settings/trusted-publishers; nothing to set here. (An `OVSX_PAT`
+#   secret, if one exists, takes precedence; none is needed.)
+#
+# The GitHub release (the .vsix and the version's changelog entry) needs none of this.
 
 on:
   push:
@@ -87,10 +98,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # the GitHub release
+      id-token: write # the OIDC token that Entra ID, the Marketplace and Open VSX exchange for a short-lived credential
     env:
       PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
-      VSCE_PAT: ${{ secrets.VSCE_PAT }}
-      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      VSCE_OIDC: ${{ vars.VSCE_OIDC }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -120,22 +133,31 @@ jobs:
           # this version's entry in the changelog is the release's notes
           awk -v v="${version}" '$0 ~ "^## \\[" v "\\]" { on = 1; next } /^## \[/ { on = 0 } on' editors/vscode/CHANGELOG.md > notes.md
           test -s notes.md
+      - name: Sign in to Microsoft Entra ID
+        if: env.PUBLISH == 'true' && env.AZURE_CLIENT_ID != '' && env.AZURE_TENANT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
       - name: Visual Studio Marketplace
         if: env.PUBLISH == 'true'
+        working-directory: editors/vscode
         run: |
-          if [ -z "$VSCE_PAT" ]; then
-            echo "::warning::VSCE_PAT is not set: not published to the Visual Studio Marketplace"
+          pnpm install --frozen-lockfile --ignore-workspace
+          vsix="$GITHUB_WORKSPACE/out/valance-${VERSION}.vsix"
+          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ]; then
+            pnpm exec vsce publish --packagePath "$vsix" --azure-credential
+          elif [ "$VSCE_OIDC" = "true" ]; then
+            pnpm exec vsce publish --packagePath "$vsix" --oidc
           else
-            cd editors/vscode && pnpm install --frozen-lockfile --ignore-workspace && pnpm exec vsce publish --packagePath "$GITHUB_WORKSPACE/out/valance-${VERSION}.vsix" --pat "$VSCE_PAT"
+            echo "::warning::Neither Microsoft Entra ID (AZURE_CLIENT_ID and AZURE_TENANT_ID) nor VSCE_OIDC is set: not published to the Visual Studio Marketplace"
           fi
-      - name: Open VSX
+      - name: Open VSX (trusted publishing)
         if: env.PUBLISH == 'true'
         run: |
-          if [ -z "$OVSX_PAT" ]; then
-            echo "::warning::OVSX_PAT is not set: not published to Open VSX"
-          else
-            npx --yes ovsx@0.10.1 publish "out/valance-${VERSION}.vsix" --pat "$OVSX_PAT"
-          fi
+          # Fails, and says why, if the namespace has no trusted publisher for this repository and workflow.
+          npx --yes ovsx@1.2.0 publish "out/valance-${VERSION}.vsix" --trusted-publishing
       - name: GitHub release
         if: env.PUBLISH == 'true'
         env:
