@@ -60,6 +60,8 @@ export const primitives: Web.WebPrimitives = {
       change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }),
       // Enter: the person is done with what they typed
       submit: Web.event("keydown", undefined, { key: "Enter" }),
+      // Escape: the person backs out of what they typed
+      cancel: Web.event("keydown", undefined, { key: "Escape" }),
     },
   },
   button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },

@@ -65,6 +65,12 @@ describe("the web target, in a browser", () => {
       await page.waitForFunction(() => document.querySelectorAll(".todo-list li").length === 2);
       expect(await page.inputValue('input[placeholder="What needs doing?"]')).toBe("");
 
+      // Escape in the field backs out of what was typed
+      await page.fill('input[placeholder="What needs doing?"]', "Never mind");
+      await page.press('input[placeholder="What needs doing?"]', "Escape");
+      await page.waitForFunction(() => (document.querySelector('input[placeholder="What needs doing?"]') as HTMLInputElement).value === "");
+      expect(await page.locator(".todo-list li").count()).toBe(2);
+
       // the items outlive the page: reloaded, they are back (the page's storage, through the Store capability)
       await page.reload();
       await page.waitForSelector('#app[data-valance="running"]');
@@ -180,6 +186,13 @@ describe("the desktop target", () => {
       await window.until(() => named(window.seen, "textfield")[0]?.props?.["value"] === "Eggs");
       window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["submit"]! });
       await window.until(() => named(window.seen, "checkbox").length === 2);
+
+      // Escape reports `cancel`: the entry is cleared, nothing is added
+      window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["change"]!, payload: "Never mind" });
+      await window.until(() => named(window.seen, "textfield")[0]?.props?.["value"] === "Never mind");
+      window.send({ op: "event", handler: named(window.seen, "textfield")[0]!.events!["cancel"]! });
+      await window.until(() => named(window.seen, "textfield")[0]?.props?.["value"] === "");
+      expect(named(window.seen, "checkbox").length).toBe(2);
 
       // ticking reports `change` with a boolean; removing is a click
       window.send({ op: "event", handler: named(window.seen, "checkbox")[0]!.events!["change"]!, payload: true });

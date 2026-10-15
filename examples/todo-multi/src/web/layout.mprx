@@ -21,7 +21,7 @@
       <section>
         <para class="todo-title">To do</para>
         <para class="todo-summary">{summary}</para>
-        <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
+        <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} on.cancel={clearEntry()} />
         <list class="todo-list">
           {#each items as it (it.id)}
             <item><todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} /></item>

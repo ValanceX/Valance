@@ -20,7 +20,7 @@
   <column>
     <heading level={2}>To do</heading>
     <text>{summary}</text>
-    <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} />
+    <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} on.cancel={clearEntry()} />
     {#each items as it (it.id)}
       <todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} />
     {/each}
