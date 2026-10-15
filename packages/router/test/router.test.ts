@@ -222,7 +222,7 @@ describe("deciding a navigation", () => {
 
       return answer;
     };
-  const decide = (router: ReturnType<typeof createRouter<App>>, from: string, to: string, state: App = app(), kind: "link" | "popstate" | "programmatic" = "link") =>
+  const decide = (router: ReturnType<typeof createRouter<App>>, from: string, to: string, state: App = app(), kind: "link" | "popstate" | "programmatic" | "history" = "link") =>
     Effect.runPromise(router.decide({ from: router.match(from), to: router.match(to), state, kind }));
 
   it("asks the route being left, then the router's, then the route being entered, in that order", async () => {
@@ -245,6 +245,17 @@ describe("deciding a navigation", () => {
     expect(await decide(router, "/a", "/c", app({ dirty: true }))).toEqual({ _tag: "Refuse", by: "canDeactivate", route: "a" });
     expect(await decide(router, "/a", "/c", app({ dirty: false }))).toMatchObject({ _tag: "Allow" });
     expect(await decide(router, "/c", "/b")).toEqual({ _tag: "Refuse", by: "canActivate", route: "b" });
+  });
+
+  it("tells the guards when the application moves along a list it keeps itself (Back and Forward on a target with no browser)", async () => {
+    const kinds: Array<string> = [];
+    const router = createRouter<App>({
+      routes: [route("/a", { name: "a", canDeactivate: ({ kind }) => (kinds.push(kind), kind !== "history") }), route("/b", { name: "b" })],
+    });
+
+    expect(await decide(router, "/a", "/b", app(), "history")).toEqual({ _tag: "Refuse", by: "canDeactivate", route: "a" });
+    expect(await decide(router, "/a", "/b", app(), "link")).toMatchObject({ _tag: "Allow" });
+    expect(kinds).toEqual(["history", "link"]);
   });
 
   it("asks nothing when the destination is where the application already is", async () => {

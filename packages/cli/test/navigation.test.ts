@@ -17,8 +17,8 @@ import { cleanup, PAGE, project } from "./fixture.js";
 
 afterEach(cleanup);
 
-const started = async () => {
-  const root = project({ "content/index.md": PAGE("Home"), "content/a.md": PAGE("A"), "content/b.md": PAGE("B") });
+const started = async (main?: string) => {
+  const root = project({ "content/index.md": PAGE("Home"), "content/a.md": PAGE("A"), "content/b.md": PAGE("B"), ...(main === undefined ? {} : { "src/main.ts": main }) });
   const config = loadConfig(root);
   const loader = await createLoader(root, config);
 
@@ -78,6 +78,65 @@ describe("the trail", () => {
     await t.run("app/go", "/");
     expect(await t.state()).toMatchObject({ page: "/", trail: ["/", "/a", "/"], cursor: 2 }); // /b was ahead and is gone
     expect(await t.canGo()).toEqual([true, false]);
+    await t.close();
+  }, 120_000);
+});
+
+const GUARDED = (guard: string) => `import { defineApp } from "@valancex/common";
+import { redirect } from "@valancex/router";
+
+export const seen: Array<string> = [];
+
+export default defineApp({
+  guard: ${guard},
+});
+`;
+
+describe("a guard on moving between pages", () => {
+  it("is asked before go, back and forward, told why, and a move it stops changes nothing", async () => {
+    const t = await started(
+      GUARDED(`({ from, to, kind }) => {
+    seen.push(\`\${kind}:\${from?.name}>\${to.name}\`);
+    return to.name !== "/b";
+  }`),
+    );
+
+    await t.run("app/go", "/a");
+    await t.run("app/go", "/b"); // stopped
+    expect(await t.state()).toMatchObject({ page: "/a", trail: ["/", "/a"], cursor: 1 });
+    await t.run("app/back");
+    expect(await t.state()).toMatchObject({ page: "/", cursor: 0 });
+    await t.run("app/forward");
+    expect(await t.state()).toMatchObject({ page: "/a", cursor: 1 });
+    await t.close();
+  }, 120_000);
+
+  it("stops Back but not Go when it tells them apart, and a guard that throws stops the move", async () => {
+    const t = await started(GUARDED(`({ kind }) => { if (kind === "history") { throw new Error("no"); } return true; }`));
+
+    await t.run("app/go", "/a");
+    await t.run("app/back");
+    expect(await t.state()).toMatchObject({ page: "/a", cursor: 1 }); // the throw stopped it
+    await t.run("app/go", "/b");
+    expect(await t.state()).toMatchObject({ page: "/b", cursor: 2 });
+    await t.close();
+  }, 120_000);
+
+  it("can send a move to another page, which is added after the page shown", async () => {
+    const t = await started(GUARDED(`({ to }) => (to.name === "/b" ? redirect("/a") : true)`));
+
+    await t.run("app/go", "/b");
+    expect(await t.state()).toMatchObject({ page: "/a", trail: ["/", "/a"], cursor: 1 });
+    await t.close();
+  }, 120_000);
+
+  it("is not asked about a move that goes nowhere (the page already shown, or the end of the list)", async () => {
+    const t = await started(GUARDED(`() => { throw new Error("asked"); }`));
+
+    await t.run("app/go", "/"); // already there
+    await t.run("app/back"); // nowhere to go
+    await t.run("app/forward");
+    expect(await t.state()).toMatchObject({ page: "/", trail: ["/"], cursor: 0 });
     await t.close();
   }, 120_000);
 });
