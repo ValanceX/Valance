@@ -80,6 +80,9 @@ jobs:
       - name: Unit tests (grammar, project, real mesh-lsp, real valance)
         working-directory: editors/vscode
         run: pnpm test
+      - name: Package (the .vsix the release publishes)
+        working-directory: editors/vscode
+        run: pnpm package
       - uses: actions/cache@v4
         with:
           path: editors/vscode/.vscode-test

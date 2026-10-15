@@ -4,8 +4,8 @@
 </h1>
 
 <p align="center">
-  Build web apps in TypeScript where one state drives the whole screen.<br>
-  Write it once. Run it in the browser, render it on the server, test it without either.
+  Build apps in TypeScript where one state drives the whole screen.<br>
+  Write it once. Run it in the browser, render it on the server, open it in a native window, test it without any of them.
 </p>
 
 <p align="center">
@@ -48,6 +48,23 @@ Open the address it prints. Edit a Markdown file in `content/` and save: the pag
 
 You write no compiler step, server, hydration script or bundler configuration.
 
+## One application, more than one target
+
+The state, the commands and the content are written once; each target has its own templates, drawn with that target's vocabulary:
+
+```console
+$ vlx init my-app --web --desktop     # or add one later: vlx generate target desktop
+$ cd my-app && npm run dev            # serves the site and opens the window
+$ npm run build                       # dist/web/ and dist/desktop/
+$ vlx package --desktop --archive     # one executable beside the window, as a .tar.gz or .zip (unsigned)
+```
+
+The desktop window is the [Desktop PORT](https://github.com/ValanceX/Port), built from its source for now (`cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`). How it was designed, what it found and what is left: [`docs/application-model/MULTI-TARGET-PLAN.md`](docs/application-model/MULTI-TARGET-PLAN.md); how navigation, keys and stored state work on each target: [`NAVIGATION.md`](docs/application-model/NAVIGATION.md).
+
+## The editor
+
+The **VALANCE** extension for VS Code ([`editors/vscode`](editors/vscode)) highlights `.mprx` templates and, with the project's own `vlx` and `@valancex/mesh-lsp`, shows diagnostics, hover, completion, go to definition, formatting and the connections between a template and the code that feeds it. Neovim and Helix can use the same language server.
+
 ## The `vlx` command
 
 Everything you do to a Valance application starts here.
@@ -58,6 +75,7 @@ Everything you do to a Valance application starts here.
 | `vlx dev` | Serves it and rebuilds as you edit |
 | `vlx build` | Writes the site to `dist/web/` |
 | `vlx check` | Finds mistakes in your files without building |
+| `vlx package --desktop` | Packs the desktop engine and its window (`--archive` for one file) |
 | `vlx generate page <path>` | Adds a Markdown page |
 | `vlx generate component <name>` | Adds a component and registers it |
 | `vlx help [command]` | Says what a command does |
@@ -84,11 +102,14 @@ The [full learning path](docs/learn/README.md) has startup work, mounting and hy
 | [`@valancex/cli`](packages/cli) | The `vlx` command (a development tool) |
 | [`@valancex/common`](packages/common) | What `src/main.ts` imports (`defineApp`, `component`, `field`), and the runtime a built application runs |
 | [`@valancex/valance`](packages/valance) | The composition boundary over NEXUS, MESH and PORT, for embedding Valance in an application of your own |
+| [`@valancex/router`](packages/router) | Routes, guards, programmatic navigation and the list of places visited |
 
 ## Examples
 
 - [`examples/docs-app`](examples/docs-app): the application model in about 200 authored lines: content, a layout, a component, a stylesheet.
 - [`examples/docs-site`](examples/docs-site): a runnable app on the published `@valancex/valance` package, without the CLI: links, search, URLs, server rendering and hydration.
+- [`examples/todo-multi`](examples/todo-multi): one to-do application for the web and a native window: shared state, commands and components, each target's own layout.
+- [`examples/todo`](examples/todo): a native desktop application written directly on `Native.run`.
 - [`examples/tracer-web`](examples/tracer-web): the contract test suite (lifetimes, hydration, history, failure), with small fixture apps. It is the evidence behind the contract, not a model application.
 
 ## Releases, contributing, license

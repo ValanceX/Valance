@@ -10,7 +10,7 @@ name: Release
 # application's src/main.ts imports, and the runtime the build runs) and
 # @valancex/cli (the `vlx` command).
 #
-# - A pushed `v*` tag publishes. Its tag must be `v` + the version of all three
+# - A pushed `v<number>…` tag publishes (not `vscode-v*`, which is the extension's: release-vscode.yml). Its tag must be `v` + the version of all three
 #   packages (packages/*/package.json), which must agree. Tagging the release
 #   commit is the maintainer's step.
 # - A manual run publishes only with `publish` set, and only from a tag;
@@ -27,7 +27,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*"]
   workflow_dispatch:
     inputs:
       publish:

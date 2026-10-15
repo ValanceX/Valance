@@ -1,0 +1,10 @@
+# What the package carries: dist/extension.js (the bundle), the grammar and language configuration, the schemas, and the documents. Nothing else.
+**
+!dist/extension.js
+!syntaxes/mprx.tmLanguage.json
+!language-configuration.json
+!schemas/*.json
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE

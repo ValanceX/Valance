@@ -1,5 +1,7 @@
 # One application, more than one target: an experiment
 
+> **Status (2026-10-15):** this is the experiment's findings. What came of them is released in 0.13: see [`MULTI-TARGET-PLAN.md`](MULTI-TARGET-PLAN.md) (the plan and what was done), [`NAVIGATION.md`](NAVIGATION.md) and the [v0.13 release notes](../releases/v0.13.md).
+
 **Status:** an experiment, to find the gaps and plan their fillings. Nothing here is a promise yet. The vertical slice is `examples/todo-multi`, made with `vlx init todo-multi --web --desktop` and then written into a to-do application; its test builds both targets and uses each the way a person would (`pnpm --filter @valancex/todo-multi run test:smoke`).
 
 ## What the experiment made
