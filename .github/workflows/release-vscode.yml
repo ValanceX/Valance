@@ -7,23 +7,27 @@ name: Release the VS Code extension
 # - A pushed `vscode-v*` tag publishes. Tagging the release commit is the maintainer's step.
 # - A manual run publishes only with `publish` set, and only from a tag; otherwise it is a dry run:
 #   everything but the publishing.
+# - A manual run with `verify_auth` set (from a branch) signs in to Microsoft Entra ID and checks the
+#   Marketplace publisher with `vsce verify-pat`. It never publishes, tags or makes a release.
 # - A pull request that changes the extension's version or this workflow runs the dry run, so a
-#   release is checked before it is tagged.
+#   release is checked before it is tagged. A pull request never reaches the publishing identity.
 #
-# Publishing stores NO long-lived token. Each destination authenticates the workflow itself, and is
-# skipped (with a warning) when it is not set up:
+# Jobs and what each can reach:
+#   ci, package, check   no credentials, no environment, `contents: read` only. Run for every trigger.
+#   verify-auth          the environment below + `id-token: write`. Manual runs with `verify_auth` only.
+#   publish              the environment below + `id-token: write` + `contents: write`. A pushed tag, or
+#                        a manual run with `publish` set from a tag, only.
 #
-#   Visual Studio Marketplace (publisher `valancex`) - Microsoft Entra ID, because global Azure DevOps
-#   Personal Access Tokens are retired. Either of:
-#     * Entra ID, with GitHub's OIDC token federated to an Entra app (a "federated credential" for this
-#       repository and the tag environment): set the repository VARIABLES AZURE_CLIENT_ID and
-#       AZURE_TENANT_ID. The app's service principal must be a member of the publisher. The workflow
-#       signs in with azure/login and runs `vsce publish --azure-credential`.
-#     * the Marketplace's own trusted publishing policy for this repository and workflow: set the
-#       repository VARIABLE VSCE_OIDC to `true`. The workflow runs `vsce publish --oidc`.
-#   Open VSX (namespace `valancex`) - a trusted publisher registered for this repository and workflow
-#   at https://open-vsx.org/user-settings/trusted-publishers; nothing to set here. (An `OVSX_PAT`
-#   secret, if one exists, takes precedence; none is needed.)
+# Visual Studio Marketplace (publisher `valancex`) uses Microsoft Entra ID, because global Azure DevOps
+# Personal Access Tokens are retired: no token is stored. GitHub's OIDC token is exchanged for an Entra
+# access token (`azure/login`, then `vsce ... --azure-credential`). One-off setup:
+#   * the GitHub environment `github-actions-vscode-publish` (restrict its deployment branches and tags
+#     to the trusted branch and `vscode-v*`; its name is part of the federated credential's subject),
+#   * a federated credential on the Entra app whose subject is that environment of this repository,
+#   * the repository VARIABLES AZURE_CLIENT_ID and AZURE_TENANT_ID,
+#   * the app's service principal added as a member of the `valancex` publisher.
+# Open VSX (namespace `valancex`) is published with the secret OVSX_PAT, and skipped with a warning when
+# it is not set. (Open VSX trusted publishing is not used until a trusted publisher is registered.)
 #
 # The GitHub release (the .vsix and the version's changelog entry) needs none of this.
 
@@ -34,6 +38,10 @@ on:
     inputs:
       publish:
         description: "Publish and make the GitHub release (only from a tag)"
+        type: boolean
+        default: false
+      verify_auth:
+        description: "Sign in to Entra ID and check the Marketplace publisher; publishes nothing"
         type: boolean
         default: false
   pull_request:
@@ -93,34 +101,22 @@ jobs:
           path: editors/vscode/valance-${{ env.VERSION }}.vsix
           if-no-files-found: error
 
-  publish:
+  # What is being released, checked without any credential. Every trigger runs it, and the publish job
+  # needs it, so a manual `publish` outside a tag fails here, before anything is signed in.
+  check:
     needs: package
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # the GitHub release
-      id-token: write # the OIDC token that Entra ID, the Marketplace and Open VSX exchange for a short-lived credential
-    env:
-      PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      VSCE_OIDC: ${{ vars.VSCE_OIDC }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - uses: actions/download-artifact@v4
         with:
           name: vsix
           path: out
       - name: Check what is being released
+        env:
+          PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         run: |
           version="$(node -p 'require("./editors/vscode/package.json").version')"
-          echo "VERSION=${version}" >> "$GITHUB_ENV"
-          echo "TAG=vscode-v${version}" >> "$GITHUB_ENV"
           ls -l out
           if [ "$(ls out/*.vsix | wc -l)" != "1" ] || [ ! -f "out/valance-${version}.vsix" ]; then
             echo "::error::Expected exactly out/valance-${version}.vsix"
@@ -133,33 +129,92 @@ jobs:
           # this version's entry in the changelog is the release's notes
           awk -v v="${version}" '$0 ~ "^## \\[" v "\\]" { on = 1; next } /^## \[/ { on = 0 } on' editors/vscode/CHANGELOG.md > notes.md
           test -s notes.md
+
+  # A manual smoke test of the Entra ID federation, to run before the first release. It signs in the way
+  # `publish` does (same environment, so the same federated-credential subject) and only asks the
+  # Marketplace whether the app may publish for `valancex`.
+  verify-auth:
+    needs: check
+    if: github.event_name == 'workflow_dispatch' && inputs.verify_auth && !inputs.publish && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    environment: github-actions-vscode-publish
+    permissions:
+      contents: read
+      id-token: write # the OIDC token that Entra ID exchanges for a short-lived credential
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Sign in to Microsoft Entra ID
-        if: env.PUBLISH == 'true' && env.AZURE_CLIENT_ID != '' && env.AZURE_TENANT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Check the Marketplace publisher
+        working-directory: editors/vscode
+        env:
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+        run: |
+          pnpm install --frozen-lockfile --ignore-workspace
+          pnpm exec vsce verify-pat valancex --azure-credential
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref_type == 'tag')
+    runs-on: ubuntu-latest
+    environment: github-actions-vscode-publish
+    permissions:
+      contents: write # the GitHub release
+      id-token: write # the OIDC token that Entra ID exchanges for a short-lived credential
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # the artifact `package` built and `check` verified, not a rebuild
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: out
+      - name: What is being released
+        run: |
+          version="$(node -p 'require("./editors/vscode/package.json").version')"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "TAG=vscode-v${version}" >> "$GITHUB_ENV"
+          test -f "out/valance-${version}.vsix"
+          awk -v v="${version}" '$0 ~ "^## \\[" v "\\]" { on = 1; next } /^## \[/ { on = 0 } on' editors/vscode/CHANGELOG.md > notes.md
+          test -s notes.md
+      - name: Sign in to Microsoft Entra ID
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
       - name: Visual Studio Marketplace
-        if: env.PUBLISH == 'true'
         working-directory: editors/vscode
+        env:
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
         run: |
           pnpm install --frozen-lockfile --ignore-workspace
-          vsix="$GITHUB_WORKSPACE/out/valance-${VERSION}.vsix"
-          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ]; then
-            pnpm exec vsce publish --packagePath "$vsix" --azure-credential
-          elif [ "$VSCE_OIDC" = "true" ]; then
-            pnpm exec vsce publish --packagePath "$vsix" --oidc
-          else
-            echo "::warning::Neither Microsoft Entra ID (AZURE_CLIENT_ID and AZURE_TENANT_ID) nor VSCE_OIDC is set: not published to the Visual Studio Marketplace"
-          fi
-      - name: Open VSX (trusted publishing)
-        if: env.PUBLISH == 'true'
+          pnpm exec vsce publish --packagePath "$GITHUB_WORKSPACE/out/valance-${VERSION}.vsix" --azure-credential
+      - name: Open VSX
         run: |
-          # Fails, and says why, if the namespace has no trusted publisher for this repository and workflow.
-          npx --yes ovsx@1.2.0 publish "out/valance-${VERSION}.vsix" --trusted-publishing
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::warning::OVSX_PAT is not set: not published to Open VSX"
+          else
+            npx --yes ovsx@0.10.1 publish "out/valance-${VERSION}.vsix" --pat "$OVSX_PAT"
+          fi
       - name: GitHub release
-        if: env.PUBLISH == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$TAG" --title "VALANCE for VS Code ${VERSION}" --notes-file notes.md --verify-tag "out/valance-${VERSION}.vsix"
