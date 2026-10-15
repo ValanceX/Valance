@@ -1,7 +1,7 @@
 // Archives for `vlx package --archive`: a .tar.gz (Linux) and a .zip (Windows), written here with Node's own zlib so nothing has to be installed, and written the same every time (no clock, no owner)
 // so the same files make the same bytes and a checksum means something.
 import { createHash } from "node:crypto";
-import { deflateRawSync, gzipSync, crc32 } from "node:zlib";
+import { deflateRawSync, gzipSync } from "node:zlib";
 
 export interface Entry {
   /** Path inside the archive, `/` separated, no leading slash. */
@@ -10,6 +10,27 @@ export interface Entry {
   /** Unix permission bits (0o755 for a program, 0o644 for data). */
   readonly mode: number;
 }
+
+/** CRC-32 (the zip checksum), here and not `zlib.crc32`: that is Node 22.2 and later, and `vlx` also runs under the Node an editor ships (VS Code 1.90 has 20.9). */
+const TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
+  let value = n;
+
+  for (let bit = 0; bit < 8; bit += 1) {
+    value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+  }
+
+  return value >>> 0;
+});
+
+export const crc32 = (data: Uint8Array): number => {
+  let crc = 0xffffffff;
+
+  for (const byte of data) {
+    crc = TABLE[(crc ^ byte) & 0xff]! ^ (crc >>> 8);
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+};
 
 const octal = (value: number, width: number): string => value.toString(8).padStart(width - 1, "0") + "\0";
 

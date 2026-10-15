@@ -4,11 +4,11 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { crc32, gunzipSync, inflateRawSync } from "node:zlib";
+import { crc32 as nodeCrc32, gunzipSync, inflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 import type { Entry } from "../src/archive.js";
-import { checksums, tarGz, zip } from "../src/archive.js";
+import { checksums, crc32, tarGz, zip } from "../src/archive.js";
 
 const entries: ReadonlyArray<Entry> = [
   { path: "Notes-linux-x64/Notes", data: Buffer.from("#!/bin/sh\necho window\n"), mode: 0o755 },
@@ -66,7 +66,7 @@ const unzip = (zipped: Buffer): ReadonlyArray<Entry> => {
     );
     const inflated = method === 8 ? inflateRawSync(data) : data;
 
-    expect(crc32(inflated), name).toBe(crc);
+    expect(nodeCrc32(inflated), name).toBe(crc);
     read.push({ path: name, data: inflated, mode: attributes & 0o777 });
     at += 46 + nameLength;
   }
@@ -95,6 +95,14 @@ describe("a .tar.gz", () => {
 describe("a .zip", () => {
   it("holds every file, with its mode, checked by its CRC", () => {
     expect(unzip(zip(entries))).toEqual(entries);
+  });
+});
+
+describe("the CRC", () => {
+  it("is the standard CRC-32 (the check value of '123456789' is cbf43926), and Node's where Node has one", () => {
+    expect(crc32(Buffer.from("123456789")).toString(16)).toBe("cbf43926");
+    expect(crc32(Buffer.alloc(0))).toBe(0);
+    expect(crc32(Buffer.alloc(100_000, 7))).toBe(nodeCrc32(Buffer.alloc(100_000, 7)));
   });
 });
 
