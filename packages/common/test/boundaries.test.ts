@@ -67,7 +67,7 @@ describe("the runtime entries", () => {
   });
 
   it("keeps the server to VALANCE, effect and its own files, and never loads the browser's", () => {
-    const allowed = ["@valancex/nexus", "@valancex/valance", "@valancex/valance/web", "@valancex/valance/web/plugin", "@valancex/valance/web/server", "effect"];
+    const allowed = ["@valancex/nexus", "@valancex/router", "@valancex/valance", "@valancex/valance/web", "@valancex/valance/web/plugin", "@valancex/valance/web/server", "effect"];
 
     expect(externals("server.ts").filter((name) => !allowed.includes(name))).toEqual([]);
     expect(externals("server.ts")).not.toContain("@valancex/mesh-runtime");

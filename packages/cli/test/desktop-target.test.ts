@@ -1,5 +1,5 @@
 // A desktop project: what `vlx init --desktop` makes is checked, built to an engine, and the built engine is run behind the host protocol like the window would run it.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -104,10 +104,21 @@ describe.skipIf(process.platform !== "linux")("vlx package --desktop", () => {
     writeFileSync(window, "#!/bin/sh\nexit 0\n");
     chmodSync(window, 0o755);
 
-    const packaged = await packageDesktop(root, { window });
+    const packaged = await packageDesktop(root, { window, archive: true });
 
-    expect([...packaged.files].sort()).toEqual(["Test", "vlx-engine"]);
+    expect([...packaged.files].sort()).toEqual(["../Test-linux-x64.tar.gz", "../Test-linux-x64.tar.gz.sha256", "Test", "vlx-engine"]);
     expect(packaged.notes.join(" ")).toMatch(/unsigned/);
+
+    // the archive is the package as one file, and its checksum is of that file
+    const { createHash } = await import("node:crypto");
+    const archive = readFileSync(join(packaged.dir, "..", "Test-linux-x64.tar.gz"));
+
+    expect(readFileSync(join(packaged.dir, "..", "Test-linux-x64.tar.gz.sha256"), "utf8")).toBe(`${createHash("sha256").update(archive).digest("hex")}  Test-linux-x64.tar.gz\n`);
+    expect(
+      execFileSync("tar", ["-tzf", join(packaged.dir, "..", "Test-linux-x64.tar.gz")])
+        .toString()
+        .split("\n"),
+    ).toEqual(expect.arrayContaining(["Test-linux-x64/Test", "Test-linux-x64/vlx-engine"]));
 
     const child = spawn(join(packaged.dir, "vlx-engine"), [], { stdio: ["pipe", "pipe", "inherit"] });
     const seen: Array<{ readonly op: string; readonly [key: string]: unknown }> = [];

@@ -13,6 +13,7 @@ import { application, titleFor } from "./app.js";
 import { Open } from "./open.js";
 import { systemOpen } from "./open-system.js";
 import { platformOf } from "./platform.js";
+import { Navigation } from "./navigation.js";
 import { Store } from "./store.js";
 import { fileStore, userDataDir } from "./store-file.js";
 import type { DefinedApp } from "./index.js";
@@ -82,6 +83,8 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
     platform: platformOf([
       [Store, fileStore(userDataDir(content.site.name))],
       [Open, opener],
+      // a window has no history of its own: the engine keeps the list of pages, and may keep it between runs (`persist: ["navigation"]`)
+      [Navigation, { owner: "engine" as const }],
     ]),
     ...(assets === undefined ? {} : { present: (tree: RenderTree) => withAssets(tree, assets) }),
     // The window's title follows the page, in the project's format (`valance.json`), or whatever the author's `title` function says.

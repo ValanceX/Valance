@@ -266,6 +266,9 @@ importers:
       '@valancex/port-web':
         specifier: ^0.5.0
         version: 0.5.0(@valancex/mesh-runtime@0.11.0)
+      '@valancex/router':
+        specifier: workspace:^
+        version: link:../router
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance

@@ -20,8 +20,11 @@ export const RouteState: Schema.Schema<RouteState> = Schema.Struct({
   replace: Schema.optional(Schema.Boolean),
 }) as unknown as Schema.Schema<RouteState>;
 
-/** Where a navigation came from. */
-export type NavigationKind = "link" | "popstate" | "programmatic" | "initial" | "close";
+/**
+ * Where a navigation came from. `popstate`: the browser moved through its history on its own. `history`: the application moves along a list it keeps itself (Back and Forward on a target that
+ * has no browser). `close`: the window or page is going away.
+ */
+export type NavigationKind = "link" | "popstate" | "programmatic" | "history" | "initial" | "close";
 
 /** What a guard is told. `state` is the application's state now, before the navigation. */
 export interface GuardContext<S> {

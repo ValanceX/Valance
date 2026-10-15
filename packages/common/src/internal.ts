@@ -11,3 +11,5 @@ export * from "./vocabulary.js";
 export * from "./targets.js";
 export * from "./store.js";
 export * from "./open.js";
+export * from "./navigation.js";
+export * from "./platform.js";

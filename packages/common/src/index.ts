@@ -201,7 +201,14 @@ export interface AppDefinition<S extends StateInput = {}> {
    * storage on the web, a file in the user's data directory on the desktop), under the application's name. What was stored and no longer fits a field's type is ignored, not loaded. Where a
    * platform has no store the application runs as it would without this. A field not listed is not kept (a `navigation` flag on one target should not follow the person to another).
    */
-  readonly persist?: ReadonlyArray<Extract<keyof StateOf<S>, string>>;
+  readonly persist?: ReadonlyArray<Extract<keyof StateOf<S>, string> | "navigation">;
+  /**
+   * A guard for moving between pages by `go`, `back` and `forward`: the router's `Guard`, asked before the move. It is told where the application is going from and to (a route named for the
+   * page, with no parameters), the state, and why: `kind` is `"programmatic"` for `go` and `"history"` for `back` and `forward`. `true` lets it through, `false` stops it (nothing changes),
+   * a `redirect(...)` sends it to another page. A guard that throws or fails stops the move. Without one every move is allowed. A page's own Back and Forward are the browser's: the router
+   * guards those as `"popstate"`.
+   */
+  readonly guard?: NavigationGuard;
   /**
    * Values worked out from the state, for a template to read: `derived: (derive) => ({ open: derive(Schema.Number, (state) => state.items.filter((item) => !item.done).length) })`. Each has its
    * type, as a state field does. They are computed from the state each time it changes, on every target, and a command cannot change one (change the state they come from). The function must
@@ -211,6 +218,18 @@ export interface AppDefinition<S extends StateInput = {}> {
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */
   readonly commands?: (command: Valance.CommandMaker<PageState & StateOf<S>>) => Valance.CommandTable<any, Valance.Ambient>;
 }
+
+/** What a navigation guard is told; the router's `GuardContext`, spelled out so the author's entry needs nothing but VALANCE and effect. */
+export interface NavigationContext {
+  readonly from: { readonly name: string; readonly params: Readonly<Record<string, unknown>>; readonly query: Readonly<Record<string, unknown>> } | undefined;
+  readonly to: { readonly name: string; readonly params: Readonly<Record<string, unknown>>; readonly query: Readonly<Record<string, unknown>> };
+  readonly state: unknown;
+  readonly kind: "link" | "popstate" | "programmatic" | "history" | "initial" | "close";
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
+/** `true` allows, `false` stops, and `{ _tag: "Redirect", name }` (the router's `redirect(page)`) goes to another page; it may answer now, later or as an Effect. */
+export type NavigationGuard = (context: NavigationContext) => unknown;
 
 /** The brand that says a value came from `defineApp`. */
 export const APP = Symbol.for("valancex.common");

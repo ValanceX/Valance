@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const PACKAGE = fileURLToPath(new URL("..", import.meta.url));
 const COMMON = fileURLToPath(new URL("../../common", import.meta.url));
+const ROUTER = realpathSync(fileURLToPath(new URL("../../common/node_modules/@valancex/router", import.meta.url)));
 const EFFECT = realpathSync(fileURLToPath(new URL("../node_modules/effect", import.meta.url)));
 const made: Array<string> = [];
 
@@ -16,6 +17,7 @@ export const project = (files: Readonly<Record<string, string>>): string => {
   mkdirSync(join(root, "node_modules", "@valancex"), { recursive: true });
   symlinkSync(PACKAGE, join(root, "node_modules", "@valancex", "cli"), process.platform === "win32" ? "junction" : "dir");
   symlinkSync(COMMON, join(root, "node_modules", "@valancex", "common"), process.platform === "win32" ? "junction" : "dir");
+  symlinkSync(ROUTER, join(root, "node_modules", "@valancex", "router"), process.platform === "win32" ? "junction" : "dir");
   symlinkSync(EFFECT, join(root, "node_modules", "effect"), process.platform === "win32" ? "junction" : "dir");
 
   for (const [name, text] of Object.entries({ "valance.json": '{ "name": "Test" }', ...files })) {
