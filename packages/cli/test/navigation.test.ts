@@ -58,6 +58,18 @@ describe("the trail", () => {
     await t.close();
   }, 120_000);
 
+  it("goes to the page an address names, however it is written: a trailing slash, no leading slash", async () => {
+    const t = await started();
+
+    await t.run("app/go", "/a/");
+    expect(await t.state()).toMatchObject({ page: "/a", trail: ["/", "/a"] });
+    await t.run("app/go", "b");
+    expect(await t.state()).toMatchObject({ page: "/b", trail: ["/", "/a", "/b"] });
+    await t.run("app/go", "//");
+    expect(await t.state()).toMatchObject({ page: "/" });
+    await t.close();
+  }, 120_000);
+
   it("grows with `go`, moves with `back` and `forward`, and drops what was ahead when the person goes somewhere new", async () => {
     const t = await started();
 

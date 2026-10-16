@@ -93,6 +93,21 @@ Not itemised. Each stage ends with Confirmed / Likely / Unresolved (or OPEN / NE
 
 P1 and O1 recorded fixed in follow-up releases; P2 (whole cause logged unredacted) was an open `it.fails` probe and is recorded fixed later (`PLATFORMS-HTTP-TITLES.md` row H3: identity only, `onStartFailure` gets the cause); P3 rides the next MESH release; O2 to O4 informational.
 
+### 3.7 Re-baseline, 2026-10-16 (work package WP-10, first pass)
+
+Checked against current code; each row replaces a "not re-checked" above.
+
+| Item | Result | Evidence |
+|---|---|---|
+| `go` normalization (ROUTING deferred) | **Was open, now fixed** by this pass: `go("/a/")`, `go("a")`, `go("//")` reach `/a`, `/a`, `/` | `common/src/routes.ts` `tidy`, `app.ts`; test in `cli/test/navigation.test.ts` |
+| F15 unknown in-app path rewrites the address bar | **Closed for `vlx`**: `urlOf` writes the page as given and the not-found page is shown; the address is kept | `common/src/routes.ts` |
+| F16 `BoundaryValue` not re-exported | **Fixed** by this pass | `valance/src/index.ts`; `valance/test/boundary-value.test.ts` |
+| Typed `Transport` interceptors | **Closed**: `defineApp({ http: { interceptors } })`, `withInterceptors` | `common/src/index.ts:189` |
+| `defineApp({ platform })` | Still absent; interceptors cover the HTTP case | `common/src/index.ts` |
+| Dev first paint (WA-6) | **Fixed for `vlx dev`** (head carries the styles). The built site was not measured | `cli/src/dev.ts`; tests in `cli/test/dev.test.ts` and `examples/docs-app/test/dev.test.ts` |
+| Tag documentation drift (WA-5, docs part) | **Fixed**: the guide's table is generated and tested | `cli/src/tags.ts`, `cli/test/tags.test.ts` |
+| D2, F12, F18, NATIVE-PARITY rows | Still not re-checked | |
+
 ## 4. How to audit coverage later
 
 1. For each source document in §1 marked "not itemised", read its Open/Deferred/Unresolved sections and add its rows to §3 with the source's own wording and status.

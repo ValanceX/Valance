@@ -18,6 +18,13 @@ export const normalize = (pathname: string, base: string): string => {
   return trimmed === "" ? "/" : trimmed;
 };
 
+/** A page address as the application writes it (`go("/guide/a/")`, `go("guide/a")`): one leading slash, no trailing slash, `/` for the first page. The base is not part of it. */
+export const tidy = (path: string): string => {
+  const trimmed = path.replace(/^\/+/, "").replace(/\/+$/, "");
+
+  return trimmed === "" ? "/" : `/${trimmed}`;
+};
+
 export const urlOf = (content: Content, path: string): string => `${content.site.base}${path.replace(/^\//, "")}`;
 
 export const routes = (content: Content): RouteTable<PageState> => ({

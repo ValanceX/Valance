@@ -28,6 +28,8 @@ import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, 
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export type { ValanceErrorCode } from "./errors.js";
+/** The plain, serializable values that cross the boundary between the application and the screen: an event's payload, a history `stateOf`, an `invoke` argument's value. MESH's type, re-exported so a caller need not depend on the runtime package to name it. */
+export type { BoundaryValue } from "@valancex/mesh-runtime";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
 export type Ambient = Nexus.Capability.EnvironmentShape | Nexus.Event.EventBusShape;

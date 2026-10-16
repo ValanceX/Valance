@@ -9,7 +9,7 @@ import { Effect, Schema, Stream } from "effect";
 import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
-import { normalize } from "./routes.js";
+import { normalize, tidy } from "./routes.js";
 import { derivedOf } from "./index.js";
 import { Navigation } from "./navigation.js";
 import * as StoreOps from "./store.js";
@@ -217,7 +217,11 @@ const routeOf = (page: string) => ({ name: page, params: {}, query: {} });
  */
 const navigationCommands = (author: DefinedApp | undefined, state: Parameters<typeof Valance.command>[0], command: Valance.CommandMaker<AppState>) => {
   const guard = author?.guard;
-  const go = (current: AppState, id: string): AppState => (id === current.page ? current : withList(current, History.push(listOf(current), id)));
+  const go = (current: AppState, address: string): AppState => {
+    const id = tidy(address);
+
+    return id === current.page ? current : withList(current, History.push(listOf(current), id));
+  };
   const traverse = (current: AppState, distance: number): AppState => withList(current, History.go(listOf(current), distance));
   const handle = state as unknown as { readonly get: Effect.Effect<AppState>; readonly update: (f: (current: AppState) => Effect.Effect<AppState>) => Effect.Effect<unknown> };
   /** Asks the guard about a move to `to`; the page to go to instead when it redirects, `undefined` when it stops the move. */
@@ -250,7 +254,7 @@ const navigationCommands = (author: DefinedApp | undefined, state: Parameters<ty
   return {
     go: command.effect(Schema.Struct({ id: Schema.String }), ({ id }) =>
       guarded(
-        () => id,
+        () => tidy(id),
         "programmatic",
         (latest, to) => go(latest, to),
       ),
