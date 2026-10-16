@@ -17,13 +17,15 @@ export const waitingRun =
         yield* state.update((current) => Effect.sync(() => spec.begin!(decoded, current)));
       }
 
+      const snapshot = yield* state.get; // the state after `begin`: what `work` is given (RF-5)
+
       // A Promise's rejection is `unknown` and is passed to `settle` exactly as received. Interruption (the application closing, or the caller's) is not a failure: it ends the
       // run here, aborts `signal`, and `settle` never runs.
       // The work is a Promise or an Effect. A Promise is awaited here, with the signal; an Effect is only taken here and run after, so it is interrupted as any Effect is and may use the
       // application's capabilities. Whichever it is, a throw from `work` itself is a failure outcome.
       const started = yield* Effect.tryPromise({
         try: async (signal) => {
-          const produced = spec.work(decoded, signal);
+          const produced = spec.work(decoded, signal, snapshot);
 
           return Effect.isEffect(produced) ? { effect: produced as Effect.Effect<A, unknown, R> } : { value: await produced };
         },

@@ -130,3 +130,64 @@ describe("the capability", () => {
     expect(State).toBeDefined();
   });
 });
+
+describe("what a failed status may carry (COMMAND-SURFACE.md C-4 to C-7)", () => {
+  const Refusal = Schema.Struct({ error: Schema.String, field: Schema.optional(Schema.String) });
+  const client = (response: () => Response) => webHttp({ base: "/api", fetch: (async () => response()) as never });
+  const asked = (c: ReturnType<typeof client>, errors?: typeof Refusal) =>
+    fail(c.request({ method: "POST", path: "/x", response: Item, ...(errors === undefined ? {} : { errors }) }) as never);
+
+  it("decodes a JSON body of a failed status with the Schema the request gave, and keeps nothing else", async () => {
+    const failure = await asked(
+      client(() => json({ error: "Cannot ship: payment pending", secret: "t0ken" }, { status: 422 })),
+      Refusal,
+    );
+
+    expect(failure).toEqual({ _tag: "Status", status: 422, body: { error: "Cannot ship: payment pending" } }); // `secret` is not in the Schema, so it is not kept
+  });
+
+  it("leaves the bare status without `errors`, for a body of another shape, a body that is not JSON, and an empty one", async () => {
+    expect(await asked(client(() => json({ error: "x" }, { status: 409 })))).toEqual({ _tag: "Status", status: 409 });
+    expect(
+      await asked(
+        client(() => json({ nope: 1 }, { status: 422 })),
+        Refusal,
+      ),
+    ).toEqual({ _tag: "Status", status: 422 });
+    expect(
+      await asked(
+        client(() => new Response("<html>oops</html>", { status: 500, headers: { "content-type": "text/html" } })),
+        Refusal,
+      ),
+    ).toEqual({ _tag: "Status", status: 500 });
+    expect(
+      await asked(
+        client(() => new Response("{not json", { status: 500, headers: { "content-type": "application/json" } })),
+        Refusal,
+      ),
+    ).toEqual({ _tag: "Status", status: 500 });
+    expect(
+      await asked(
+        client(() => new Response("", { status: 500, headers: { "content-type": "application/json" } })),
+        Refusal,
+      ),
+    ).toEqual({ _tag: "Status", status: 500 });
+  });
+
+  it("an interceptor still sees the raw failed response", async () => {
+    let seen = "";
+    const http = webHttp({
+      base: "/api",
+      fetch: (async () => json({ error: "no" }, { status: 422 })) as never,
+      interceptors: [
+        (next) => (request) =>
+          Effect.tap(next(request), (response) => {
+            seen = response.text;
+          }),
+      ],
+    });
+
+    await fail(http.request({ path: "/x", response: Item, errors: Refusal }) as never);
+    expect(seen).toBe('{"error":"no"}');
+  });
+});

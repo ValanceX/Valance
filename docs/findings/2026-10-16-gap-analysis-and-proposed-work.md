@@ -286,7 +286,7 @@ Slices 6a to 6g are built. This section is what remains, ranked by the direction
 | **WP-22** | `load` ergonomics: caching, invalidation, reload | DP2: only when WP-18 shows the need | Open, on evidence |
 | **WP-23** | A portable choice group (radio group) with a design note first | RF-4: two applications chose one of a few with pressed buttons | Open |
 | **WP-24** | A table (`table`, rows, headers), web first or portable | RF-12: one application | Open, wants one more case |
-| **WP-25** | Maintainer decisions on the core command and request surface: the state in `work` (RF-5), a decoded error body (RF-6), a success that navigates (RF-10) | each is two cases now | Open |
+| **WP-25** | Maintainer decisions on the core command and request surface: the state in `work` (RF-5), a decoded error body (RF-6), a success that navigates (RF-10) | each is two cases now | **Done**: RF-5 and RF-6 built as recommended, RF-10 accepted; `COMMAND-SURFACE.md` |
 | **WP-26** | MPRX whitespace between interpolations (MESH repository) | RF-13 | Open |
 
 **The Port release (blocks WP-20).** The Desktop PORT's form primitives (`kind`, `invalid`, `describedby`, `id`, `blur`, `focus`) are committed and pushed on `claude/inspiring-ptolemy-fssz6c` in the Port repository and are **not released**. Valance builds and tests against the published `@valancex/port-desktop-vocabulary ^0.6.0`, so the permanent parity test (`cli/test/form-primitives.test.ts`, "name the same props…") stays skipped until a release carries them and Valance's range is raised. Releasing is a maintainer's act and was not done here.

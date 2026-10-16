@@ -118,11 +118,11 @@ export interface Waiting<S, I, A, R extends Ambient = never> {
   /** The state when the run starts, before the work: typically "loading". Optional: the state may already say so (start-time work). */
   readonly begin?: (input: I, current: S) => S;
   /**
-   * The work: the only asynchronous thing. Either a Promise (`signal` aborts when the run is interrupted: the application closes), or, when the work needs a capability, an Effect
+   * The work: the only asynchronous thing. It receives the state as it is after `begin`, as a snapshot (it does not see later changes; `wanted` and `settle` do). Either a Promise (`signal` aborts when the run is interrupted: the application closes), or, when the work needs a capability, an Effect
    * that requires the application's environment (`Nexus.Capability.require`), which Effect interrupts itself. Its result, or its rejection or failure, reaches `settle`; an
    * Effect's typed failure arrives exactly as it failed.
    */
-  readonly work: (input: I, signal: AbortSignal) => Promise<A> | Effect.Effect<A, unknown, R>;
+  readonly work: (input: I, signal: AbortSignal, state: S) => Promise<A> | Effect.Effect<A, unknown, R>;
   /**
    * Is the result still relevant to the state as it is NOW? Asked when the work ends, in the same step as the commit; false and nothing is committed. **Required**, because a
    * result that no longer fits the application must not land silently. This is relevance to the application's state; it is separate from, and in addition to, a newer run of this

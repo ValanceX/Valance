@@ -43,7 +43,7 @@ export interface RouteConfig<P, Q> {
    */
   readonly load?: {
     readonly begin?: (input: P & Q, state: any) => any;
-    readonly work: (input: P & Q, signal: AbortSignal) => Promise<any> | import("effect").Effect.Effect<any, unknown, any>;
+    readonly work: (input: P & Q, signal: AbortSignal, state: any) => Promise<any> | import("effect").Effect.Effect<any, unknown, any>;
     readonly settle: (outcome: Outcome<any>, input: P & Q, state: any) => any;
   };
   /** Asked before the route is entered (the router's guard: `true`, `false`, or `redirect(route)`; plain, a Promise or an Effect). */

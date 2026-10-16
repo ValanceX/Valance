@@ -12,7 +12,6 @@ export default component(template, {
     changed: Schema.Boolean,
     saving: Schema.Boolean,
     saveError: Schema.String,
-    save: Schema.Struct({ id: Schema.String, status: Status }),
   },
-  events: { choose: Status, saveStatus: Schema.Struct({ id: Schema.String, status: Status }) },
+  events: { choose: Status, saveStatus: Schema.Void },
 });

@@ -9,11 +9,18 @@ import ordersShell from "./orders-shell.js";
 import themeToggle from "./theme-toggle.js";
 import { ApiRow, Detail, Filter, Phase, Row, Status } from "./orders.js";
 
+/** What the server says when it will not make a change. */
+const Refusal = Schema.Struct({ error: Schema.String });
+
 const None = { id: "", customer: "", status: "open" as const, total: 0, note: "" };
 
-/** What a failed request means to the person: the kind of failure. (A failure never carries the answer, so the server's own words are out of reach.) */
+/** What a failed request means to the person: the server's reason when it gave one in the shape asked for, else the kind of failure. */
 const describe = (error: unknown): string => {
-  const failed = error as HttpError;
+  const failed = error as HttpError | { readonly _tag: "Status"; readonly status: number; readonly body: typeof Refusal.Type };
+
+  if (failed._tag === "Status" && "body" in failed) {
+    return failed.body.error; // the server's own words, decoded by `Refusal` before they reach the state
+  }
 
   switch (failed._tag) {
     case "Offline":
@@ -46,7 +53,6 @@ export default defineApp({
   },
   derived: (derive) => ({
     changed: derive(Schema.Boolean, (s) => s.detail.id !== "" && s.choice !== s.detail.status),
-    save: derive(Schema.Struct({ id: Schema.String, status: Status }), (s) => ({ id: s.detail.id, status: s.choice })),
     empty: derive(Schema.Boolean, (s) => s.listPhase === "ready" && s.rows.length === 0),
   }),
   routes: {
@@ -87,10 +93,11 @@ export default defineApp({
   commands: (command) => ({
     toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
     choose: command(Schema.Struct({ value: Status }), ({ value }, s) => ({ ...s, choice: value })),
-    saveStatus: command.waiting(Schema.Struct({ value: Schema.Struct({ id: Schema.String, status: Status }) }), {
+    saveStatus: command.waiting(Schema.Struct({}), {
       begin: (_input, s) => ({ ...s, saving: true, saveError: "" }),
-      work: ({ value }) => request({ method: "PATCH", path: `/orders/${value.id}`, body: { status: value.status }, response: Detail }),
-      wanted: ({ value }, s) => s.detail.id === value.id,
+      // `work` is given the state after `begin`, and the server's own reason is decoded from a refusal (COMMAND-SURFACE.md)
+      work: (_input, _signal, s) => request({ method: "PATCH", path: `/orders/${s.detail.id}`, body: { status: s.choice }, response: Detail, errors: Refusal }),
+      wanted: (_input, s) => s.detail.id !== "",
       settle: (outcome, _input, s) =>
         outcome.ok
           ? {

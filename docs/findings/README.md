@@ -62,11 +62,11 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-3 | No `blur` / `focus` events | 2 / PORT | **Fixed** (same) |
 | RF-11 | A click that follows leaving a field could be lost | 2 / FW | **Fixed**: not a controlled-control race; the stylesheet was re-inserted on every state change (WA-8) |
 | RF-4 | No radio group / select | 2 / FW, PORT | Open → WP-23 (two applications now: a portable choice group is justified; a design note first) |
-| RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open → WP-25 (two applications now; a maintainer's decision on the core command surface) |
-| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open → WP-25 (two applications now; opt-in decoded error body) |
+| RF-5 | A waiting command cannot read the state it starts from | 3 / FW **Fixed**: `work` receives the state after `begin` (COMMAND-SURFACE.md C-1) |
+| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW **Fixed**: `request({ errors: Schema })` (COMMAND-SURFACE.md C-4) |
 | RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |
 | RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
-| RF-10 | Can a success navigate from `settle`? | ? | Open → WP-25 (not needed in two applications; try it when a case wants it) |
+| RF-10 | Can a success navigate from `settle`? | ? **Accepted**: not needed in two applications; no change (COMMAND-SURFACE.md C-8) |
 | RF-12 | No table (rows and columns with their meaning) | 2 / FW | Open → WP-24 |
 | RF-13 | The space between two interpolations in a template is dropped (`{a} {b}` reads `ab`) | 1 / Eng | Open → WP-26 |
 

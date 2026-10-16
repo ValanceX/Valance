@@ -183,7 +183,7 @@ const routeLoading = (routing: Routing, state: Parameters<typeof Valance.command
         return waitingRun<AppState, Record<string, unknown>, unknown, never>(
           handle,
           {
-            work: (given, signal) => load.work(given as never, signal) as never,
+            work: (given, signal, current) => load.work(given as never, signal, current) as never,
             wanted: (_given, current) => stillAt(current.page),
             settle: (outcome, given, current) => load.settle(outcome, given as never, current),
           },

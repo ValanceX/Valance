@@ -6,9 +6,18 @@ import { Effect } from "effect";
 import layout from "./layout.mprx";
 import signupForm from "./signup-form.js";
 import themeToggle from "./theme-toggle.js";
-import { Form, Plan, problemsOf, valid } from "./validation.js";
+import { Plan, problemsOf, valid } from "./validation.js";
 
 const Created = Schema.Struct({ id: Schema.String });
+
+/** The form as the state has it: what the screen shows and what is sent. */
+const formOf = (s: { readonly name: string; readonly email: string; readonly password: string; readonly terms: boolean; readonly plan: typeof Plan.Type }) => ({
+  name: s.name,
+  email: s.email,
+  password: s.password,
+  terms: s.terms,
+  plan: s.plan,
+});
 
 /** What a failed request means to the person: the kind of failure, not what the server wrote (a failure never carries the answer). */
 const describe = (error: unknown): string => {
@@ -47,7 +56,6 @@ export default defineApp({
   },
   // Worked out from the state: what the screen shows. The form the button sends is one of them, because a command that waits is given its input and nothing else.
   derived: (derive) => ({
-    form: derive(Form, (s) => ({ name: s.name, email: s.email, password: s.password, terms: s.terms, plan: s.plan })),
     nameError: derive(Schema.String, (s) => (s.attempted || s.touched.includes("name") ? problemsOf(s).name : "")),
     emailError: derive(Schema.String, (s) => {
       const own = s.attempted || s.touched.includes("email") ? problemsOf(s).email : "";
@@ -77,16 +85,18 @@ export default defineApp({
     // The person left a field.
     touch: command(Schema.Struct({ value: Schema.String }), ({ value }, s) => (s.touched.includes(value) ? s : { ...s, touched: [...s.touched, value] })),
     reset: command((s) => ({ ...s, name: "", email: "", password: "", terms: false, attempted: false, touched: [], phase: "editing", failure: "", takenEmail: "" })),
-    submit: command.waiting(Schema.Struct({ form: Form }), {
+    submit: command.waiting(Schema.Struct({}), {
       // Errors show from the first press; the request starts only for a form that is sound (the check is the same one the screen shows).
-      begin: ({ form }, s) => ({ ...s, attempted: true, failure: "", phase: valid(form) ? "sending" : "editing" }),
-      work: ({ form }) => (valid(form) ? request({ method: "POST", path: "/signup", body: form, response: Created }) : Effect.fail({ _tag: "Invalid" as const })),
+      begin: (_input, s) => ({ ...s, attempted: true, failure: "", phase: valid(formOf(s)) ? "sending" : "editing" }),
+      // `work` is given the state after `begin`, so the form needs no parcel to travel in.
+      work: (_input, _signal, s) =>
+        valid(formOf(s)) ? request({ method: "POST", path: "/signup", body: formOf(s), response: Created }) : Effect.fail({ _tag: "Invalid" as const }),
       wanted: (_input, s) => s.phase === "sending",
-      settle: (outcome, { form }, s) =>
+      settle: (outcome, _input, s) =>
         outcome.ok
           ? { ...s, phase: "done", failure: "" }
           : (outcome.error as { _tag?: string; status?: number })._tag === "Status" && (outcome.error as { status: number }).status === 409
-            ? { ...s, phase: "editing", takenEmail: form.email, failure: "" }
+            ? { ...s, phase: "editing", takenEmail: s.email, failure: "" }
             : { ...s, phase: "editing", failure: describe(outcome.error) },
     }),
   }),

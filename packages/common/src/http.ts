@@ -22,7 +22,7 @@ import type { HttpError, Interceptor, Method, Transport, TransportRequest, Trans
 export type { HttpError, Interceptor, Method, Transport, TransportRequest, TransportResponse } from "./transport.js";
 
 /** One request: where, what is sent, and what the answer must be. */
-export interface RequestSpec<A> {
+export interface RequestSpec<A, E = never> {
   readonly method?: Method;
   /** On the API's base: starts with `/` (not `//`), no scheme, no backslash. Anything else is `Unsafe`: a path built from data cannot send the request somewhere else. */
   readonly path: string;
@@ -30,6 +30,12 @@ export interface RequestSpec<A> {
   readonly query?: Readonly<Record<string, string | number | boolean | undefined>>;
   /** Sent as JSON. */
   readonly body?: unknown;
+  /**
+   * What a **failed** status may carry. A failure says its kind and, as a rule, never what it carried, because a body can hold a secret. When this is given, a JSON body of a failed status is
+   * decoded by it, and if it decodes the failure is `{ _tag: "Status", status, body }` with the decoded value; a body that is not JSON, or is not this shape, leaves the bare status. Nothing
+   * undecoded is kept (docs/application-model/COMMAND-SURFACE.md C-4).
+   */
+  readonly errors?: Schema.Schema<E, any, never>;
   /** What the answer must be. The decoded value is what the command receives; an answer that is not this is `Decode`, and nothing else gets through. */
   readonly response: Schema.Schema<A, any, never>;
   /** Milliseconds before the request is given up (`Timeout`), for each attempt. Default 15 000. */
@@ -38,15 +44,20 @@ export interface RequestSpec<A> {
   readonly interceptors?: ReadonlyArray<Interceptor>;
 }
 
+/** A failed status together with the body the request's `errors` Schema decoded. */
+export type StatusFailure<E> = [E] extends [never] ? never : { readonly _tag: "Status"; readonly status: number; readonly body: E };
+
 export interface HttpClient {
-  readonly request: <A>(spec: RequestSpec<A>) => Effect.Effect<A, HttpError>;
+  readonly request: <A, E = never>(spec: RequestSpec<A, E>) => Effect.Effect<A, HttpError | StatusFailure<E>>;
 }
 
 /** The capability: ask for it in a command (`Http.request`), and the platform says whether it has one. */
 export const Http = Nexus.Capability.define<HttpClient>("valance/http");
 
 /** Makes a request through the platform's client. Requires the `Http` capability. */
-export const request = <A>(spec: RequestSpec<A>): Effect.Effect<A, HttpError | Nexus.Capability.CapabilityUnavailableError, Nexus.Capability.EnvironmentShape> =>
+export const request = <A, E = never>(
+  spec: RequestSpec<A, E>,
+): Effect.Effect<A, HttpError | StatusFailure<E> | Nexus.Capability.CapabilityUnavailableError, Nexus.Capability.EnvironmentShape> =>
   Effect.flatMap(Nexus.Capability.require(Http) as Effect.Effect<HttpClient, Nexus.Capability.CapabilityUnavailableError, Nexus.Capability.EnvironmentShape>, (client) =>
     client.request(spec),
   );
@@ -251,7 +262,7 @@ export const webHttp = (options: WebHttpOptions): HttpClient => {
   const global = chain(...(options.interceptors ?? []));
 
   return {
-    request: <A>(spec: RequestSpec<A>): Effect.Effect<A, HttpError> =>
+    request: <A, E = never>(spec: RequestSpec<A, E>): Effect.Effect<A, HttpError | StatusFailure<E>> =>
       Effect.gen(function* () {
         const method = spec.method ?? "GET";
         const address = addressOf(options.base, spec.path, spec.query);
@@ -285,6 +296,18 @@ export const webHttp = (options: WebHttpOptions): HttpClient => {
         const response = yield* chain(global, ...scoped, ...(spec.interceptors ?? []))(guarded)(request);
 
         if (response.status < 200 || response.status >= 300) {
+          // The body of a failure is kept only if the author said what it may be, and only as that Schema decodes it.
+          if (spec.errors !== undefined && /^application\/(?:[\w.+-]+\+)?json\b/i.test(response.headers["content-type"] ?? "") && response.text !== "") {
+            const body = yield* Effect.try({ try: () => JSON.parse(response.text) as unknown, catch: () => undefined }).pipe(
+              Effect.flatMap((json) => Schema.decodeUnknown(spec.errors!)(json)),
+              Effect.option,
+            );
+
+            if (body._tag === "Some") {
+              return yield* Effect.fail({ _tag: "Status" as const, status: response.status, body: body.value } as unknown as StatusFailure<E>);
+            }
+          }
+
           return yield* Effect.fail<HttpError>({ _tag: "Status", status: response.status });
         }
         if (response.status !== 204 && !/^application\/(?:[\w.+-]+\+)?json\b/i.test(response.headers["content-type"] ?? "")) {

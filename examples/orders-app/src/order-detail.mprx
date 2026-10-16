@@ -10,7 +10,7 @@
       <button class="choice" pressed={choice == "paid" ? "true" : "false"} on.click={choose("paid")}>Paid</button>
       <button class="choice" pressed={choice == "shipped" ? "true" : "false"} on.click={choose("shipped")}>Shipped</button>
     </para>
-    <button class="save" disabled={!changed || saving} on.click={saveStatus(save)}>{saving ? "Saving…" : "Save status"}</button>
+    <button class="save" disabled={!changed || saving} on.click={saveStatus()}>{saving ? "Saving…" : "Save status"}</button>
     {#if saveError != ""}<para class="state failure" id="save-error">{saveError}</para>{/if}
   {/if}
 </div>

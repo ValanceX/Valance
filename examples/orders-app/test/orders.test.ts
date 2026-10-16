@@ -175,7 +175,7 @@ describe("the orders screen", () => {
     await page.close();
   });
 
-  it("says when the server would not make the change (its own words are out of reach)", async () => {
+  it("shows the server's own reason when it would not make the change", async () => {
     const backend = await open("/orders/1");
 
     backend.patch = { status: 422, body: { error: "Cannot ship: payment pending" } };
@@ -183,7 +183,7 @@ describe("the orders screen", () => {
     await backend.page.click('button.choice:has-text("Shipped")');
     await backend.page.click("button.save");
     await backend.page.waitForSelector("#save-error");
-    expect(await backend.page.textContent("#save-error")).toBe("The server would not make that change.");
+    expect(await backend.page.textContent("#save-error")).toBe("Cannot ship: payment pending"); // decoded by the `errors` Schema the request gave
     expect(await backend.page.textContent(".order-detail .now")).toBe("open"); // nothing changed
     await backend.page.close();
   });
