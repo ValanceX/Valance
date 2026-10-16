@@ -52,6 +52,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | WA-11 | A child route's `enter` and `title` receive every level's parameters at run time but are typed with only their own; a redirect cannot name a content page | 2 / FW | Open → WP-21 | ROUTES.md 6g, 6f |
 | WA-12 | Entering a child route reloaded its parent's data and reset the parent's state to loading (found building the orders app) | 3 / FW | **Fixed**: a level a move stays inside is not entered | `2026-10-16-orders-app.md` |
 | WA-13 | A route guard sees the state's fields and not the derived values, so a rule used by both is written twice | 1 / FW | Open → WP-21 | `2026-10-16-orders-app.md` |
+| WA-14 | No `label` element: a control's visible name cannot be tied to it (a radio's or checkbox's `label` is only the accessible name; the reference apps draw it with CSS) | 2 / FW, PORT | Open → WP-27 | CHOICE-GROUP.md |
 
 ### 3.1b From the reference form (this folder)
 
@@ -61,7 +62,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | **Fixed** (same) |
 | RF-3 | No `blur` / `focus` events | 2 / PORT | **Fixed** (same) |
 | RF-11 | A click that follows leaving a field could be lost | 2 / FW | **Fixed**: not a controlled-control race; the stylesheet was re-inserted on every state change (WA-8) |
-| RF-4 | No radio group / select | 2 / FW, PORT | Open → WP-23 (two applications now: a portable choice group is justified; a design note first) |
+| RF-4 | No radio group / select | 2 / FW, PORT **Fixed on the web** (`radiogroup`, `radio`; CHOICE-GROUP.md); the desktop half → WP-20 |
 | RF-5 | A waiting command cannot read the state it starts from | 3 / FW **Fixed**: `work` receives the state after `begin` (COMMAND-SURFACE.md C-1) |
 | RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW **Fixed**: `request({ errors: Schema })` (COMMAND-SURFACE.md C-4) |
 | RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |

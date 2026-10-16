@@ -90,5 +90,24 @@ export const primitives: Web.WebPrimitives = {
       blur: Web.event("focusout"),
     },
   },
+  /**
+   * A group of radios: choose one of a few (docs/application-model/CHOICE-GROUP.md). `label` names the group for assistive technology; `invalid` and `describedby` are as on the other controls. It has
+   * no events: its radios raise them.
+   */
+  radiogroup: {
+    element: "div",
+    attributes: { role: "radiogroup" },
+    props: { class: klass, label, invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") },
+  },
+  /**
+   * One option of a `radiogroup`. `checked` says whether it is the selected one (live, and server-rendered, like the checkbox's); `value` is what selecting it reports, as the `select` event's string.
+   * The same `name` on the radios of a group gives the browser its arrow keys and its one Tab stop. Selecting the option already selected raises nothing.
+   */
+  radio: {
+    element: "input",
+    attributes: { type: "radio" },
+    props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label, name: Web.attribute("name"), disabled: Web.booleanAttribute("disabled") },
+    events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
+  },
   button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
 };

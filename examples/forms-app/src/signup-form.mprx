@@ -4,10 +4,10 @@
     <para class="success">Welcome, {name}. Your {plan} account is ready.</para>
     <button class="again" on.click={reset()}>Start again</button>
   {:else}
-    <para class="plans">
-      <button class="plan" pressed={plan == "free" ? "true" : "false"} on.click={setPlan("free")}>Free</button>
-      <button class="plan" pressed={plan == "pro" ? "true" : "false"} on.click={setPlan("pro")}>Pro</button>
-    </para>
+    <radiogroup class="plans" label="Plan">
+      <radio name="plan" label="Free" value="free" checked={plan == "free"} on.select={setPlan($event)} />
+      <radio name="plan" label="Pro" value="pro" checked={plan == "pro"} on.select={setPlan($event)} />
+    </radiogroup>
     <div class="field">
       <textfield value={name} label="Name" invalid={nameError != ""} describedby="name-error" placeholder="Ada Lovelace" on.change={setName($event)} on.blur={touch("name")} on.submit={submit()} on.cancel={reset()} />
       {#if nameError != ""}<para class="error" id="name-error">{nameError}</para>{/if}

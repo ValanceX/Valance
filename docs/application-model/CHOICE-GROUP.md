@@ -28,3 +28,18 @@ HTML has `<input type="radio">` sharing a `name`, grouped by an element with `ro
 | `forms-app` and `orders-app` use it and their tests pass, with the plan and status asserted as radios | CG-9 |
 | Desktop: the Port's vocabulary and content name the same props and event; a click selects; the accessibility tree has the group and the radios (in the Port repository) | CG-7 |
 | A neutral target refuses the web-only hooks (`name`, `class`) as it does the others | CG-2 |
+
+## Implementation status (the web half), 2026-10-16
+
+| Statement | Status | Evidence |
+|---|---|---|
+| CG-1, CG-2, CG-4 primitives and props | Matches on the web | `common/src/primitives.ts`, `vocabulary.ts`; `cli/test/choice-group.test.ts` (role, name, value, checked, disabled, aria-label, aria-invalid, aria-describedby in the built HTML) |
+| CG-3 `select` | Matches | `forms-app` and `orders-app` tests: selecting by role (`getByRole("radio").check()`), and the value reaches the command |
+| CG-5 options with what MPRX has | Matches | the apps write the options out; `{#each}` works the same way |
+| CG-6 web realization | Matches | Chromium: one Tab stop for the group, the arrow key chooses the next option and the state follows (`forms-app` "the plan is a radio group") |
+| CG-9 the apps use it | Matches | both reference applications now use radios; 13 and 6 tests |
+| CG-7 desktop | **Not done**; the Desktop PORT is the Port repository's, see WP-20 | |
+
+**Differences found while implementing**
+- **The visible label.** `label` on a radio (as on `checkbox`) is the **accessible name**, drawn nowhere by the web table; there is no `label` element in the table, so a visible caption cannot be tied to the control by `for`. The reference applications draw the name with CSS (`appearance: none` and `::after { content: attr(aria-label) }`), which Chromium, Firefox and Safari support on radios. This is a real gap shared with `checkbox` (its tests find it by `aria-label`), recorded as WA-14: a `label` primitive (a text that names a control and activates it) is the proper answer, and on the desktop the radio's `label` is drawn by the widget itself, so the two targets differ here until it exists.
+- A selection the application declines (state not changed) does not re-render, so the browser's own checked radio stays; the same is true of the checkbox today. **Not tested**, and not promised by this note's CG-3 wording ("snaps back" holds when the application changes some state; a no-op leaves the DOM as the person left it).

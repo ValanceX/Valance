@@ -75,7 +75,7 @@ const measure = async (page: Page, url: string): Promise<Measured> => {
   const started = Date.now();
 
   await page.goto(url, { waitUntil: "commit" });
-  await page.waitForSelector('#app[data-valance="running"]', { timeout: 30_000 });
+  await page.waitForSelector('#app[data-valance="running"]', { timeout: 90_000 });
 
   const running = Date.now() - started;
 

@@ -72,8 +72,9 @@ describe("the sign-up form", () => {
 
     expect(await page.title()).toBe("Sign up · Sign-up");
     expect(await page.textContent("h1")).toBe("Create your account");
-    expect(await page.getAttribute("button.plan >> nth=1", "aria-pressed")).toBe("true");
-    expect(await page.getAttribute("button.plan >> nth=0", "aria-pressed")).toBe("false");
+    expect(await page.getByRole("radiogroup", { name: "Plan" }).count()).toBe(1);
+    expect(await page.getByRole("radio", { name: "Pro" }).isChecked()).toBe(true);
+    expect(await page.getByRole("radio", { name: "Free" }).isChecked()).toBe(false);
     expect(new URL(page.url()).search).toBe("?plan=pro");
     expect(errors).toEqual([]);
     await page.close();
@@ -156,6 +157,23 @@ describe("the sign-up form", () => {
 
     expect(await page.evaluate(() => (window as unknown as { __head: Array<string> }).__head)).toEqual([]);
     expect(await page.evaluate(() => document.styleSheets.length)).toBeGreaterThan(0);
+    await page.close();
+  });
+
+  it("the plan is a radio group: one Tab stop, the arrow keys choose, and what is chosen is what is sent (CHOICE-GROUP.md CG-3, CG-6)", async () => {
+    const { page, sent } = await open("/signup");
+
+    await page.getByRole("radio", { name: "Free" }).focus();
+    await page.keyboard.press("ArrowRight"); // the next radio of the group, chosen
+    expect(await page.getByRole("radio", { name: "Pro" }).isChecked()).toBe(true);
+    expect(await page.getByRole("radio", { name: "Free" }).isChecked()).toBe(false);
+    await page.waitForFunction(() => new URL(location.href).pathname === "/signup");
+    await page.keyboard.press("Tab"); // out of the group in one press: the options are not Tab stops of their own
+    expect(await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))).not.toBe("Free");
+    await fillValid(page);
+    await page.click("button.send");
+    await page.waitForSelector(".success");
+    expect(sent).toEqual([expect.objectContaining({ plan: "pro" })]);
     await page.close();
   });
 

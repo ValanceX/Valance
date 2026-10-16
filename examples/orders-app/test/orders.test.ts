@@ -166,7 +166,7 @@ describe("the orders screen", () => {
 
     await page.waitForSelector(".order-detail h2");
     expect(await page.isDisabled("button.save")).toBe(true);
-    await page.click('button.choice:has-text("Paid")');
+    await page.getByRole("radio", { name: "Paid" }).check();
     expect(await page.isDisabled("button.save")).toBe(false);
     await page.click("button.save");
     await page.waitForFunction(() => document.querySelector(".order-detail .now")?.textContent === "paid");
@@ -180,7 +180,7 @@ describe("the orders screen", () => {
 
     backend.patch = { status: 422, body: { error: "Cannot ship: payment pending" } };
     await backend.page.waitForSelector(".order-detail h2");
-    await backend.page.click('button.choice:has-text("Shipped")');
+    await backend.page.getByRole("radio", { name: "Shipped" }).check();
     await backend.page.click("button.save");
     await backend.page.waitForSelector("#save-error");
     expect(await backend.page.textContent("#save-error")).toBe("Cannot ship: payment pending"); // decoded by the `errors` Schema the request gave
@@ -192,7 +192,7 @@ describe("the orders screen", () => {
     const { page } = await open("/orders/1");
 
     await page.waitForSelector(".order-detail h2");
-    await page.click('button.choice:has-text("Paid")');
+    await page.getByRole("radio", { name: "Paid" }).check();
     await page.click('a.row[href="/orders/2"]');
     await page.waitForTimeout(200);
     expect(new URL(page.url()).pathname).toBe("/orders/1");

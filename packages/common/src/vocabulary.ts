@@ -71,6 +71,8 @@ export const webVocabulary: WebVocabulary = {
     span: ["id"],
     heading: ["level"],
     image: ["width", "height"],
+    radiogroup: ["class", "label", "invalid", "describedby"],
+    radio: ["label", "name", "disabled"],
   },
-  types: { textfield: { invalid: "boolean" }, checkbox: { invalid: "boolean" }, image: { width: "number", height: "number" } },
+  types: { textfield: { invalid: "boolean" }, checkbox: { invalid: "boolean" }, image: { width: "number", height: "number" }, radiogroup: { invalid: "boolean" } },
 };

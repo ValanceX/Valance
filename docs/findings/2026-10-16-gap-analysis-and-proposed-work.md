@@ -284,10 +284,11 @@ Slices 6a to 6g are built. This section is what remains, ranked by the direction
 | **WP-20** | Desktop parity: report `viewport` from the window; drive `mayClose`, a nested route and a screen in a window; the Port release that carries the form primitives | DP1, DP6: the portable contract is only proven where it has been run | Open (needs the Port repository's release; not done here) |
 | **WP-21** | Types for a child route's `enter` and `title` across the levels; a redirect that names a content page | DP8: both are a cast or a surprise in the common case | Open |
 | **WP-22** | `load` ergonomics: caching, invalidation, reload | DP2: only when WP-18 shows the need | Open, on evidence |
-| **WP-23** | A portable choice group (radio group) with a design note first | RF-4: two applications chose one of a few with pressed buttons | Open |
+| **WP-23** | A portable choice group (radio group) with a design note first | RF-4: two applications chose one of a few with pressed buttons | **Web done**, desktop with WP-20; `CHOICE-GROUP.md` |
 | **WP-24** | A table (`table`, rows, headers), web first or portable | RF-12: one application | Open, wants one more case |
 | **WP-25** | Maintainer decisions on the core command and request surface: the state in `work` (RF-5), a decoded error body (RF-6), a success that navigates (RF-10) | each is two cases now | **Done**: RF-5 and RF-6 built as recommended, RF-10 accepted; `COMMAND-SURFACE.md` |
 | **WP-26** | MPRX whitespace between interpolations (MESH repository) | RF-13 | Open |
+| **WP-27** | A `label` primitive that names a control and activates it, on both targets (WA-14) | found implementing WP-23: a radio's name is invisible without CSS | Open |
 
 **The Port release (blocks WP-20).** The Desktop PORT's form primitives (`kind`, `invalid`, `describedby`, `id`, `blur`, `focus`) are committed and pushed on `claude/inspiring-ptolemy-fssz6c` in the Port repository and are **not released**. Valance builds and tests against the published `@valancex/port-desktop-vocabulary ^0.6.0`, so the permanent parity test (`cli/test/form-primitives.test.ts`, "name the same props…") stays skipped until a release carries them and Valance's range is raised. Releasing is a maintainer's act and was not done here.
 
