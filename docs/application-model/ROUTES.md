@@ -450,3 +450,60 @@ Checked 2026-10-16 against `common/src/{routing-engine,routing-types,app}.ts`, `
 - **A parametric parent with an `index`** cannot be built statically (R-43 forbids `staticParams` on it): it is `route-static-params`, and the answer is `delivery: "client"`. The message now says so.
 - **Types.** At run time a child's `enter` and `title` receive every level's parameters and query. Their TypeScript type is the child's own `P & Q`, so a child cannot name a parent's parameter without a cast. Merging the types across `children` is possible and not done.
 - **Not exercised:** a project of two targets with nested routes, and the Desktop target (a parent screen listed for one target and drawn on another is not caught, as in 6d). `vlx dev` was not driven with a nested route.
+
+## Slices 6e and 6f: design (2026-10-16, before the implementation)
+
+Written before the code, like the others. Statements continue as R-50 to R-69. What the router (`@valancex/router`) already does is not redone: `decide`, `redirectTo`, `mayLeave` and the `"close"` kind exist there and are tested; 6f gives them to a declared route and calls them from the application's navigation commands.
+
+### 6e: `load`
+
+```ts
+order: route("/orders/:id", {
+  params: Schema.Struct({ id: Schema.String }),
+  load: {
+    begin: ({ id }, state) => ({ ...state, order: { status: "loading", id } }),
+    work: ({ id }, signal) => fetch(`/api/orders/${id}`, { signal }).then((r) => r.json()),
+    settle: (outcome, { id }, state) => ({ ...state, order: outcome.ok ? { status: "ready", id, data: outcome.value } : { status: "failed", id } }),
+  },
+})
+```
+
+- **R-50 `load` is a waiting command the route owns.** `work(input, signal)` is a Promise or an Effect, `settle(outcome, input, state)` returns the state, exactly as `command.waiting` (success and failure are both state); `input` is the merged parameters and query. There is no `wanted`: the framework supplies it (R-53).
+- **R-51 `begin` is pure and part of the entry.** It runs inside `arrive`, after the levels' `enter`s, so every way of entering a route, **including the first state of a request and the page a build writes**, shows the loading state. Nothing on the server waits, and no `work` runs there.
+- **R-52 `work` runs where there is a running application.** After `go`, `back` or `forward` commits an entry, and once when the application starts on a route (a hydrated page, the app shell, a window). The loads of a nested route's levels run together.
+- **R-53 Relevance is the address.** A result is committed only if the application is still at the address that was entered. A newer entry of the same route supersedes an older run (the rule of `waiting`).
+- **R-54 A failure is state.** A rejection, a failed Effect or a throw in `work` reaches `settle` as `{ ok: false, error }`; nothing reaches the page as an exception.
+- **R-55 Entering is not reloading.** A move to the address already shown is not an entry (R-9), so it does not load again; Back to a route is an entry and does.
+- **R-56 Cost.** A project with no `load` has the commands it had (`go`, `back`, `forward` stay plain transitions unless a `guard` or a route guard exists).
+
+Not in 6e: caching, invalidation, preloading on hover or the data sharing between levels. A layout reads the state `begin` and `settle` set, like any other.
+
+### 6f: guards, redirects and leaving the page
+
+```ts
+account: route("/account", {
+  canActivate: ({ state }) => (state.signedIn ? true : redirect("login")),
+  canDeactivate: ({ state }) => !state.dirty,
+}),
+old: route("/old", { redirectTo: redirect("account") }),
+```
+
+- **R-60 The router's guards, on a declared route.** `canActivate`, `canDeactivate` and `redirectTo` are the router's: same context (`from`, `to` as `{ name, params, query }` decoded, `state`, `kind`, `data`), same answers (`true`, `false`, `redirect(route, params, query)`; plain, a Promise or an Effect; a guard that fails or throws refuses). `redirect` is exported from `@valancex/common`.
+- **R-61 Where they are asked.** In `go`, `back` and `forward`, **after** the application-wide `guard` (R-18, unchanged): the route being left first (when the route or its parameters change, not for a query alone), then the route being entered; a redirect restarts the entering side at its target, at most eight times; a refusal changes nothing. An answer naming a route is turned into its address.
+- **R-62 Levels.** A parent's `canActivate` is asked when the move enters the parent (from outside it or with other parameters of its own), not when it moves between its children; its `canDeactivate` when the move leaves it. Entering asks outermost first, leaving innermost first; the first refusal or redirect decides.
+- **R-63 `redirectTo` makes an alias.** An address of the route is the target's: `go("/old")` lands on the target and the entry records the target's address; the first state for `/old` is the target's. A redirecting route has **no page** and is never "missing `staticParams`". The build writes `from  target  301` for it in `_redirects` (parameters of its pattern become `:name`/`*`), and `vlx dev` answers it with a 302. A target that is not a declared route is the router's error.
+- **R-64 `beforeunload`.** When any route has a `canDeactivate`, the web page asks, as the router's `"close"` kind, the guards of the route shown (innermost first); an answer of `false` makes the browser ask the person before the page closes. A browser cannot wait, so **only an answer given at once counts** (a plain value, or an Effect that finishes without waiting); a Promise answer is ignored on close and said so in the guard's documentation. The Desktop asks the same through `mayClose` and may wait.
+- **R-65 `vlx info`** says which routes have a `load`, guards or a redirect.
+- **R-66 Cost.** A project that declares none of these has the commands and the page it had.
+
+### Acceptance
+
+| Test | Statement |
+|---|---|
+| `begin` is in the built page and the first state; `work` runs after `go`, Back and on start; `settle` commits success and failure; a result after leaving is dropped; the same address does not reload; a route with no load unchanged | R-50 to R-56 |
+| Browser: a client route loads on first draw and on a link, shows loading then ready, then failed when the request fails | R-52, R-54 |
+| `canActivate` false/true/redirect, `canDeactivate` stopping a move, a query-only move not asking it, the application guard first, async and failing guards | R-60, R-61 |
+| Nested: a move between siblings asks neither parent; entering and leaving the parent ask it; order of asking | R-62 |
+| `redirectTo`: `go` lands on the target, the first state is the target's, no page, `_redirects` 301 line, dev 302 | R-63 |
+| `beforeunload` listener asks a sync `false` and stops the unload; a Promise is ignored; none registered without a `canDeactivate`; `mayClose` on the desktop | R-64 |
+| `vlx info` lists them; a project without them unchanged | R-65, R-66 |
