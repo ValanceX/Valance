@@ -38,7 +38,7 @@ export interface Routing {
   /** The declared route an address (path and query, no base) belongs to, or `undefined`. */
   readonly match: (address: string) => Entered | undefined;
   /** The state with `route` and the entered route's state in place. `page` is what is shown: this does not change it. */
-  readonly arrive: <S extends { readonly page: string }>(state: S) => S & { readonly route: string };
+  readonly arrive: <S extends { readonly page: string }>(state: S, from?: string) => S & { readonly route: string };
   /** The page part of the title of a declared route's address, when the route has a title. */
   readonly titleOf: (address: string) => string | undefined;
   /** The addresses a build writes for declared routes (path and canonical query), and the routes that cannot be built without `staticParams`. */
@@ -52,8 +52,13 @@ export interface Routing {
     readonly component: Component;
   }>;
   /** The loads to run after `address` is entered: one per level that has a `load`, outermost first (ROUTES.md R-52). */
-  readonly loads: (address: string) => ReadonlyArray<{
+  readonly loads: (
+    address: string,
+    from?: string,
+  ) => ReadonlyArray<{
     readonly route: string;
+    /** Whether the result of this load is still wanted when the application is at `page`: the level is still shown, with the same parameters and query of its own. */
+    readonly stillAt: (page: string) => boolean;
     readonly input: Readonly<Record<string, unknown>>;
     readonly load: NonNullable<DeclaredRoute["config"]["load"]>;
   }>;
@@ -137,8 +142,10 @@ interface Node {
   readonly chain: Array<Node>;
   /** The `enter` of each level that has one, in the order they run. */
   readonly enters: Array<NonNullable<DeclaredRoute["config"]["enter"]>>;
+  /** The names of the input this level owns: its path's parameters and the keys of its own query. */
+  readonly inputs: Array<string>;
   /** The `load` of each level that has one, outermost first. */
-  readonly loads: Array<NonNullable<DeclaredRoute["config"]["load"]>>;
+  readonly loads: Array<{ readonly level: Node; readonly load: NonNullable<DeclaredRoute["config"]["load"]> }>;
   /** The level whose `title` is used: the deepest that gives one. */
   titled: Node | undefined;
   readonly delivery: "static" | "client";
@@ -280,6 +287,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       children: [],
       chain: [],
       enters: [],
+      inputs: [...namesIn(each.pattern), ...Object.keys((each.config.query as { readonly fields?: Readonly<Record<string, unknown>> } | undefined)?.fields ?? {})],
       loads: [],
       titled: undefined,
       delivery: each.config.delivery ?? parent?.delivery ?? "static",
@@ -288,7 +296,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
     node.chain.push(...(parent?.chain ?? []), node);
     node.enters.push(...node.chain.flatMap((level) => (level.declared.config.enter === undefined ? [] : [level.declared.config.enter])));
-    node.loads.push(...node.chain.flatMap((level) => (level.declared.config.load === undefined ? [] : [level.declared.config.load])));
+    node.loads.push(...node.chain.flatMap((level) => (level.declared.config.load === undefined ? [] : [{ level, load: level.declared.config.load }])));
     node.titled = [...node.chain].reverse().find((level) => level.declared.config.title !== undefined);
     parent?.children.push(node);
     nodes.push(node);
@@ -471,13 +479,25 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
     children: node.children.map(levelOf),
   });
 
+  /** Whether `level` is still shown, with the same input of its own, after a move from `before` to `after`: a move inside it (between its children) is not an entry to it. */
+  const kept = (level: Node, before: Entered | undefined, after: Entered): boolean => {
+    const inside = (entered: Entered): boolean => entered.name === level.name || entered.name.startsWith(`${level.name}.`);
+
+    if (before === undefined || !inside(before) || !inside(after)) {
+      return false;
+    }
+
+    return level.inputs.every((name) => JSON.stringify(before.input[name]) === JSON.stringify(after.input[name]));
+  };
+
   return {
     any: true,
     levels,
     tree: nodes.filter((node) => node.parent === undefined).map(levelOf),
     match,
-    arrive: <S extends { readonly page: string }>(state: S): S & { readonly route: string } => {
+    arrive: <S extends { readonly page: string }>(state: S, from?: string): S & { readonly route: string } => {
       const entered = match(state.page);
+      const before = from === undefined ? undefined : match(from);
       const node = entered === undefined ? undefined : byName.get(entered.name)!;
       const named = { ...state, route: node?.name ?? "", ...(nested ? { at: node?.at ?? blank } : {}) };
 
@@ -492,8 +512,9 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
         next = enter(entered.input, next) as S;
       }
       // then the loading state of each level that loads (R-51)
-      for (const { begin } of node.loads) {
-        next = begin === undefined ? next : (begin(entered.input, next) as S);
+      // (a level the move stays inside has not been entered, and is not reset to loading)
+      for (const { level, load } of node.loads) {
+        next = load.begin === undefined || kept(level, before, entered) ? next : (load.begin(entered.input, next) as S);
       }
 
       return {
@@ -541,13 +562,25 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
       return { addresses, missing };
     },
-    loads: (address) => {
+    loads: (address, from) => {
       const entered = match(address);
       const node = entered === undefined ? undefined : byName.get(entered.name);
+      const before = from === undefined ? undefined : match(from);
 
       return node === undefined || entered === undefined
         ? []
-        : node.chain.flatMap((level) => (level.declared.config.load === undefined ? [] : [{ route: level.name, input: entered.input, load: level.declared.config.load }]));
+        : node.loads
+            .filter(({ level }) => !kept(level, before, entered))
+            .map(({ level, load }) => ({
+              route: level.name,
+              input: entered.input,
+              load,
+              stillAt: (page: string) => {
+                const now = match(page);
+
+                return now !== undefined && kept(level, entered, now);
+              },
+            }));
     },
     hasLoad: nodes.some((node) => node.declared.config.load !== undefined),
     hasGuards: nodes.some((node) => node.declared.config.canActivate !== undefined || node.declared.config.canDeactivate !== undefined),
@@ -670,7 +703,7 @@ export const routeProblems = (
     })),
     ...routing.pages().missing.map((name) => ({
       code: "route-static-params",
-      message: `the route "${name}" has path parameters and no \`staticParams\`, so a build has no page to write for it (pages that only the browser renders arrive with client delivery). Add \`staticParams: () => [{ … }]\`, or run it with \`vlx dev\``,
+      message: `the route "${name}" has path parameters and no \`staticParams\`, so a build has no page to write for it Add \`staticParams: () => [{ … }]\` (on a leaf, the whole parameter set), say \`delivery: "client"\` so the browser draws it from the app shell, or run it with \`vlx dev\``,
     })),
   ];
 };

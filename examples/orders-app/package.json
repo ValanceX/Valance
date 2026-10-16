@@ -1,0 +1,27 @@
+{
+  "name": "@valancex/orders-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The second reference application: a master-detail screen over a backend (a filtered list, a detail panel, a change of status), on nested routes with loaded data. Written to find what data screens take, not to be a model of one.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vlx dev",
+    "build": "vlx build",
+    "check": "vlx check",
+    "typecheck": "vlx sync && tsc -p tsconfig.json",
+    "test:smoke": "vitest run"
+  },
+  "dependencies": {
+    "@valancex/common": "workspace:*",
+    "effect": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/cli": "workspace:*",
+    "@valancex/mesh-lsp": "0.11.0",
+    "playwright": "1.56.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

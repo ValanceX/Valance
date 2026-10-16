@@ -172,10 +172,10 @@ const routeLoading = (routing: Routing, state: Parameters<typeof Valance.command
   );
   const handle = state as unknown as Parameters<typeof waitingRun<AppState, any, any>>[0];
 
-  const run = (address: string): Effect.Effect<void> =>
+  const run = (address: string, from?: string): Effect.Effect<void> =>
     Effect.forEach(
-      routing.loads(address),
-      ({ route, input, load }) => {
+      routing.loads(address, from),
+      ({ route, input, load, stillAt }) => {
         const serial = serials.get(route) ?? { latest: 0 };
 
         serials.set(route, serial);
@@ -184,7 +184,7 @@ const routeLoading = (routing: Routing, state: Parameters<typeof Valance.command
           handle,
           {
             work: (given, signal) => load.work(given as never, signal) as never,
-            wanted: (_given, current) => current.page === address,
+            wanted: (_given, current) => stillAt(current.page),
             settle: (outcome, given, current) => load.settle(outcome, given as never, current),
           },
           serial,
@@ -316,9 +316,9 @@ const navigationCommands = (
   const go = (current: AppState, address: string): AppState => {
     const id = addressOf(address);
 
-    return id === current.page ? current : (routing.arrive(withList(current, History.push(listOf(current), id))) as AppState);
+    return id === current.page ? current : (routing.arrive(withList(current, History.push(listOf(current), id)), current.page) as AppState);
   };
-  const traverse = (current: AppState, distance: number): AppState => routing.arrive(withList(current, History.go(listOf(current), distance))) as AppState;
+  const traverse = (current: AppState, distance: number): AppState => routing.arrive(withList(current, History.go(listOf(current), distance)), current.page) as AppState;
   const handle = state as unknown as { readonly get: Effect.Effect<AppState>; readonly update: (f: (current: AppState) => Effect.Effect<AppState>) => Effect.Effect<unknown> };
   /** Asks the guard about a move to `to`; the page to go to instead when it redirects, `undefined` when it stops the move. */
   const askedGuard = (current: AppState, to: string, kind: "programmatic" | "history"): Effect.Effect<string | undefined> =>
@@ -346,7 +346,7 @@ const navigationCommands = (
         const now = yield* handle.get;
 
         if (now.page !== current.page) {
-          yield* loading.run(now.page);
+          yield* loading.run(now.page, current.page);
         }
       }
     });

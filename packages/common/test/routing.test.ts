@@ -408,3 +408,47 @@ describe("guards, redirects and leaving (R-60 to R-64)", () => {
     expect(await run(routing.mayLeave({ page: "/" }))).toBe(true);
   });
 });
+
+describe("a move inside a level is not an entry to it (R-52 amended)", () => {
+  const make = () =>
+    routingOf({
+      orders: route("/orders", {
+        query: Schema.Struct({ status: Schema.optional(Schema.String) }),
+        load: { begin: (_i, s: any) => ({ ...s, list: "loading" }), work: async () => 1, settle: (_o, _i, s) => s },
+        children: {
+          detail: route("/:id", {
+            params: Schema.Struct({ id: Schema.String }),
+            load: { begin: (_i, s: any) => ({ ...s, one: "loading" }), work: async () => 2, settle: (_o, _i, s) => s },
+          }),
+        },
+      }),
+      home: route("/"),
+    });
+
+  it("a move between children starts only the child's load, and does not reset the parent's state to loading", () => {
+    const routing = make();
+    const state = { page: "/orders/2", route: "", list: "ready", one: "ready" } as never;
+    const after = routing.arrive(state, "/orders/1") as unknown as Record<string, unknown>;
+
+    expect(after["one"]).toBe("loading");
+    expect(after["list"]).toBe("ready");
+    expect(routing.loads("/orders/2", "/orders/1").map((each) => each.route)).toEqual(["orders.detail"]);
+  });
+
+  it("entering from outside, a change of the parent's own query, and a first state start every level", () => {
+    const routing = make();
+
+    expect(routing.loads("/orders/2", "/").map((each) => each.route)).toEqual(["orders", "orders.detail"]);
+    expect(routing.loads("/orders/2").map((each) => each.route)).toEqual(["orders", "orders.detail"]);
+    expect(routing.loads("/orders?status=paid", "/orders").map((each) => each.route)).toEqual(["orders"]);
+    expect(routing.loads("/orders/2?status=paid", "/orders/2").map((each) => each.route)).toEqual(["orders"]); // the child's own input is the same
+  });
+
+  it("a result is still wanted while the level is shown with the same input, and not after it is left", () => {
+    const [list] = make().loads("/orders", "/");
+
+    expect(list!.stillAt("/orders/2")).toBe(true); // the list was asked for, and an order was opened beside it
+    expect(list!.stillAt("/orders?status=paid")).toBe(false);
+    expect(list!.stillAt("/")).toBe(false);
+  });
+});

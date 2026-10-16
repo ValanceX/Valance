@@ -1,0 +1,11 @@
+:root { --bg: #fff; --fg: #1d2330; --muted: #5c6578; --line: #e3e6ee; --accent: #5b3fd6; --danger: #b3261e; }
+[data-theme="dark"] { --bg: #12141b; --fg: #e8eaf1; --muted: #9aa3b8; --line: #272b38; --accent: #a78bfa; --danger: #ff8a80; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.6 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+.layout { min-height: 100vh; background: var(--bg); color: var(--fg); }
+.bar { display: flex; align-items: center; gap: 1.5rem; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; color: var(--fg); text-decoration: none; }
+.menu { display: flex; gap: 1rem; flex: 1; }
+.nav-link { color: var(--fg); text-decoration: none; }
+main { max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
+a { color: var(--accent); }

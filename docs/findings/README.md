@@ -10,6 +10,7 @@ Written 2026-10-16. Statuses below are **as recorded in each source document**; 
 |---|---|---|---|---|
 | [`2026-10-16-web-authoring-model.md`](2026-10-16-web-authoring-model.md) | Authoring a web app with `vlx`: styles, rendering mode, routes, dynamic pages, forms, dev paint | Investigation (code reading, nothing run) | WA-1 to WA-7 | 7 items |
 | [`2026-10-16-gap-analysis-and-proposed-work.md`](2026-10-16-gap-analysis-and-proposed-work.md) | Triage of every gap in this register against the ecosystem direction; proposed work packages WP-1 to WP-17; coverage cross-check; decisions Q1 to Q7 | Analysis (reading only) | DP1 to DP10, WP-n, Q-n | |
+| [`2026-10-16-orders-app.md`](2026-10-16-orders-app.md) | A master-detail screen over a backend on nested routes with loaded data, scored; WA-12, WA-13, RF-12, RF-13 and the second case for RF-4 to RF-6 | Investigation (built and tested) | WP-18 |
 | [`2026-10-16-reference-form.md`](2026-10-16-reference-form.md) | A real sign-up form on a declared route, scored; gaps RF-1 to RF-10 and what they justify | Investigation (built and tested) | RF-1 to RF-10 | 10 items |
 | [`../FINDINGS.md`](../FINDINGS.md) | `@valancex/valance` core: lifecycle, history/URLs, application model, async, mounts, hydration | Staged tracer log (Stages 1 to 56+) | Stage numbers; Confirmed / Likely / Unresolved / Open / Deferred subsections | ~2,400 lines |
 | [`../application-model/FINDINGS.md`](../application-model/FINDINGS.md) | First `vlx` tracer (`examples/docs-app`) | Failures, blockers, answers, measurements | F1 to F8 (fixed), D1 to D6 (blockers) | 50 lines |
@@ -49,6 +50,8 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | WA-9 | An image with no width and height moved the page when it loaded (layout shift 0.0077 on the scaffold, found by measuring WA-6) | 2 / FW | **Fixed**: content images carry the size their file says (PNG, GIF, JPEG, WebP, SVG); the first-paint test pins a shift of 0 | WA-6 |
 | WA-10 | The desktop host never reports the window's width, so `viewport` stays `expanded` in a window (found re-baselining NATIVE-PARITY #9) | 2 / FW | Open → WP-20 | NATIVE-PARITY #9 |
 | WA-11 | A child route's `enter` and `title` receive every level's parameters at run time but are typed with only their own; a redirect cannot name a content page | 2 / FW | Open → WP-21 | ROUTES.md 6g, 6f |
+| WA-12 | Entering a child route reloaded its parent's data and reset the parent's state to loading (found building the orders app) | 3 / FW | **Fixed**: a level a move stays inside is not entered | `2026-10-16-orders-app.md` |
+| WA-13 | A route guard sees the state's fields and not the derived values, so a rule used by both is written twice | 1 / FW | Open → WP-21 | `2026-10-16-orders-app.md` |
 
 ### 3.1b From the reference form (this folder)
 
@@ -58,12 +61,14 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | **Fixed** (same) |
 | RF-3 | No `blur` / `focus` events | 2 / PORT | **Fixed** (same) |
 | RF-11 | A click that follows leaving a field could be lost | 2 / FW | **Fixed**: not a controlled-control race; the stylesheet was re-inserted on every state change (WA-8) |
-| RF-4 | No radio group / select | 2 / FW, PORT | Open → WP-18 (a second reference app decides) |
-| RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open → WP-18 (then a decision on the core command surface) |
-| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open → WP-18 (opt-in decoded error body) |
+| RF-4 | No radio group / select | 2 / FW, PORT | Open → WP-23 (two applications now: a portable choice group is justified; a design note first) |
+| RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open → WP-25 (two applications now; a maintainer's decision on the core command surface) |
+| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open → WP-25 (two applications now; opt-in decoded error body) |
 | RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |
 | RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
-| RF-10 | Can a success navigate from `settle`? | ? | Open → WP-18 (not tried) |
+| RF-10 | Can a success navigate from `settle`? | ? | Open → WP-25 (not needed in two applications; try it when a case wants it) |
+| RF-12 | No table (rows and columns with their meaning) | 2 / FW | Open → WP-24 |
+| RF-13 | The space between two interpolations in a template is dropped (`{a} {b}` reads `ab`) | 1 / Eng | Open → WP-26 |
 
 WA-5 (form building blocks) is answered by this: no helper; RF-1 to RF-3, RF-5 and RF-6 first.
 

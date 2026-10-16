@@ -553,3 +553,14 @@ Work package WP-19. Reviewed by reading the code and by tests in `cli/test/routi
 - `settle` receives a rejection **as received**; if an application stores that error in a field named in `persist`, it is kept in the person's store. Store a message, not the response.
 - A guard that never answers leaves `go` waiting (the application-wide guard has always behaved so). The router's guards are meant to answer; a timeout is not added.
 - The close guard runs author code while the page unloads; it can only decide, not wait.
+
+### Amendment to R-52 and R-62 (found by the second reference application, WA-12)
+
+R-52 said the loads of a nested route's levels run together on an entry. Building `examples/orders-app` (a list that stays while an order opens beside it) showed that this was wrong for a move **inside** a level: selecting an order started the list's load again and put the list's state back to "loading". The rule is now the one R-62 already gave guards:
+
+- **A level is entered when a move arrives at it from outside, or with other input of its own** (its path's parameters and the keys of its own query). A move between its children, or one that changes only a child's input, does not enter it.
+- Only the levels entered have their `begin` applied (in `arrive`, which is now told the page the move comes from) and their `work` started. `enter` still runs for every level (R-42).
+- A result is committed while its level is still shown with the same input of its own, not only while the address is the one it was asked at: a list asked for at `/orders` is still wanted when an order is opened beside it, and is not wanted when the filter changes.
+- A first state and a restored list have no page to come from, so every level is entered.
+
+Tested in `common/test/routing.test.ts` ("a move inside a level is not an entry to it") and in Chromium in `examples/orders-app` (the list is fetched once and its elements are the same after an order opens).

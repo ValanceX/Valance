@@ -1,0 +1,7 @@
+:scope .choices { display: flex; gap: 0.5rem; }
+:scope .choice { font: inherit; padding: 0.25rem 0.9rem; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--fg); cursor: pointer; }
+:scope .choice[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+:scope .save { font: inherit; padding: 0.5rem 1.25rem; border: 0; border-radius: 0.375rem; background: var(--accent); color: #fff; cursor: pointer; }
+:scope .save:disabled { opacity: 0.6; cursor: default; }
+:scope .state { color: var(--muted); }
+:scope .failure { color: var(--danger); }

@@ -1,0 +1,12 @@
+<shell class="layout" theme={theme}>
+  <header class="bar">
+    <link class="brand" href={home} current="false">{site}</link>
+    <nav class="menu" label="Menu">
+      <link class="nav-link" href="/orders" current="false">Orders</link>
+    </nav>
+    <theme-toggle theme={theme} on.toggle={toggleTheme()} />
+  </header>
+  <main id="content" tabindex="-1">
+    <screen />
+  </main>
+</shell>

@@ -1,0 +1,16 @@
+<div class="order-detail">
+  {#if detailPhase == "loading"}<para class="state">Loading order…</para>{/if}
+  {#if detailPhase == "failed"}<para class="state failure">This order could not be loaded.</para>{/if}
+  {#if detailPhase == "ready"}
+    <h2 id="order">Order {detail.id}: {detail.customer}</h2>
+    <para class="total">Total {detail.total}</para>
+    <para class="current">Status: <span class="now">{detail.status}</span></para>
+    <para class="choices">
+      <button class="choice" pressed={choice == "open" ? "true" : "false"} on.click={choose("open")}>Open</button>
+      <button class="choice" pressed={choice == "paid" ? "true" : "false"} on.click={choose("paid")}>Paid</button>
+      <button class="choice" pressed={choice == "shipped" ? "true" : "false"} on.click={choose("shipped")}>Shipped</button>
+    </para>
+    <button class="save" disabled={!changed || saving} on.click={saveStatus(save)}>{saving ? "Saving…" : "Save status"}</button>
+    {#if saveError != ""}<para class="state failure" id="save-error">{saveError}</para>{/if}
+  {/if}
+</div>

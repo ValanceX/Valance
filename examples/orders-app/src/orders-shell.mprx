@@ -1,0 +1,24 @@
+<div class="orders-shell">
+  <h1 id="orders">Orders</h1>
+  <nav class="filters" label="Filter by status">
+    <link class="filter" href="/orders" current={filter == "all" ? "page" : "false"}>All</link>
+    <link class="filter" href="/orders?status=open" current={filter == "open" ? "page" : "false"}>Open</link>
+    <link class="filter" href="/orders?status=paid" current={filter == "paid" ? "page" : "false"}>Paid</link>
+    <link class="filter" href="/orders?status=shipped" current={filter == "shipped" ? "page" : "false"}>Shipped</link>
+  </nav>
+  <div class="split">
+    <div class="list">
+      {#if listPhase == "loading"}<para class="state">Loading orders…</para>{/if}
+      {#if listPhase == "failed"}<para class="state failure">The orders could not be loaded.</para>{/if}
+      {#if empty}<para class="state">No orders with this status.</para>{/if}
+      <list class="rows">
+        {#each rows as r (r.id)}
+          <item><link class="row" href={r.href} current="false">{r.id}: {r.customer}</link> <span class="status">{r.status}</span> <span class="total">{r.total}</span></item>
+        {/each}
+      </list>
+    </div>
+    <div class="detail">
+      <mesh-slot />
+    </div>
+  </div>
+</div>
