@@ -9,6 +9,7 @@ Written 2026-10-16. Statuses below are **as recorded in each source document**; 
 | Document | Scope | Kind | Item IDs | Size |
 |---|---|---|---|---|
 | [`2026-10-16-web-authoring-model.md`](2026-10-16-web-authoring-model.md) | Authoring a web app with `vlx`: styles, rendering mode, routes, dynamic pages, forms, dev paint | Investigation (code reading, nothing run) | WA-1 to WA-7 | 7 items |
+| [`2026-10-16-gap-analysis-and-proposed-work.md`](2026-10-16-gap-analysis-and-proposed-work.md) | Triage of every gap in this register against the ecosystem direction; proposed work packages WP-1 to WP-17; coverage cross-check; decisions Q1 to Q7 | Analysis (reading only) | DP1 to DP10, WP-n, Q-n | |
 | [`../FINDINGS.md`](../FINDINGS.md) | `@valancex/valance` core: lifecycle, history/URLs, application model, async, mounts, hydration | Staged tracer log (Stages 1 to 56+) | Stage numbers; Confirmed / Likely / Unresolved / Open / Deferred subsections | ~2,400 lines |
 | [`../application-model/FINDINGS.md`](../application-model/FINDINGS.md) | First `vlx` tracer (`examples/docs-app`) | Failures, blockers, answers, measurements | F1 to F8 (fixed), D1 to D6 (blockers) | 50 lines |
 | [`../application-model/NEXT-CYCLE.md`](../application-model/NEXT-CYCLE.md) | Authoring API location, CLI-first README, component anatomy | Investigation + decisions + outcome | D1 to D6 (all recorded done) | 148 lines |
@@ -49,9 +50,9 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | ID | Gap | Recorded status | Note |
 |---|---|---|---|
 | F1 to F8 | Tracer implementation failures | Fixed (source) | |
-| D1 | Every primitive prop required | Blocker in source | **Checked:** `webVocabulary.optional` now makes some props optional (`packages/common/src/vocabulary.ts`); a general mechanism was not confirmed. Overlaps WA-5 |
+| D1 | Every primitive prop required | Blocker in source | **Checked, closed for the web vocabulary** (`webVocabulary.optional`; `MULTI-TARGET-PLAN.md` Phase 2 gap 3). Form-specific part is WA-5 |
 | D2 | `mesh-case` cannot contain `mesh-if`/`mesh-switch`/`mesh-slot` | Blocker (MESH language) | Not re-checked |
-| D3 | No string concatenation in MPRX (layout cannot build base-aware addresses) | Blocker (MESH language) | Not re-checked |
+| D3 | No string concatenation in MPRX (layout cannot build base-aware addresses) | Blocker (MESH language) | **Checked:** still true and an explicit non-goal (`MPRX-SPEC.md` §9.4); fix by framework-supplied addresses (WP-12) |
 | D4 | No reusable kit of templates/tags | Blocker (design decision) | Overlaps WA-7 |
 | D5 | State has no URL fragment | Worked around | `onNavigated` restores it |
 | D6 | No hot swap of compiled templates | Blocker (MESH runtime) | README "Limits": updates are reloads |
@@ -73,7 +74,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | ID | Gap (short) | Layer owner in source |
 |---|---|---|
 | F8 | Copy-to-clipboard needs a platform capability | PORT capability design |
-| F9 | No on-page TOC (no anchor/scroll support) | PORT capability design |
+| F9 | No on-page TOC (no anchor/scroll support) | PORT capability design. **Checked: partly closed**, `toc`/`hasToc` are in the layout scope; scroll-spy remains F21 |
 | F12 | Boolean cannot be passed to a text attribute (`aria-pressed`) | PORT realization or MESH coercion |
 | F13 | Required `class` prop on every use | = application-model D1 |
 | F15 | Unknown in-app path rewrites the address bar | stand-in router; phase E |
@@ -81,7 +82,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | F21 | Scrolling is not a nameable event | PORT |
 | F22 | Stored theme read after take-over: flash of system theme | Valance/Port; phase E |
 | F23 | No "presentation drawn" signal; focus/scroll polls | Valance |
-| F31 | Code-group keyboard pattern | verifier |
+| F31 | Code-group keyboard pattern | verifier. **Checked: partly closed**, PORT Web now realizes events by one key (Enter, Escape); the verifier has not adopted it |
 | F16 | `BoundaryValue` not re-exported | `@valancex/valance` |
 
 ### 3.5 From `docs/FINDINGS.md` (core staged log)
@@ -90,7 +91,7 @@ Not itemised. Each stage ends with Confirmed / Likely / Unresolved (or OPEN / NE
 
 ### 3.6 From `PRINCIPLES.md`
 
-P1 and O1 recorded fixed in follow-up releases; P2 (whole cause logged unredacted) recorded as an open `it.fails` probe; P3 rides the next MESH release; O2 to O4 informational.
+P1 and O1 recorded fixed in follow-up releases; P2 (whole cause logged unredacted) was an open `it.fails` probe and is recorded fixed later (`PLATFORMS-HTTP-TITLES.md` row H3: identity only, `onStartFailure` gets the cause); P3 rides the next MESH release; O2 to O4 informational.
 
 ## 4. How to audit coverage later
 
@@ -101,7 +102,7 @@ P1 and O1 recorded fixed in follow-up releases; P2 (whole cause logged unredacte
 
 ## 5. Untracked gaps (no plan or roadmap entry found)
 
-Starting list; not exhaustive until step 3 of §4 has been run.
+Starting list. The [gap analysis](2026-10-16-gap-analysis-and-proposed-work.md) §5 maps every live gap in §3 to a work package; rows marked [?] there still need step 2 of §4.
 
 - WA-1, WA-3, WA-5, WA-6, WA-7: no entry in a roadmap or plan, other than the partial overlaps listed in §3.1.
 - D2 and D3 (MESH language limits): not checked against `Mesh/docs` roadmaps.
