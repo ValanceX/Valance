@@ -7,7 +7,6 @@ body { margin: 0; font: 16px/1.6 system-ui, sans-serif; background: var(--bg); c
 
 .bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--line); }
 .brand { font-weight: 700; color: var(--fg); text-decoration: none; }
-.theme-toggle { font: inherit; padding: 0.25rem 0.75rem; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--fg); cursor: pointer; }
 
 .frame { display: grid; grid-template-columns: 14rem 1fr; gap: 2rem; max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
 .sidebar { font-size: 0.95rem; }

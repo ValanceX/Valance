@@ -9,6 +9,7 @@ import { readContent } from "./content.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError } from "./diagnostics.js";
 import { stylesheets } from "./emit.js";
+import { componentStyles } from "./styles.js";
 import { tagsOf } from "./tags.js";
 import { TARGETS } from "./targets.js";
 import { createLoader } from "./vite.js";
@@ -34,7 +35,7 @@ export interface Info {
   /** The file shown for an address that is not a page, when the project has one. */
   readonly notFound?: string;
   /** The stylesheets the web loads, in the order it loads them. */
-  readonly stylesheets: ReadonlyArray<string>;
+  readonly stylesheets: ReadonlyArray<{ readonly file: string; readonly scope?: string }>;
   /** The components `src/main.ts` registers (the layout first), each with its template and, in a project of several targets, the target whose templates it belongs to. */
   readonly components: ReadonlyArray<{ readonly name: string; readonly template: string; readonly target?: string }>;
   /** How many tags each target's vocabulary has (`vlx info --tags` lists them). */
@@ -93,6 +94,7 @@ export const info = async (root: string): Promise<Info> => {
   }
 
   const base = config.web.base;
+  const scopes = new Map(componentStyles(root).map((each) => [each.file, each.scope]));
 
   return {
     name: config.name,
@@ -107,7 +109,7 @@ export const info = async (root: string): Promise<Info> => {
       delivery: config.web.rendering,
     })),
     ...(content?.notFound === undefined ? {} : { notFound: content.notFound.file }),
-    stylesheets: web ? stylesheets(root) : [],
+    stylesheets: web ? stylesheets(root).map((file) => ({ file, ...(scopes.has(file) ? { scope: scopes.get(file)! } : {}) })) : [],
     components,
     tags: Object.fromEntries(TARGETS.map((each) => [each.id, tagsOf(each.vocabulary).length])),
     problems,
@@ -145,7 +147,7 @@ export const render = (found: Info): string => {
 
   lines.push(found.notFound === undefined ? "  (no content/404.md: a built-in page answers an address that is not a page)" : `  not found: ${found.notFound}`);
   lines.push("");
-  row("styles", found.stylesheets.length === 0 ? "none" : found.stylesheets.join(" → "));
+  row("styles", found.stylesheets.length === 0 ? "none" : found.stylesheets.map((each) => `${each.file}${each.scope === undefined ? "" : ` (inside .${each.scope})`}`).join(" → "));
   row(
     "components",
     found.components.length === 0

@@ -252,6 +252,20 @@ export default component(template, {
 - `override: [component(runs, { props: { spans: … } })]` replaces a built-in (`runs`, `heading-block`, …) with your template of the same name.
 - `layout` is optional; without it the built-in layout draws the page. Its template must be named `layout.mprx`.
 
+### A component's style
+
+A stylesheet that sits beside a template and has its name is **that component's**: `src/theme-toggle.css` beside `src/theme-toggle.mprx`. Its rules apply inside the element that carries the component's name as a class, and nowhere else, so a class name in one component cannot collide with another's. The template's root element writes the class (`<button class="theme-toggle" …>`) and the stylesheet styles it:
+
+```css
+/* src/theme-toggle.css */
+:scope { padding: 0.25rem 0.75rem; border-radius: 999px; }   /* the element with class "theme-toggle" */
+.label { font-weight: 600; }                                  /* a .label inside it, and no other */
+```
+
+It is written as plain CSS and built inside `@scope (.theme-toggle) { … }`, which every current browser supports. Every other stylesheet under `src/` is still global and loaded in path order, as before: the page-wide custom properties, the reset and the layout's rules belong there. `vlx check` (and `vlx build`) refuses a component stylesheet whose template's first element lacks the class (`style-scope`), and a rule in it for `html`, `body` or `:root`, which could never match (`style-global`). `vlx info` shows which stylesheets are scoped.
+
+This is **web CSS, owned by a web template**; it is not part of the portable component, and the desktop target never reads it (in a project of two targets the stylesheet lives in `src/web/` beside the web's template). Why it is shaped this way, and what is not decided: [`docs/application-model/STYLING.md`](../../docs/application-model/STYLING.md).
+
 ### Children and slots
 
 A component places the content its caller writes inside it with `<mesh-slot />`, and may name several places:

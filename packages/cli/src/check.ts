@@ -5,6 +5,7 @@ import { AppError } from "./diagnostics.js";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
+import { checkStyles } from "./styles.js";
 import { createLoader } from "./vite.js";
 
 export interface Checked {
@@ -36,6 +37,10 @@ export const check = async (root: string): Promise<Checked> => {
   }
 
   generateEntries(root, config);
+
+  if (config.targets.includes("web")) {
+    problems.push(...checkStyles(root));
+  }
 
   const content = await collect(problems, () => generateContent(root, config));
   const server = await createLoader(root, config);

@@ -9,6 +9,7 @@ import { loadAuthor } from "./author.js";
 import type { Config } from "./config.js";
 import { loadConfig } from "./config.js";
 import { headersFile } from "./security.js";
+import { checkStyles } from "./styles.js";
 import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
@@ -184,6 +185,14 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
   }
 
   generateEntries(root, config);
+
+  if (selected.includes("web")) {
+    const styles = checkStyles(root);
+
+    if (styles.length > 0) {
+      throw new AppError(styles);
+    }
+  }
 
   stage("content");
 

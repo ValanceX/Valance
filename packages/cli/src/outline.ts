@@ -118,3 +118,20 @@ export const tagsOf = (source: string): ReadonlyMap<string, number> => {
 
   return first;
 };
+
+/** The element a template starts with: its tag and the classes written as literals on it (`class="a b"`). `undefined` for a template with no element. A class built from an expression is not read. */
+export const rootOf = (source: string): { readonly name: string; readonly classes: ReadonlyArray<string> } | undefined => {
+  const first = outline(source).tags[0];
+
+  if (first === undefined) {
+    return undefined;
+  }
+
+  NAME.lastIndex = first.offset + 1;
+
+  const name = NAME.exec(source)![0];
+  const start = source.slice(first.offset, endOfTag(source, first.offset + 1 + name.length));
+  const written = LITERAL("class").exec(start);
+
+  return { name, classes: (written?.[1] ?? written?.[2] ?? "").split(/\s+/).filter((each) => each !== "") };
+};

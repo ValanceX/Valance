@@ -37,7 +37,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 
 | ID | Gap | Sev / layer | Status | Also in |
 |---|---|---|---|---|
-| WA-1 | Component-scoped styles | 2 / FW | Open | NEXT-CYCLE §3 proposal 4 (undecided) |
+| WA-1 | Component-scoped styles | 2 / FW | **Fixed for the web (tier 1)**; portable style language (tier 2) deliberately not built | `application-model/STYLING.md`; `cli/src/styles.ts` |
 | WA-2 | Rendering mode not visible or settable; dev vs build differ | 2 / FW | Open | ROUTING R1 (`delivery`) |
 | WA-3 | Routes undiscoverable, no listing command | 2 / FW | Open | ROUTING (model note) |
 | WA-4 | `defineApp({ routes })`; custom pages, params, query, per-route guard/delivery | 3 / FW | Open (decided, deferred) | ROUTING R1, items 6 and 8; v0.12 "Deferred" |
@@ -104,6 +104,8 @@ Checked against current code; each row replaces a "not re-checked" above.
 | F16 `BoundaryValue` not re-exported | **Fixed** by this pass | `valance/src/index.ts`; `valance/test/boundary-value.test.ts` |
 | Typed `Transport` interceptors | **Closed**: `defineApp({ http: { interceptors } })`, `withInterceptors` | `common/src/index.ts:189` |
 | `defineApp({ platform })` | Still absent; interceptors cover the HTTP case | `common/src/index.ts` |
+| Rendering mode visible (WA-2) | **Fixed (visibility)**: `rendering` in `valance.web.json`, written by `vlx init`, reported by `vlx build`; `client` and `server` refused with the reason. Per-route modes wait for WP-6 | `cli/src/config.ts`, `cli/test/config.test.ts` |
+| Routes and project listing (WA-3) | **Fixed**: `vlx info` (routes with their files, styles, components, settings, tags) | `cli/src/info.ts`, `cli/test/info.test.ts` |
 | Dev first paint (WA-6) | **Fixed for `vlx dev`** (head carries the styles). The built site was not measured | `cli/src/dev.ts`; tests in `cli/test/dev.test.ts` and `examples/docs-app/test/dev.test.ts` |
 | Tag documentation drift (WA-5, docs part) | **Fixed**: the guide's table is generated and tested | `cli/src/tags.ts`, `cli/test/tags.test.ts` |
 | D2, F12, F18, NATIVE-PARITY rows | Still not re-checked | |

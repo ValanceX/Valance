@@ -6,6 +6,7 @@ import { join, relative, sep } from "node:path";
 
 import type { Config } from "./config.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
+import { scoping } from "./styles.js";
 
 export const CLIENT_ENTRY = `${GENERATED_DIR}/client.ts`;
 export const SERVER_ENTRY = `/${GENERATED_DIR}/server.ts`;
@@ -46,7 +47,7 @@ export const baseConfig = (root: string, config: Config, out: string = OUTPUT_DI
   configFile: false,
   base: config.web.base,
   appType: "custom",
-  plugins: [templates(root)],
+  plugins: [templates(root), scoping(root)],
   publicDir: join(root, "public"),
   // The bundler's cache is an intermediate like any other.
   cacheDir: join(root, GENERATED_DIR, "cache"),

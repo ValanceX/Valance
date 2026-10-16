@@ -138,6 +138,25 @@ describe("the built site, in a browser", () => {
     await page.close();
   });
 
+  it("applies a component's own stylesheet inside that component, and only there", async () => {
+    const { page } = await open("/");
+    const toggle = await page.$eval("button.theme-toggle", (button) => ({ radius: getComputedStyle(button).borderRadius, padding: getComputedStyle(button).paddingLeft }));
+
+    expect(toggle).toEqual({ radius: "999px", padding: "12px" }); // theme-toggle.css, written as `:scope { … }`
+
+    // The rules are inside the element with class "theme-toggle": a button that is not one is not styled by them.
+    const other = await page.evaluate(() => {
+      const plain = document.createElement("button");
+
+      document.body.append(plain);
+
+      return getComputedStyle(plain).borderRadius;
+    });
+
+    expect(other).not.toBe("999px");
+    await page.close();
+  });
+
   it("runs under the strict policy the build wrote, with no violation: the site hydrates and the browser reports none", async () => {
     const response = await fetch(`${origin}/`);
     const policy = response.headers.get("content-security-policy") ?? "";

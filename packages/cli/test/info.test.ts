@@ -39,7 +39,7 @@ describe("vlx info", () => {
       ["/guide/writing-pages", "content/guide/writing-pages.md", "static"],
     ]);
     expect(found.notFound).toBe("content/404.md");
-    expect(found.stylesheets).toEqual(["src/styles.css"]);
+    expect(found.stylesheets).toEqual([{ file: "src/styles.css" }, { file: "src/theme-toggle.css", scope: "theme-toggle" }]); // the toggle owns its look
     expect(found.components.map((each) => each.name)).toEqual(["layout", "theme-toggle"]);
     expect(found.tags["web"]).toBeGreaterThan(20);
     expect(found.problems).toEqual([]);
@@ -50,7 +50,7 @@ describe("vlx info", () => {
     const found = await info(root);
 
     expect(found.targets).toEqual(["web", "desktop"]);
-    expect(found.stylesheets).toEqual(["src/web/styles.css"]);
+    expect(found.stylesheets).toEqual([{ file: "src/web/styles.css" }, { file: "src/web/theme-toggle.css", scope: "theme-toggle" }]);
     expect(found.components.map((each) => `${each.target}:${each.name}`)).toEqual(expect.arrayContaining(["web:layout", "desktop:layout"]));
   }, 60_000);
 
