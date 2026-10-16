@@ -261,4 +261,6 @@ Started 2026-10-16, in the order of §7. Each row is a commit on `claude/inspiri
 
 | RF-1 to RF-3 | **Done**, note first and check after (`FORM-PRIMITIVES.md`): `kind`, `invalid`, `describedby`, `id`, `blur`, `focus`. Web in Valance; the Desktop PORT in the Port repository, unreleased. `invalid` needed a `types` rule in the vocabulary, not a PORT Web release (closing F12); the check found that the first mechanism (a DOM property) fails server rendering, and a race (RF-11) that `blur` exposes | `common/src/primitives.ts`, Port `view.rs` |
 
-Not started, as ordered: 6b, 6c, 6e, 6f and the "later, on evidence" group; plus the work WP-8 proposes (see its table).
+| Outlet | **Investigated, not built.** An outlet is a MESH slot; nested screens keep the parent element only if the generated switch follows the route tree (tested in Chromium: nested keeps it, one case per page loses it). Proposed as slice 6g, with three decisions to take first | `ROUTES.md` "Nested routes and the outlet", `cli/test/outlet.test.ts` |
+
+Not started, as ordered: 6b, 6c, 6e, 6f, 6g and the "later, on evidence" group; plus the work WP-8 proposes (see its table).

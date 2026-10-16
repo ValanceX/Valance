@@ -268,3 +268,84 @@ Checked 2026-10-16 against the code and tests in `cli/src/screens.ts`, `cli/test
 | R-29 Cost | Matches | With no screens `<screen />` becomes exactly `<blocks items={blocks} />`, so the program is the one the old layout compiled (`expandScreen` test); the manifest gains one empty `screen` entry |
 
 Also added: a route name must be letters, digits, `-` and `_` starting with a letter (it is compared in the generated switch).
+
+## Nested routes and the outlet (investigation, 2026-10-16)
+
+**Question.** Other frameworks put a component "at the outlet's position": a parent route's component says where its child goes. Is that what `<screen />` is, what would it take to do it for nested routes, and does it need a new concept? **Status: investigated, evidence gathered, not built.** The proposal below is not normative until it is decided; it would be slice 6g.
+
+### What other frameworks do
+
+| Framework | The outlet | The child | What stays mounted |
+|---|---|---|---|
+| React Router | `<Outlet />` in the parent's element: "the hole" where the matching child appears; an index child fills it at the parent's own path; omit it and the child never shows ([tutorial sources](https://www.luisllamas.es/en/react-router-nested-routes/); the official page was not found in the search) | A route nested under the parent in the route table | The parent, so its state survives child navigations |
+| Vue Router | `<router-view>` in the parent component; named `<router-view name="…">` with a route's `components` map for several outlets; an empty-path child fills the parent's outlet at the parent's path ([nested routes](https://router.vuejs.org/guide/essentials/nested-routes)) | `children` of a route | The parent component |
+| Angular | `<router-outlet>`; unnamed is the primary, named ones are auxiliary routes with their own URL segment; a route names its `outlet` ([auxiliary routes](https://angularindepth.com/article/auxiliary-routes-in-angular/), secondary source) | `children` of a route | The parent component |
+| TanStack Router | `<Outlet />`, no props, anywhere in the parent's tree; renders nothing when no child matches; pathless layout routes group routes with a layout and no segment ([nested routes](https://www.mintlify.com/TanStack/router/router/guides/nested-routes), a mirror of the guide) | Routes whose path extends the parent's (file-based) | The layout |
+| SvelteKit | No outlet tag: a `+layout.svelte` receives `children` and places it with `{@render children()}`; layouts nest to any depth by folder ([routing](https://svelte.dev/docs/kit/routing/llms.txt)) | The page or the next layout in the folder tree | The layouts above the change |
+| Next.js (App Router) | No outlet tag: a `layout` receives `children`; a *template* is the variant that is re-created on every navigation ([LogRocket](https://blog.logrocket.com/guide-next-js-layouts-nested-layouts), secondary) | The page or the next layout | Layouts keep state; templates reset it |
+
+What they agree on:
+
+1. **The parent decides where the child goes.** An outlet, or a `children` placeholder, is *in the parent's template*, so the parent's author controls the frame. The router does not wrap or position.
+2. **The point is persistence.** Everything that explains the outlet (React, TanStack, Next) comes back to the parent *staying mounted* while the child changes: its state, its focus, its scroll, its open menu.
+3. **Nothing in the child's place is a valid state.** TanStack renders nothing, Vue and React use an index (empty-path) child for the parent's own address.
+4. **Two spellings of one idea**: a named tag the router provides (`Outlet`, `router-view`, `router-outlet`) and the view library's own children/slot mechanism (Svelte, Next). The first exists where the view library has no general way to pass content in; where it has, the router uses it.
+5. **More than one outlet is a feature of its own** (Vue named views, Angular auxiliary routes), added after the single outlet, with a place in the URL (Angular) or not (Vue).
+
+### What this ecosystem already has
+
+- **`<screen />` is an outlet at the top level.** The layout writes it where the page goes; the framework fills it with the screen of the route shown (slice 6d). It is the "root outlet".
+- **A MESH slot is the general outlet.** A component places the content its caller writes inside it with `<mesh-slot />`; the content is the **caller's**, so it sees the caller's names (`who`, `route`, the state) and not the parent's. That is Svelte's `children`, not React's `<Outlet />`: it needs no router concept.
+
+### The evidence
+
+`packages/cli/test/outlet.test.ts` writes an account area by hand with today's features (a shell with a slot, two pages) in the two shapes a generator could produce, builds it, and drives it in Chromium:
+
+| Shape | Result |
+|---|---|
+| `<account-shell who={who}>{#if route == "profile"}<profile-page />{:else}<security-page />{/if}</account-shell>` inside one `{#if}` for the whole area | The child is drawn inside the shell's slot (`<div class="shell"><p class="menu">Account of Ada</p><p class="profile">Profile</p></div>`); the shell received `who` from the layout's scope; **going from Profile to Security keeps the same shell element** (identity compared in the page) |
+| One case per page, the shell written in each (`{#if route == "profile"}<account-shell>…</account-shell>{:else if route == "security"}<account-shell>…`) | Works, but **the shell is drawn again** on every change: a different branch is a different subtree, so anything the shell owns would reset |
+
+So the outlet needs no new language feature, and the persistence that makes an outlet worth having depends entirely on **how the switch is written**: nested (a tree following the route tree) preserves the parent; flat (a case per leaf, which is what 6d writes today) does not.
+
+### Proposal (slice 6g): nested routes whose screens nest through slots
+
+Not built. A sketch to decide on:
+
+```ts
+routes: {
+  account: route("/account", {
+    screen: accountShell,                       // its template has <mesh-slot />: the outlet
+    enter: (_, state) => ({ ...state, area: "account" }),
+    children: {
+      profile: route("/profile", { screen: profilePage }),     // /account/profile
+      security: route("/security", { screen: securityPage }),  // /account/security
+    },
+  }),
+}
+```
+
+- **The outlet is `<mesh-slot />`** in the parent screen's template. No new tag. Where the parent's author wants to see it named, a documented alias is possible, but the precedent (Svelte, Next) is that where the view language already has children, the router uses it.
+- **Names are dotted**: the leaf is `account.profile` (what `route` reads), the parent alone is `account`. The route-name rule widens to allow `.`.
+- **Matching**: the framework flattens the tree into full patterns (`/account`, `/account/profile`) for the router it already uses. Parameters and query of every level arrive as one input; `enter` runs parent first, then child, as transitions on the same state; `title` is the deepest one given.
+- **The generated switch follows the tree** (the nested shape above): for each parent, one `{#if route == "account" || route == "account.profile" || …}` around its screen, and inside it the switch over its children. This is 6d's generator, recursive. Each level is wired by name, as in 6d.
+- **The parent alone** (`/account`) draws the parent with an empty slot, or its `index` child if the route names one (`index: profilePage`, React's index route, Vue's empty path).
+- **The root outlet is unchanged**: the layout's `<screen />`.
+- **Static pages**: a build writes the pages of the leaves (and of a parent with no children). `staticParams` is given on the leaf, as the full parameter set, because a parent's parameters are part of the leaf's address.
+
+Cost: about the size of 6d (the engine flattens and merges; the generator recurses; `vlx info` shows the tree; tests for three levels, an index child, parameter inheritance, the order of `enter`, and the identity of every ancestor in a browser). The risk is the generated disjunction growing with the tree, and the diagnostics: a type error inside a nested use would name the layout's `<screen />` line (as in 6d) rather than the level.
+
+### What it does not settle
+
+- **Named outlets** (several slots filled by one route: a sidebar and a main area). MESH has named slots (`<mesh-slot name="side" />`, `<mesh-fill slot="side">`); a route could name a screen per slot. Vue and Angular added this after the single outlet and it is a separate decision with a place in the URL to settle (Angular) or not (Vue).
+- **Layouts for content pages.** A section of Markdown pages inside a shell (SvelteKit's folder layouts) is a different question: the pages are not routes. A `content/guide/` shell would be a property of a directory.
+- **Pathless grouping** (TanStack's layout routes: a shared screen with no segment of its own). A parent whose own address is not a page; needs a way to say so.
+- **Per-level guards and `beforeunload`** (slice 6f), which attach naturally to the levels once there are levels.
+
+### Recommendation
+
+**Build it as the outlet-by-slot design above (slice 6g), after 6b/6c.** The investigation shows the language needs nothing new; the work is route-tree semantics (flatten, merge, order) plus making the 6d generator recursive. Keep `<mesh-slot />` as the outlet and document it in routing terms; do not add `<outlet />` now. Decide three things first:
+
+1. **Names**: dotted leaves (`account.profile`) as proposed, or keys that stay flat with a `parent` reference. Dotted keeps the tree visible in `route` comparisons and in `vlx info`.
+2. **`staticParams` on nested routes**: on the leaf, the full set (proposed), or composed from each level.
+3. **An `index` child** as a key of the parent (`index: screen`), or as a child with the empty path.
