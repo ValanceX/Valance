@@ -10,7 +10,7 @@ import { Effect, Schema, Stream } from "effect";
 import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
-import { addressOf, tidy } from "./routes.js";
+import { addressOf, followed, tidy } from "./routes.js";
 import { conflicts, RouteDeclarationError, routingFor, screenName } from "./routing-engine.js";
 import type { Routing } from "./routing-engine.js";
 import { derivedOf } from "./index.js";
@@ -58,6 +58,12 @@ const persistedFields = (author: DefinedApp | undefined): ReadonlyArray<string> 
 
 /** The key the persisted fields are stored under. */
 const STORE_KEY = "state";
+
+/** What a route's guard sees as the state: the fields, and the derived values worked out from them, as a layout sees them (so a rule written once, in `derived`, is not written again in a guard). */
+export const withDerived = <S extends object>(author: DefinedApp | undefined, state: S): S & Readonly<Record<string, unknown>> => ({
+  ...state,
+  ...derivedValues(author, state as never),
+});
 
 /** The derived values for a state, by name. */
 const derivedValues = (author: DefinedApp | undefined, state: AppState): Readonly<Record<string, unknown>> =>
@@ -311,7 +317,7 @@ const navigationCommands = (
     const cut = raw.indexOf("?");
     const path = tidy(cut < 0 ? raw : raw.slice(0, cut));
 
-    return (routing.any ? routing.match(`${path}${cut < 0 ? "" : raw.slice(cut)}`)?.address : undefined) ?? tidy(raw);
+    return followed(routing, (routing.any ? routing.match(`${path}${cut < 0 ? "" : raw.slice(cut)}`)?.address : undefined) ?? tidy(raw));
   };
   const go = (current: AppState, address: string): AppState => {
     const id = addressOf(address);
@@ -330,7 +336,7 @@ const navigationCommands = (
   /** The application-wide guard first (R-18), then the routes' (R-61): the address to go to, or `undefined` when something refuses. */
   const asked = (current: AppState, to: string, kind: "programmatic" | "history"): Effect.Effect<string | undefined> =>
     Effect.flatMap(askedGuard(current, to, kind), (allowed) =>
-      allowed === undefined || !routing.hasGuards || allowed === current.page ? Effect.succeed(allowed) : routing.decide(current.page, allowed, current, kind),
+      allowed === undefined || !routing.hasGuards || allowed === current.page ? Effect.succeed(allowed) : routing.decide(current.page, allowed, withDerived(author, current), kind),
     );
   const guarded = (target: (current: AppState) => string | undefined, kind: "programmatic" | "history", apply: (current: AppState, to: string) => AppState) =>
     Effect.gen(function* () {

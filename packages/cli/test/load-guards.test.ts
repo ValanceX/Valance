@@ -354,3 +354,41 @@ describe("leaving the page (R-64)", () => {
     expect(render(found)).toContain("an alias, no page");
   }, 120_000);
 });
+
+describe("a redirect to a content page (WA-11)", () => {
+  const withAddresses = (): string => {
+    const files: Record<string, string> = Object.fromEntries([...plan(answers).files].filter(([name]) => name !== "package.json" && name !== "valance.json"));
+
+    files["src/main.ts"] = files["src/main.ts"]!.replace(
+      'import { component, defineApp, field } from "@valancex/common";',
+      'import { component, defineApp, field, redirect, route } from "@valancex/common";',
+    ).replace(
+      "export default defineApp({",
+      `export default defineApp({\n  routes: {\n    members: route("/members", { canActivate: () => redirect("/guide/getting-started") }),\n    oldguide: route("/old-guide", { redirectTo: redirect("/guide/getting-started") }),\n  },`,
+    );
+
+    return project(files);
+  };
+
+  it("a guard sends the move to a page of the content, and an alias leads there, in the application and in the files a host reads", async () => {
+    const root = withAddresses();
+
+    expect((await check(root)).diagnostics).toEqual([]);
+
+    const t = await started(root);
+
+    try {
+      await t.run("app/go", "/members");
+      expect((await t.state())["page"]).toBe("/guide/getting-started");
+      await t.run("app/go", "/");
+      await t.run("app/go", "/old-guide");
+      expect((await t.state())["page"]).toBe("/guide/getting-started");
+    } finally {
+      await t.close();
+    }
+
+    await build(root);
+    expect(readFileSync(join(root, "dist/web/_redirects"), "utf8")).toBe("/old-guide  /guide/getting-started  301\n");
+    expect(existsSync(join(root, "dist/web/old-guide"))).toBe(false);
+  }, 240_000);
+});

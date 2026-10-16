@@ -10,7 +10,7 @@ const ROUTER = realpathSync(fileURLToPath(new URL("../../common/node_modules/@va
 const EFFECT = realpathSync(fileURLToPath(new URL("../node_modules/effect", import.meta.url)));
 const made: Array<string> = [];
 
-export const project = (files: Readonly<Record<string, string>>): string => {
+export const project = (files: Readonly<Record<string, string | Buffer>>): string => {
   const root = mkdtempSync(join(tmpdir(), "valance-app-"));
 
   made.push(root);

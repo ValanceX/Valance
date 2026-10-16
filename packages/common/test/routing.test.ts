@@ -81,7 +81,7 @@ const content: Content = {
       description: "d",
       order: 1,
       section: "",
-      blocks: [{ id: "b0", kind: "paragraph", level: 0, anchor: "", spans: [], items: [], ordered: false, lang: "", text: "", src: "", alt: "" }],
+      blocks: [{ id: "b0", kind: "paragraph", level: 0, anchor: "", spans: [], items: [], ordered: false, lang: "", text: "", src: "", alt: "", width: 0, height: 0 }],
       outline: [{ id: "h", label: "H", anchor: "h", level: 2 }],
     },
     { path: "/a", file: "content/a.md", title: "A", description: "", order: 2, section: "", blocks: [], outline: [] },
@@ -450,5 +450,60 @@ describe("a move inside a level is not an entry to it (R-52 amended)", () => {
     expect(list!.stillAt("/orders/2")).toBe(true); // the list was asked for, and an order was opened beside it
     expect(list!.stillAt("/orders?status=paid")).toBe(false);
     expect(list!.stillAt("/")).toBe(false);
+  });
+});
+
+describe("a child is typed with what its parents decode (WA-11)", () => {
+  it("a child made by the parent's `child` function reads the parent's parameters in enter, title and load, and a name no level has is a type error", () => {
+    const shop = route("/shop/:shop", {
+      params: Schema.Struct({ shop: Schema.String }),
+      children: (child) => ({
+        order: child("/orders/:id", {
+          params: Schema.Struct({ id: Schema.NumberFromString }),
+          title: ({ shop, id }) => `Order ${id} of ${shop}`,
+          enter: ({ shop, id }, state) => ({ ...state, shop, order: id }),
+          load: { work: async ({ shop, id }) => `${shop}/${id}`, settle: (_outcome, { shop }, state) => ({ ...state, shop }) },
+        }),
+        bad: child("/bad", {
+          params: Schema.Struct({}),
+          query: Schema.Struct({}),
+          // @ts-expect-error `nope` is decoded by no level
+          enter: ({ nope }, state) => ({ ...state, nope }),
+        }),
+      }),
+    });
+    const routing = routingOf({ shop });
+
+    expect(routing.match("/shop/a/orders/7")).toMatchObject({ name: "shop.order", input: { shop: "a", id: 7 } });
+    expect(routing.titleOf("/shop/a/orders/7")).toBe("Order 7 of a");
+    expect((routing.arrive({ page: "/shop/a/orders/7", route: "" } as never) as Record<string, unknown>)["shop"]).toBe("a");
+  });
+});
+
+describe("a redirect that names an address (WA-11)", () => {
+  const run = <A>(effect: import("effect").Effect.Effect<A>): Promise<A> => import("effect").then(({ Effect }) => Effect.runPromise(effect));
+
+  it("a guard may send the move to a content page, which a route name cannot name", async () => {
+    const routing = routingOf({
+      home: route("/"),
+      account: route("/account", { canActivate: () => redirect("/guide/sign-in") }),
+      open: route("/open", { canActivate: () => redirect("//evil.example/x") }),
+    });
+
+    expect(await run(routing.decide("/", "/account", {}, "programmatic"))).toBe("/guide/sign-in");
+    expect(await run(routing.decide("/", "/open", {}, "programmatic"))).toBeUndefined(); // not an address of the application: refused
+    expect(await run(routing.decide("/", "/", {}, "programmatic"))).toBe("/");
+  });
+
+  it("an alias may lead to a content page: followed, without a page of its own, and written for a host", async () => {
+    const { followed } = await import("../src/routes.js");
+    const routing = routingOf({ old: route("/old", { redirectTo: redirect("/guide/start") }), real: route("/real") });
+
+    expect(routing.alias("/old")).toBe("/guide/start");
+    expect(followed(routing, "/old")).toBe("/guide/start");
+    expect(followed(routing, "/real")).toBe("/real");
+    expect(routing.redirects).toEqual([{ from: "/old", to: "/guide/start" }]);
+    expect(routing.pages().addresses).toEqual(["/real"]);
+    expect(() => routingOf({ old: route("/old", { redirectTo: redirect("//evil.example") }) })).toThrow("not a route");
   });
 });

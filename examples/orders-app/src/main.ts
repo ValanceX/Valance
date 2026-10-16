@@ -80,7 +80,8 @@ export default defineApp({
           params: Schema.Struct({ id: Schema.String }),
           title: ({ id }) => `Order ${id}`,
           screen: orderDetail,
-          canDeactivate: ({ state }) => !(state.choice !== state.detail.status && state.detail.id !== ""),
+          // a guard sees the derived values, so the rule is written once, in `changed`
+          canDeactivate: ({ state }) => !state.changed,
           load: {
             begin: ({ id }, s) => ({ ...s, detail: { ...None, id }, detailPhase: "loading", saveError: "" }),
             work: ({ id }) => request({ path: `/orders/${id}`, response: Detail }),

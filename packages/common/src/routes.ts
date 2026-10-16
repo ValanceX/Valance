@@ -30,13 +30,31 @@ export const tidy = (path: string): string => {
 
 export const urlOf = (content: Content, path: string): string => pageUrl(content.site.base, path, content.site.trailingSlash);
 
+/** Where an alias leads (a route with `redirectTo`), followed to the end (at most eight hops); any other address is itself. */
+export const followed = (routing: Routing, address: string): string => {
+  let here = address;
+
+  for (let hops = 0; hops < 8; hops += 1) {
+    const next = routing.any ? routing.alias(here) : undefined;
+
+    if (next === undefined) {
+      return here;
+    }
+
+    here = routing.match(next)?.address ?? next;
+  }
+
+  return here;
+};
+
 /**
  * The address a URL is, inside the application: a declared route's canonical path and query, or the content page's path. The query belongs to a declared route only; a content page has none.
  */
 export const addressOf = (content: Content, routing: Routing, url: { readonly pathname: string; readonly search: string }): string => {
   const path = normalize(url.pathname, content.site.base);
+  const matched = (routing.any ? routing.match(`${path}${url.search}`)?.address : undefined) ?? path;
 
-  return (routing.any ? routing.match(`${path}${url.search}`)?.address : undefined) ?? path;
+  return followed(routing, matched);
 };
 
 export const routes = (content: Content, routing: Routing = routingFor(undefined)): RouteTable<PageState> => ({

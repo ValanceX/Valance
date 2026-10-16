@@ -12,7 +12,7 @@ import { watchColorScheme } from "./color-scheme.js";
 import { watchViewport } from "./viewport.js";
 
 import type { AppState, Built } from "./app.js";
-import { application, stateFor } from "./app.js";
+import { application, stateFor, withDerived } from "./app.js";
 import { plugin } from "./web-app.js";
 import { urlOf } from "./routes.js";
 import { pageAt } from "./scope.js";
@@ -120,7 +120,7 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       addEventListener("beforeunload", (event) => {
         const read = Effect.runSyncExit(host.handle.state);
 
-        if (read._tag === "Success" && routing.leaveBlocked(read.value as never)) {
+        if (read._tag === "Success" && routing.leaveBlocked(withDerived(author, read.value as never))) {
           event.preventDefault();
           event.returnValue = ""; // some browsers still need it
         }

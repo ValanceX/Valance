@@ -430,13 +430,15 @@ account: route("/account", {
 old: route("/old", { redirectTo: redirect("account") }),
 ```
 
-These are `@valancex/router`'s guards on a declared route (`redirect` comes from `@valancex/common`): the answer is `true`, `false` or `redirect("route-name")`, plain, a Promise or an Effect; one that fails or throws refuses. They are asked by `go`, `back` and `forward` after the application-wide `guard`: the route being left first (not when only the query changes), then the route being entered; a redirect restarts the entering side at its target. A parent's guards are asked when a move enters or leaves the parent, not when it moves between its children. A redirect names a declared route (not a content page).
+These are `@valancex/router`'s guards on a declared route (`redirect` comes from `@valancex/common`): the answer is `true`, `false` or `redirect("route-name")`, plain, a Promise or an Effect; one that fails or throws refuses. They are asked by `go`, `back` and `forward` after the application-wide `guard`: the route being left first (not when only the query changes), then the route being entered; a redirect restarts the entering side at its target. A parent's guards are asked when a move enters or leaves the parent, not when it moves between its children. A redirect names a declared route, or an address of the application (`redirect("/guide/sign-in")`, a content page included; an address outside the application is refused). A route's guards are given the `state` with the derived values, so a rule written once in `derived` is not written again.
 
 `redirectTo` makes an **alias**: `go("/old")` and the first state for `/old` land on the target. The alias has no page; `_redirects` gets `/old  /account  301` and `vlx dev` answers it with a 302. Its pattern may not carry the source's parameters to the target (the target is fixed), and an alias shows nothing of its own (`screen`, `load`, `children` and guards on it are refused).
 
 `canDeactivate` also guards **closing the page**: when any route has one, the page asks the guards of the route shown with the kind `"close"`, and an answer of `false` makes the browser ask the person before the page goes. A browser cannot wait, so **only an answer given at once counts** (a value, or an Effect that finishes without waiting); a Promise is ignored on close. A desktop window asks the same when it is asked to close, and there a guard may wait.
 
 ### Routes inside routes: `children`, `index` and the outlet
+
+Written as a function, `children: (child) => ({ detail: child("/:id", { … }) })`, the children are typed with what their parents decode, so a child's `enter`, `title` and `load` read a parent's parameters without a cast.
 
 A route may have `children`: their paths follow the parent's, and a child's name is the parent's, a dot and its key (`account.profile` is what `route` holds). The parent's screen draws its child where it writes **`<mesh-slot />`**: that is the outlet, with no tag of its own.
 

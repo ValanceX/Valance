@@ -9,7 +9,7 @@ import { resolve, sep } from "node:path";
 
 import type * as Valance from "@valancex/valance";
 
-import { application, titleFor } from "./app.js";
+import { application, titleFor, withDerived } from "./app.js";
 import type { AppState } from "./app.js";
 import { Open } from "./open.js";
 import { systemOpen } from "./open-system.js";
@@ -78,7 +78,7 @@ export const hostOptions = ({ content, author, assets }: Pick<DesktopParts, "con
 
   return {
     // A route's `canDeactivate` is asked when the window is asked to close, and may wait (R-64).
-    mayClose: (state) => routingFor(author).mayLeave(state as never),
+    mayClose: (state) => routingFor(author).mayLeave(withDerived(author, state as never)),
     // The window follows the system's colors unless the application asks otherwise (`appearance` in `defineApp`), and the application learns the system's (`colorScheme`).
     appearanceOf: (state) => author?.appearance?.(state as never) ?? "system",
     // How wide the window is, told to the layout as the class of room it has (`viewport`), as the web tells it from the page's width.

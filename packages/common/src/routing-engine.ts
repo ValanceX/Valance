@@ -117,6 +117,10 @@ const NONE: Routing = {
   list: [],
 };
 
+/** A redirect that names an address (`redirect("/guide/start")`) rather than a route: an address inside the application, so a content page can be the target. */
+// oxlint-disable-next-line no-control-regex -- refusing control characters in an address is the point
+const isAddress = (name: string): boolean => name.startsWith("/") && !name.startsWith("//") && !/[\u0000-\u001f\u007f\\\\]/.test(name);
+
 const fail = (message: string): never => {
   throw new RouteDeclarationError(`src/main.ts: ${message}`);
 };
@@ -247,7 +251,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
     }
     if (redirectTo !== undefined) {
       if (typeof redirectTo !== "object" || redirectTo === null || redirectTo._tag !== "Redirect" || typeof redirectTo.name !== "string") {
-        fail(`the route "${name}": \`redirectTo\` is made with redirect("route-name")`);
+        fail(`the route "${name}": \`redirectTo\` is made with redirect("route-name") or redirect("/an/address")`);
       }
 
       const clash = (["screen", "index", "children", "load", "staticParams", "canActivate", "canDeactivate"] as const).filter((setting) => each.config[setting] !== undefined);
@@ -263,7 +267,23 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
     check(name, each, key);
 
-    const children = Object.entries(each.config.children ?? {});
+    // `children` is the routes themselves, or a function that is given the maker of routes typed with what this one decodes (the same routes, typed better).
+    const given = each.config.children;
+    const made =
+      typeof given === "function"
+        ? (given as (child: (pattern: string, config?: DeclaredRoute["config"]) => DeclaredRoute) => Record<string, DeclaredRoute>)((pattern, config = {}) => ({
+            [ROUTE]: true,
+            pattern,
+            config,
+            router: each.router,
+          }))
+        : given;
+
+    if (made !== undefined && (typeof made !== "object" || made === null)) {
+      fail(`the route "${name}": \`children\` is an object of routes, or a function that returns one`);
+    }
+
+    const children = Object.entries(made ?? {});
 
     if (children.length > 0 && /\*[A-Za-z_]*$/.test(each.pattern)) {
       fail(`the route "${name}" has children and its path "${each.pattern}" ends in a rest segment, which takes the rest of the address: there would be nothing left for a child`);
@@ -375,6 +395,19 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
     (state.name === level.name || state.name.startsWith(`${level.name}.`)) &&
     (other === undefined || namesIn(level.pattern).every((name) => JSON.stringify(state.params[name]) === JSON.stringify(other.params[name])));
   const levelsWith = (node: Node, guard: "canActivate" | "canDeactivate"): ReadonlyArray<Node> => node.chain.filter((level) => level.declared.config[guard] !== undefined);
+  // A guard that redirects to an address (a content page) cannot say so to the router, which knows routes only: the guard refuses, and the address it named is what `decide` answers.
+  let toAddress: string | undefined;
+  const redirected = (answer: unknown): unknown => {
+    const name = (answer as { readonly _tag?: string; readonly name?: string } | undefined)?.name;
+
+    if ((answer as { readonly _tag?: string } | undefined)?._tag === "Redirect" && typeof name === "string" && isAddress(name)) {
+      toAddress = name;
+
+      return false;
+    }
+
+    return answer;
+  };
   const activating = (node: Node) => {
     const own = levelsWith(node, "canActivate");
 
@@ -387,7 +420,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
                 continue; // already inside this level
               }
 
-              const answer = yield* permit(level.declared.config.canActivate as never, context);
+              const answer = redirected(yield* permit(level.declared.config.canActivate as never, context));
 
               if (answer !== true) {
                 return answer;
@@ -409,7 +442,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
                 continue; // staying inside this level
               }
 
-              const answer = yield* permit(level.declared.config.canDeactivate as never, context);
+              const answer = redirected(yield* permit(level.declared.config.canDeactivate as never, context));
 
               if (answer !== true) {
                 return answer;
@@ -437,7 +470,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
           ...(query === undefined ? {} : { query }),
           ...(activate === undefined ? {} : { canActivate: activate as never }),
           ...(deactivate === undefined ? {} : { canDeactivate: deactivate as never }),
-          ...(redirectTo === undefined ? {} : { redirectTo }),
+          ...(redirectTo === undefined || isAddress(redirectTo.name) ? {} : { redirectTo }),
         });
       }),
     });
@@ -588,12 +621,23 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       Effect.gen(function* () {
         const target = router.match(to);
         const here = router.match(from);
+
+        toAddress = undefined;
+
         const decision = yield* router.decide({
           from: here.name === router.notFoundName ? undefined : here,
           to: target,
           state: state as never,
           kind,
         });
+
+        if (decision._tag === "Refuse" && toAddress !== undefined) {
+          const named = toAddress;
+
+          toAddress = undefined;
+
+          return named; // a guard sent the move to an address: a content page, or any address of the application
+        }
 
         return decision._tag === "Refuse" ? undefined : decision._tag === "Allow" ? to : router.hrefOf(decision.to);
       }),
@@ -637,12 +681,16 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
       return found === undefined || found.name === aliasRouter!.notFoundName || target === undefined
         ? undefined
-        : router.href(target.name, target.params as never, target.query as never);
+        : isAddress(target.name)
+          ? target.name
+          : router.href(target.name, target.params as never, target.query as never);
     },
     redirects: nodes.flatMap((node) => {
       const target = node.declared.config.redirectTo;
 
-      return target === undefined ? [] : [{ from: node.pattern, to: router.href(target.name, target.params as never, target.query as never) }];
+      return target === undefined
+        ? []
+        : [{ from: node.pattern, to: isAddress(target.name) ? target.name : router.href(target.name, target.params as never, target.query as never) }];
     }),
     screens: nodes.flatMap((node) => (node.declared.config.screen === undefined ? [] : [{ route: node.name, component: node.declared.config.screen }])),
     indexes: nodes.flatMap((node) => (node.declared.config.index === undefined ? [] : [{ route: node.name, component: node.declared.config.index }])),

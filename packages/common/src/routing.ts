@@ -17,7 +17,7 @@ export { redirect };
  *
  *     routes: { order: route("/orders/:id", { params: Schema.Struct({ id: Schema.String }), enter: ({ id }, state) => ({ ...state, orderId: id }) }) }
  */
-export const route = <P = Record<string, string>, Q = Record<string, unknown>>(pattern: string, config: RouteConfig<P, Q> = {}): DeclaredRoute<P, Q> => ({
+export const route = <P = Record<string, string>, Q = {}, A = any>(pattern: string, config: RouteConfig<P, Q, {}, A> = {}): DeclaredRoute<P, Q> => ({
   [ROUTE]: true,
   pattern,
   config,
