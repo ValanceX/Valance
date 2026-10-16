@@ -5,6 +5,12 @@ import type { createRouter } from "@valancex/router";
 
 import type { DeclaredRoute } from "./routing-types.js";
 import { KEYS, ROUTE } from "./routing-types.js";
+import type { Component } from "./index.js";
+
+const COMPONENT = Symbol.for("valancex.common.component");
+
+/** The tag a component is written as: its template's file name. */
+export const screenName = (component: Component): string => (component.template.mprx.split(/[\\/]/).pop() ?? "").replace(/\.mprx$/, "");
 
 /** A mistake in a route declaration, reported with what to change. */
 export class RouteDeclarationError extends Error {
@@ -34,6 +40,8 @@ export interface Routing {
   readonly titleOf: (address: string) => string | undefined;
   /** The addresses a build writes for declared routes (path and canonical query), and the routes that cannot be built without `staticParams`. */
   readonly pages: () => { readonly addresses: ReadonlyArray<string>; readonly missing: ReadonlyArray<string> };
+  /** The routes that name a screen. */
+  readonly screens: ReadonlyArray<{ readonly route: string; readonly component: Component }>;
   /** The routes' names and patterns, for tools. */
   readonly list: ReadonlyArray<{ readonly name: string; readonly pattern: string; readonly parameters: ReadonlyArray<string> }>;
 }
@@ -44,6 +52,7 @@ const NONE: Routing = {
   arrive: (state) => ({ ...state, route: "" }),
   titleOf: () => undefined,
   pages: () => ({ addresses: [], missing: [] }),
+  screens: [],
   list: [],
 };
 
@@ -62,6 +71,9 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
   for (const [name, each] of entries) {
     if (name === "") {
       fail("a route needs a name: the key it has in `routes`");
+    }
+    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)) {
+      fail(`the route name "${name}" must be letters, digits, - and _, starting with a letter: a layout compares \`route\` with it`);
     }
     if (typeof each !== "object" || each === null || each[ROUTE] !== true) {
       fail(`the route "${name}" must be made with route("/path", { … })`);
@@ -82,6 +94,18 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
     }
     if (each.config.title !== undefined && typeof each.config.title !== "string" && typeof each.config.title !== "function") {
       fail(`the route "${name}": \`title\` must be a string or a function`);
+    }
+    const screen = each.config.screen;
+
+    if (screen !== undefined) {
+      if (typeof screen !== "object" || screen === null || (screen as unknown as Record<symbol, unknown>)[COMPONENT] !== true) {
+        fail(`the route "${name}": \`screen\` must be a component made with component(template, { props, events })`);
+      }
+      if (screen.props === undefined || screen.events === undefined) {
+        fail(
+          `the route "${name}": its screen <${screenName(screen)}> must declare both \`props\` and \`events\` (empty if it has none): the framework writes the screen's use from them, and the names cannot be read from a template before it is compiled`,
+        );
+      }
     }
     if (!each.pattern.startsWith("/")) {
       fail(`the route "${name}": the path "${each.pattern}" must start with "/" (and has no base: the site's base is put in front)`);
@@ -174,6 +198,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
       return { addresses, missing };
     },
+    screens: entries.flatMap(([name, each]) => (each.config.screen === undefined ? [] : [{ route: name, component: each.config.screen }])),
     list: entries.map(([name, each]) => ({ name, pattern: each.pattern, parameters: router.route(name)!.pattern.names })),
   };
 };

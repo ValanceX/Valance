@@ -16,7 +16,7 @@
       {/each}
     </nav>
     <main id="content" tabindex="-1">
-      <blocks items={blocks} />
+      <screen />
       <nav class="pager" label="Previous and next page">
         {#if prev.href != ""}<link class="pager-link" href={prev.href} current="false">{prev.label}</link>{/if}
         {#if next.href != ""}<link class="pager-link" href={next.href} current="false">{next.label}</link>{/if}

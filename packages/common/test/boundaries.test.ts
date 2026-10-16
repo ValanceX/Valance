@@ -49,7 +49,7 @@ const closure = (entry: string, seen = new Set<string>()): ReadonlySet<string> =
     seen.add(entry);
     importsOf(readFileSync(`${src}${entry}`, "utf8"))
       .filter((name) => name.startsWith("."))
-      .forEach((name) => closure(name.replace(/\.js$/, ".ts"), seen));
+      .forEach((name) => closure(name.replace(/^\.\//, "").replace(/\.js$/, ".ts"), seen));
   }
 
   return seen;
@@ -77,7 +77,7 @@ describe("the runtime entries", () => {
 
   it("is what the generated entries import, and the author entry loads none of it", () => {
     // The files it loads: the types of an interceptor and of a route declaration (nothing in them runs), and `routing.ts`, which is `route(...)` and the router it carries. Nothing else.
-    expect([...closure("index.ts")].sort()).toEqual(["./routing-types.ts", "./routing.ts", "./transport.ts", "index.ts"]);
+    expect([...closure("index.ts")].sort()).toEqual(["index.ts", "routing-types.ts", "routing.ts", "transport.ts"]);
     expect([...new Set(externals("index.ts").filter((name) => name.startsWith("@valancex/") && name !== "@valancex/valance"))]).toEqual(["@valancex/router"]);
     expect(readFileSync(`${src}transport.ts`, "utf8")).not.toMatch(/^export (?:const|function|class)/m);
   });

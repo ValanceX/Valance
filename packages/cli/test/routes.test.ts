@@ -63,7 +63,7 @@ const withRoutes = (
     )
     .replace("export default defineApp({", `export default defineApp({${options.persist === true ? '\n  persist: ["navigation"],' : ""}${options.routes ?? ROUTES}`);
   const layout = files["src/layout.mprx"]!.replace(
-    "<blocks items={blocks} />",
+    "<screen />",
     '{#if route == "order"}<para class="order">Order {orderId} ({tab}) {title}</para>{:else if route == "settings"}<para class="settings">Settings {title}</para>{:else}<blocks items={blocks} />{/if}\n      <link class="nav-link" href="/orders/1" current="false">Order one</link>\n      <link class="nav-link" href="/settings" current="false">Settings</link>',
   );
 

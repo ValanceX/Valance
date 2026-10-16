@@ -16,6 +16,7 @@ import type { Node, Place } from "./tree.js";
 import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
 import type { TrailingSlash } from "@valancex/common/internal";
 import { underBase } from "./addresses.js";
+import { expandScreen, screenSource } from "./screens.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
@@ -168,6 +169,23 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
     }
   }
 
+  // The screens of the routes: `<screen />` in the layout is replaced by the switch over the routes this target draws (slice 6d).
+  try {
+    for (const [name, template] of found) {
+      const expanded = expandScreen(template.source, name === ROOT, screenSource(author, files), template.path);
+
+      if (expanded !== template.source) {
+        found.set(name, { ...template, source: expanded });
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof AppError)) {
+      throw error;
+    }
+
+    problems.push(...error.diagnostics);
+  }
+
   // Who uses whom is what the templates write: a component's uses are the declared components whose tags its template has.
   const tree = linked(declared, layout, overrides, (name) => [...tagsOf(found.get(name)?.source ?? "").keys()]);
 
@@ -210,8 +228,11 @@ export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabular
     commands: commandTable(author) as never,
   });
 
+  // `<screen />` in the layout is replaced before compiling (screens.ts); it is declared so an editor reading this manifest does not call it unknown.
+  const screen = { props: {}, events: {}, commands: {}, scope: {} };
+
   if (!("tags" in vocabulary)) {
-    return { ...derived, components: { ...vocabulary.components, ...derived.components } };
+    return { ...derived, components: { ...vocabulary.components, ...derived.components, screen } };
   }
 
   // The props the vocabulary says a template may leave out.
@@ -228,7 +249,7 @@ export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabular
     }
   }
 
-  return { ...derived, components };
+  return { ...derived, components: { ...components, screen } };
 };
 
 const isManifestError = (error: unknown): error is Error & { readonly path: string } => error instanceof Error && (error as { readonly _tag?: string })._tag === "ManifestError";

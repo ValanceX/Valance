@@ -16,7 +16,7 @@
       </column>
     {/each}
   {/if}
-  <blocks items={blocks} />
+  <screen />
   <column>
     <heading level={2}>To do</heading>
     <text>{summary}</text>

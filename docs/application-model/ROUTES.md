@@ -128,7 +128,7 @@ components: [orderPage],
 ```
 
 - **R-23 `screen`.** A route may name `screen`: a component made by `component(template, { props, events })`. It must be listed in `components` (of the same definition, or of the target that draws it); otherwise a definition error names the route and the component. A route without `screen` is as in 6a.
-- **R-24 `<screen />`.** A built-in tag with no props. For the route shown it draws that route's screen; for any other address (a content page, the not-found page, a route without a screen) it draws what `<blocks items={blocks} />` draws, so replacing `<blocks … />` by `<screen />` in a layout changes nothing for a project that names no screen. The scaffold's layout and the built-in layouts write `<screen />`.
+- **R-24 `<screen />`.** *(As first written: a built-in tag with no props; see the design correction in the status below, where it became a marker the framework expands in the layout.)* A built-in tag with no props. For the route shown it draws that route's screen; for any other address (a content page, the not-found page, a route without a screen) it draws what `<blocks items={blocks} />` draws, so replacing `<blocks … />` by `<screen />` in a layout changes nothing for a project that names no screen. The scaffold's layout and the built-in layouts write `<screen />`.
 - **R-25 Wiring by name.** The framework writes the screen's use itself: each prop the screen declares is filled from the scope name of the same name (a state field, a derived value, or a framework name such as `title`), and each event it declares runs the command of the same name (`on.save={save()}`, or `save($event)` when the event has a payload). The screen's contract is therefore its interface to the application, and it is the one place the names are written. A screen must declare its contract (`props` and `events`, empty if it has none): the names cannot be read from a template before it is compiled.
 - **R-26 Errors name the route.** A declared prop with no scope name of that name, and an event with no command of that name, are diagnostics at the route's declaration that say which name is missing and where names come from. A type that does not fit (a `Number` state field for a `String` prop) is MESH's own diagnostic, in the generated template, which is called "the screen of route `order`" so it can be found.
 - **R-27 Placed.** If any route names a screen and the layout never writes `<screen />`, that is a diagnostic (`screen-unplaced`): the screen could never be shown.
@@ -250,3 +250,21 @@ What fits here: `route()` carrying its engine is Angular's answer (feature funct
 
 - **D-1: done as recommended.** `trailingSlash: "never" | "always"` in `valance.web.json` (default `never`, written by `vlx init`); `"ignore"` and `"preserve"` are refused with the reason. Every page address the build writes follows it (navigation, Markdown and template links, canonical link, sitemap, declared routes' pages); the page replaces the address bar with the canonical form when it starts. `packages/common/src/url.ts`, `client.ts`; tests in `cli/test/routes.test.ts` ("moves the address bar…", "a site whose pages end in a slash") and `common/test/routing.test.ts`.
 - **D-3: accepted as built.** `route` stays in `@valancex/common`; the boundary test says exactly what the authoring entry loads; the bundle test keeps the router out of a project that declares no route.
+
+### Implementation status, slice 6d
+
+Checked 2026-10-16 against the code and tests in `cli/src/screens.ts`, `cli/test/screens.test.ts` and `common/src/routing-engine.ts`.
+
+**Design correction found while implementing.** R-24 said `<screen />` is a built-in component. It cannot be: a component reads only its props, so a component named `screen` could not see `route`, `blocks` or any state field, which the switch needs. `<screen />` is instead a **marker in the layout's source** that the framework replaces, at compile time, with the switch over the routes (`{#if route == "order"}<order-page … />{:else}<blocks items={blocks} />{/if}`) or, when no route names a screen, with `<blocks items={blocks} />`. The behavior the note stated is unchanged; what changed is what `<screen />` is. It is declared in the manifest so an editor does not call it unknown.
+
+| Statement | Status | Evidence |
+|---|---|---|
+| R-23 `screen` | Matches, with a note | "refuses what cannot work" (not listed → `entry-definition`; no contract → `entry-definition`). **Note:** "listed" means listed in `components` or `override` of the definition or of any target, not only the target that draws it; a screen listed for one target and drawn on another is not caught |
+| R-24 `<screen />` | **Differs in what it is** (see above); behavior matches | "draws the screen for the route, the content for a page"; `expandScreen` tests; the scaffold, the built-in layouts, docs-app and todo-multi write `<screen />` |
+| R-25 Wiring by name | Matches | `screenSource` test (props by name, events to commands, `$event`); the browser test (a prop follows the state, an event runs its command, twice) |
+| R-26 Errors name the route | Matches for names; **differs for types** | `screen-prop` and `screen-event` name the route, the component and the missing name. A type that does not fit is MESH's `type-mismatch` ("the prop \"count\" of component \"card-page\" needs string, found number") at the `<screen />` line of the layout; it does not name the route and there is no generated template to name |
+| R-27 Placed | Matches | "refuses what cannot work" (`screen-unplaced`); `expandScreen` test |
+| R-28 Targets | Matches at the generator, **not exercised in a project of two targets** | `screenSource` test (a screen not listed for the target writes nothing; a same-named file elsewhere is not it) |
+| R-29 Cost | Matches | With no screens `<screen />` becomes exactly `<blocks items={blocks} />`, so the program is the one the old layout compiled (`expandScreen` test); the manifest gains one empty `screen` entry |
+
+Also added: a route name must be letters, digits, `-` and `_` starting with a letter (it is compared in the generated switch).

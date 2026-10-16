@@ -9,7 +9,7 @@ import { readContent } from "./content.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import { stylesheets } from "./emit.js";
-import { pageUrl, RouteDeclarationError, routingFor } from "@valancex/common/internal";
+import { pageUrl, RouteDeclarationError, routingFor, screenName } from "@valancex/common/internal";
 import { componentStyles } from "./styles.js";
 import { tagsOf } from "./tags.js";
 import { TARGETS } from "./targets.js";
@@ -41,6 +41,8 @@ export interface Info {
     readonly delivery: string;
     readonly pages: ReadonlyArray<string>;
     readonly buildable: boolean;
+    /** The component the route shows (`screen`), when it names one. */
+    readonly screen?: string;
   }>;
   /** The file shown for an address that is not a page, when the project has one. */
   readonly notFound?: string;
@@ -86,6 +88,7 @@ export const info = async (root: string): Promise<Info> => {
       delivery: config.web.rendering,
       pages: addresses.filter((address) => routing.match(address)?.name === each.name).map((address) => pageUrl(config.web.base, address, config.web.trailingSlash)),
       buildable: !missing.includes(each.name),
+      ...(routing.screens.some((screen) => screen.route === each.name) ? { screen: screenName(routing.screens.find((screen) => screen.route === each.name)!.component) } : {}),
     }));
 
     const parts: ReadonlyArray<
@@ -172,7 +175,7 @@ export const render = (found: Info): string => {
 
   for (const each of found.declared) {
     lines.push(
-      `  ${each.pattern}  route "${each.name}"${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
+      `  ${each.pattern}  route "${each.name}"${each.screen === undefined ? "" : ` shows <${each.screen}>`}${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
     );
   }
 

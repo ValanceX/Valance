@@ -17,7 +17,7 @@
       {/each}
     </nav>
     <main id="content" tabindex="-1">
-      <blocks items={blocks} />
+      <screen />
       <section>
         <para class="todo-title">To do</para>
         <para class="todo-summary">{summary}</para>

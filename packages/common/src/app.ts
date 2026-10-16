@@ -10,7 +10,7 @@ import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
 import { addressOf, tidy } from "./routes.js";
-import { conflicts, RouteDeclarationError, routingFor } from "./routing-engine.js";
+import { conflicts, RouteDeclarationError, routingFor, screenName } from "./routing-engine.js";
 import type { Routing } from "./routing-engine.js";
 import { derivedOf } from "./index.js";
 import { Navigation } from "./navigation.js";
@@ -62,7 +62,17 @@ const derivedValues = (author: DefinedApp | undefined, state: AppState): Readonl
 /** Checks the author's definition against the names the framework owns. */
 export const checkDefinition = (author: DefinedApp | undefined): void => {
   try {
-    routingFor(author);
+    const routing = routingFor(author);
+    const whole = [author, ...Object.values(author?.targets ?? {})];
+    const registered = new Set(whole.flatMap((parts) => [...(parts?.components ?? []), ...(parts?.override ?? [])]).map((each) => each.template.mprx));
+
+    for (const { route, component } of routing.screens) {
+      if (!registered.has(component.template.mprx)) {
+        throw new RouteDeclarationError(
+          `src/main.ts: the route "${route}" shows <${screenName(component)}>, which is not listed in \`components\`: list it there so its template is part of the application`,
+        );
+      }
+    }
   } catch (error) {
     throw error instanceof RouteDeclarationError ? new AppDefinitionError(error.message) : error;
   }

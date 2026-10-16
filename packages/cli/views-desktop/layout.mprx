@@ -12,7 +12,7 @@
       </list>
     </column>
   {/each}
-  <blocks items={blocks} />
+  <screen />
   <row>
     {#if prev.href != ""}<link href={prev.href}>{prev.label}</link>{/if}
     {#if next.href != ""}<link href={next.href}>{next.label}</link>{/if}
