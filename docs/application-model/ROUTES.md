@@ -167,3 +167,57 @@ Checked 2026-10-16 against commit `b51ad0d` and the fixes after it, statement by
 ### Not in 6a, as the note said
 
 Per-route guards and redirects, nested routes (6f); `client` delivery (6b); link checking and sitemap (6c); a route that names its screen (6d); loading on entry (6e).
+
+## Precedent for D-1 and D-3
+
+Researched 2026-10-16 from the routers' own documentation (through search; where a page was not read in full or a claim rests on a secondary source, it says so). The question was how other routers reason about the two open decisions, and which reasoning fits this ecosystem's direction.
+
+### D-1: should the address bar be moved to the canonical form?
+
+| Router | What it does | Where the rule lives |
+|---|---|---|
+| SvelteKit | `trailingSlash` is a page option, `'never'` by default: `/foo/` is **redirected** to `/foo`. `'always'` keeps the slash; `'ignore'` accepts both and is described as not recommended, because search engines treat the two as separate pages. The option also decides how prerendered pages are saved: `always/index.html` against `never.html` ([tutorial](https://svelte.dev/tutorial/kit/trailingslash)) | A declared policy, enforced by the server, and tied to the **build output layout** |
+| Next.js | `trailingSlash` in config; by default each request is **redirected (308)** to the configured form; `skipTrailingSlashRedirect` turns that off so both forms return 200 ([docs](https://nextjs.org/docs/app/api-reference/config/next-config-js/skipTrailingSlashRedirect)) | A declared policy, enforced by the server, with an opt-out |
+| TanStack Router | `trailingSlash: 'always' \| 'never' \| 'preserve'`, default `'never'`, set on the router ([API](https://www.mintlify.com/TanStack/router/api/router/router); a secondary source reports it did not hold for splat routes) | A declared policy, in a **client** router |
+| Vue Router | Matches `/users` and `/users/` (and any case) by default; `strict` rejects the trailing slash, `sensitive` makes case matter. It does not rewrite the address ([matching syntax](https://router.vuejs.org/guide/essentials/route-matching-syntax)) | An opt-in strictness; no canonicalization |
+| Astro | `trailingSlash` (`always`, `never`, `ignore`) governs the dev server; for prerendered pages in production the hosting platform decides, and may not respect the setting ([configuration reference](https://docs.astro.build/en/reference/configuration-reference)) | A declared policy, honestly limited by the host |
+| Angular | Not confirmed: the pages found describe `replaceUrl` and when the URL is written, not canonicalization at start ([Router API](https://v19.angular.dev/api/router/Router)) | – |
+
+What they agree on:
+
+1. **A stated policy, not an accident.** Everyone but Vue has a named option with a default (`never` in SvelteKit and TanStack). Vue's tolerance is the exception, and the one that leaves the choice to the author.
+2. **Two forms of one page is a defect, not a feature**: SvelteKit says why (duplicate pages for search engines). Those that tolerate both (`ignore`, `skipTrailingSlashRedirect`, Vue's default) do so as an explicit opt-out.
+3. **Who enforces depends on who can.** A server redirects; a static host cannot be told to, so Astro says the host decides; a client router (TanStack) can only normalize after it starts.
+4. **The policy touches the build output**, not only the URL (SvelteKit's file layout).
+
+What fits here: a static site has no server to redirect (Valance writes `dir/index.html` and `_headers`, and a static host may itself redirect `/guide/a` to `/guide/a/`, verifier finding F26), so the only enforcer this project controls is the page once it starts. The state and the canonical link are already one form. That points to:
+
+- **A named policy**: `trailingSlash` in `valance.web.json`, `"never"` (today's behavior and the default) or `"always"`. No `"ignore"` or `"preserve"`: SvelteKit's own docs advise against ignoring, and a static site cannot honor both without duplicates.
+- **The client enforces it**: at start, when the address bar differs from the canonical form of the state, `history.replaceState` to it (no new entry, no reload), for content pages and declared routes alike. This is TanStack's position on the same constraint.
+- **Not decided here**: the build's file layout under each policy (SvelteKit's `never.html`; Astro's `build.format`), which belongs with delivery slice 6b.
+
+**Recommendation: do this**, rather than accept D-1 as it is. Cost: small (the start-up code in `client.ts` and one setting). It also closes the difference with R-6 as written. What would change the recommendation: if you would rather leave the address as the person typed it (Vue's position), D-1 is accepted and R-6 is reworded.
+
+### D-3: should `route` live in the authoring entry, with the router behind it?
+
+| Router | Where its declaration API lives | What it does about unused code |
+|---|---|---|
+| Vue Router, Solid Router, React Router (declarative), Angular | In the **router's own package** (`vue-router`, `@angular/router`, …), apart from the view library | Not imported, not shipped |
+| Angular | `provideRouter(routes, withXyz())`: the router moved from a module that kept unused features in every bundle to **feature functions** a bundler can drop ([post](https://blog.angular.io/advancements-in-the-angular-router-5d69ec4c032), the 11% figure is secondary) | Features tree-shake because each carries its own code |
+| TanStack Router | `createFileRoute` and friends in the router package; its plugin splits a route into **critical** configuration (matching, params, loaders) and **non-critical** (the component, loaded on demand) ([guide](https://tanstack.com/router/latest/docs/guide/code-splitting)) | The route definition itself is split by what is needed to match |
+| React Router v7 framework mode | The route config helpers (`route`, `index`, `layout`) come from `@react-router/dev/routes`; the runtime from `react-router` ([routes config](https://mintlify.com/remix-run/react-router/routing/route-configuration), secondary source) | The config is read at build time and costs the page nothing |
+| SvelteKit, Next, Astro | Routing is file-based and built in | SvelteKit lets a page opt out of the client router and of hydration (`csr = false`), so a page pays only for what it uses ([page options](https://svelte.dev/docs/kit/page-options/llms.txt)) |
+
+What they agree on:
+
+1. **A route declaration ships with its engine.** Nobody puts the declaration in the view library and the engine somewhere unrelated. Where there is a separate package, the declaration is *in* it.
+2. **The cost is arranged to fall on those who use routing**: separate packages (Vue, Solid), feature functions (Angular), build-time config (React Router), page-level opt-out (SvelteKit).
+3. **No one hides this from the author with a second import path for its own sake**; the separate import is the consequence of a separate package, not a design goal.
+
+What fits here: `route()` carrying its engine is Angular's answer (feature functions that bring their own code) and is already implemented and tested (an application with no route does not ship the router). `@valancex/common` is the authoring package and already depends on `@valancex/router`; `defineApp` and `route` are used together in the same file, so one import is the fewest concepts for the common task. A second entry (`@valancex/common/routes`) would be the Vue/Angular shape, but there the separation exists because the router is a different product from the view library; here the author's one package is the model, and `@valancex/router` stays available for those who build on Valance directly.
+
+**Recommendation: accept D-3 as built.** Keep `route` in `@valancex/common`, keep the relaxed boundary test (it now says exactly what the entry loads: two files that hold types, and `routing.ts`, which is `route` and the router it carries), and keep the bundle test that a project with no route ships no router. Revisit only if a tool that loads the authoring entry (the language server, an editor) shows a cost from the router being in its closure; the move to a subpath is then a re-export and costs a day.
+
+### Sources
+
+[SvelteKit trailingSlash](https://svelte.dev/tutorial/kit/trailingslash) · [SvelteKit page options](https://svelte.dev/docs/kit/page-options/llms.txt) · [Next.js skipTrailingSlashRedirect](https://nextjs.org/docs/app/api-reference/config/next-config-js/skipTrailingSlashRedirect) · [TanStack Router API](https://www.mintlify.com/TanStack/router/api/router/router) · [TanStack code splitting](https://tanstack.com/router/latest/docs/guide/code-splitting) · [Vue Router route matching](https://router.vuejs.org/guide/essentials/route-matching-syntax) · [Astro configuration](https://docs.astro.build/en/reference/configuration-reference) · [Angular Router](https://v19.angular.dev/api/router/Router) · [Angular router advancements](https://blog.angular.io/advancements-in-the-angular-router-5d69ec4c032) · [React Router route configuration](https://mintlify.com/remix-run/react-router/routing/route-configuration). React Router's own handling of trailing slashes was not researched.

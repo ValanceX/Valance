@@ -254,6 +254,6 @@ Started 2026-10-16, in the order of §7. Each row is a commit on `claude/inspiri
 | WP-12(i) | **Done.** A literal `/…` on an `image` `src` or `a`/`link` `href` in a template gets the base, as Markdown does (D3 without changing MPRX) | `cli/src/addresses.ts` |
 | WP-12(ii) | **No work needed.** F18/D2 are superseded by the `{#if}`/`{#each}` block syntax (probe) | register §3.7 |
 
-| WP-6a | **Done**, with a design note written first (`docs/application-model/ROUTES.md`) and a statement-by-statement check after: 14 match, 6 match with a note, 1 differs (address bar not canonicalized), 1 not exercised (desktop). The check found and fixed a crash (a bad `staticParams` entry). Two decisions are open for you: D-1 and D-3 in the note | `common/src/routing*.ts`, `cli/test/routes.test.ts` |
+| WP-6a | **Done**, with a design note written first (`docs/application-model/ROUTES.md`) and a statement-by-statement check after: 14 match, 6 match with a note, 1 differs (address bar not canonicalized), 1 not exercised (desktop). The check found and fixed a crash (a bad `staticParams` entry). Two decisions are open for you: D-1 and D-3 in the note (precedent researched, recommendations recorded there) | `common/src/routing*.ts`, `cli/test/routes.test.ts` |
 
 Not started, as ordered: WP-6d (a route names its screen), WP-8 (the reference form), then 6b, 6c, 6e, 6f and the "later, on evidence" group.
