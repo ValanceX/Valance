@@ -27,6 +27,9 @@ export interface Built {
   readonly styles: ReadonlyArray<string>;
 }
 
+/** Which child is shown at each level of nested routes (`at.l0`, `at.l1`, …): one field per level, so a condition at a level reads only its own (ROUTES.md R-44). */
+const AtSchema = (levels: number) => Schema.Struct(Object.fromEntries(Array.from({ length: levels }, (_, level) => [`l${level}`, Schema.String])));
+
 const PageSchema = Schema.Struct({
   page: Schema.String,
   route: Schema.String,
@@ -66,7 +69,7 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
     const whole = [author, ...Object.values(author?.targets ?? {})];
     const registered = new Set(whole.flatMap((parts) => [...(parts?.components ?? []), ...(parts?.override ?? [])]).map((each) => each.template.mprx));
 
-    for (const { route, component } of routing.screens) {
+    for (const { route, component } of [...routing.screens, ...routing.indexes]) {
       if (!registered.has(component.template.mprx)) {
         throw new RouteDeclarationError(
           `src/main.ts: the route "${route}" shows <${screenName(component)}>, which is not listed in \`components\`: list it there so its template is part of the application`,
@@ -80,6 +83,9 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
   for (const name of authorFields(author)) {
     if (RESERVED.includes(name)) {
       throw new AppDefinitionError(`src/main.ts: the state field "${name}" is a name the layout already reads from the framework (${RESERVED.join(", ")}); choose another`);
+    }
+    if (name === "at" && routingFor(author).levels > 0) {
+      throw new AppDefinitionError(`src/main.ts: the state field "at" is the framework's when routes have children (which child is shown at each level); choose another`);
     }
     if (name === "page" || name === "route" || name === "trail" || name === "cursor") {
       throw new AppDefinitionError(`src/main.ts: the state field "${name}" is the framework's (which page is shown, and the pages visited); choose another`);
@@ -133,7 +139,9 @@ export const ownNames = (author: DefinedApp | undefined): { readonly state: Read
 export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
   const state = stateOf(author);
   const derived = Object.entries(derivedOf(author));
-  const base = state === undefined ? FrameScope : (Schema.extend(FrameScope, state.schema) as unknown as Schema.Schema<any, any, never>);
+  const levels = routingFor(author).levels;
+  const frame_ = levels === 0 ? FrameScope : Schema.extend(FrameScope, Schema.Struct({ at: AtSchema(levels) }));
+  const base = state === undefined ? frame_ : (Schema.extend(frame_, state.schema) as unknown as Schema.Schema<any, any, never>);
 
   // A derived value is a name the layout reads, with the type it was given.
   return derived.length === 0
@@ -143,8 +151,10 @@ export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, 
 
 export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
   const state = stateOf(author);
+  const levels = routingFor(author).levels;
+  const page = levels === 0 ? PageSchema : Schema.extend(PageSchema, Schema.Struct({ at: AtSchema(levels) }));
 
-  return state === undefined ? PageSchema : (Schema.extend(PageSchema, state.schema) as unknown as Schema.Schema<any, any, never>);
+  return state === undefined ? (page as never) : (Schema.extend(page, state.schema) as unknown as Schema.Schema<any, any, never>);
 };
 
 /**
@@ -357,11 +367,12 @@ export const application = (content: Content, program: Valance.Program, author?:
       layout: {
         program,
         scope: (state: AppState) => {
-          const { page, route, ...own } = state;
+          const { page, route, at, ...own } = state as AppState & { readonly at?: unknown };
           const declared = route === "" ? undefined : { name: route, title: routing.titleOf(page) ?? "" };
 
           return {
             ...frame(content, page, state.viewport, state.colorScheme, { canGoBack: state.cursor > 0, canGoForward: state.cursor < state.trail.length - 1 }, declared),
+            ...(at === undefined ? {} : { at }),
             ...own,
             ...derivedValues(author, state),
           };

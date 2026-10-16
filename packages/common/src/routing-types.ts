@@ -28,6 +28,13 @@ export interface RouteConfig<P, Q> {
    * the route's addresses with the app shell and the browser draws the page from the address bar. Use it for a route whose addresses are not known at build time (`/orders/:id` for any id).
    */
   readonly delivery?: "static" | "client";
+  /**
+   * Routes inside this one. Their paths start with "/" and follow this route's (`/account` + `/profile` is `/account/profile`); the child named `profile` of `account` is `account.profile` in `route`.
+   * The parent's screen draws them where it writes `<mesh-slot />`.
+   */
+  readonly children?: Readonly<Record<string, DeclaredRoute>>;
+  /** For a route with `children`: the screen drawn in its slot at the parent's own address (`/account`). Without it the slot is empty there. */
+  readonly index?: Component;
 }
 
 export const ROUTE = Symbol.for("valancex.common.route");
@@ -47,4 +54,4 @@ export interface DeclaredRoute<P = any, Q = any> {
   readonly router: RouterApi;
 }
 
-export const KEYS = ["params", "query", "title", "enter", "screen", "staticParams", "delivery"] as const;
+export const KEYS = ["params", "query", "title", "enter", "screen", "staticParams", "delivery", "children", "index"] as const;

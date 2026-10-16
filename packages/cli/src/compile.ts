@@ -182,7 +182,12 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   // The screens of the routes: `<screen />` in the layout is replaced by the switch over the routes this target draws (slice 6d).
   try {
     for (const [name, template] of found) {
-      const expanded = expandScreen(template.source, name === ROOT, screenSource(author, files), template.path);
+      const expanded = expandScreen(
+        template.source,
+        name === ROOT,
+        screenSource(author, files, (file) => [...found.values()].find((template) => template.path === file)?.source),
+        template.path,
+      );
 
       if (expanded !== template.source) {
         found.set(name, { ...template, source: expanded });

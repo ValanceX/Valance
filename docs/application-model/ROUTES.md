@@ -428,3 +428,25 @@ Checked 2026-10-16 against `common/src/{routing-engine,routing-types,server,clie
 - The shell carries the site's name as `<title>` and no canonical link: it is the same bytes for every address, so anything about the page would be wrong for most. The page sets the title when it starts. (The note said only "empty `#app`".)
 - A client route's `_redirects` line is written from its pattern, so a route that a content page's address also matches is caught by R-4 as before; two client routes with overlapping patterns keep the router's ranking in the page but the host's first-match order in `_redirects` (both lead to the same shell, so the order does not change the result).
 - Not exercised: Cloudflare Pages' and Netlify's own reading of the file (the test's host implements the documented `:name` and `*`).
+
+### Implementation status, slice 6g
+
+Checked 2026-10-16 against `common/src/{routing-engine,routing-types,app}.ts`, `cli/src/{screens,compile,info}.ts`, `common/test/routing.test.ts` ("nested routes") and `cli/test/nested.test.ts`.
+
+| Statement | Status | Evidence |
+|---|---|---|
+| R-39 `children` | Matches, with additions | dotted leaf (`shop.orders.one`), patterns appended, params and query of every level reach every `enter` and `title` as one input, a Schema at a level still refuses (`/orders/x`); a name shared by two levels is an error naming both routes. **Added refusals:** a dotted key, a rest segment above a child, a level whose Schema cannot be merged (give each as `Schema.Struct`) |
+| R-40 `index` | Matches | `/account` draws the shell with the index in its slot (Chromium and the built page); `index` without `children` is an error |
+| R-41 Outlet | Matches | `<mesh-slot />` is the outlet; a parent screen without one is `outlet-missing` naming the route and the template file. Checked only when some child or index of the route is drawn by the target |
+| R-42 Order | Matches | `enter` outermost first on the same state (`shop, orders, one`); deepest title (`Keys · Test`), the nearest above when a level gives none; `delivery` inherited |
+| R-43 Static pages | Matches | pages of the leaves and of a parent with an `index` (`/account`), none for a parent without (`/account/security`); `staticParams` on a parent with children is refused |
+| R-44 Reactivity | **Differs in the shape of `at`; matches in effect** | see below |
+| R-45 No tree walk | Matches | the unit test hides `children` behind a counting getter: the tree is read while flattening and never again by 50 entries, matches and titles, and each of the three levels' `enter` runs once per entry |
+
+**Differences from the note**
+- **`at` has a field per level, not per route that has children.** `at.l0`, `at.l1`, `at.l2` (as many as the tree is deep) hold the key shown at that level (`""` when the route is shallower). The note's own examples already read `at.l0`/`at.l1`; a field per parent would have needed a name per parent. A condition reads only its level, which is what R-44 asked. `at` exists only when some route has children, and a state field called `at` is then refused.
+- **What was observed, and what was not.** Going between siblings changes `route`, `page`, `trail`, `cursor` and only the levels that differ in `at` (`l1`, `l2`; not `l0`) and no other state field (tested at the engine). In Chromium, across three levels, the shell, its menu and the root element are the same elements afterwards, with **no mutation recorded** on the menu's subtree, the shell's attributes or the root's children; the middle level (`security`) is kept while its child changes. The generated text is one equality per case, each on its own `at.lN`, with no `||` and no `route ==` (tested on the expanded layout). **Not measured:** that MESH skips re-evaluating the conditions above the change. That follows from MESH's read-set rule, which this test cannot observe from outside the runtime (an unchanged condition re-evaluated would change no DOM). If it is wanted as evidence, it needs a counter in the MESH runtime.
+- **A parent with no screen** draws its children where it would be (nothing in the note); a child with no screen draws nothing in the slot.
+- **A parametric parent with an `index`** cannot be built statically (R-43 forbids `staticParams` on it): it is `route-static-params`, and the answer is `delivery: "client"`. The message now says so.
+- **Types.** At run time a child's `enter` and `title` receive every level's parameters and query. Their TypeScript type is the child's own `P & Q`, so a child cannot name a parent's parameter without a cast. Merging the types across `children` is possible and not done.
+- **Not exercised:** a project of two targets with nested routes, and the Desktop target (a parent screen listed for one target and drawn on another is not caught, as in 6d). `vlx dev` was not driven with a nested route.

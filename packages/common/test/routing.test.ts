@@ -138,3 +138,135 @@ describe("how a page's address is written (trailingSlash)", () => {
     expect(pageUrl("/", "/guide/a", "never")).toBe("/guide/a");
   });
 });
+
+describe("nested routes (R-39 to R-45)", () => {
+  const calls: Array<string> = [];
+  const shell = { template: { mprx: "src/a.mprx" }, props: {}, events: {}, [Symbol.for("valancex.common.component")]: true } as never;
+  const tree = () => ({
+    shop: route("/shop/:shop", {
+      params: Schema.Struct({ shop: Schema.String }),
+      title: ({ shop }) => `Shop ${shop}`,
+      enter: ({ shop }, state) => (calls.push("shop"), { ...state, shopId: shop }),
+      children: {
+        orders: route("/orders", {
+          enter: (_, state) => (calls.push("orders"), { ...state, area: "orders" }),
+          children: {
+            one: route("/:id", {
+              params: Schema.Struct({ id: Schema.NumberFromString }),
+              query: Schema.Struct({ tab: Schema.optional(Schema.Literal("all", "open")) }),
+              title: ({ id }) => `Order ${id}`,
+              enter: ({ id, tab }, state) => (calls.push("one"), { ...state, orderId: id, tab: tab ?? "all" }),
+              staticParams: () => [{ shop: "a", id: 1 }],
+            }),
+          },
+        }),
+        settings: route("/settings", { staticParams: undefined as never }),
+      },
+    }),
+    home: route("/"),
+  });
+
+  it("names the leaf with dots, appends the patterns, and gives every level's parameters and query to enter as one input (R-39)", () => {
+    const routing = routingOf(tree());
+    const entered = routing.match("/shop/a/orders/7?tab=open");
+
+    expect(entered).toMatchObject({ name: "shop.orders.one", input: { shop: "a", id: 7, tab: "open" }, address: "/shop/a/orders/7?tab=open" });
+    expect(routing.list.map((each) => `${each.name} ${each.pattern}${each.parent === undefined ? "" : ` < ${each.parent}`}`)).toEqual(
+      [
+        "shop /shop/:shop",
+        "shop.orders /shop/:shop/orders < shop",
+        "shop.orders.one /shop/:shop/orders/:id < shop.orders",
+        "shop.settings /shop/:shop/settings < shop",
+        "home / ",
+      ].map((line) => line.trimEnd()),
+    );
+    expect(routing.match("/shop/a/orders/x")).toBeUndefined(); // a level's Schema still refuses
+  });
+
+  it("enters the levels outermost first, on the same state, and the deepest title wins (R-42)", () => {
+    const routing = routingOf(tree());
+
+    calls.length = 0;
+
+    const state = routing.arrive({ page: "/shop/a/orders/7", route: "" } as never) as Record<string, unknown>;
+
+    expect(calls).toEqual(["shop", "orders", "one"]);
+    expect(state).toMatchObject({ route: "shop.orders.one", shopId: "a", area: "orders", orderId: 7, tab: "all" });
+    expect(routing.titleOf("/shop/a/orders/7")).toBe("Order 7");
+    expect(routing.titleOf("/shop/a/orders")).toBe("Shop a"); // no title of its own: the nearest above
+    expect(routing.titleOf("/shop/a/settings")).toBe("Shop a");
+  });
+
+  it("says which child is shown at each level in `at`, one field per level, and not at all when no route nests (R-44)", () => {
+    const routing = routingOf(tree());
+    const at = (page: string) => (routing.arrive({ page, route: "" } as never) as { at: unknown }).at;
+
+    expect(routing.levels).toBe(3);
+    expect(at("/shop/a/orders/7")).toEqual({ l0: "shop", l1: "orders", l2: "one" });
+    expect(at("/shop/a/orders")).toEqual({ l0: "shop", l1: "orders", l2: "" });
+    expect(at("/shop/a/settings")).toEqual({ l0: "shop", l1: "settings", l2: "" });
+    expect(at("/")).toEqual({ l0: "home", l1: "", l2: "" });
+    expect(at("/nowhere")).toEqual({ l0: "", l1: "", l2: "" });
+    expect(routingOf({ order }).levels).toBe(0);
+    expect(routingOf({ order }).arrive({ page: "/orders/1", route: "" } as never)).not.toHaveProperty("at");
+  });
+
+  it("the leaves have pages; a parent has one only with an index; staticParams is the leaf's whole set (R-43)", () => {
+    const routing = routingOf({
+      shop: route("/shop", { children: { all: route("/all"), one: route("/:id", { staticParams: () => [{ id: "1" }] }) } }),
+      help: route("/help", { index: shell, children: { faq: route("/faq") } }),
+    });
+
+    expect(routing.pages()).toEqual({ addresses: ["/shop/all", "/shop/1", "/help", "/help/faq"], missing: [] });
+    expect(routing.indexes.map((each) => each.route)).toEqual(["help"]);
+  });
+
+  it("refuses what cannot work: a clash of inputs across levels, staticParams on a parent, an index without children, a rest segment above a child (R-39, R-43)", () => {
+    const clash = () => routingOf({ a: route("/a/:id", { children: { b: route("/b/:id") } }) });
+    const query = () => routingOf({ a: route("/a", { query: Schema.Struct({ id: Schema.String }), children: { b: route("/b/:id") } }) });
+    const parent = () => routingOf({ a: route("/a", { staticParams: () => [{}], children: { b: route("/b") } }) });
+    const index = () => routingOf({ a: route("/a", { index: shell }) });
+    const rest = () => routingOf({ a: route("/a/*path", { children: { b: route("/b") } }) });
+    const dotted = () => routingOf({ a: route("/a", { children: { "b.c": route("/b") } }) });
+    const slash = () => routingOf({ a: route("/a", { children: { b: route("b" as never) } }) });
+
+    expect(clash).toThrow('"a" and "a.b" both use "id"');
+    expect(query).toThrow('"a" and "a.b" both use "id"');
+    expect(parent).toThrow("has children and `staticParams`");
+    expect(index).toThrow("has an `index` and no `children`");
+    expect(rest).toThrow("ends in a rest segment");
+    expect(dotted).toThrow('the route name "b.c"');
+    expect(slash).toThrow('must start with "/"');
+  });
+
+  it("reads the tree once: entering, matching and titling touch no `children` again, and run each level's enter once (R-45)", () => {
+    let reads = 0;
+    const deep = (level: number): Record<string, ReturnType<typeof route>> =>
+      level === 0
+        ? {}
+        : Object.fromEntries(
+            ["a", "b", "c", "d"].map((key) => {
+              const config = { enter: (_: unknown, state: unknown) => (calls.push(`${key}${level}`), state) } as Record<string, unknown>;
+
+              Object.defineProperty(config, "children", { enumerable: true, get: () => (reads++, deep(level - 1)) });
+
+              return [key, route(`/${key}`, config as never)];
+            }),
+          );
+
+    const routing = routingOf({ root: route("/r", { children: deep(3) }) });
+    const found = reads;
+
+    expect(found).toBeGreaterThan(0); // the tree was read, once, to flatten it
+    calls.length = 0;
+
+    for (let n = 0; n < 50; n++) {
+      routing.arrive({ page: "/r/a/a/a", route: "" } as never);
+      routing.match("/r/a/a/a");
+      routing.titleOf("/r/a/a/a");
+    }
+
+    expect(reads).toBe(found); // not read again
+    expect(calls.length).toBe(50 * 3); // each of the three levels' enter, once per entry, not once per route in the tree
+  });
+});

@@ -398,8 +398,32 @@ components: [themeToggle, orderPage],           // the screen is listed like any
 - **`enter(input, state) => state`** is a pure transition run in the same change that shows the page (`go`, a link, Back and Forward, the first state of a request), so no render shows the page without its state. It cannot change which page is shown. To load data when a route is entered, set state in `enter` and run an ordinary command; a declarative `load` is planned.
 - **`go("/orders/42?tab=open")`** goes to it; the address is written in its canonical form (query keys sorted, no trailing slash) in the address bar. `title` is the page part of the document's title.
 - **An address is a content page or a route, never both**: a route that matches a content page is `route-conflict`.
-- **Static only, for now.** `vlx build` writes a page for a route with no parameters, and one per entry of `staticParams`; a route with parameters and no `staticParams` is `route-static-params` from `vlx check` and `vlx build` (pages only the browser renders arrive with client delivery). `vlx dev` renders any matching address. A static page cannot see its query, so the browser reads it from the address bar when the page opens.
-- **Not yet**: per-route guards and redirects, loading on entry, links checked against routes, routes in `sitemap.xml`. The design and the order are in [`docs/application-model/ROUTES.md`](../../docs/application-model/ROUTES.md).
+- **Pages and delivery.** `vlx build` writes a page for a route with no parameters, and one per entry of `staticParams`; a route with parameters and no `staticParams` is `route-static-params` unless it says `delivery: "client"` (see [How pages are delivered](#how-pages-are-delivered)). `vlx dev` renders any matching address. A static page cannot see its query, so the browser reads it from the address bar when the page opens. The routes' static pages are in `sitemap.xml`; a client route's are not.
+- **Links are checked.** A Markdown link, or a template's literal `href` on `a` and `link`, to an address a declared route matches is a good link (a `#fragment` on it is not checked); one to nothing is `link-broken`, with the file and line (and the column, in a template).
+- **Not yet**: per-route guards and redirects, and loading on entry. The design and the order are in [`docs/application-model/ROUTES.md`](../../docs/application-model/ROUTES.md).
+
+### Routes inside routes: `children`, `index` and the outlet
+
+A route may have `children`: their paths follow the parent's, and a child's name is the parent's, a dot and its key (`account.profile` is what `route` holds). The parent's screen draws its child where it writes **`<mesh-slot />`**: that is the outlet, with no tag of its own.
+
+```ts
+routes: {
+  account: route("/account", {
+    screen: accountShell,                 // its template has <mesh-slot />
+    index: accountHome,                   // what the slot shows at /account itself (optional)
+    enter: (_, state) => ({ ...state, area: "account" }),
+    children: {
+      profile: route("/profile", { title: "Profile", screen: profilePage }),     // /account/profile
+      security: route("/security", { screen: securityPage, children: { keys: route("/keys", { screen: keysPage }) } }),
+    },
+  }),
+}
+```
+
+- `<screen />` writes the tree for you, one level inside the next, each screen wired by name as before. The shell is **the same element** while the child changes, so what it owns (focus, an open menu, scroll) is kept. A parent screen with no `<mesh-slot />` is `outlet-missing`.
+- **The cost of a move is the level that changed.** The state gains `at`, with a field per level (`at.l0`, `at.l1`, …); each level's case reads only its own, so going from `account.profile` to `account.security` changes `route` and `at.l1`, and the cases above it are not re-evaluated. A project with no `children` writes the flat switch on `route` it always did and has no `at` (a state field called `at` is refused when routes nest).
+- `enter` runs parent first, then child, on the same state; the parameters and query of every level reach each as one record (a name used at two levels is an error); the deepest `title` wins.
+- A build writes the pages of the leaves, of a parent with an `index`, and of a parent with no children; a parent with children and no `index` has no page of its own (its address still matches the route). `staticParams` goes on the leaf and is the whole parameter set, the parents' too; a parent that has children may not give it. `delivery` is the parent's unless the child says otherwise.
 
 ## What the project is: `vlx info`
 

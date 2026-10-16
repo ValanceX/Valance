@@ -39,7 +39,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | ID | Gap | Sev / layer | Status | Also in |
 |---|---|---|---|---|
 | WA-1 | Component-scoped styles | 2 / FW | **Fixed for the web (tier 1)**; portable style language (tier 2) deliberately not built | `application-model/STYLING.md`; `cli/src/styles.ts` |
-| WA-2 | Rendering mode not visible or settable; dev vs build differ | 2 / FW | Open | ROUTING R1 (`delivery`) |
+| WA-2 | Rendering mode not visible or settable; dev vs build differ | 2 / FW | **Fixed**: visible in `valance.web.json`; `client` per route and per site (slice 6b); `server` refused | ROUTING R1 (`delivery`) |
 | WA-3 | Routes undiscoverable, no listing command | 2 / FW | Open | ROUTING (model note) |
 | WA-4 | `defineApp({ routes })`; custom pages, params, query, per-route guard/delivery | 3 / FW | Open (decided, deferred) | ROUTING R1, items 6 and 8; v0.12 "Deferred" |
 | WA-5 | Form primitives, validation recipe, missing tags in docs | 2 / FW | Open | application-model D1 (partly) |
@@ -57,7 +57,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-4 | No radio group / select | 2 / FW, PORT | Open: wait for a second form |
 | RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open: decision on the core command surface |
 | RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open: opt-in decoded error body |
-| RF-7 | Content cannot link to a declared route | 2 / FW | Open: slice 6c |
+| RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |
 | RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
 | RF-10 | Can a success navigate from `settle`? | ? | Not tried |
 
@@ -122,7 +122,7 @@ Checked against current code; each row replaces a "not re-checked" above.
 | F16 `BoundaryValue` not re-exported | **Fixed** by this pass | `valance/src/index.ts`; `valance/test/boundary-value.test.ts` |
 | Typed `Transport` interceptors | **Closed**: `defineApp({ http: { interceptors } })`, `withInterceptors` | `common/src/index.ts:189` |
 | `defineApp({ platform })` | Still absent; interceptors cover the HTTP case | `common/src/index.ts` |
-| Declared routes (WA-4) | **Slice 6a done**: `routes` in `defineApp` with params, query, `enter`, static enumeration; checked against the design note, differences recorded | `docs/application-model/ROUTES.md` (Implementation status) |
+| Declared routes (WA-4) | **Slices 6a to 6d and 6g done** (6a, 6b client delivery, 6c links, 6d screens, 6g nested routes and the outlet); 6e and 6f remain. **Slice 6a done**: `routes` in `defineApp` with params, query, `enter`, static enumeration; checked against the design note, differences recorded | `docs/application-model/ROUTES.md` (Implementation status) |
 | Rendering mode visible (WA-2) | **Fixed (visibility)**: `rendering` in `valance.web.json`, written by `vlx init`, reported by `vlx build`; `client` and `server` refused with the reason. Per-route modes wait for WP-6 | `cli/src/config.ts`, `cli/test/config.test.ts` |
 | Routes and project listing (WA-3) | **Fixed**: `vlx info` (routes with their files, styles, components, settings, tags) | `cli/src/info.ts`, `cli/test/info.test.ts` |
 | Dev first paint (WA-6) | **Fixed for `vlx dev`** (head carries the styles). The built site was not measured | `cli/src/dev.ts`; tests in `cli/test/dev.test.ts` and `examples/docs-app/test/dev.test.ts` |
