@@ -111,6 +111,30 @@ What a command-based `enter` was for, **loading data when a route is entered**, 
 | 6e | `load`: a command run on entry that waits, with loading and failure as state | R-8, 6d |
 | 6f | Per-route `canActivate` / `canDeactivate` / `redirectTo`; `beforeunload` on the web; nested routes | R-18 |
 
+## Slice 6d: a route names its screen
+
+Written 2026-10-16, before its implementation, like the rest of this note. Statements continue the numbering; "Implementation status 6d" at the end of the note is filled in after the check.
+
+**The problem.** With 6a a custom page needs an `{#if route == "order"}<order-page … />{:else if …}` chain in the layout, written by hand and kept in step with `routes`. Every router in the precedent below puts the component in the route table; here a component receives data only through props, so naming the component is not enough: the screen also has to be wired to the state.
+
+```ts
+routes: { order: route("/orders/:id", { params, enter, screen: orderPage }) },
+components: [orderPage],
+```
+
+```
+<!-- src/layout.mprx: <screen /> where <blocks items={blocks} /> was -->
+<main id="content" tabindex="-1"><screen /></main>
+```
+
+- **R-23 `screen`.** A route may name `screen`: a component made by `component(template, { props, events })`. It must be listed in `components` (of the same definition, or of the target that draws it); otherwise a definition error names the route and the component. A route without `screen` is as in 6a.
+- **R-24 `<screen />`.** A built-in tag with no props. For the route shown it draws that route's screen; for any other address (a content page, the not-found page, a route without a screen) it draws what `<blocks items={blocks} />` draws, so replacing `<blocks … />` by `<screen />` in a layout changes nothing for a project that names no screen. The scaffold's layout and the built-in layouts write `<screen />`.
+- **R-25 Wiring by name.** The framework writes the screen's use itself: each prop the screen declares is filled from the scope name of the same name (a state field, a derived value, or a framework name such as `title`), and each event it declares runs the command of the same name (`on.save={save()}`, or `save($event)` when the event has a payload). The screen's contract is therefore its interface to the application, and it is the one place the names are written. A screen must declare its contract (`props` and `events`, empty if it has none): the names cannot be read from a template before it is compiled.
+- **R-26 Errors name the route.** A declared prop with no scope name of that name, and an event with no command of that name, are diagnostics at the route's declaration that say which name is missing and where names come from. A type that does not fit (a `Number` state field for a `String` prop) is MESH's own diagnostic, in the generated template, which is called "the screen of route `order`" so it can be found.
+- **R-27 Placed.** If any route names a screen and the layout never writes `<screen />`, that is a diagnostic (`screen-unplaced`): the screen could never be shown.
+- **R-28 Targets.** The switch is written per target from the screens listed for that target. A route whose screen is not listed for a target draws what `blocks` draws there (empty for a route). Nothing is generated for a target whose layout does not write `<screen />` and whose routes name none.
+- **R-29 Cost.** A project that names no screen compiles the same program as before apart from the one-line built-in `screen`.
+
 ## Acceptance tests (what the implementation is checked by)
 
 | Test | Statement |
