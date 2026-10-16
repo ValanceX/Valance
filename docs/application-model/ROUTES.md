@@ -533,3 +533,23 @@ Checked 2026-10-16 against `common/src/{routing-engine,app,client,desktop,server
 - `go` (and Back and Forward) now complete when the route's loads settle, since the loads run inside the command. A caller that awaits `go` waits for the data.
 - `routeStart` is a new framework command (reserved), the application's `start` when it has loads and does not persist; with `persist` the loads start inside `persist`, after the restore, beside the saving.
 - Not tested: a load whose `work` is an Effect needing a capability; loads of nested levels at run time (the engine is tested); the desktop window.
+
+## Security review of the routing surfaces (2026-10-16)
+
+Work package WP-19. Reviewed by reading the code and by tests in `cli/test/routing-security.test.ts` (Chromium, under the policy the build writes); no change to the code was needed.
+
+| Surface | Question | Result |
+|---|---|---|
+| App shell | Does it carry anything of an address, run inline script, or break the strict policy? | Its boot data is JSON in a `type="application/json"` block (`<` escaped), the title is the escaped site name, nothing inline executes. A client route runs under `script-src 'self' 'wasm-unsafe-eval'` with no violation (tested) |
+| `load`'s `work` | Can a route make the page talk to another origin? | The policy's `connect-src 'self'` (plus the configured `api` origin) refuses it, and the load ends as a failure the application can show (tested). The framework adds no allowance |
+| Addresses given to `go` | Can an address take the application elsewhere or run script? | `//host`, `javascript:` and encoded dot-segments become paths that are not pages: the not-found page, same origin, no dialog (tested) |
+| Redirects from guards and `redirectTo` | Open redirect? Loops? | A redirect names a declared route, never an address, so it cannot leave the application; guards that send each other round end as a refusal after eight hops (tested) |
+| `_redirects` | Is anything but the author's patterns and the site's files written to it? | Patterns are the author's, validated by the router (no spaces, `?`, `#`); targets are fixed hrefs of declared routes or the shell; one rule per line (tested) |
+| Dev redirect | Header injection through the `Location` of an alias? | The target is a router-built href (percent-encoded), never request input |
+| Closing the page | Can a guard be used to trap the person? | The browser asks, and the person decides; only an immediate `false` can ask at all, and the dialog is the browser's own text |
+
+**Accepted, and documented here rather than fixed**
+- A **301** is cached by browsers for a long time; an alias that later points elsewhere may keep sending people to the old target. Use it for moves that are meant to last.
+- `settle` receives a rejection **as received**; if an application stores that error in a field named in `persist`, it is kept in the person's store. Store a message, not the response.
+- A guard that never answers leaves `go` waiting (the application-wide guard has always behaved so). The router's guards are meant to answer; a timeout is not added.
+- The close guard runs author code while the page unloads; it can only decide, not wait.
