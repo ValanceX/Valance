@@ -83,6 +83,34 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
 
+  examples/forms-app:
+    dependencies:
+      '@valancex/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      effect:
+        specifier: ^3.10.0
+        version: 3.22.2
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      '@valancex/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@valancex/mesh-lsp':
+        specifier: 0.11.0
+        version: 0.11.0
+      playwright:
+        specifier: 1.56.1
+        version: 1.56.1
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+
   examples/todo:
     dependencies:
       '@valancex/common':

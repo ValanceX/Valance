@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/@valancex/cli/schemas/valance.web.schema.json",
+  "version": 1,
+  "rendering": "static",
+  "trailingSlash": "never",
+  "api": { "base": "/api" }
+}

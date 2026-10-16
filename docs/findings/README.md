@@ -10,6 +10,7 @@ Written 2026-10-16. Statuses below are **as recorded in each source document**; 
 |---|---|---|---|---|
 | [`2026-10-16-web-authoring-model.md`](2026-10-16-web-authoring-model.md) | Authoring a web app with `vlx`: styles, rendering mode, routes, dynamic pages, forms, dev paint | Investigation (code reading, nothing run) | WA-1 to WA-7 | 7 items |
 | [`2026-10-16-gap-analysis-and-proposed-work.md`](2026-10-16-gap-analysis-and-proposed-work.md) | Triage of every gap in this register against the ecosystem direction; proposed work packages WP-1 to WP-17; coverage cross-check; decisions Q1 to Q7 | Analysis (reading only) | DP1 to DP10, WP-n, Q-n | |
+| [`2026-10-16-reference-form.md`](2026-10-16-reference-form.md) | A real sign-up form on a declared route, scored; gaps RF-1 to RF-10 and what they justify | Investigation (built and tested) | RF-1 to RF-10 | 10 items |
 | [`../FINDINGS.md`](../FINDINGS.md) | `@valancex/valance` core: lifecycle, history/URLs, application model, async, mounts, hydration | Staged tracer log (Stages 1 to 56+) | Stage numbers; Confirmed / Likely / Unresolved / Open / Deferred subsections | ~2,400 lines |
 | [`../application-model/FINDINGS.md`](../application-model/FINDINGS.md) | First `vlx` tracer (`examples/docs-app`) | Failures, blockers, answers, measurements | F1 to F8 (fixed), D1 to D6 (blockers) | 50 lines |
 | [`../application-model/NEXT-CYCLE.md`](../application-model/NEXT-CYCLE.md) | Authoring API location, CLI-first README, component anatomy | Investigation + decisions + outcome | D1 to D6 (all recorded done) | 148 lines |
@@ -44,6 +45,22 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | WA-5 | Form primitives, validation recipe, missing tags in docs | 2 / FW | Open | application-model D1 (partly) |
 | WA-6 | Dev HTML has no stylesheet link: unstyled first paint | 2 / FW | Open (cause read, not measured) | verifier F22 (related) |
 | WA-7 | Components inside Markdown | 2 / FW | Open | application-model D4 (related) |
+
+### 3.1b From the reference form (this folder)
+
+| ID | Gap | Sev / layer | Status |
+|---|---|---|---|
+| RF-1 | Text field cannot be a password / email / number (no `type`) | 3 / FW, PORT | Open: justified, build a portable `kind` |
+| RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | Open: justified |
+| RF-3 | No `blur` / `focus` events | 2 / PORT | Open: justified, small |
+| RF-4 | No radio group / select | 2 / FW, PORT | Open: wait for a second form |
+| RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open: decision on the core command surface |
+| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open: opt-in decoded error body |
+| RF-7 | Content cannot link to a declared route | 2 / FW | Open: slice 6c |
+| RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
+| RF-10 | Can a success navigate from `settle`? | ? | Not tried |
+
+WA-5 (form building blocks) is answered by this: no helper; RF-1 to RF-3, RF-5 and RF-6 first.
 
 ### 3.2 From `application-model/FINDINGS.md`
 

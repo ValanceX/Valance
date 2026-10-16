@@ -1,0 +1,30 @@
+<div class="signup-form">
+  <h1 id="signup">Create your account</h1>
+  {#if done}
+    <para class="success">Welcome, {name}. Your {plan} account is ready.</para>
+    <button class="again" on.click={reset()}>Start again</button>
+  {:else}
+    <para class="plans">
+      <button class="plan" pressed={plan == "free" ? "true" : "false"} on.click={setPlan("free")}>Free</button>
+      <button class="plan" pressed={plan == "pro" ? "true" : "false"} on.click={setPlan("pro")}>Pro</button>
+    </para>
+    <div class="field">
+      <textfield value={name} label="Name" placeholder="Ada Lovelace" on.change={setName($event)} on.submit={submit(form)} on.cancel={reset()} />
+      {#if nameError != ""}<para class="error">{nameError}</para>{/if}
+    </div>
+    <div class="field">
+      <textfield value={email} label="Email" placeholder="you@example.com" on.change={setEmail($event)} on.submit={submit(form)} on.cancel={reset()} />
+      {#if emailError != ""}<para class="error">{emailError}</para>{/if}
+    </div>
+    <div class="field">
+      <textfield value={password} label="Password" placeholder="8 characters or more" on.change={setPassword($event)} on.submit={submit(form)} on.cancel={reset()} />
+      {#if passwordError != ""}<para class="error">{passwordError}</para>{/if}
+    </div>
+    <div class="field">
+      <checkbox checked={terms} label="I accept the terms" on.change={setTerms($event)} />
+      {#if termsError != ""}<para class="error">{termsError}</para>{/if}
+    </div>
+    {#if failure != ""}<para class="failure">{failure}</para>{/if}
+    <button class="send" disabled={sending} on.click={submit(form)}>{sending ? "Creating…" : "Create account"}</button>
+  {/if}
+</div>
