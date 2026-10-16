@@ -27,10 +27,16 @@ import type * as Valance from "@valancex/valance";
 import { Schema } from "effect";
 
 import type { Interceptor } from "./transport.js";
+import type { DeclaredRoute } from "./routing-types.js";
+
+export { route } from "./routing.js";
+export type { DeclaredRoute, RouteConfig } from "./routing-types.js";
 
 /** The part of the application's state the framework owns: which page is shown. A command's `state` always has it. */
 export interface PageState {
   readonly page: string;
+  /** The name of the declared route that `page` is (`routes` in `defineApp`), or `""` for a content page and for an address that is not a page. A layout reads it as `route`. */
+  readonly route: string;
   /** How much room the page has: `compact` (under 600 px wide: a phone), `medium` (600 to 839) or `expanded` (840 and up). The framework keeps it current as the window changes; a layout reads it as `viewport`. */
   readonly viewport: Viewport;
   /** The pages visited, in order, for `back` and `forward`: `go` adds the page it goes to after the one shown (and drops any that were ahead). */
@@ -169,6 +175,12 @@ export interface AppDefinition<S extends StateInput = {}> {
    * the content are the one application's.
    */
   readonly targets?: { readonly web?: TargetParts; readonly desktop?: TargetParts };
+  /**
+   * Pages that are not Markdown files: `routes: { order: route("/orders/:id", { params, query, title, enter, staticParams }) }`. A route's name is its key; a layout reads the one shown as `route`
+   * and draws what it needs (`{#if route == "order"}`). `enter` sets state from the address in the same change that shows the page. An address belongs to a content page or to a route, never both.
+   * See `route`.
+   */
+  readonly routes?: Readonly<Record<string, DeclaredRoute>>;
   /** The page's shell. Omit it to use the built-in layout. Its template must be named `layout.mprx`, and it has no props or events: its inputs are the state and the commands. */
   readonly layout?: Component;
   /** Every component of the application besides the layout and the overrides. A template uses one by writing its tag; one that no template writes yet is not part of the program. */

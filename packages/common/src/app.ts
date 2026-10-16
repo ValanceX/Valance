@@ -9,7 +9,9 @@ import { Effect, Schema, Stream } from "effect";
 import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
-import { normalize, tidy } from "./routes.js";
+import { addressOf, tidy } from "./routes.js";
+import { conflicts, RouteDeclarationError, routingFor } from "./routing-engine.js";
+import type { Routing } from "./routing-engine.js";
 import { derivedOf } from "./index.js";
 import { Navigation } from "./navigation.js";
 import * as StoreOps from "./store.js";
@@ -27,6 +29,7 @@ export interface Built {
 
 const PageSchema = Schema.Struct({
   page: Schema.String,
+  route: Schema.String,
   trail: Schema.Array(Schema.String),
   cursor: Schema.Number,
   viewport: Schema.Literal("compact", "medium", "expanded"),
@@ -58,11 +61,17 @@ const derivedValues = (author: DefinedApp | undefined, state: AppState): Readonl
 
 /** Checks the author's definition against the names the framework owns. */
 export const checkDefinition = (author: DefinedApp | undefined): void => {
+  try {
+    routingFor(author);
+  } catch (error) {
+    throw error instanceof RouteDeclarationError ? new AppDefinitionError(error.message) : error;
+  }
+
   for (const name of authorFields(author)) {
     if (RESERVED.includes(name)) {
       throw new AppDefinitionError(`src/main.ts: the state field "${name}" is a name the layout already reads from the framework (${RESERVED.join(", ")}); choose another`);
     }
-    if (name === "page" || name === "trail" || name === "cursor") {
+    if (name === "page" || name === "route" || name === "trail" || name === "cursor") {
       throw new AppDefinitionError(`src/main.ts: the state field "${name}" is the framework's (which page is shown, and the pages visited); choose another`);
     }
   }
@@ -138,6 +147,7 @@ const keepBetweenRuns = (
   state: Parameters<typeof Valance.command>[0],
   command: Valance.CommandMaker<AppState>,
   known: (page: string) => boolean,
+  routing: Routing,
 ) => {
   const names = persistedFields(author);
   const navigation = persisted(author).includes("navigation");
@@ -185,7 +195,7 @@ const keepBetweenRuns = (
           // the pages visited: those that are still pages of the site, and the first page when none is
           const restored = History.restore(list, (entry): entry is string => typeof entry === "string" && known(entry), "/");
 
-          return Effect.succeed({ ...next, trail: restored.entries, cursor: restored.index, page: History.current(restored) });
+          return Effect.succeed(routing.arrive({ ...next, trail: restored.entries, cursor: restored.index, page: History.current(restored) }) as AppState);
         });
       }
 
@@ -217,12 +227,20 @@ const routeOf = (page: string) => ({ name: page, params: {}, query: {} });
  */
 const navigationCommands = (author: DefinedApp | undefined, state: Parameters<typeof Valance.command>[0], command: Valance.CommandMaker<AppState>) => {
   const guard = author?.guard;
-  const go = (current: AppState, address: string): AppState => {
-    const id = tidy(address);
+  const routing = routingFor(author);
+  /** The address `go` is given, as the application knows it: a declared route's canonical address, else the content page's tidied path. */
+  const addressOf = (raw: string): string => {
+    const cut = raw.indexOf("?");
+    const path = tidy(cut < 0 ? raw : raw.slice(0, cut));
 
-    return id === current.page ? current : withList(current, History.push(listOf(current), id));
+    return (routing.any ? routing.match(`${path}${cut < 0 ? "" : raw.slice(cut)}`)?.address : undefined) ?? tidy(raw);
   };
-  const traverse = (current: AppState, distance: number): AppState => withList(current, History.go(listOf(current), distance));
+  const go = (current: AppState, address: string): AppState => {
+    const id = addressOf(address);
+
+    return id === current.page ? current : (routing.arrive(withList(current, History.push(listOf(current), id))) as AppState);
+  };
+  const traverse = (current: AppState, distance: number): AppState => routing.arrive(withList(current, History.go(listOf(current), distance))) as AppState;
   const handle = state as unknown as { readonly get: Effect.Effect<AppState>; readonly update: (f: (current: AppState) => Effect.Effect<AppState>) => Effect.Effect<unknown> };
   /** Asks the guard about a move to `to`; the page to go to instead when it redirects, `undefined` when it stops the move. */
   const asked = (current: AppState, to: string, kind: "programmatic" | "history"): Effect.Effect<string | undefined> =>
@@ -254,7 +272,7 @@ const navigationCommands = (author: DefinedApp | undefined, state: Parameters<ty
   return {
     go: command.effect(Schema.Struct({ id: Schema.String }), ({ id }) =>
       guarded(
-        () => tidy(id),
+        () => addressOf(id),
         "programmatic",
         (latest, to) => go(latest, to),
       ),
@@ -290,7 +308,7 @@ export const commandTable =
     }
 
     return {
-      ...(persisted(author).length === 0 ? {} : { persist: keepBetweenRuns(author, state, command, known) }),
+      ...(persisted(author).length === 0 ? {} : { persist: keepBetweenRuns(author, state, command, known, routingFor(author)) }),
       ...navigationCommands(author, state, command),
       // The window changed size: the browser tells the application, which tells the layout (`viewport`).
       resize: command(Schema.Struct({ viewport: Schema.Literal("compact", "medium", "expanded") }), ({ viewport }, current) => ({ ...current, viewport })),
@@ -302,6 +320,7 @@ export const commandTable =
 
 export const initialState = (author: DefinedApp | undefined): AppState => ({
   page: "/",
+  route: "",
   trail: ["/"],
   cursor: 0,
   viewport: "expanded",
@@ -312,17 +331,27 @@ export const initialState = (author: DefinedApp | undefined): AppState => ({
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);
 
+  const routing = routingFor(author);
+
+  for (const message of conflicts(
+    routing,
+    content.pages.map((each) => each.path),
+  )) {
+    throw new AppDefinitionError(`src/main.ts: ${message}`);
+  }
+
   return Valance.define({
     name: content.site.name,
-    state: { schema: stateSchema(author) as Schema.Schema<AppState>, initial: initialState(author) },
+    state: { schema: stateSchema(author) as Schema.Schema<AppState>, initial: routing.arrive(initialState(author)) as AppState },
     views: {
       layout: {
         program,
         scope: (state: AppState) => {
-          const { page, ...own } = state;
+          const { page, route, ...own } = state;
+          const declared = route === "" ? undefined : { name: route, title: routing.titleOf(page) ?? "" };
 
           return {
-            ...frame(content, page, state.viewport, state.colorScheme, { canGoBack: state.cursor > 0, canGoForward: state.cursor < state.trail.length - 1 }),
+            ...frame(content, page, state.viewport, state.colorScheme, { canGoBack: state.cursor > 0, canGoForward: state.cursor < state.trail.length - 1 }, declared),
             ...own,
             ...derivedValues(author, state),
           };
@@ -330,16 +359,17 @@ export const application = (content: Content, program: Valance.Program, author?:
       },
     },
     view: () => "layout" as const,
-    commands: commandTable(author, (page) => pageAt(content, page) !== undefined) as never,
+    commands: commandTable(author, (page) => pageAt(content, page) !== undefined || routing.match(page) !== undefined) as never,
     ...(persisted(author).length === 0 ? {} : { start: "persist" }),
   });
 };
 
 /** The state a request for `pathname` starts from. */
-export const stateFor = (content: Content, pathname: string, author?: DefinedApp): AppState => {
-  const page = normalize(pathname, content.site.base);
+export const stateFor = (content: Content, pathname: string, author?: DefinedApp, search = ""): AppState => {
+  const routing = routingFor(author);
+  const page = addressOf(content, routing, { pathname, search });
 
-  return { ...initialState(author), page, trail: [page], cursor: 0 };
+  return routing.arrive({ ...initialState(author), page, trail: [page], cursor: 0 }) as AppState;
 };
 
 /**
@@ -348,11 +378,16 @@ export const stateFor = (content: Content, pathname: string, author?: DefinedApp
  */
 export const titleFor = (content: Content, page: ReturnType<typeof pageAt>, state: AppState, author: DefinedApp | undefined): string => {
   let parts: TitleParts = {};
+  const routed = page === undefined ? routingFor(author).titleOf(state.page) : undefined;
+
+  if (routed !== undefined) {
+    parts = { page: routed };
+  }
 
   try {
-    const made = author?.title?.(state as never, { path: state.page, title: page?.title ?? "" });
+    const made = author?.title?.(state as never, { path: state.page, title: page?.title ?? routed ?? "" });
 
-    parts = made === undefined ? {} : typeof made === "string" ? { page: made } : made;
+    parts = made === undefined ? parts : typeof made === "string" ? { ...parts, page: made } : { ...parts, ...made };
   } catch (error) {
     console.error(`the title function in src/main.ts failed (${error instanceof Error ? error.name : "error"}); the default title is used`);
   }

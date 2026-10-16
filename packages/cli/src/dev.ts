@@ -147,9 +147,9 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
               try {
                 const { render } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
-                  render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }) => Promise<{ status: number; html: string }>;
+                  render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }, search?: string) => Promise<{ status: number; html: string }>;
                 };
-                const { status, html } = await render(url.pathname, { script: `${config.web.base}${GENERATED_DIR}/client.ts`, styles: [] });
+                const { status, html } = await render(url.pathname, { script: `${config.web.base}${GENERATED_DIR}/client.ts`, styles: [] }, url.search);
 
                 response.statusCode = status;
                 response.setHeader("content-type", "text/html; charset=utf-8");

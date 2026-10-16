@@ -9,6 +9,7 @@ import { readContent } from "./content.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError } from "./diagnostics.js";
 import { stylesheets } from "./emit.js";
+import { routingFor } from "@valancex/common/internal";
 import { componentStyles } from "./styles.js";
 import { tagsOf } from "./tags.js";
 import { TARGETS } from "./targets.js";
@@ -32,6 +33,15 @@ export interface Info {
   readonly web?: { readonly base: string; readonly url: string; readonly rendering: string; readonly headers: boolean; readonly announce: boolean };
   /** Every page, in navigation order: the web's routes. A route is a Markdown file's path under `content/`. */
   readonly routes: ReadonlyArray<Route>;
+  /** The routes `src/main.ts` declares (`routes` in `defineApp`), beside the content's: name, pattern, parameters, and the pages a build writes for each. */
+  readonly declared: ReadonlyArray<{
+    readonly name: string;
+    readonly pattern: string;
+    readonly parameters: ReadonlyArray<string>;
+    readonly delivery: string;
+    readonly pages: ReadonlyArray<string>;
+    readonly buildable: boolean;
+  }>;
   /** The file shown for an address that is not a page, when the project has one. */
   readonly notFound?: string;
   /** The stylesheets the web loads, in the order it loads them. */
@@ -63,10 +73,20 @@ export const info = async (root: string): Promise<Info> => {
   }
 
   const components: Array<{ name: string; template: string; target?: string }> = [];
+  let declared: Info["declared"] = [];
   const loader = await createLoader(root, config);
 
   try {
     const author = await loadAuthor(loader, root);
+    const routing = routingFor(author);
+    const { addresses, missing } = routing.pages();
+
+    declared = routing.list.map((each) => ({
+      ...each,
+      delivery: config.web.rendering,
+      pages: addresses.filter((address) => routing.match(address)?.name === each.name).map((address) => `${config.web.base}${address.replace(/^\//, "")}`),
+      buildable: !missing.includes(each.name),
+    }));
 
     const parts: ReadonlyArray<
       readonly [string | undefined, { readonly layout?: Component; readonly components?: ReadonlyArray<Component>; readonly override?: ReadonlyArray<Component> } | undefined]
@@ -108,6 +128,7 @@ export const info = async (root: string): Promise<Info> => {
       order: page.order,
       delivery: config.web.rendering,
     })),
+    declared,
     ...(content?.notFound === undefined ? {} : { notFound: content.notFound.file }),
     stylesheets: web ? stylesheets(root).map((file) => ({ file, ...(scopes.has(file) ? { scope: scopes.get(file)! } : {}) })) : [],
     components,
@@ -143,6 +164,12 @@ export const render = (found: Info): string => {
 
   for (const each of found.routes) {
     lines.push(`  ${pad(each.address, width)}  ${pad(each.file, files)}  ${each.title}${each.section === "" ? "" : `  [${each.section}]`}  ${each.delivery}`);
+  }
+
+  for (const each of found.declared) {
+    lines.push(
+      `  ${each.pattern}  route "${each.name}"${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
+    );
   }
 
   lines.push(found.notFound === undefined ? "  (no content/404.md: a built-in page answers an address that is not a page)" : `  not found: ${found.notFound}`);

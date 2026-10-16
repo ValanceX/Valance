@@ -5,6 +5,7 @@ import { AppError } from "./diagnostics.js";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
+import { checkRoutes } from "./routes-check.js";
 import { checkStyles } from "./styles.js";
 import { createLoader } from "./vite.js";
 
@@ -48,6 +49,11 @@ export const check = async (root: string): Promise<Checked> => {
   try {
     const author = await collect(problems, () => loadAuthor(server, root));
     const failedAuthor = problems.some((each) => each.file === "src/main.ts");
+
+    if (!failedAuthor && config.targets.includes("web")) {
+      problems.push(...checkRoutes(author, content));
+    }
+
     const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
 
     return { diagnostics: problems, pages: content?.pages.length ?? 0, components: components ?? [] };

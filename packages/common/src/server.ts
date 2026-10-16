@@ -11,6 +11,7 @@ import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { routes } from "./routes.js";
+import { routingFor } from "./routing-engine.js";
 
 export type { Built };
 export { routes };
@@ -31,10 +32,11 @@ const safe = (json: string): string => json.replaceAll("<", "\\u003c").replaceAl
 
 export const createRenderer = ({ content, program, author }: ServerParts) => {
   const app = application(content, program, author);
-  const table = routes(content);
+  const table = routes(content, routingFor(author));
 
-  return async (pathname: string, built: Built): Promise<Rendered> => {
-    const state = stateFor(content, pathname, author);
+  /** `search` is the query of the request, when there is one to give (a development server has it; a build writes pages for addresses with none). */
+  return async (pathname: string, built: Built, search = ""): Promise<Rendered> => {
+    const state = stateFor(content, pathname, author, search);
     const served = await Effect.runPromise(renderToHtml(app, { plugins: [plugin(content, built, author)], state }));
     const boot = safe(JSON.stringify({ state: served.state, built }));
 
@@ -46,4 +48,4 @@ export const createRenderer = ({ content, program, author }: ServerParts) => {
 };
 
 /** The pathnames a static export writes, under the base. */
-export const pathsOf = (content: Content): ReadonlyArray<string> => routes(content).paths();
+export const pathsOf = (content: Content, author?: DefinedApp): ReadonlyArray<string> => routes(content, routingFor(author)).paths();

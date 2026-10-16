@@ -5,6 +5,8 @@ export * from "./web-app.js";
 export * from "./model.js";
 export * from "./primitives.js";
 export * from "./routes.js";
+export * from "./routing-engine.js";
+export type { DeclaredRoute, RouteConfig } from "./routing-types.js";
 export * from "./scope.js";
 export * from "./state.js";
 export * from "./vocabulary.js";

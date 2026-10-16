@@ -94,7 +94,7 @@ import content from "./content.json";
 import program from "./${programFile(config, "web")}";
 ${hasEntry(root) ? `import author from "../${ENTRY_FILE}";\n` : "const author = undefined;\n"}
 export const render = createRenderer({ content, program, author });
-export const paths = () => pathsOf(content);
+export const paths = () => pathsOf(content, author);
 export { content };
 `;
 

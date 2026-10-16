@@ -358,6 +358,42 @@ export default defineApp({
 
 Every title and meta is **plain text** by the time it reaches the document: control characters and the bidirectional override and isolate characters (U+202A to U+202E, U+2066 to U+2069) are removed (they let a string reorder or hide what is around it in a tab or a history list), whitespace is collapsed, and a title is cut at 200 characters. A title is written only when it changed. After a page changes in place, a polite live region says the new title and focus moves to `#content` (when your layout's `<main id="content" tabindex="-1">` is focusable, as the scaffold's is), as a page load would; a link to a `#heading` is left to the browser. Turn it off with `"announce": false` in `valance.web.json`.
 
+## Routes that are not Markdown pages
+
+A page is a Markdown file, and its path is its address. A page that is not content (an order with an id in its address, a settings screen) is a **route you declare** in `src/main.ts`:
+
+```ts
+import { defineApp, field, route } from "@valancex/common";
+import { Schema } from "effect";
+
+export default defineApp({
+  state: { orderId: field(Schema.String, ""), tab: field(Schema.Literal("all", "open"), "all") },
+  routes: {
+    order: route("/orders/:id", {
+      params: Schema.Struct({ id: Schema.String }),
+      query: Schema.Struct({ tab: Schema.optional(Schema.Literal("all", "open")) }),
+      title: ({ id }) => `Order ${id}`,
+      enter: ({ id, tab }, state) => ({ ...state, orderId: id, tab: tab ?? "all" }),
+      staticParams: () => [{ id: "1" }, { id: "2" }],
+    }),
+    settings: route("/settings", { title: "Settings" }),
+  },
+});
+```
+
+The layout draws it from `route`, the name of the route shown (`""` for a content page and for the not-found page):
+
+```
+{#if route == "order"}<order-page />{:else if route == "settings"}<settings-page />{:else}<blocks items={blocks} />{/if}
+```
+
+- **The name is the key**; the path is a pattern as `@valancex/router` reads it (`/orders/:id`, `/files/*path`), with no base. Parameters and query are decoded by their Effect Schemas (the encoded side is strings); a value that fails its Schema is not that route, it is the not-found page. A parameter and a query key may not share a name: they reach `enter` as one record.
+- **`enter(input, state) => state`** is a pure transition run in the same change that shows the page (`go`, a link, Back and Forward, the first state of a request), so no render shows the page without its state. It cannot change which page is shown. To load data when a route is entered, set state in `enter` and run an ordinary command; a declarative `load` is planned.
+- **`go("/orders/42?tab=open")`** goes to it; the address is written in its canonical form (query keys sorted, no trailing slash) in the address bar. `title` is the page part of the document's title.
+- **An address is a content page or a route, never both**: a route that matches a content page is `route-conflict`.
+- **Static only, for now.** `vlx build` writes a page for a route with no parameters, and one per entry of `staticParams`; a route with parameters and no `staticParams` is `route-static-params` from `vlx check` and `vlx build` (pages only the browser renders arrive with client delivery). `vlx dev` renders any matching address. A static page cannot see its query, so the browser reads it from the address bar when the page opens.
+- **Not yet**: per-route guards and redirects, a route that names the component it shows, loading on entry, links checked against routes, routes in `sitemap.xml`. The design and the order are in [`docs/application-model/ROUTES.md`](../../docs/application-model/ROUTES.md).
+
 ## What the project is: `vlx info`
 
 Everything above is decided somewhere in the project; `vlx info` puts it in one place, read from the files without building anything: the targets and the web settings, every route with the file that makes it (a page's address is its file's path under `content/`), how pages are delivered, the stylesheets in the order they load, the components `src/main.ts` registers, and how many tags each target has. `vlx info --tags` prints the tag tables; `--json` prints it all for tools. A mistake that keeps something from being read (a broken link in the content, a bad `src/main.ts`) is listed as a problem and `vlx check` reports it in full.

@@ -4,6 +4,8 @@ import type { RouteTable } from "@valancex/valance/web/plugin";
 
 import { announcePage } from "./announce.js";
 import type { Content } from "./model.js";
+import type { Routing } from "./routing-engine.js";
+import { routingFor } from "./routing-engine.js";
 import { pageAt } from "./scope.js";
 
 export interface PageState {
@@ -27,12 +29,25 @@ export const tidy = (path: string): string => {
 
 export const urlOf = (content: Content, path: string): string => `${content.site.base}${path.replace(/^\//, "")}`;
 
-export const routes = (content: Content): RouteTable<PageState> => ({
+/**
+ * The address a URL is, inside the application: a declared route's canonical path and query, or the content page's path. The query belongs to a declared route only; a content page has none.
+ */
+export const addressOf = (content: Content, routing: Routing, url: { readonly pathname: string; readonly search: string }): string => {
+  const path = normalize(url.pathname, content.site.base);
+
+  return (routing.any ? routing.match(`${path}${url.search}`)?.address : undefined) ?? path;
+};
+
+export const routes = (content: Content, routing: Routing = routingFor(undefined)): RouteTable<PageState> => ({
   urlOf: ({ page }) => urlOf(content, page),
-  stateOf: (url) => ({ id: normalize(url.pathname, content.site.base) }),
+  stateOf: (url) => ({ id: addressOf(content, routing, url) }),
   navigate: "go",
-  known: (pathname) => pageAt(content, normalize(pathname, content.site.base)) !== undefined,
-  paths: () => content.pages.map((page) => urlOf(content, page.path)),
+  known: (pathname) => {
+    const path = normalize(pathname, content.site.base);
+
+    return pageAt(content, path) !== undefined || routing.match(path) !== undefined;
+  },
+  paths: () => [...content.pages.map((page) => urlOf(content, page.path)), ...routing.pages().addresses.map((address) => urlOf(content, address))],
   // Static first: every page is rendered once at build time.
   delivery: () => "static",
   onNavigated: ({ kind, url }) => {

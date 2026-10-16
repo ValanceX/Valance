@@ -12,7 +12,7 @@ import { watchColorScheme } from "./color-scheme.js";
 import { watchViewport } from "./viewport.js";
 
 import type { AppState, Built } from "./app.js";
-import { application } from "./app.js";
+import { application, stateFor } from "./app.js";
 import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
@@ -23,6 +23,27 @@ export interface ClientParts {
   readonly author?: DefinedApp | undefined;
 }
 
+/** The state to start from: the server's, unless the address bar names another address of a declared route (a query the static page could not see). */
+const firstState = (content: Content, served: AppState, author?: DefinedApp): AppState => {
+  if (author?.routes === undefined || window.location.search === "") {
+    return served;
+  }
+
+  const here = stateFor(content, window.location.pathname, author, window.location.search);
+
+  return here.route === "" || here.page === served.page
+    ? served
+    : { ...served, page: here.page, route: here.route, trail: here.trail, cursor: here.cursor, ...routedOwn(here, served) };
+};
+
+/** The fields the route's `enter` set, which the served state did not have. */
+const routedOwn = (here: AppState, served: AppState): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(here).filter(
+      ([name, value]) => !["page", "route", "trail", "cursor", "viewport", "colorScheme"].includes(name) && JSON.stringify(value) !== JSON.stringify(served[name]),
+    ),
+  );
+
 export const start = async ({ content, program, author }: ClientParts): Promise<void> => {
   const container = document.getElementById("app")!;
 
@@ -31,10 +52,13 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
 
     await init(wasmUrl);
 
+    // A static page cannot know the query it is opened with; the address bar does. For a declared route the first state is the address the person is at, so `?tab=open` is not lost.
+    const first = firstState(content, boot.state, author);
+
     const host = await Web.run(application(content, program, author), {
       container,
       present: "hydrate",
-      state: boot.state,
+      state: first,
       plugins: [plugin(content, boot.built, author)],
       // What the application's commands may ask the page for: the backend (`Http`), at `api.base` of valance.web.json.
       platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [], store: webStore(content.site.name) }),

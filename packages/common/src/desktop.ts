@@ -19,6 +19,7 @@ import { fileStore, userDataDir } from "./store-file.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { routes } from "./routes.js";
+import { routingFor } from "./routing-engine.js";
 import { pageAt } from "./scope.js";
 
 export interface DesktopParts {
@@ -72,7 +73,7 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
     await init(wasm);
   }
 
-  const table = routes(content);
+  const table = routes(content, routingFor(author));
   const opener = systemOpen();
 
   await Native.run(application(content, program, author), {

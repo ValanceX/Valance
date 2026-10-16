@@ -9,6 +9,7 @@ import { loadAuthor } from "./author.js";
 import type { Config } from "./config.js";
 import { loadConfig } from "./config.js";
 import { headersFile } from "./security.js";
+import { checkRoutes } from "./routes-check.js";
 import { checkStyles } from "./styles.js";
 import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
@@ -117,7 +118,11 @@ const buildWeb = async (
   await bundle({ ...baseConfig(root, config, out), mode: "production" });
 
   const rendered = (await loader.ssrLoadModule(SERVER_ENTRY)) as {
-    readonly render: (pathname: string, built: { readonly script: string; readonly styles: ReadonlyArray<string> }) => Promise<{ readonly status: number; readonly html: string }>;
+    readonly render: (
+      pathname: string,
+      built: { readonly script: string; readonly styles: ReadonlyArray<string> },
+      search?: string,
+    ) => Promise<{ readonly status: number; readonly html: string }>;
     readonly paths: () => ReadonlyArray<string>;
   };
 
@@ -203,7 +208,14 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
   try {
     stage("templates");
 
-    await generateProgram(root, await loadAuthor(loader, root), config, selected);
+    const author = await loadAuthor(loader, root);
+    const routing = selected.includes("web") ? checkRoutes(author, content) : [];
+
+    if (routing.length > 0) {
+      throw new AppError(routing);
+    }
+
+    await generateProgram(root, author, config, selected);
 
     // Each target writes to a directory of its own, whatever else the project has: dist/web/ and dist/desktop/.
     if (selected.includes("web")) {

@@ -25,6 +25,8 @@ const Ref = Schema.Struct({ href: Schema.String, label: Schema.String });
 export const FrameScope = Schema.Struct({
   /** The application's name (`valance.json`). */
   site: Schema.String,
+  /** The declared route shown (`routes` in `defineApp`), or `""` for a content page and for the not-found page. */
+  route: Schema.String,
   /** The address of the first page, under the base. */
   home: Schema.String,
   /** The current page's title, and its description. */
@@ -133,8 +135,10 @@ export const frame = (
   viewport: Viewport = "expanded",
   colorScheme: ColorScheme = "light",
   trail: { readonly canGoBack: boolean; readonly canGoForward: boolean } = { canGoBack: false, canGoForward: false },
+  /** The declared route being shown, when the address is one (`title` is the route's, or `""`). */
+  declared?: { readonly name: string; readonly title: string },
 ): typeof FrameScope.Type => {
-  const page = pageAt(content, path);
+  const page = declared === undefined ? pageAt(content, path) : undefined;
   const shown = page ?? notFoundPage(content);
   const at = page === undefined ? -1 : content.pages.indexOf(page);
   const ref = (to: Page | undefined): typeof NONE => (to === undefined ? NONE : { href: withBase(content.site.base, to.path), label: to.title });
@@ -158,13 +162,14 @@ export const frame = (
     canGoBack: trail.canGoBack,
     canGoForward: trail.canGoForward,
     home: withBase(content.site.base, "/"),
-    title: shown.title,
-    description: shown.description,
-    found: page !== undefined,
+    route: declared?.name ?? "",
+    title: declared === undefined ? shown.title : declared.title,
+    description: declared === undefined ? shown.description : "",
+    found: page !== undefined || declared !== undefined,
     sections: groups,
-    hasToc: shown.outline.length > 0,
-    toc: shown.outline.map((heading) => ({ id: heading.id, href: `#${heading.anchor}`, label: heading.label, level: heading.level })),
-    blocks: view(shown.blocks),
+    hasToc: declared === undefined && shown.outline.length > 0,
+    toc: declared === undefined ? shown.outline.map((heading) => ({ id: heading.id, href: `#${heading.anchor}`, label: heading.label, level: heading.level })) : [],
+    blocks: declared === undefined ? view(shown.blocks) : [],
     prev: ref(content.pages[at - 1]),
     next: ref(at < 0 ? undefined : content.pages[at + 1]),
   };

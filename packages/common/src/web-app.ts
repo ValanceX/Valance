@@ -9,16 +9,18 @@ import type { Content } from "./model.js";
 import { pageAt } from "./scope.js";
 import { primitives } from "./primitives.js";
 import { routes } from "./routes.js";
+import { routingFor } from "./routing-engine.js";
 
 /** The plugin that makes the application a website: its tags, its URL policy, and its document head. */
 export const plugin = (content: Content, built: Built, author?: DefinedApp): Plugin<AppState> => ({
   name: "valance-app",
   primitives,
-  routes: routes(content) as never,
+  routes: routes(content, routingFor(author)) as never,
   head: (state) => {
     const page = pageAt(content, state.page);
     const shown = page ?? { description: "" };
-    const canonical = content.site.url === "" || page === undefined ? [] : [{ rel: "canonical", href: `${content.site.url}${content.site.base}${page.path.replace(/^\//, "")}` }];
+    const path = page?.path ?? (state.route === "" ? undefined : state.page.split("?")[0]);
+    const canonical = content.site.url === "" || path === undefined ? [] : [{ rel: "canonical", href: `${content.site.url}${content.site.base}${path.replace(/^\//, "")}` }];
 
     return {
       title: titleFor(content, page, state, author),
