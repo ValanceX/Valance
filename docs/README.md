@@ -26,6 +26,7 @@ The documentation has three levels. Start at the first and go down only when you
 | know what VALANCE guarantees, and what it does not | [The contract](V1_CONTRACT.md) |
 | understand how it is implemented, and why | [Understand](understand/README.md) |
 | find the evidence behind a design decision | [Concept → evidence](understand/README.md#from-a-concept-to-its-evidence) |
+| see every findings document and the register of open gaps | [Findings register](findings/README.md) |
 | install it, with the right package versions | [Installation](V1_CONTRACT.md#13-installation-and-package-surface) |
 | see what changed in a release | [`releases/`](releases/) |
 
@@ -35,7 +36,7 @@ The documentation has three levels. Start at the first and go down only when you
 |---|---|
 | Learn | `docs/learn/*` |
 | Use | `docs/use/README.md` (index) and `docs/V1_CONTRACT.md` (the reference itself) |
-| Understand | `docs/understand/README.md` (index), `docs/CONSTRAINTS.md`, `docs/FINDINGS.md` |
+| Understand | `docs/understand/README.md` (index), `docs/CONSTRAINTS.md`, `docs/FINDINGS.md`, `docs/findings/` (register of all findings and open gaps) |
 | Releases | `docs/releases/*` |
 
 `V1_CONTRACT.md`, `CONSTRAINTS.md` and `FINDINGS.md` stay where they are: they are cited by name from the source, the tests and earlier releases.
