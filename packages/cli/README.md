@@ -416,6 +416,12 @@ The mode is a setting, **`"rendering"` in `valance.web.json`**, which `vlx init`
 
 `"static"` is the only mode today. `"client"` (a page only the browser renders, for addresses a build cannot list) arrives with declared routes, and `"server"` (a page rendered per request) needs a server platform that does not exist yet; both are refused with a message that says so rather than quietly doing something else. `vlx build` ends with the mode it used (`vlx build: 12 pages (static), …`).
 
+### One address per page: `trailingSlash`
+
+A page has one address, `/guide/a` or `/guide/a/`, never both: to a search engine they are two pages. `"trailingSlash"` in `valance.web.json` says which (`"never"`, the default, or `"always"`), and every address the build writes follows it: the navigation, Markdown links, a template's literal links, the canonical link and `sitemap.xml`. The files do not change (`guide/a/index.html`).
+
+A static host cannot be told to redirect one form to the other, so **the page keeps the policy**: when it starts, if the address bar differs from the page's canonical form (the slash, the query in the router's order), it replaces the address (`history.replaceState`: no new history entry, no reload; the `#fragment` stays). An address that is not a page is left as it was written. `"ignore"` and `"preserve"`, which other routers offer, are refused with the reason: they would let two addresses be one page. How a host serves `/guide/a` or `/guide/a/` is the host's; a host that redirects against the policy is worth fixing there.
+
 Interactive parts need no setting of their own: the layout and your components are part of the HTML the build writes, and the browser makes them interactive. What is rendered at build time cannot depend on the person looking (their stored choices, the size of their window): those are corrected as soon as the page starts (`viewport`, `colorScheme`, `persist`).
 
 ## Talking to a backend

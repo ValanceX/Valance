@@ -10,6 +10,7 @@ import { pageAt } from "./scope.js";
 import { primitives } from "./primitives.js";
 import { routes } from "./routes.js";
 import { routingFor } from "./routing-engine.js";
+import { pageUrl } from "./url.js";
 
 /** The plugin that makes the application a website: its tags, its URL policy, and its document head. */
 export const plugin = (content: Content, built: Built, author?: DefinedApp): Plugin<AppState> => ({
@@ -20,7 +21,8 @@ export const plugin = (content: Content, built: Built, author?: DefinedApp): Plu
     const page = pageAt(content, state.page);
     const shown = page ?? { description: "" };
     const path = page?.path ?? (state.route === "" ? undefined : state.page.split("?")[0]);
-    const canonical = content.site.url === "" || path === undefined ? [] : [{ rel: "canonical", href: `${content.site.url}${content.site.base}${path.replace(/^\//, "")}` }];
+    const canonical =
+      content.site.url === "" || path === undefined ? [] : [{ rel: "canonical", href: `${content.site.url}${pageUrl(content.site.base, path, content.site.trailingSlash)}` }];
 
     return {
       title: titleFor(content, page, state, author),

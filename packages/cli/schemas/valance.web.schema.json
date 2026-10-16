@@ -31,6 +31,14 @@
       "default": "static",
       "description": "How pages are delivered. \"static\": every page is rendered to HTML when the site is built and the browser takes it over. (\"client\" and \"server\" are not available yet.)"
     },
+    "trailingSlash": {
+      "enum": [
+        "never",
+        "always"
+      ],
+      "default": "never",
+      "description": "How a page's address is written: \"never\" (/guide/a) or \"always\" (/guide/a/). A page has one address; the page moves the address bar to it when it starts, and links, the sitemap and the canonical link use it."
+    },
     "headers": {
       "type": "boolean",
       "default": true,

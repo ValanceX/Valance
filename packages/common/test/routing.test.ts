@@ -61,7 +61,7 @@ describe("routingOf", () => {
 });
 
 const content: Content = {
-  site: { name: "Site", base: "/", url: "", title: "{page} · {site}", api: "", announce: true },
+  site: { name: "Site", base: "/", url: "", title: "{page} · {site}", api: "", announce: true, trailingSlash: "never" },
   pages: [
     {
       path: "/",
@@ -108,5 +108,22 @@ describe("route is typed by its Schemas (R-3)", () => {
 
     expect(routingOf({ typed }).match("/orders/7?page=2")?.input).toEqual({ id: 7, page: 2 });
     expect(routingOf({ typed }).pages().addresses).toEqual(["/orders/1"]);
+  });
+});
+
+describe("how a page's address is written (trailingSlash)", () => {
+  it("names one form per page: never strips the slash, always adds it, the root and files are left alone, the query and fragment stay", async () => {
+    const { pageUrl, shaped } = await import("../src/url.js");
+
+    expect(shaped("/guide/a/", "never")).toBe("/guide/a");
+    expect(shaped("/guide/a", "always")).toBe("/guide/a/");
+    expect(shaped("/orders/42?tab=open", "always")).toBe("/orders/42/?tab=open");
+    expect(shaped("/orders/42/?tab=open#x", "never")).toBe("/orders/42?tab=open#x");
+    expect(shaped("/", "always")).toBe("/");
+    expect(shaped("//", "never")).toBe("/");
+    expect(shaped("/files/a.txt", "always")).toBe("/files/a.txt"); // a file is not a page
+    expect(pageUrl("/docs/", "/guide/a", "always")).toBe("/docs/guide/a/");
+    expect(pageUrl("/docs/", "/", "always")).toBe("/docs/");
+    expect(pageUrl("/", "/guide/a", "never")).toBe("/guide/a");
   });
 });

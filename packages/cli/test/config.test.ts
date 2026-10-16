@@ -25,7 +25,7 @@ describe("valance.json and valance.web.json", () => {
       name: "Test",
       targets: ["web"],
       title: "{page} · {site}",
-      web: { base: "/", url: "", headers: true, announce: true, rendering: "static" },
+      web: { base: "/", url: "", headers: true, announce: true, rendering: "static", trailingSlash: "never" },
       api: { base: "", proxy: "" },
     });
   });
@@ -33,7 +33,7 @@ describe("valance.json and valance.web.json", () => {
   it("reads the target's settings from valance.web.json", () => {
     const root = project({ "valance.web.json": '{ "version": 1, "base": "/docs/", "url": "https://example.com" }' });
 
-    expect(loadConfig(root).web).toEqual({ base: "/docs/", url: "https://example.com", headers: true, announce: true, rendering: "static" });
+    expect(loadConfig(root).web).toEqual({ base: "/docs/", url: "https://example.com", headers: true, announce: true, rendering: "static", trailingSlash: "never" });
   });
 
   it("names the line of an unknown setting, and lists the known ones", () => {
@@ -56,6 +56,13 @@ describe("valance.json and valance.web.json", () => {
     expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "client" }' }))).toThrow(/arrive with declared routes/);
     expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "server" }' }))).toThrow(/needs a server platform/);
     expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "ssr" }' }))).toThrow(/must be "static"/);
+  });
+
+  it("takes the trailing-slash policy, and says why the ones other routers offer are not", () => {
+    expect(loadConfig(project({ "valance.web.json": '{ "trailingSlash": "always" }' })).web.trailingSlash).toBe("always");
+    expect(() => loadConfig(project({ "valance.web.json": '{ "trailingSlash": "ignore" }' }))).toThrow(/two pages to a search engine/);
+    expect(() => loadConfig(project({ "valance.web.json": '{ "trailingSlash": "preserve" }' }))).toThrow(/is not offered/);
+    expect(() => loadConfig(project({ "valance.web.json": '{ "trailingSlash": true }' }))).toThrow(/must be "never" or "always"/);
   });
 
   it("reports both files at once, and invalid JSON as a diagnostic, not a crash", () => {

@@ -56,6 +56,6 @@ describe("the schemas editors read", () => {
   it("list exactly the settings the tools accept", () => {
     expect(Object.keys(load("valance.schema.json").properties)).toEqual(["$schema", "version", "name", "title"]);
     expect(load("valance.schema.json").required).toEqual(["name"]);
-    expect(Object.keys(load("valance.web.schema.json").properties)).toEqual(["$schema", "version", "base", "url", "rendering", "headers", "announce", "api"]);
+    expect(Object.keys(load("valance.web.schema.json").properties)).toEqual(["$schema", "version", "base", "url", "rendering", "trailingSlash", "headers", "announce", "api"]);
   });
 });

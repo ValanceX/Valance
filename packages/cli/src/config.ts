@@ -19,6 +19,10 @@ export const CONFIG_VERSION = 1;
 export const RENDERINGS = ["static"] as const;
 export type Rendering = (typeof RENDERINGS)[number];
 
+/** How a page's address is written: with a trailing slash or without. One form per page; a static host cannot redirect, so the page keeps it (see docs/application-model/ROUTES.md). */
+export const TRAILING_SLASHES = ["never", "always"] as const;
+export type TrailingSlash = (typeof TRAILING_SLASHES)[number];
+
 export interface Config {
   readonly name: string;
   /** The targets the project is built for: each one whose settings file it has (`valance.web.json`, `valance.desktop.json`), else the web alone. One application, one build per target. */
@@ -34,6 +38,8 @@ export interface Config {
     readonly announce: boolean;
     /** How pages are delivered: `static` renders every page to HTML when the site is built and the browser takes each over. The only mode there is; `client` and `server` wait for declared routes and a server. */
     readonly rendering: Rendering;
+    /** `never` (the default): `/guide/a`. `always`: `/guide/a/`. */
+    readonly trailingSlash: TrailingSlash;
   };
   /** The application's backend: the address its requests are made to (a path on the site's own origin, or an absolute https address), and, for `vlx dev`, where a path is proxied to. */
   readonly api: { readonly base: string; readonly proxy: string };
@@ -121,6 +127,12 @@ const rendering = (value: unknown): string | undefined =>
     : value === "client" || value === "server"
       ? `"${value}" is not available yet (${value === "client" ? "client-only pages arrive with declared routes" : "server rendering needs a server platform, which does not exist"}); the mode is "static"`
       : `must be ${RENDERINGS.map((each) => `"${each}"`).join(" or ")}`;
+const trailingSlash = (value: unknown): string | undefined =>
+  TRAILING_SLASHES.includes(value as TrailingSlash)
+    ? undefined
+    : value === "ignore" || value === "preserve"
+      ? `"${value}" is not offered: a page with two addresses is two pages to a search engine, and a static site cannot redirect one to the other. Use "never" or "always"`
+      : `must be ${TRAILING_SLASHES.map((each) => `"${each}"`).join(" or ")}`;
 const api = (value: unknown): string | undefined => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return 'must be an object such as { "base": "/api" }';
@@ -163,7 +175,7 @@ export const loadConfig = (root: string): Config => {
   const problems = [
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
     ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
-    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, rendering, headers: flag, announce: flag, api }, [])),
+    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, rendering, trailingSlash, headers: flag, announce: flag, api }, [])),
   ];
 
   if (problems.length > 0) {
@@ -176,6 +188,7 @@ export const loadConfig = (root: string): Config => {
     readonly headers?: boolean;
     readonly announce?: boolean;
     readonly rendering?: Rendering;
+    readonly trailingSlash?: TrailingSlash;
     readonly api?: { readonly base: string; readonly proxy?: string };
   };
   const named = project.value as { readonly name: string; readonly title?: string };
@@ -184,7 +197,14 @@ export const loadConfig = (root: string): Config => {
     name: named.name,
     targets: desktop === undefined ? ["web"] : web === undefined ? ["desktop"] : ["web", "desktop"],
     title: named.title ?? DEFAULT_TITLE,
-    web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true, rendering: given.rendering ?? "static" },
+    web: {
+      base: given.base ?? "/",
+      url: given.url ?? "",
+      headers: given.headers ?? true,
+      announce: given.announce ?? true,
+      rendering: given.rendering ?? "static",
+      trailingSlash: given.trailingSlash ?? "never",
+    },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },
   };
 };
@@ -196,6 +216,7 @@ export const siteInfo = (config: Config): SiteInfo => ({
   title: config.title,
   api: config.api.base,
   announce: config.web.announce,
+  trailingSlash: config.web.trailingSlash,
 });
 
 /**

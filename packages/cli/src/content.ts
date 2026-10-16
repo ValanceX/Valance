@@ -8,6 +8,7 @@ import { siteInfo } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { Content, Page } from "@valancex/common/internal";
+import { pageUrl } from "@valancex/common/internal";
 import type { LinkRef } from "./markdown.js";
 import { parseMarkdown, plain } from "./markdown.js";
 
@@ -233,7 +234,7 @@ export const readContent = (root: string, config: Config): Content => {
       );
     }
 
-    return underBase(base, target) + (fragment === "" ? "" : `#${fragment}`);
+    return pageUrl(base, target, config.web.trailingSlash) + (fragment === "" ? "" : `#${fragment}`);
   };
 
   // The parser recorded the links in document order, and a page's blocks hold them in that same order.

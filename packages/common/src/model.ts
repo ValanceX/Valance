@@ -68,6 +68,8 @@ export interface SiteInfo {
   readonly api: string;
   /** Tell assistive technology about a page change made in place (the title, and focus at the content). */
   readonly announce: boolean;
+  /** Whether a page's address is written with a trailing slash (`always`) or without (`never`). */
+  readonly trailingSlash: "never" | "always";
 }
 
 /** The title format when the project does not say: the page, then the site. */

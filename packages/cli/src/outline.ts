@@ -142,6 +142,8 @@ export interface Address {
   readonly start: number;
   readonly end: number;
   readonly value: string;
+  /** The attribute: `src` names a file, `href` a page or a file. */
+  readonly attribute: string;
 }
 
 const ADDRESSED: Readonly<Record<string, string>> = { image: "src", a: "href", link: "href" };
@@ -164,7 +166,7 @@ export const addressesIn = (source: string): ReadonlyArray<Address> => {
     if (written !== null) {
       const start = from + written.index + written[0].length - 1 - written[1]!.length;
 
-      found.push({ start, end: start + written[1]!.length, value: written[1]! });
+      found.push({ start, end: start + written[1]!.length, value: written[1]!, attribute });
     }
   }
 

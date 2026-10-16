@@ -14,6 +14,8 @@ import { watchViewport } from "./viewport.js";
 import type { AppState, Built } from "./app.js";
 import { application, stateFor } from "./app.js";
 import { plugin } from "./web-app.js";
+import { urlOf } from "./routes.js";
+import { pageAt } from "./scope.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 
@@ -44,6 +46,22 @@ const routedOwn = (here: AppState, served: AppState): Record<string, unknown> =>
     ),
   );
 
+/**
+ * Moves the address bar to the page's canonical form (the site's `trailingSlash`, the query in the router's order) with `replaceState`: no new entry and no reload. A static host cannot redirect for
+ * the application, so this is where the policy is kept; the canonical link says the same to a search engine. An address that is not a page is left as it was written.
+ */
+const canonicalize = (content: Content, state: AppState): void => {
+  if (state.route === "" && pageAt(content, state.page) === undefined) {
+    return;
+  }
+
+  const want = urlOf(content, state.page);
+
+  if (want !== `${window.location.pathname}${window.location.search}`) {
+    window.history.replaceState(window.history.state, "", `${want}${window.location.hash}`);
+  }
+};
+
 export const start = async ({ content, program, author }: ClientParts): Promise<void> => {
   const container = document.getElementById("app")!;
 
@@ -54,6 +72,8 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
 
     // A static page cannot know the query it is opened with; the address bar does. For a declared route the first state is the address the person is at, so `?tab=open` is not lost.
     const first = firstState(content, boot.state, author);
+
+    canonicalize(content, first);
 
     const host = await Web.run(application(content, program, author), {
       container,

@@ -14,6 +14,7 @@ import { checkStyles } from "./styles.js";
 import { AppError } from "./diagnostics.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
+import { pageUrl } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
 import type { TargetId } from "./targets.js";
 import { baseConfig, createLoader, SERVER_ENTRY, templates } from "./vite.js";
@@ -41,7 +42,7 @@ export const fileOf = (pathname: string, base: string): string => {
 };
 
 const sitemap = (content: Content): string =>
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${content.pages.map((page) => `  <url><loc>${content.site.url}${content.site.base}${page.path.replace(/^\//, "")}</loc></url>`).join("\n")}\n</urlset>\n`;
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${content.pages.map((page) => `  <url><loc>${content.site.url}${pageUrl(content.site.base, page.path, content.site.trailingSlash)}</loc></url>`).join("\n")}\n</urlset>\n`;
 
 /** The stages of a build, in order, as `onStage` reports them. */
 export type BuildStage = "configuration" | "content" | "templates" | "bundle" | "pages";

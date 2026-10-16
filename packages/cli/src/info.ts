@@ -9,7 +9,7 @@ import { readContent } from "./content.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import { stylesheets } from "./emit.js";
-import { RouteDeclarationError, routingFor } from "@valancex/common/internal";
+import { pageUrl, RouteDeclarationError, routingFor } from "@valancex/common/internal";
 import { componentStyles } from "./styles.js";
 import { tagsOf } from "./tags.js";
 import { TARGETS } from "./targets.js";
@@ -30,7 +30,7 @@ export interface Route {
 export interface Info {
   readonly name: string;
   readonly targets: ReadonlyArray<string>;
-  readonly web?: { readonly base: string; readonly url: string; readonly rendering: string; readonly headers: boolean; readonly announce: boolean };
+  readonly web?: { readonly base: string; readonly url: string; readonly rendering: string; readonly trailingSlash: string; readonly headers: boolean; readonly announce: boolean };
   /** Every page, in navigation order: the web's routes. A route is a Markdown file's path under `content/`. */
   readonly routes: ReadonlyArray<Route>;
   /** The routes `src/main.ts` declares (`routes` in `defineApp`), beside the content's: name, pattern, parameters, and the pages a build writes for each. */
@@ -84,7 +84,7 @@ export const info = async (root: string): Promise<Info> => {
     declared = routing.list.map((each) => ({
       ...each,
       delivery: config.web.rendering,
-      pages: addresses.filter((address) => routing.match(address)?.name === each.name).map((address) => `${config.web.base}${address.replace(/^\//, "")}`),
+      pages: addresses.filter((address) => routing.match(address)?.name === each.name).map((address) => pageUrl(config.web.base, address, config.web.trailingSlash)),
       buildable: !missing.includes(each.name),
     }));
 
@@ -121,7 +121,9 @@ export const info = async (root: string): Promise<Info> => {
   return {
     name: config.name,
     targets: config.targets,
-    ...(web ? { web: { base, url: config.web.url, rendering: config.web.rendering, headers: config.web.headers, announce: config.web.announce } } : {}),
+    ...(web
+      ? { web: { base, url: config.web.url, rendering: config.web.rendering, trailingSlash: config.web.trailingSlash, headers: config.web.headers, announce: config.web.announce } }
+      : {}),
     routes: (content?.pages ?? []).map((page) => ({
       address: `${base}${page.path.replace(/^\//, "")}`,
       file: page.file,
@@ -153,7 +155,7 @@ export const render = (found: Info): string => {
   if (found.web !== undefined) {
     row(
       "web",
-      `served at ${found.web.base}${found.web.url === "" ? "" : ` (published at ${found.web.url})`}; pages are ${found.web.rendering}; security headers ${found.web.headers ? "on" : "off"}; page changes announced ${found.web.announce ? "yes" : "no"}`,
+      `served at ${found.web.base}${found.web.url === "" ? "" : ` (published at ${found.web.url})`}; pages are ${found.web.rendering}, addressed ${found.web.trailingSlash === "always" ? "with" : "without"} a trailing slash; security headers ${found.web.headers ? "on" : "off"}; page changes announced ${found.web.announce ? "yes" : "no"}`,
     );
     row("", "(valance.web.json: base, url, rendering, headers, announce, api)");
   }

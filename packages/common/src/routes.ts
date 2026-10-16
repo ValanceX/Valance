@@ -7,6 +7,7 @@ import type { Content } from "./model.js";
 import type { Routing } from "./routing-engine.js";
 import { routingFor } from "./routing-engine.js";
 import { pageAt } from "./scope.js";
+import { pageUrl } from "./url.js";
 
 export interface PageState {
   readonly page: string;
@@ -27,7 +28,7 @@ export const tidy = (path: string): string => {
   return trimmed === "" ? "/" : `/${trimmed}`;
 };
 
-export const urlOf = (content: Content, path: string): string => `${content.site.base}${path.replace(/^\//, "")}`;
+export const urlOf = (content: Content, path: string): string => pageUrl(content.site.base, path, content.site.trailingSlash);
 
 /**
  * The address a URL is, inside the application: a declared route's canonical path and query, or the content page's path. The query belongs to a declared route only; a content page has none.

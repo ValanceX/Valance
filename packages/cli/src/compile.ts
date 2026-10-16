@@ -14,6 +14,7 @@ import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "@valancex/common";
 import type { Node, Place } from "./tree.js";
 import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
+import type { TrailingSlash } from "@valancex/common/internal";
 import { underBase } from "./addresses.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
@@ -323,8 +324,8 @@ export const compileViews = async (
   author: DefinedApp | undefined,
   vocabulary: Vocabulary = webVocabulary,
   views: string = BUILT_IN,
-  /** The web's base: a site address a template writes (`<image src="/logo.svg">`) is put under it. Absent for a target with no addresses of this kind. */
-  base?: string,
+  /** The web's base and trailing-slash policy: a site address a template writes (`<image src="/logo.svg">`) is put under the base. Absent for a target with no addresses of this kind. */
+  site?: { readonly base: string; readonly trailingSlash: TrailingSlash },
 ): Promise<Compiled> => {
   const { all, tree } = templatesOf(root, author, vocabulary, views);
   const used = reachable(all);
@@ -337,7 +338,11 @@ export const compileViews = async (
   const result = await compileProgram({
     model: { manifest: JSON.stringify(model), path: ".valance/manifest.json" },
     root: ROOT,
-    components: used.map((template) => ({ component: template.component, source: base === undefined ? template.source : underBase(template.source, base), path: template.path })),
+    components: used.map((template) => ({
+      component: template.component,
+      source: site === undefined ? template.source : underBase(template.source, site.base, site.trailingSlash),
+      path: template.path,
+    })),
   });
 
   if (result.program === undefined) {

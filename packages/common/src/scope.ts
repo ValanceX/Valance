@@ -4,6 +4,7 @@ import { Schema } from "effect";
 
 import type { ColorScheme, TitleParts, Viewport } from "./index.js";
 import type { Block, Content, Page, Span } from "./model.js";
+import { pageUrl } from "./url.js";
 
 const SpanView = Schema.Struct({ id: Schema.String, kind: Schema.String, text: Schema.String, href: Schema.String });
 const ItemView = Schema.Struct({ id: Schema.String, spans: Schema.Array(SpanView) });
@@ -67,7 +68,7 @@ const NONE = { href: "", label: "" };
 
 const view = (blocks: ReadonlyArray<Block>): (typeof FrameScope.Type)["blocks"] => blocks;
 
-const withBase = (base: string, path: string): string => `${base}${path.replace(/^\//, "")}`;
+const withBase = (content: Content, path: string): string => pageUrl(content.site.base, path, content.site.trailingSlash);
 
 export const sectionLabel = (dir: string): string => dir.replace(/[-_]+/g, " ").replace(/^./, (first) => first.toUpperCase());
 
@@ -103,7 +104,7 @@ export const notFoundPage = (content: Content): Page =>
         spans: [
           { id: "b1.0", kind: "text", text: "There is no page at this address.", href: "" },
           { id: "b1.1", kind: "text", text: " ", href: "" },
-          { id: "b1.2", kind: "link", text: "Go to the start.", href: withBase(content.site.base, "/") },
+          { id: "b1.2", kind: "link", text: "Go to the start.", href: withBase(content, "/") },
         ],
         items: [],
         ordered: false,
@@ -141,7 +142,7 @@ export const frame = (
   const page = declared === undefined ? pageAt(content, path) : undefined;
   const shown = page ?? notFoundPage(content);
   const at = page === undefined ? -1 : content.pages.indexOf(page);
-  const ref = (to: Page | undefined): typeof NONE => (to === undefined ? NONE : { href: withBase(content.site.base, to.path), label: to.title });
+  const ref = (to: Page | undefined): typeof NONE => (to === undefined ? NONE : { href: withBase(content, to.path), label: to.title });
   const groups: Array<{ id: string; title: string; items: Array<{ id: string; href: string; label: string; current: string }> }> = [];
 
   for (const each of content.pages) {
@@ -152,7 +153,7 @@ export const frame = (
       groups.push(group);
     }
 
-    group.items.push({ id: each.path, href: withBase(content.site.base, each.path), label: each.title, current: each.path === path ? "page" : "false" });
+    group.items.push({ id: each.path, href: withBase(content, each.path), label: each.title, current: each.path === path ? "page" : "false" });
   }
 
   return {
@@ -161,7 +162,7 @@ export const frame = (
     colorScheme,
     canGoBack: trail.canGoBack,
     canGoForward: trail.canGoForward,
-    home: withBase(content.site.base, "/"),
+    home: withBase(content, "/"),
     route: declared?.name ?? "",
     title: declared === undefined ? shown.title : declared.title,
     description: declared === undefined ? shown.description : "",

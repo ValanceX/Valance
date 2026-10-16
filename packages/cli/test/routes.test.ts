@@ -18,7 +18,7 @@ import { compileViews } from "../src/compile.js";
 import { loadConfig } from "../src/config.js";
 import { readContent } from "../src/content.js";
 import { dev } from "../src/dev.js";
-import { info } from "../src/info.js";
+import { info, render } from "../src/info.js";
 import { plan } from "../src/init.js";
 import { createLoader } from "../src/vite.js";
 import { cleanup, project } from "./fixture.js";
@@ -41,7 +41,14 @@ const ROUTES = `
 
 /** The scaffold with routes declared, a layout that draws the order, and the state `enter` sets. */
 const withRoutes = (
-  options: { readonly routes?: string; readonly extra?: Readonly<Record<string, string>>; readonly url?: string; readonly base?: string; readonly persist?: boolean } = {},
+  options: {
+    readonly routes?: string;
+    readonly extra?: Readonly<Record<string, string>>;
+    readonly url?: string;
+    readonly base?: string;
+    readonly persist?: boolean;
+    readonly trailingSlash?: "never" | "always";
+  } = {},
 ): string => {
   const files = Object.fromEntries(
     [...plan({ ...answers, web: { base: options.base ?? "", url: options.url ?? "" } }).files].filter(([name]) => name !== "package.json" && name !== "valance.json"),
@@ -60,7 +67,15 @@ const withRoutes = (
     '{#if route == "order"}<para class="order">Order {orderId} ({tab}) {title}</para>{:else if route == "settings"}<para class="settings">Settings {title}</para>{:else}<blocks items={blocks} />{/if}\n      <link class="nav-link" href="/orders/1" current="false">Order one</link>\n      <link class="nav-link" href="/settings" current="false">Settings</link>',
   );
 
-  return project({ ...files, "src/main.ts": main, "src/layout.mprx": layout, ...options.extra });
+  const web = JSON.parse(files["valance.web.json"]!) as Record<string, unknown>;
+
+  return project({
+    ...files,
+    ...(options.trailingSlash === undefined ? {} : { "valance.web.json": JSON.stringify({ ...web, trailingSlash: options.trailingSlash }) }),
+    "src/main.ts": main,
+    "src/layout.mprx": layout,
+    ...options.extra,
+  });
 };
 
 const started = async (root: string) => {
@@ -334,6 +349,31 @@ describe("a built site (R-11 to R-14, R-16)", () => {
   }, 240_000);
 });
 
+describe("a site whose pages end in a slash (trailingSlash: always)", () => {
+  it("writes every page address with one: links, navigation, the canonical link, the sitemap, a layout's literal link and a declared route's pages", async () => {
+    const root = withRoutes({ trailingSlash: "always", url: "https://example.com" });
+    const built = await build(root);
+    const order = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
+    const home = readFileSync(join(root, "dist/web/index.html"), "utf8");
+
+    expect(built.pages).toEqual(["/", "/guide/getting-started/", "/guide/writing-pages/", "/orders/1/", "/orders/2/", "/settings/"]);
+    expect(order).toContain('rel="canonical" href="https://example.com/orders/1/"');
+    expect(order).toContain('href="/orders/1/"'); // the layout's literal link
+    expect(home).toContain('href="/guide/getting-started/"'); // the navigation
+    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).toContain("<loc>https://example.com/guide/getting-started/</loc>");
+    expect(existsSync(join(root, "dist/web/guide/getting-started/index.html"))).toBe(true); // the files are the same
+  }, 240_000);
+
+  it("is the one form under a base too, and vlx info says which it is", async () => {
+    const root = withRoutes({ trailingSlash: "always", base: "/docs/" });
+    const found = await info(root);
+
+    expect(found.web).toMatchObject({ base: "/docs/", trailingSlash: "always" });
+    expect(found.declared[0]!.pages).toEqual(["/docs/orders/1/", "/docs/orders/2/"]);
+    expect(render(found)).toContain("addressed with a trailing slash");
+  }, 120_000);
+});
+
 describe("vlx dev and vlx info (R-15, R-20)", () => {
   it("renders an address that staticParams does not list, with its query, and answers an unknown one with 404", async () => {
     const running = await dev(withRoutes(), { port: 6900 + Math.floor(Math.random() * 300), log: () => undefined });
@@ -369,8 +409,10 @@ const serve = async (dist: string): Promise<{ readonly origin: string; readonly 
     const file = [join(dist, path), join(dist, path, "index.html")].find((each) => existsSync(each) && /\.[a-z0-9]+$/.test(each));
 
     if (file === undefined) {
+      // what a static host does for an address with no file: its 404 page, with a 404 status
       response.statusCode = 404;
-      response.end("not found");
+      response.setHeader("content-type", "text/html");
+      response.end(readFileSync(join(dist, "404.html")));
       return;
     }
 
@@ -420,26 +462,41 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
     }
   }, 240_000);
 
-  it("an address written another way is the same page: the state holds the canonical address (R-6; the address bar is left as it was written, as for a content page)", async () => {
-    const root = withRoutes();
+  it("the page moves the address bar to its canonical form when it starts: the policy's slash, the query in order, the fragment kept, and no new history entry (R-6, D-1)", async () => {
+    const never = withRoutes();
+    const always = withRoutes({ trailingSlash: "always" });
 
-    await build(root);
+    await build(never);
+    await build(always);
 
-    const site = await serve(join(root, "dist/web"));
+    const sites = [await serve(join(never, "dist/web")), await serve(join(always, "dist/web"))];
     const browser = await chromium.launch();
-
-    try {
+    const at = async (origin: string, address: string): Promise<string> => {
       const page = await browser.newPage();
 
-      await page.goto(`${site.origin}/orders/2/?tab=open`); // a trailing slash
-      await page.waitForSelector('#app[data-valance="running"]');
-      await page.waitForFunction(() => document.querySelector("p.order")?.textContent === "Order 2 (open) Order 2");
-      // The state is the canonical address; the address bar is not rewritten (a content page opened with a trailing slash is not either).
-      expect(await page.evaluate(() => JSON.parse(document.getElementById("valance-boot")!.textContent!).state.page)).toBe("/orders/2");
-      expect(new URL(page.url()).pathname).toBe("/orders/2/");
+      try {
+        await page.goto(`${origin}${address}`);
+        await page.waitForSelector('#app[data-valance="running"]');
+
+        const { pathname, search, hash } = new URL(page.url());
+
+        expect(await page.evaluate(() => history.length)).toBe(2); // about:blank and this page: the address was replaced, not pushed
+
+        return `${pathname}${search}${hash}`;
+      } finally {
+        await page.close();
+      }
+    };
+
+    try {
+      expect(await at(sites[0]!.origin, "/orders/2/?tab=open")).toBe("/orders/2?tab=open"); // never (the default)
+      expect(await at(sites[0]!.origin, "/guide/getting-started/#top")).toBe("/guide/getting-started#top");
+      expect(await at(sites[1]!.origin, "/orders/2?tab=open")).toBe("/orders/2/?tab=open"); // always
+      expect(await at(sites[1]!.origin, "/guide/getting-started")).toBe("/guide/getting-started/");
+      expect(await at(sites[0]!.origin, "/nowhere/")).toBe("/nowhere/"); // not a page: left as it was written
     } finally {
       await browser.close();
-      site.close();
+      sites.forEach((site) => site.close());
     }
-  }, 240_000);
+  }, 300_000);
 });

@@ -169,6 +169,7 @@ describe("the scaffold", () => {
       $schema: "./node_modules/@valancex/cli/schemas/valance.web.schema.json",
       version: 1,
       rendering: "static",
+      trailingSlash: "never",
     });
     expect(plan(answers("/x/site", { web: { base: "/", url: "" } })).files.get("README.md")).toContain("says how the web site is delivered");
     expect(plan(answers("/x/site", { web: { base: "/", url: "https://example.com" } })).files.get("valance.web.json")).not.toContain('"base"');

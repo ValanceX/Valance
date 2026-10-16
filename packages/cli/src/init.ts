@@ -177,6 +177,7 @@ export const plan = (answers: Answers): Plan => {
         $schema: "./node_modules/@valancex/cli/schemas/valance.web.schema.json",
         version: 1,
         rendering: "static",
+        trailingSlash: "never",
         ...(hasBase ? { base: answers.web.base } : {}),
         ...(answers.web.url !== "" ? { url: answers.web.url } : {}),
       }),
