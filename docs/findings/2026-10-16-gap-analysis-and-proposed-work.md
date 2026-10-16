@@ -270,3 +270,17 @@ Started 2026-10-16, in the order of §7. Each row is a commit on `claude/inspiri
 | WP-6g | **Done**, design first (with the fine-grained constraint) and check after: `children`, `index`, dotted names, the outlet as `<mesh-slot />`, `outlet-missing`, a generated tree with one condition per level on its own `at.lN`, the tree flattened once. Ancestors are the same elements across three levels with no mutation recorded; the engine reads no tree at run time. One shape difference from the note (`at` per level) and one thing not measured (MESH's skipped re-evaluation) | ROUTES.md "Implementation status, slice 6g", `cli/test/nested.test.ts`, `common/test/routing.test.ts` |
 
 Not started, as ordered: the "later, on evidence" group; plus the work WP-8 proposes (see its table).
+
+## 10. After the routes work (analysis of 2026-10-16, with what was done on it)
+
+Slices 6a to 6g are built. This section is what remains, ranked by the directions in §1, and what has been done on it since. New work packages continue the numbering.
+
+| WP | Work | Why now | Status |
+|---|---|---|---|
+| **WP-1 (measure)** | Measure first paint and layout shift in dev and in a built site under added latency | WP-1's own acceptance said to measure before claiming a fix | **Done**: `cli/test/first-paint.test.ts`. The scaffold had a shift of 0.0077 caused by an image with no size (WA-9), now fixed; shift is 0 in both |
+| **WP-10 (rest)** | Register rows current; a check that every Open row names a work package; NATIVE-PARITY re-baselined | DP7: the register is part of what must be inspectable | **Done in part**: five stale rows fixed, `cli/test/register.test.ts` added, NATIVE-PARITY re-baselined for the rows that were checked (it found two real gaps: the desktop never reports `viewport`, and the close guard is untested in a window). Unchecked rows are marked as such |
+| **WP-19** | Review the new routing surfaces for security: aliases, `_redirects` lines, `load`'s work, the close guard | DP10 | See the result below |
+| **WP-18** | A second reference app (data loading, a table, a select, a server error) scored on the cognitive-load scale | DP2: RF-4, RF-5, RF-6, RF-10 wait for it | See below |
+| **WP-20** | Desktop parity: report `viewport` from the window; drive `mayClose`, a nested route and a screen in a window; the Port release that carries the form primitives | DP1, DP6: the portable contract is only proven where it has been run | Open (needs the Port repository's release; not done here) |
+| **WP-21** | Types for a child route's `enter` and `title` across the levels; a redirect that names a content page | DP8: both are a cast or a surprise in the common case | Open |
+| **WP-22** | `load` ergonomics: caching, invalidation, reload | DP2: only when WP-18 shows the need | Open, on evidence |

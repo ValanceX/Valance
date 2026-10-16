@@ -75,3 +75,22 @@ So the **model** (state, commands, templates, slots, blocks, events, router, con
 3. The vocabulary decision (#4, #7, #8), made from what step 1 shows.
 4. macOS (#31) and accessibility (#10).
 5. A mobile investigation (#5 above), before any commitment.
+
+## Re-baseline, 2026-10-16 (partial)
+
+The matrix above was written on 2026-10-14. These rows were checked against the code in this repository and the Port repository; **rows not listed here were not re-checked and still read as written** (marked, so that nobody mistakes the table for a current one).
+
+| # | Was | Now | Evidence |
+|---|---|---|---|
+| 4 | open for `vlx` | **Built.** `vlx` has a `desktop` target with its own built-in views and the Desktop PORT's vocabulary and content vocabulary as data; the web-only hooks (`class`, `theme`, `width`, `height`, …) are refused on it, by test | `cli/src/targets.ts`, `cli/views-desktop/`, `cli/test/second-target.test.ts` |
+| 8 | not built | **Built**: `appearance` in `defineApp`, and `colorScheme` is told to the layout | `common/src/desktop.ts` (`appearanceOf`, `onScheme`) |
+| 9 | read | **Still not wired**: the desktop host never calls `resize`, so `viewport` stays `expanded` in a window. Only the web reports its width | `common/src/desktop.ts` has no resize path; `web` has `viewport.ts` |
+| 11 | click only | **Partly built**: events by one key (Enter, Escape), `focus` and `blur` on the web and in the Desktop PORT (unreleased) | `FORM-PRIMITIVES.md` |
+| 13 | not built | **Built in the PORT**: `image` in the content vocabulary, decoded from local files; `vlx build` copies `public/` beside the engine. Image sizes (WA-9) are the web's | Port `content.json`, `view.rs` `local_image`; `common/src/desktop.ts` `withAssets` |
+| 15, 16 | open / not built | **Built**: a link is an address, `onLink` turns it into `go`; an external one goes to the `Open` capability | `common/src/desktop.ts`, `common/src/open-system.ts` |
+| 17 | open | **Built**: the `Navigation` capability with the engine owning the list; `back` and `forward` commands; optionally kept between runs | `common/src/navigation.ts`, `common/src/app.ts` |
+| 19 | run | **Run, and larger**: per-route `canActivate`, `canDeactivate` and `redirectTo` on declared routes | ROUTES.md 6f |
+| 20 | web missing | **Web built** (`beforeunload` asks a guard that answers at once); the desktop's `mayClose` is wired to the route guards and **was not driven in a window** | ROUTES.md "Implementation status, slices 6e and 6f" |
+| 21 | not built | **Built**: the window's title follows the page, in the project's format | `common/src/desktop.ts` (`titleOf`) |
+| 24 | not built | **Built**: `Store` with a file in the user's data directory; `persist` in `defineApp` | `common/src/store-file.ts` |
+| 27 | not built | **Partly built**: `init`, `check`, `info` and `build` know the desktop target; `dev` is web only | `cli/src/targets.ts`, `cli/src/build.ts` |

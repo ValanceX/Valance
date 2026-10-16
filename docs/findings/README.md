@@ -40,12 +40,15 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 |---|---|---|---|---|
 | WA-1 | Component-scoped styles | 2 / FW | **Fixed for the web (tier 1)**; portable style language (tier 2) deliberately not built | `application-model/STYLING.md`; `cli/src/styles.ts` |
 | WA-2 | Rendering mode not visible or settable; dev vs build differ | 2 / FW | **Fixed**: visible in `valance.web.json`; `client` per route and per site (slice 6b); `server` refused | ROUTING R1 (`delivery`) |
-| WA-3 | Routes undiscoverable, no listing command | 2 / FW | Open | ROUTING (model note) |
-| WA-4 | `defineApp({ routes })`; custom pages, params, query, per-route guard/delivery | 3 / FW | Open (decided, deferred) | ROUTING R1, items 6 and 8; v0.12 "Deferred" |
-| WA-5 | Form primitives, validation recipe, missing tags in docs | 2 / FW | Open | application-model D1 (partly) |
-| WA-6 | Dev HTML has no stylesheet link: unstyled first paint | 2 / FW | Open (cause read, not measured) | verifier F22 (related) |
-| WA-7 | Components inside Markdown | 2 / FW | Open | application-model D4 (related) |
+| WA-3 | Routes undiscoverable, no listing command | 2 / FW | **Fixed**: `vlx info` (WP-3) | ROUTING (model note) |
+| WA-4 | `defineApp({ routes })`; custom pages, params, query, per-route guard/delivery | 3 / FW | **Fixed**: slices 6a to 6g (WP-6) | ROUTING R1, items 6 and 8; v0.12 "Deferred" |
+| WA-5 | Form primitives, validation recipe, missing tags in docs | 2 / FW | **Fixed** except select/radio: tags generated (WP-7), form primitives (RF-1 to RF-3), reference form (WP-8); the rest is RF-4 | application-model D1 (partly) |
+| WA-6 | Dev HTML has no stylesheet link: unstyled first paint | 2 / FW | **Fixed and measured** (WP-1a; `first-paint.test.ts`: layout shift 0 in dev and built under 250 ms of added latency; measuring found WA-9) | verifier F22 (related) |
+| WA-7 | Components inside Markdown | 2 / FW | Open → WP-13 (decision Q4) | application-model D4 (related) |
 | WA-8 | The browser removed and re-inserted the stylesheet `<link>` in the head on **every** state change: the page lost its styles until the browser applied the new link, and the layout jumped (found as RF-11) | 3 / FW | **Fixed**: `applyHead` keeps a tag that has not changed | reference form (RF-11); WA-6 (related: first paint) |
+| WA-9 | An image with no width and height moved the page when it loaded (layout shift 0.0077 on the scaffold, found by measuring WA-6) | 2 / FW | **Fixed**: content images carry the size their file says (PNG, GIF, JPEG, WebP, SVG); the first-paint test pins a shift of 0 | WA-6 |
+| WA-10 | The desktop host never reports the window's width, so `viewport` stays `expanded` in a window (found re-baselining NATIVE-PARITY #9) | 2 / FW | Open → WP-20 | NATIVE-PARITY #9 |
+| WA-11 | A child route's `enter` and `title` receive every level's parameters at run time but are typed with only their own; a redirect cannot name a content page | 2 / FW | Open → WP-21 | ROUTES.md 6g, 6f |
 
 ### 3.1b From the reference form (this folder)
 
@@ -55,12 +58,12 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | **Fixed** (same) |
 | RF-3 | No `blur` / `focus` events | 2 / PORT | **Fixed** (same) |
 | RF-11 | A click that follows leaving a field could be lost | 2 / FW | **Fixed**: not a controlled-control race; the stylesheet was re-inserted on every state change (WA-8) |
-| RF-4 | No radio group / select | 2 / FW, PORT | Open: wait for a second form |
-| RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open: decision on the core command surface |
-| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open: opt-in decoded error body |
+| RF-4 | No radio group / select | 2 / FW, PORT | Open → WP-18 (a second reference app decides) |
+| RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open → WP-18 (then a decision on the core command surface) |
+| RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open → WP-18 (opt-in decoded error body) |
 | RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |
 | RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
-| RF-10 | Can a success navigate from `settle`? | ? | Not tried |
+| RF-10 | Can a success navigate from `settle`? | ? | Open → WP-18 (not tried) |
 
 WA-5 (form building blocks) is answered by this: no helper; RF-1 to RF-3, RF-5 and RF-6 first.
 
