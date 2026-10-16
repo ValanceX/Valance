@@ -1,11 +1,13 @@
 // A portable choice group (docs/application-model/CHOICE-GROUP.md, CG-1 to CG-6): what the page writes for a radio group, and that a neutral target refuses the web's hooks on it.
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { build } from "../src/build.js";
 import { check } from "../src/check.js";
 import { plan } from "../src/init.js";
+import { tagsOf } from "../src/tags.js";
+import { TARGETS } from "../src/targets.js";
 import { cleanup, project } from "./fixture.js";
 
 afterEach(cleanup);
@@ -69,20 +71,13 @@ describe("the caption that names a control (WA-14, WA-15)", () => {
   }, 240_000);
 });
 
-describe("the two targets agree on the controls (CG-7), checked against a Port checkout", () => {
-  // The Desktop PORT is released on its own. Until a release carries a control, Valance cannot see it in the installed package, so a checkout of the Port repository next to this one (or PORT_REPO)
-  // stands in: every prop and event the Desktop PORT names for a shared control must be the web's, with the same type and requiredness.
-  const port = process.env["PORT_REPO"] ?? join(import.meta.dirname, "../../../../Port");
-  const available = existsSync(join(port, "packages/port-desktop/vocabulary.json"));
+describe("the two targets agree on the controls (CG-7)", () => {
+  // The Desktop PORT's vocabulary is the installed `@valancex/port-desktop-vocabulary` (0.8 carries the choice group and `label`): every prop and event it names for a shared control must be the web's.
+  it("a desktop prop or event that a shared control has is the web's, of the same type", () => {
+    const desktop = tagsOf(TARGETS.find((each) => each.id === "desktop")!.vocabulary);
+    const web = tagsOf(TARGETS.find((each) => each.id === "web")!.vocabulary);
 
-  it.skipIf(!available)("a desktop prop or event that a shared control has is the web's, of the same type", async () => {
-    const { fromManifests, webVocabulary } = await import("@valancex/common/internal");
-    const { tagsOf } = await import("../src/tags.js");
-    const read = (name: string): { readonly components: Readonly<Record<string, unknown>> } => JSON.parse(readFileSync(join(port, "packages/port-desktop", name), "utf8"));
-    const desktop = tagsOf(fromManifests("desktop", read("vocabulary.json"), read("content.json")));
-    const web = tagsOf(webVocabulary);
-
-    for (const name of ["checkbox", "textfield", "radiogroup", "radio"]) {
+    for (const name of ["checkbox", "textfield", "radiogroup", "radio", "button", "label"]) {
       const there = desktop.find((tag) => tag.name === name);
       const here = web.find((tag) => tag.name === name);
 

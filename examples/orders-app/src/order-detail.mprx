@@ -6,9 +6,9 @@
     <para class="total">Total {detail.total}</para>
     <para class="current">Status: <span class="now">{detail.status}</span></para>
     <radiogroup class="choices" label="Status">
-      <radio name="status" label="Open" value="open" checked={choice == "open"} on.select={choose($event)} />
-      <radio name="status" label="Paid" value="paid" checked={choice == "paid"} on.select={choose($event)} />
-      <radio name="status" label="Shipped" value="shipped" checked={choice == "shipped"} on.select={choose($event)} />
+      <label><radio name="status" value="open" checked={choice == "open"} on.select={choose($event)} />Open</label>
+      <label><radio name="status" value="paid" checked={choice == "paid"} on.select={choose($event)} />Paid</label>
+      <label><radio name="status" value="shipped" checked={choice == "shipped"} on.select={choose($event)} />Shipped</label>
     </radiogroup>
     <button class="save" disabled={!changed || saving} on.click={saveStatus()}>{saving ? "Saving…" : "Save status"}</button>
     {#if saveError != ""}<para class="state failure" id="save-error">{saveError}</para>{/if}

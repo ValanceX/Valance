@@ -5,8 +5,8 @@
     <button class="again" on.click={reset()}>Start again</button>
   {:else}
     <radiogroup class="plans" label="Plan">
-      <radio name="plan" label="Free" value="free" checked={plan == "free"} on.select={setPlan($event)} />
-      <radio name="plan" label="Pro" value="pro" checked={plan == "pro"} on.select={setPlan($event)} />
+      <label><radio name="plan" value="free" checked={plan == "free"} on.select={setPlan($event)} />Free</label>
+      <label><radio name="plan" value="pro" checked={plan == "pro"} on.select={setPlan($event)} />Pro</label>
     </radiogroup>
     <div class="field">
       <textfield value={name} label="Name" invalid={nameError != ""} describedby="name-error" placeholder="Ada Lovelace" on.change={setName($event)} on.blur={touch("name")} on.submit={submit()} on.cancel={reset()} />

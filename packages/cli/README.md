@@ -198,7 +198,7 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `label` | `<label>` | `class` (string) | none |
 | `button` | `<button>` | `class` (string), `label` (string), `pressed` (string), `disabled` (boolean) | `click` |
 
-**Desktop** (18 tags). A `*` marks a prop every use must write.
+**Desktop** (19 tags). A `*` marks a prop every use must write.
 
 | Tag | Props | Events |
 |---|---|---|
@@ -211,6 +211,7 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `textfield` | `value`* (string), `placeholder` (string), `label` (string), `kind` (string), `invalid` (boolean), `describedby` (string) | `change` (string), `submit`, `cancel`, `blur`, `focus` |
 | `radiogroup` | `label` (string), `invalid` (boolean), `describedby` (string) | none |
 | `radio` | `checked`* (boolean), `value`* (string), `label` (string), `disabled` (boolean) | `select` (string) |
+| `label` | none | none |
 | `paragraph` | `id` (string) | none |
 | `list` | `ordered` (boolean) | none |
 | `listitem` | none | none |
