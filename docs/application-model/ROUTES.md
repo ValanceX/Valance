@@ -349,3 +349,49 @@ Cost: about the size of 6d (the engine flattens and merges; the generator recurs
 1. **Names**: dotted leaves (`account.profile`) as proposed, or keys that stay flat with a `parent` reference. Dotted keeps the tree visible in `route` comparisons and in `vlx info`.
 2. **`staticParams` on nested routes**: on the leaf, the full set (proposed), or composed from each level.
 3. **An `index` child** as a key of the parent (`index: screen`), or as a child with the empty path.
+
+## Slices 6c, 6b and 6g: design (2026-10-16, before the implementation)
+
+Decisions taken: leaf names are **dotted** (`account.profile`); `staticParams` is **the full set on the leaf**; an **`index`** is a key on the parent; the order is **6c, 6b, 6g**, with the click race RF-11 looked into after. One constraint from the maintainer governs 6g: **nested routes follow the same fine-grained reactivity, and nothing walks the route tree unless it has to.**
+
+### 6c: links are checked against routes
+
+- **R-30** A Markdown link or a template's literal `href` (on `a` and `link`) to an address that a declared route matches (the path's parameters decoded by their Schemas; any query) is not `link-broken`. It is written under the base in the form the `trailingSlash` policy names, like a link to a page. A link to an address that no content page, declared route or file of `public/` matches is `link-broken`, naming the file and line (and the column, in a template).
+- **R-31** A `#fragment` on a link to a declared route is accepted unchecked: a route's headings are not known to the build.
+- **R-32** `sitemap.xml` lists the declared pages a build writes (parameterless routes and `staticParams` entries), not client routes.
+
+### 6b: client delivery
+
+- **R-33** A route may say `delivery: "client"`. A build writes no page for it. Its addresses are answered by the **app shell**: one HTML file, `__app-shell.html`, with an empty `#app`, the script and the stylesheets. It cannot be pre-rendered because its addresses are not known at build time (`/orders/:id` for any id).
+- **R-34** The shell draws; it does not hydrate. Its boot data says it is the shell, and the page's first state is derived from the address bar (path and query), the way R-22 already derives the query.
+- **R-35** The build writes `_redirects` beside `_headers`: one rewrite (status 200, not a redirect) from each client route's pattern to the shell, in the syntax Netlify and Cloudflare Pages read (`/orders/:id  /__app-shell.html  200`, a rest segment as `*`); any other host takes the same lines. It is written only when a client route exists.
+- **R-36** A client route has no static pages: `staticParams` on one is a definition error (it would be ignored silently), and `route-static-params` does not apply to it.
+- **R-37** `rendering: "client"` in `valance.web.json` makes every address client-delivered, content pages included: the build writes the shell, `_redirects` with `/*  /__app-shell.html  200`, the assets and `404.html`, and no page. Links are still checked (R-30).
+- **R-38** `vlx dev` serves the shell for a client route, as a host would, so what is seen in development is what is shipped.
+
+### 6g: nested routes and the outlet
+
+- **R-39 `children`.** A route may have `children`: routes whose patterns start with `/` and are appended to the parent's. A child's name is the parent's, a dot, and its key (`account.profile`); the keys follow the rule names have; the dotted leaf name is what `route` holds. Params and query of every level reach `enter` and `title` as one input; a name used at two levels is a definition error.
+- **R-40 `index`.** A parent may name `index`: the screen drawn in its slot for the parent's own address. Without it the slot is empty there. The parent's own address is the route named by the parent (`account`).
+- **R-41 The outlet is `<mesh-slot />`** in the parent screen's template. A parent screen that has children with screens and no slot in its template is a diagnostic naming the route (`outlet-missing`).
+- **R-42 Order.** `enter` runs parent first, then child, on the same state change; `title` is the deepest one given; `delivery` is the parent's unless the child says otherwise.
+- **R-43 Static pages.** A build writes the pages of the leaves, of a parent with an `index` or with no children. `staticParams` belongs on the leaf, as the full parameter set; a parent that has children may not give it.
+- **R-44 Fine-grained reactivity.** The generated switch is a tree with **one condition per level, each reading its own state path**: the application's state gains `at`, a record with one field per route that has children (the root counts), holding the key of the active child there (`at.l0 == "account"`, `at.l1 == "profile"`). The framework sets `at` when it sets `route`. A navigation that changes only the active child under `account` changes `at.l1` and `route`, and nothing else: MESH re-evaluates only the sites that read a changed path, so the conditions of the levels above, and everything outside the area, are not re-evaluated, and **every ancestor is the same element** afterwards. A flat switch on `route` would re-evaluate every condition on every navigation.
+- **R-45 No tree walk at run time.** The route tree is flattened once, when the definition is read: each leaf has its full pattern, its chain of levels and its `enter`s in order. Entering a route reads that chain (O(depth)); the router's matcher, which scans its candidates, is not the application's concern and is given the flat table. Nothing builds or traverses the tree to render or to navigate.
+
+### Acceptance
+
+| Test | Statement |
+|---|---|
+| A Markdown link and a template link to `/signup`, `/orders/42?tab=open` are accepted and written under base and policy; to an address that is nothing is `link-broken` with its file and line | R-30, R-31 |
+| The sitemap lists `staticParams` pages and not client routes | R-32 |
+| A client route writes no page, the shell, and `_redirects` with its pattern; the shell draws from the address bar in Chromium, with a query, a trailing slash and a parameter | R-33 to R-35 |
+| `staticParams` on a client route is a definition error; no `route-static-params` for it | R-36 |
+| `rendering: "client"` writes the shell and a catch-all and no page; links are still checked | R-37 |
+| `vlx dev` serves the shell for a client route | R-38 |
+| Nested: leaf names, merged params and query, `enter` order, deepest title, `index`, the parent alone | R-39 to R-42 |
+| `outlet-missing` when a parent screen has no slot | R-41 |
+| Static pages of leaves; `staticParams` on a parent with children is refused | R-43 |
+| **Reactivity:** navigating between siblings under one parent leaves every ancestor the same element and mutates nothing outside the slot (a MutationObserver on the ancestors); only the paths `route` and the changed `at.lN` change in the state; three levels | R-44 |
+| **No tree walk:** entering a route reads its precomputed chain (a counter on the structures read), and the generated switch has one equality per case at each level, none a disjunction over the subtree | R-45 |
+| A project with no nested routes compiles the switch it did before, or its equivalent with the one root level | R-44 |
