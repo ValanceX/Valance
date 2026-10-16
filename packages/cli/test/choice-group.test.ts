@@ -51,6 +51,24 @@ describe("the radio group on the web", () => {
   }, 120_000);
 });
 
+describe("the caption that names a control (WA-14, WA-15)", () => {
+  it("label is a <label> that wraps its control and its text; a button may carry an accessible name", async () => {
+    const root = withLayout(`
+      <label class="opt"><radio name="plan" value="free" checked={true} on.select={toggleTheme()} />Free</label>
+      <label><checkbox checked={false} on.change={toggleTheme()} />I agree</label>
+      <button label="Close" on.click={toggleTheme()}>x</button>`);
+
+    expect((await check(root)).diagnostics).toEqual([]);
+    await build(root);
+
+    const html = readFileSync(join(root, "dist/web/index.html"), "utf8");
+
+    expect(html).toMatch(/<label class="opt"><input[^>]*type="radio"[^>]*>Free<\/label>/);
+    expect(html).toMatch(/<label><input[^>]*type="checkbox"[^>]*>I agree<\/label>/);
+    expect(html).toMatch(/<button[^>]*aria-label="Close"[^>]*>x<\/button>/);
+  }, 240_000);
+});
+
 describe("the two targets agree on the controls (CG-7), checked against a Port checkout", () => {
   // The Desktop PORT is released on its own. Until a release carries a control, Valance cannot see it in the installed package, so a checkout of the Port repository next to this one (or PORT_REPO)
   // stands in: every prop and event the Desktop PORT names for a shared control must be the web's, with the same type and requiredness.

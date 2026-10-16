@@ -109,5 +109,11 @@ export const primitives: Web.WebPrimitives = {
     props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label, name: Web.attribute("name"), disabled: Web.booleanAttribute("disabled") },
     events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
   },
-  button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
+  /**
+   * A caption and the control it names: the text written directly inside is the control's visible name, and a click on it does what a click on the control does (it is a `<label>` that wraps
+   * its control, so no `id` ties the two). A control inside takes its accessible name from it; the control's own `label` (`aria-label`) is only for a control with no caption. The Desktop PORT's
+   * `label` is the same shape (docs/application-model/CHOICE-GROUP.md, WA-14).
+   */
+  label: { element: "label", props: { class: klass } },
+  button: { element: "button", props: { class: klass, label, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
 };

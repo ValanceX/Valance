@@ -52,8 +52,8 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | WA-11 | A child route's `enter` and `title` receive every level's parameters at run time but are typed with only their own; a redirect cannot name a content page | 2 / FW **Fixed** (typed `children`, address redirects; ROUTES.md amendments) | ROUTES.md 6g, 6f |
 | WA-12 | Entering a child route reloaded its parent's data and reset the parent's state to loading (found building the orders app) | 3 / FW | **Fixed**: a level a move stays inside is not entered | `2026-10-16-orders-app.md` |
 | WA-13 | A route guard sees the state's fields and not the derived values, so a rule used by both is written twice | 1 / FW **Fixed** (guards see derived values) | `2026-10-16-orders-app.md` |
-| WA-14 | No `label` element: a control's visible name cannot be tied to it (a radio's or checkbox's `label` is only the accessible name; the reference apps draw it with CSS) | 2 / FW, PORT | Open → WP-27 | CHOICE-GROUP.md |
-| WA-15 | The Desktop PORT's `button` has a `label` (its accessible name) and the web's does not, so a portable template cannot name a button without text; found by the parity check against a Port checkout | 1 / FW, PORT | Open → WP-27 | CHOICE-GROUP.md |
+| WA-14 | No `label` element: a control's visible name cannot be tied to it (a radio's or checkbox's `label` is only the accessible name; the reference apps draw it with CSS) | 2 / FW, PORT | Done on the web; desktop in Port (unreleased) → WP-27 | CHOICE-GROUP.md |
+| WA-15 | The Desktop PORT's `button` has a `label` (its accessible name) and the web's does not, so a portable template cannot name a button without text; found by the parity check against a Port checkout | 1 / FW, PORT | Done: the web `button` takes `label` → WP-27 | CHOICE-GROUP.md |
 
 ### 3.1b From the reference form (this folder)
 
