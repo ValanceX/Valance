@@ -50,9 +50,10 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 
 | ID | Gap | Sev / layer | Status |
 |---|---|---|---|
-| RF-1 | Text field cannot be a password / email / number (no `type`) | 3 / FW, PORT | Open: justified, build a portable `kind` |
-| RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | Open: justified |
-| RF-3 | No `blur` / `focus` events | 2 / PORT | Open: justified, small |
+| RF-1 | Text field cannot be a password / email / number (no `type`) | 3 / FW, PORT | **Fixed** (web: Valance; desktop: Port, unreleased) |
+| RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | **Fixed** (same) |
+| RF-3 | No `blur` / `focus` events | 2 / PORT | **Fixed** (same) |
+| RF-11 | A click during the render of a `blur` can be lost (controlled checkbox re-asserted) | 2 / FW, PORT | Open: found fixing RF-3 |
 | RF-4 | No radio group / select | 2 / FW, PORT | Open: wait for a second form |
 | RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open: decision on the core command surface |
 | RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open: opt-in decoded error body |
@@ -92,7 +93,7 @@ WA-5 (form building blocks) is answered by this: no helper; RF-1 to RF-3, RF-5 a
 |---|---|---|
 | F8 | Copy-to-clipboard needs a platform capability | PORT capability design |
 | F9 | No on-page TOC (no anchor/scroll support) | PORT capability design. **Checked: partly closed**, `toc`/`hasToc` are in the layout scope; scroll-spy remains F21 |
-| F12 | Boolean cannot be passed to a text attribute (`aria-pressed`) | PORT realization or MESH coercion |
+| F12 | Boolean cannot be passed to a text attribute (`aria-pressed`) | **Fixed for any prop that asks**: the web vocabulary's `types` rule retypes it (used for `invalid`); `pressed` is left a string for compatibility |
 | F13 | Required `class` prop on every use | = application-model D1 |
 | F15 | Unknown in-app path rewrites the address bar | stand-in router; phase E |
 | F18 | `mesh-if`/`mesh-each` directly under `mesh-each`: diagnostic names no place | MESH |

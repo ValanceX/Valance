@@ -27,6 +27,7 @@ export default component(template, {
     setTerms: Schema.Boolean,
     setPlan: Plan,
     submit: Form,
+    touch: Schema.String,
     reset: Schema.Void,
   },
 });

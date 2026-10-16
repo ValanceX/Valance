@@ -9,20 +9,20 @@
       <button class="plan" pressed={plan == "pro" ? "true" : "false"} on.click={setPlan("pro")}>Pro</button>
     </para>
     <div class="field">
-      <textfield value={name} label="Name" placeholder="Ada Lovelace" on.change={setName($event)} on.submit={submit(form)} on.cancel={reset()} />
-      {#if nameError != ""}<para class="error">{nameError}</para>{/if}
+      <textfield value={name} label="Name" invalid={nameError != ""} describedby="name-error" placeholder="Ada Lovelace" on.change={setName($event)} on.blur={touch("name")} on.submit={submit(form)} on.cancel={reset()} />
+      {#if nameError != ""}<para class="error" id="name-error">{nameError}</para>{/if}
     </div>
     <div class="field">
-      <textfield value={email} label="Email" placeholder="you@example.com" on.change={setEmail($event)} on.submit={submit(form)} on.cancel={reset()} />
-      {#if emailError != ""}<para class="error">{emailError}</para>{/if}
+      <textfield value={email} label="Email" invalid={emailError != ""} describedby="email-error" placeholder="you@example.com" on.change={setEmail($event)} on.blur={touch("email")} on.submit={submit(form)} on.cancel={reset()} />
+      {#if emailError != ""}<para class="error" id="email-error">{emailError}</para>{/if}
     </div>
     <div class="field">
-      <textfield value={password} label="Password" placeholder="8 characters or more" on.change={setPassword($event)} on.submit={submit(form)} on.cancel={reset()} />
-      {#if passwordError != ""}<para class="error">{passwordError}</para>{/if}
+      <textfield value={password} label="Password" kind="password" invalid={passwordError != ""} describedby="password-error" placeholder="8 characters or more" on.change={setPassword($event)} on.blur={touch("password")} on.submit={submit(form)} on.cancel={reset()} />
+      {#if passwordError != ""}<para class="error" id="password-error">{passwordError}</para>{/if}
     </div>
     <div class="field">
-      <checkbox checked={terms} label="I accept the terms" on.change={setTerms($event)} />
-      {#if termsError != ""}<para class="error">{termsError}</para>{/if}
+      <checkbox checked={terms} label="I accept the terms" invalid={termsError != ""} describedby="terms-error" on.change={setTerms($event)} />
+      {#if termsError != ""}<para class="error" id="terms-error">{termsError}</para>{/if}
     </div>
     {#if failure != ""}<para class="failure">{failure}</para>{/if}
     <button class="send" disabled={sending} on.click={submit(form)}>{sending ? "Creating…" : "Create account"}</button>

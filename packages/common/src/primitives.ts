@@ -17,7 +17,7 @@ export const primitives: Web.WebPrimitives = {
   column: { element: "vlx-column" },
   row: { element: "vlx-row" },
   heading: { element: "h2", props: { level: Web.attribute("aria-level") } },
-  text: { element: "span" },
+  text: { element: "span", props: { id } },
   shell: { element: "div", props: { class: klass, theme: Web.attribute("data-theme") } },
   div: { element: "div", props: { class: klass } },
   header: { element: "header", props: { class: klass } },
@@ -30,7 +30,7 @@ export const primitives: Web.WebPrimitives = {
   h1: { element: "h1", props: { id } },
   h2: { element: "h2", props: { id } },
   h3: { element: "h3", props: { id } },
-  para: { element: "p", props: { class: klass } },
+  para: { element: "p", props: { class: klass, id } },
   quote: { element: "blockquote", props: { class: klass } },
   list: { element: "ul", props: { class: klass } },
   olist: { element: "ol", props: { class: klass } },
@@ -39,29 +39,45 @@ export const primitives: Web.WebPrimitives = {
   code: { element: "code" },
   strong: { element: "strong" },
   em: { element: "em" },
-  span: { element: "span", props: { class: klass } },
+  span: { element: "span", props: { class: klass, id } },
   image: { element: "img", props: { class: klass, src: Web.attribute("src"), alt: Web.attribute("alt"), loading: Web.attribute("loading") } },
   /** A link inside text. */
   a: { element: "a", props: { href: Web.attribute("href") } },
   /** A link that is part of the page's furniture (navigation, a brand): it has a class, and says whether it is where you are (`aria-current`: "page" or "false"). */
   link: { element: "a", props: { href: Web.attribute("href"), class: klass, current: Web.attribute("aria-current") } },
+  // The state of a control a person fills in, and what explains it (docs/application-model/FORM-PRIMITIVES.md). `invalid` is `aria-invalid`, a text attribute that is written "true" or "false" from the boolean
+  // the template gives (a text slot takes a boolean's text). It is a boolean for the template, as it is on the desktop: the vocabulary's `types` says so (vocabulary.ts), since the table cannot. A boolean
+  // attribute by presence would write `aria-invalid=""`, which assistive technology reads as false. `describedby` is `aria-describedby`: the `id` of the text that explains the control.
   /** A box to tick, reporting `change` with the new value (a boolean). It is an `<input type="checkbox">` (a constant attribute of the primitive), and `checked` is live and server-rendered (`controlledBoolean`). */
   checkbox: {
     element: "input",
     attributes: { type: "checkbox" },
-    props: { checked: Web.controlledBoolean("checked"), label },
+    props: { checked: Web.controlledBoolean("checked"), label, invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") },
     events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) },
   },
-  /** A text field, reporting `change` with the new text (a string); the field shows what the state says. */
+  /**
+   * A text field, reporting `change` with the new text (a string); the field shows what the state says. `kind` is the input's `type` (`text` by default, `password`, `email`, `number`, `search`, `tel`,
+   * `url`). `focus` and `blur` are the person coming into the field and leaving it: the forms of the DOM events that bubble (`focusin`, `focusout`), because events are delegated.
+   */
   textfield: {
     element: "input",
-    props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label },
+    props: {
+      value: Web.controlled("value"),
+      placeholder: Web.attribute("placeholder"),
+      label,
+      kind: Web.attribute("type"),
+      invalid: Web.attribute("aria-invalid"),
+      describedby: Web.attribute("aria-describedby"),
+    },
     events: {
       change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }),
       // Enter: the person is done with what they typed
       submit: Web.event("keydown", undefined, { key: "Enter" }),
       // Escape: the person backs out of what they typed
       cancel: Web.event("keydown", undefined, { key: "Escape" }),
+      // The person came into the field, and left it
+      focus: Web.event("focusin"),
+      blur: Web.event("focusout"),
     },
   },
   button: { element: "button", props: { class: klass, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },

@@ -165,7 +165,7 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `column` | `<vlx-column>` | none | none |
 | `row` | `<vlx-row>` | none | none |
 | `heading` | `<h2>` | `level` (string) | none |
-| `text` | `<span>` | none | none |
+| `text` | `<span>` | `id` (string) | none |
 | `shell` | `<div>` | `class`* (string), `theme`* (string) | none |
 | `div` | `<div>` | `class`* (string) | none |
 | `header` | `<header>` | `class`* (string) | none |
@@ -178,7 +178,7 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `h1` | `<h1>` | `id`* (string) | none |
 | `h2` | `<h2>` | `id`* (string) | none |
 | `h3` | `<h3>` | `id`* (string) | none |
-| `para` | `<p>` | `class`* (string) | none |
+| `para` | `<p>` | `class`* (string), `id` (string) | none |
 | `quote` | `<blockquote>` | `class`* (string) | none |
 | `list` | `<ul>` | `class`* (string) | none |
 | `olist` | `<ol>` | `class`* (string) | none |
@@ -187,12 +187,12 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `code` | `<code>` | none | none |
 | `strong` | `<strong>` | none | none |
 | `em` | `<em>` | none | none |
-| `span` | `<span>` | `class`* (string) | none |
+| `span` | `<span>` | `class`* (string), `id` (string) | none |
 | `image` | `<img>` | `class`* (string), `src`* (string), `alt`* (string), `loading`* (string) | none |
 | `a` | `<a>` | `href`* (string) | none |
 | `link` | `<a>` | `href`* (string), `class`* (string), `current`* (string) | none |
-| `checkbox` | `<input>` | `checked` (boolean), `label` (string) | `change` (boolean) |
-| `textfield` | `<input>` | `value`* (string), `placeholder` (string), `label` (string) | `change` (string), `submit`, `cancel` |
+| `checkbox` | `<input>` | `checked` (boolean), `label` (string), `invalid` (boolean), `describedby` (string) | `change` (boolean) |
+| `textfield` | `<input>` | `value`* (string), `placeholder` (string), `label` (string), `kind` (string), `invalid` (boolean), `describedby` (string) | `change` (string), `submit`, `cancel`, `focus`, `blur` |
 | `button` | `<button>` | `class` (string), `pressed` (string), `disabled` (boolean) | `click` |
 
 **Desktop** (16 tags). A `*` marks a prop every use must write.

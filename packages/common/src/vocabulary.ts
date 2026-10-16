@@ -22,6 +22,11 @@ export interface WebVocabulary {
    * one; this is the author-facing rule beside it. An absent prop is not in the render tree, and PORT Web realizes an absent prop as no attribute (or the element's own initial value).
    */
   readonly optional?: Readonly<Record<string, ReadonlyArray<string>>>;
+  /**
+   * The MESH type of a prop that is realized as text but is not text for the template: `{ textfield: { invalid: "boolean" } }`. A text slot writes a boolean or a number as its text (`"true"`), but
+   * the manifest derived from the table can only say "string", so a template could not pass `invalid={x != ""}` (finding F12). This says the type the template uses.
+   */
+  readonly types?: Readonly<Record<string, Readonly<Record<string, "boolean" | "number">>>>;
 }
 
 export interface ManifestVocabulary {
@@ -59,8 +64,12 @@ export const webVocabulary: WebVocabulary = {
   optional: {
     // styling and accessibility hooks are the web's, and a template for both targets does not write them
     button: ["class", "pressed"],
-    checkbox: ["label"],
-    textfield: ["label", "placeholder"],
+    checkbox: ["label", "invalid", "describedby"],
+    textfield: ["label", "placeholder", "kind", "invalid", "describedby"],
+    text: ["id"],
+    para: ["id"],
+    span: ["id"],
     heading: ["level"],
   },
+  types: { textfield: { invalid: "boolean" }, checkbox: { invalid: "boolean" } },
 };

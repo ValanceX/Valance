@@ -36,15 +36,16 @@ Declaring the page and its screen (one `route(...)` and `<screen />`; wiring by 
 
 | ID | Gap | Evidence | Sev | Layer | What it justifies (direction: evidence before abstraction, DP2) |
 |---|---|---|---|---|---|
-| **RF-1** | The text field cannot be a password (or an email, number or search field): no `type` | `form.test.ts` "no password field type": the attribute is absent | 3 | FW / PORT | **Yes, build.** A portable `kind` on `textfield` (`text`, `password`, `email`, `number`) that PORT Web writes as `type` and the Desktop PORT realizes as masking or a keyboard hint. A form with a password is the commonest form |
-| **RF-2** | An invalid field cannot be marked invalid or tied to its message | same test: no `aria-invalid`, no `aria-describedby`; `para` has no `id` | 3 | FW / PORT | **Yes, build.** `invalid` (boolean, written as `aria-invalid`) and a way to name the message: smallest is `describedby` plus an `id` on `para`. A field with its own `message` prop would be tidier but has one example behind it; wait for a second |
-| **RF-3** | No `blur` or `focus` event, so validate-on-blur and "touched" are impossible | by absence in `vlx info --tags` | 2 | PORT | **Yes, small.** Key events by one key already exist in PORT Web (`submit`, `cancel`); `blur` and `focus` are the same kind of event |
+| **RF-1** | **Fixed (web in Valance; desktop in Port, unreleased).** The text field could not be a password (or an email, number or search field): no `type` | `form.test.ts` "no password field type": the attribute is absent | 3 | FW / PORT | **Yes, build.** A portable `kind` on `textfield` (`text`, `password`, `email`, `number`) that PORT Web writes as `type` and the Desktop PORT realizes as masking or a keyboard hint. A form with a password is the commonest form |
+| **RF-2** | **Fixed (same).** An invalid field could not be marked invalid or tied to its message | same test: no `aria-invalid`, no `aria-describedby`; `para` has no `id` | 3 | FW / PORT | **Yes, build.** `invalid` (boolean, written as `aria-invalid`) and a way to name the message: smallest is `describedby` plus an `id` on `para`. A field with its own `message` prop would be tidier but has one example behind it; wait for a second |
+| **RF-3** | **Fixed (same).** There was no `blur` or `focus` event, so validate-on-blur and "touched" are impossible | by absence in `vlx info --tags` | 2 | PORT | **Yes, small.** Key events by one key already exist in PORT Web (`submit`, `cancel`); `blur` and `focus` are the same kind of event |
 | **RF-4** | No radio group or select | two buttons with `aria-pressed` stand in | 2 | FW / PORT | **Not yet.** One example, and the stand-in works visually; a second form that needs more than three options decides between `select` and a radio group, and whether the desktop target has an equivalent |
 | **RF-5** | A command that waits cannot read the state it starts from: the form had to be a derived record round-tripped through the screen | `main.ts`: `derived.form`, `submit(form)`, `Struct({ form })`, validity checked in `begin` and `work` | 3 | FW | **Yes, a design decision for `@valancex/valance`.** Give `work` the state as `begin` left it (a third argument). It removes the round trip, the derived record, the second check and one prop and one event from the screen. Not changed here: it is the core's public command surface |
 | **RF-6** | A failed request carries no body, so a server's field messages cannot reach the form | `transport.ts`: `HttpError` carries a status only, by design (a body can hold a secret) | 2 | FW | **Yes, opt-in.** `request({ …, errors: Schema })`: a failed status's body decoded by a Schema the author supplies before it can reach state, as a success is. The safety reason holds (nothing undecoded gets through); the form needs it |
 | **RF-7** | Content cannot link to a declared route | `vlx check`: `link-broken` | 2 | FW | Already planned: slice 6c |
 | **RF-8** | A screen's contract is long (13 props, 7 events) | `signup-form.ts` | 1 | FW | **No change.** The wiring is free; the length is the form's. RF-5 removes two of them |
 | **RF-9** | A Schema message can be ignored by some combinators | `Schema.Literal` | 1 | Eng | **Document**: the validation recipe says to use `Schema.filter` for a custom message on a literal |
+| **RF-11** | A click that comes while the render of a `blur` is in flight can be lost: the render re-asserts the controlled checkbox between the click's toggle and the read of its `change` | found fixing RF-3; `form.test.ts` waits two frames before clicking; [`FORM-PRIMITIVES.md`](../application-model/FORM-PRIMITIVES.md) D-3 | 2 | FW / PORT | **Look into**: the value of a controlled control should be read when the event happens, or the re-assertion skipped while a gesture on it is in flight. A person is unlikely to meet it; a slow page makes it likely |
 | **RF-10** | A `settle` returns state, so a success cannot `go` to another page; the form shows its welcome in place | **not tried**: by the signature of `settle` and `page` being the framework's | ? | FW | Try it before deciding; a success that navigates is the next thing a form does |
 
 ## Is a form helper justified?
@@ -55,9 +56,10 @@ Declaring the page and its screen (one `route(...)` and `<screen />`; wiring by 
 
 | Work | Closes | Size | Depends on |
 |---|---|---|---|
-| Portable `kind` on `textfield`; PORT Web `type`; Desktop PORT masking | RF-1 | S–M | a PORT release |
-| `invalid` and `describedby` on `textfield` and `checkbox`; `id` on `para` | RF-2 | S | a PORT release |
-| `blur` and `focus` events on `textfield` | RF-3 | S | a PORT release |
+| ~~Portable `kind` on `textfield`; PORT Web `type`; Desktop PORT masking~~ | RF-1 | **Done 2026-10-16**: web in Valance, desktop in Port (unreleased) | the Port release, for the desktop |
+| ~~`invalid` and `describedby` on `textfield` and `checkbox`; `id` on `para`~~ | RF-2 | **Done**, without a PORT Web release (a `types` rule in the vocabulary, see FORM-PRIMITIVES.md D-1) | – |
+| ~~`blur` and `focus` events on `textfield`~~ | RF-3 | **Done** | – |
+| Controlled controls and a gesture in flight | RF-11 | S–M | a look at PORT Web |
 | `work` receives the state after `begin` | RF-5 | M | a decision on `@valancex/valance`'s command surface |
 | `request({ errors })` | RF-6 | M | a decision |
 | Slice 6c (links checked against routes) | RF-7 | M | – |

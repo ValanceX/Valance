@@ -38,6 +38,8 @@ export default defineApp({
     plan: field(Plan, "free"),
     // Where the form is: a person has pressed Create at least once (so errors are shown), the request is out, the account exists.
     attempted: field(Schema.Boolean, false),
+    // The fields the person has been in and left: their errors show without waiting for the first press.
+    touched: field(Schema.Array(Schema.String), []),
     phase: field(Schema.Literal("editing", "sending", "done"), "editing"),
     // What the server said about this email, if it said the address is taken; it stays until the email changes.
     takenEmail: field(Schema.String, ""),
@@ -46,13 +48,13 @@ export default defineApp({
   // Worked out from the state: what the screen shows. The form the button sends is one of them, because a command that waits is given its input and nothing else.
   derived: (derive) => ({
     form: derive(Form, (s) => ({ name: s.name, email: s.email, password: s.password, terms: s.terms, plan: s.plan })),
-    nameError: derive(Schema.String, (s) => (s.attempted ? problemsOf(s).name : "")),
+    nameError: derive(Schema.String, (s) => (s.attempted || s.touched.includes("name") ? problemsOf(s).name : "")),
     emailError: derive(Schema.String, (s) => {
-      const own = s.attempted ? problemsOf(s).email : "";
+      const own = s.attempted || s.touched.includes("email") ? problemsOf(s).email : "";
 
       return own !== "" ? own : s.takenEmail !== "" && s.takenEmail === s.email ? "That email already has an account" : "";
     }),
-    passwordError: derive(Schema.String, (s) => (s.attempted ? problemsOf(s).password : "")),
+    passwordError: derive(Schema.String, (s) => (s.attempted || s.touched.includes("password") ? problemsOf(s).password : "")),
     termsError: derive(Schema.String, (s) => (s.attempted ? problemsOf(s).terms : "")),
     sending: derive(Schema.Boolean, (s) => s.phase === "sending"),
     done: derive(Schema.Boolean, (s) => s.phase === "done"),
@@ -72,7 +74,9 @@ export default defineApp({
     setPassword: command(Schema.Struct({ value: Schema.String }), ({ value }, s) => ({ ...s, password: value })),
     setTerms: command(Schema.Struct({ value: Schema.Boolean }), ({ value }, s) => ({ ...s, terms: value })),
     setPlan: command(Schema.Struct({ value: Plan }), ({ value }, s) => ({ ...s, plan: value })),
-    reset: command((s) => ({ ...s, name: "", email: "", password: "", terms: false, attempted: false, phase: "editing", failure: "", takenEmail: "" })),
+    // The person left a field.
+    touch: command(Schema.Struct({ value: Schema.String }), ({ value }, s) => (s.touched.includes(value) ? s : { ...s, touched: [...s.touched, value] })),
+    reset: command((s) => ({ ...s, name: "", email: "", password: "", terms: false, attempted: false, touched: [], phase: "editing", failure: "", takenEmail: "" })),
     submit: command.waiting(Schema.Struct({ form: Form }), {
       // Errors show from the first press; the request starts only for a form that is sound (the check is the same one the screen shows).
       begin: ({ form }, s) => ({ ...s, attempted: true, failure: "", phase: valid(form) ? "sending" : "editing" }),

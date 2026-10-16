@@ -249,6 +249,18 @@ export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabular
     }
   }
 
+  // The props that are text on the page but not for the template (a boolean written as "true").
+  for (const [tag, retyped] of Object.entries(vocabulary.types ?? {})) {
+    const entry = components[tag];
+
+    if (entry !== undefined) {
+      components[tag] = {
+        ...entry,
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, retyped[name] === undefined ? prop : { ...prop, type: { kind: retyped[name]! } }])),
+      };
+    }
+  }
+
   return { ...derived, components: { ...components, screen } };
 };
 

@@ -62,6 +62,10 @@ const fillValid = async (page: Page): Promise<void> => {
   await field(page, "Name").fill("Ada");
   await field(page, "Email").fill("ada@example.com");
   await field(page, "Password").fill("analytical1");
+  // Leave the last field and let the render its `blur` causes happen before the click. A click that comes while that render is in flight is lost: the render puts the controlled box back between the
+  // click's toggle and the moment its `change` is read (finding RF-11). Real clicks are tens of milliseconds long; a test's are not.
+  await field(page, "Password").blur();
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.locator('input[aria-label="I accept the terms"]').check();
 };
 const texts = (page: Page, selector: string) => page.locator(selector).allTextContents();
@@ -192,15 +196,45 @@ describe("the sign-up form", () => {
     await page.close();
   });
 
-  // What the form could not do, pinned so a change to the tags is noticed. Each is a finding in docs/findings/2026-10-16-reference-form.md.
-  it("has no password field type, no error association and no blur: what it could not say", async () => {
+  it("masks the password, marks an invalid field invalid and ties it to its message", async () => {
     const { page } = await open("/signup");
 
-    expect(await field(page, "Password").getAttribute("type")).toBeNull(); // F-1: the password is shown as typed
+    expect(await field(page, "Password").getAttribute("type")).toBe("password");
+    expect(await field(page, "Name").getAttribute("type")).toBeNull(); // no kind: the browser's own text
     await page.click("button.send");
     await page.waitForSelector(".error");
-    expect(await field(page, "Name").getAttribute("aria-invalid")).toBeNull(); // F-2: an invalid field is not marked invalid
-    expect(await field(page, "Name").getAttribute("aria-describedby")).toBeNull(); // F-2: nor tied to its message
+
+    for (const [label, message] of [
+      ["Name", "name-error"],
+      ["Email", "email-error"],
+      ["Password", "password-error"],
+      ["I accept the terms", "terms-error"],
+    ] as const) {
+      const control = page.locator(`input[aria-label="${label}"]`);
+
+      expect(await control.getAttribute("aria-invalid"), label).toBe("true");
+      expect(await control.getAttribute("aria-describedby"), label).toBe(message);
+      expect(await page.getAttribute(`#${message}`, "class"), label).toBe("error");
+    }
+
+    // Once it is right, it is not invalid any more (and the message is gone).
+    await field(page, "Name").fill("Ada");
+    await page.waitForFunction(() => document.querySelector('input[aria-label="Name"]')?.getAttribute("aria-invalid") === "false");
+    expect(await page.locator("#name-error").count()).toBe(0);
+    await page.close();
+  });
+
+  it("shows a field's problem when the person leaves it, and not before, without waiting for the first press", async () => {
+    const { page } = await open("/signup");
+
+    await field(page, "Name").focus();
+    expect(await texts(page, ".error")).toEqual([]); // being in the field is not a problem
+    await field(page, "Email").focus(); // leaving Name
+    await page.waitForSelector("#name-error");
+    expect(await texts(page, ".error")).toEqual(["Enter your name"]); // Email has been entered, not left
+    await field(page, "Password").focus(); // leaving Email
+    await page.waitForSelector("#email-error");
+    expect(await texts(page, ".error")).toEqual(["Enter your name", "Enter an email like you@example.com"]);
     await page.close();
   });
 });
