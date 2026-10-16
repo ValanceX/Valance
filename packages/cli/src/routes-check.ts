@@ -1,7 +1,7 @@
 // The routes `src/main.ts` declares, checked next to the content: an address that is both a page and a route, a route a build has no page to write for. The declarations themselves are checked
 // when the definition is loaded (`entry-definition`); these need the content too.
 import type { DefinedApp } from "@valancex/common";
-import { routeProblems } from "@valancex/common/internal";
+import { RouteDeclarationError, routeProblems } from "@valancex/common/internal";
 
 import type { Content } from "@valancex/common/internal";
 import type { Diagnostic } from "./diagnostics.js";
@@ -14,8 +14,17 @@ export const checkRoutes = (author: DefinedApp | undefined, content: Content | u
     return [];
   }
 
-  return routeProblems(
-    author,
-    content.pages.map((page) => page.path),
-  ).map((problem) => diagnostic(ENTRY_FILE, 1, problem.code, problem.message));
+  try {
+    return routeProblems(
+      author,
+      content.pages.map((page) => page.path),
+    ).map((problem) => diagnostic(ENTRY_FILE, 1, problem.code, problem.message));
+  } catch (error) {
+    // a `staticParams` entry that does not fit its Schema is found only when the pages are listed
+    if (error instanceof RouteDeclarationError) {
+      return [diagnostic(ENTRY_FILE, 1, "entry-definition", error.message.replace(/^src\/main\.ts: /, ""))];
+    }
+
+    throw error;
+  }
 };

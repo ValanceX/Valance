@@ -90,3 +90,23 @@ describe("what a layout reads on a declared route (R-7, R-11)", () => {
     expect(frame(content, "/nowhere")).toMatchObject({ route: "", found: false });
   });
 });
+
+describe("route is typed by its Schemas (R-3)", () => {
+  it("gives enter, title and staticParams the decoded parameters and query", () => {
+    const typed = route("/orders/:id", {
+      params: Schema.Struct({ id: Schema.NumberFromString }),
+      query: Schema.Struct({ page: Schema.optional(Schema.NumberFromString) }),
+      title: ({ id, page }) => `Order ${id.toFixed(0)} ${page === undefined ? "" : page.toFixed(0)}`,
+      enter: ({ id }, state) => ({ ...state, n: id + 1 }),
+      staticParams: () => [{ id: 1 }],
+    });
+
+    // @ts-expect-error `id` decodes to a number, not a string
+    route("/orders/:id", { params: Schema.Struct({ id: Schema.NumberFromString }), enter: ({ id }, state) => ({ ...state, n: id.toUpperCase() }) });
+    // @ts-expect-error a staticParams entry is what `params` decodes to
+    route("/orders/:id", { params: Schema.Struct({ id: Schema.NumberFromString }), staticParams: () => [{ id: "1" }] });
+
+    expect(routingOf({ typed }).match("/orders/7?page=2")?.input).toEqual({ id: 7, page: 2 });
+    expect(routingOf({ typed }).pages().addresses).toEqual(["/orders/1"]);
+  });
+});

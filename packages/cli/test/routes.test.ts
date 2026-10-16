@@ -1,7 +1,8 @@
 // Declared routes (`routes` in `defineApp`), checked against the acceptance list in docs/application-model/ROUTES.md. Each test names the statements (R-n) it is evidence for.
 import { init } from "@valancex/mesh-runtime";
 import * as Valance from "@valancex/valance";
-import { application } from "@valancex/common/internal";
+import { application, Navigation, platformOf, Store, webStore } from "@valancex/common/internal";
+import type { TextStorage } from "@valancex/common/internal";
 import { Effect, Exit, Scope } from "effect";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -39,9 +40,11 @@ const ROUTES = `
   },`;
 
 /** The scaffold with routes declared, a layout that draws the order, and the state `enter` sets. */
-const withRoutes = (options: { readonly routes?: string; readonly extra?: Readonly<Record<string, string>>; readonly url?: string } = {}): string => {
+const withRoutes = (
+  options: { readonly routes?: string; readonly extra?: Readonly<Record<string, string>>; readonly url?: string; readonly base?: string; readonly persist?: boolean } = {},
+): string => {
   const files = Object.fromEntries(
-    [...plan({ ...answers, web: { base: "", url: options.url ?? "" } }).files].filter(([name]) => name !== "package.json" && name !== "valance.json"),
+    [...plan({ ...answers, web: { base: options.base ?? "", url: options.url ?? "" } }).files].filter(([name]) => name !== "package.json" && name !== "valance.json"),
   );
   const main = files["src/main.ts"]!.replace(
     'import { component, defineApp, field } from "@valancex/common";',
@@ -51,7 +54,7 @@ const withRoutes = (options: { readonly routes?: string; readonly extra?: Readon
       'theme: field(Schema.Literal("light", "dark"), "light"),',
       'theme: field(Schema.Literal("light", "dark"), "light"),\n    orderId: field(Schema.String, ""),\n    tab: field(Schema.Literal("all", "open"), "all"),',
     )
-    .replace("export default defineApp({", `export default defineApp({${options.routes ?? ROUTES}`);
+    .replace("export default defineApp({", `export default defineApp({${options.persist === true ? '\n  persist: ["navigation"],' : ""}${options.routes ?? ROUTES}`);
   const layout = files["src/layout.mprx"]!.replace(
     "<blocks items={blocks} />",
     '{#if route == "order"}<para class="order">Order {orderId} ({tab}) {title}</para>{:else if route == "settings"}<para class="settings">Settings {title}</para>{:else}<blocks items={blocks} />{/if}\n      <link class="nav-link" href="/orders/1" current="false">Order one</link>\n      <link class="nav-link" href="/settings" current="false">Settings</link>',
@@ -176,6 +179,77 @@ describe("what the note says beyond the main path (R-3, R-12, R-18)", () => {
   }, 120_000);
 });
 
+const storage = (): TextStorage & { readonly map: Map<string, string> } => {
+  const map = new Map<string, string>();
+
+  return { map, getItem: (key) => map.get(key) ?? null, setItem: (key, value) => void map.set(key, value), removeItem: (key) => void map.delete(key) };
+};
+
+describe("what is easy to miss (R-9, R-5)", () => {
+  it("a restored navigation list comes back on its declared route, with the state `enter` makes (R-9)", async () => {
+    const root = withRoutes({ persist: true });
+    const config = loadConfig(root);
+    const loader = await createLoader(root, config);
+    const author = await loadAuthor(loader, root).finally(() => undefined);
+    const app = application(readContent(root, config), (await compileViews(root, author)).program, author);
+
+    await loader.close();
+    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
+
+    const area = storage();
+    const run = async <A>(use: (handle: Valance.ApplicationHandle<any, any>) => Promise<A>): Promise<A> => {
+      const scope = await Effect.runPromise(Scope.make());
+      const platform = platformOf([
+        [Store, webStore("Test", area)],
+        [Navigation, { owner: "engine" as const }],
+      ]);
+
+      try {
+        return await use(await Effect.runPromise(Valance.start(app, { platform }).pipe(Scope.extend(scope))));
+      } finally {
+        await Effect.runPromise(Scope.close(scope, Exit.void));
+      }
+    };
+    const settle = async (done: () => Promise<boolean>) => {
+      for (let tries = 0; !(await done()) && tries < 200; tries += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    };
+
+    await run(async (handle) => {
+      await Effect.runPromise(handle.invoke("app/go", [{ value: "/orders/5?tab=open" }] as never));
+      await settle(async () => area.map.size > 0 && [...area.map.values()].some((text) => text.includes("orders/5")));
+    });
+
+    await run(async (handle) => {
+      await settle(async () => ((await Effect.runPromise(handle.state)) as { page: string }).page.startsWith("/orders"));
+      expect(await Effect.runPromise(handle.state)).toMatchObject({ page: "/orders/5?tab=open", route: "order", orderId: "5", tab: "open" });
+    });
+  }, 180_000);
+
+  it("going to the address already shown is not an entry: `enter` does not run again (R-9)", async () => {
+    const counted = `routes: { order: route("/orders/:id", { enter: ({ id }, state) => ({ ...state, orderId: \`\${id}#\${state.orderId.split("#").length}\` }) }) },`;
+    const t = await started(withRoutes({ routes: counted }));
+
+    await t.run("app/go", "/orders/1");
+    await t.run("app/go", "/orders/1");
+    await t.run("app/go", "/orders/1/");
+    expect(await t.state()).toMatchObject({ orderId: "1#1", trail: ["/", "/orders/1"] }); // entered once
+    await t.close();
+  }, 120_000);
+
+  it("under a base, the address is the base followed by the page: pages are written there and a layout's literal link gets it (R-5)", async () => {
+    const root = withRoutes({ base: "/docs/", url: "https://example.com" });
+    const built = await build(root);
+    const html = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
+
+    expect(built.pages).toContain("/docs/orders/1");
+    expect(html).toContain('href="/docs/orders/1"');
+    expect(html).toContain('rel="canonical" href="https://example.com/docs/orders/1"');
+    expect((await info(root)).declared[0]!.pages).toEqual(["/docs/orders/1", "/docs/orders/2"]);
+  }, 240_000);
+});
+
 describe("declaring routes (R-1 to R-4, R-19)", () => {
   it("reports a declaration that cannot be read at src/main.ts, in the author's words", async () => {
     const cases: ReadonlyArray<readonly [string, RegExp]> = [
@@ -210,6 +284,17 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
 
     expect(clash).toHaveLength(1);
     expect(clash[0]!.message).toContain('"route"');
+  }, 180_000);
+
+  it("a staticParams entry that does not fit its Schema is a diagnostic from check, build and info, not a crash (R-14, R-19)", async () => {
+    const routes = `routes: { order: route("/orders/:id", { params: Schema.Struct({ id: Schema.NumberFromString }), staticParams: () => [{ id: "x" as never }] }) },`;
+    const root = withRoutes({ routes });
+    const found = (await check(root)).diagnostics.filter((each) => each.code === "entry-definition");
+
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain("a `staticParams` entry does not fit its `params` Schema");
+    await expect(build(root)).rejects.toThrow("entry-definition");
+    expect((await info(root)).problems.map((each) => each.code)).toEqual(["entry-definition"]);
   }, 180_000);
 
   it("a route with parameters and no staticParams cannot be built, and check and build both say so (R-14)", async () => {

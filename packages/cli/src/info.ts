@@ -7,9 +7,9 @@ import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { readContent } from "./content.js";
 import type { Diagnostic } from "./diagnostics.js";
-import { AppError } from "./diagnostics.js";
+import { AppError, diagnostic } from "./diagnostics.js";
 import { stylesheets } from "./emit.js";
-import { routingFor } from "@valancex/common/internal";
+import { RouteDeclarationError, routingFor } from "@valancex/common/internal";
 import { componentStyles } from "./styles.js";
 import { tagsOf } from "./tags.js";
 import { TARGETS } from "./targets.js";
@@ -104,11 +104,13 @@ export const info = async (root: string): Promise<Info> => {
       }
     }
   } catch (error) {
-    if (!(error instanceof AppError)) {
+    if (error instanceof RouteDeclarationError) {
+      problems.push(diagnostic("src/main.ts", 1, "entry-definition", error.message.replace(/^src\/main\.ts: /, "")));
+    } else if (error instanceof AppError) {
+      problems.push(...error.diagnostics);
+    } else {
       throw error;
     }
-
-    problems.push(...error.diagnostics);
   } finally {
     await loader.close();
   }

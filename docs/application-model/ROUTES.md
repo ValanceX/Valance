@@ -76,6 +76,7 @@ export default defineApp({
 ### Navigation
 
 - **R-17 `go`.** `go("/orders/42?tab=open")` goes to a declared route's address, normalized by the router (R-6) as content addresses are by `tidy`. An address that matches nothing goes to not-found, as it does for content today.
+- **R-22 The first state reads the address bar** *(added during implementation)*. A static page cannot see its query, so the server's state for `/orders/42` has none. In the browser the first state for a declared route is derived from the address the person is at (path and query), not only from the server's: `/orders/42?tab=open` keeps `tab=open` and runs `enter` with it. A content page has no query and is unchanged.
 - **R-18 Guards.** The application-wide `guard` is unchanged: it is asked about `page` strings. Per-route guards (`canActivate`, `canDeactivate`, redirects) are not part of 6a (slice 6f).
 
 ### Tooling
@@ -127,4 +128,42 @@ What a command-based `enter` was for, **loading data when a route is entered**, 
 
 ## Implementation status
 
-_To be filled after the check._
+Checked 2026-10-16 against commit `b51ad0d` and the fixes after it, statement by statement. **Evidence** is a test (file and name in `packages/*/test/`) or code. Status: **Matches**, **Matches, with a note**, **Differs**, **Not exercised**.
+
+| Statement | Status | Evidence |
+|---|---|---|
+| R-1 Names | Matches | `routes.test.ts` "reports a declaration that cannot be read" (empty name → `needs a name`); the key is the name (`routing-engine.ts`) |
+| R-2 Shape | Matches | Same test (no leading `/`, unknown settings, a pattern the router refuses); `routing.test.ts` (rest segments through `routes.test.ts` "without a params Schema…"); base put in front: "under a base" |
+| R-3 Types | Matches, with a note | `routing.test.ts` "route is typed by its Schemas" (two `@ts-expect-error` lines are checked by `tsc`). **Note:** the param/query name clash is detected only when `query` is an `Effect.Struct` (its `.fields` are read); for another schema shape the clash is not seen and a parameter wins over a query key at run time |
+| R-4 No overlap with content | Matches | "refuses a route whose address is a content page" (`route-conflict`, also for `/`) |
+| R-5 The page is an address | Matches | "go sets the canonical address…"; "under a base"; "a link to a declared address changes the page in place" |
+| R-6 Canonical form | **Differs** | The *state* is canonical (`/orders/42?tab=open`; trailing slash trimmed; query sorted): "go sets the canonical address", `routing.test.ts` "matches an address…". The **address bar is not rewritten**: `/orders/2/?tab=open` stays as written. The note said the existing canonicalization would do it; it does not, for declared routes **or for content pages** (probed: `/guide/getting-started/` stays). See D-1 |
+| R-7 `route` | Matches | Scope: `routing.test.ts` "what a layout reads"; serialized in the boot state: `pipeline.test.ts` boot JSON; reserved name: "…a state field called `route`" |
+| R-8 `enter` | Matches | "go sets…" (state in the same change); "`enter` cannot change which page is shown"; "an address… whose value fails its Schema is the not-found page" |
+| R-9 When entered | Matches, with a note | `go`, `back`, `forward`: "go sets…"; first state of a request: dev and build tests; restored list: "a restored navigation list comes back on its declared route"; same address is not an entry: "going to the address already shown…". **Note:** the browser's own Back/Forward were exercised only from a route to a content page ("a link to a declared address…"), not between two routes |
+| R-10 Not found | Matches | "an address that is no route…"; dev test 404 |
+| R-11 Scope | Matches | `routing.test.ts` "what a layout reads on a declared route" (found, title, description, blocks, hasToc, prev/next, navigation unmarked) |
+| R-12 Title | Matches | "titled and drawn by the layout"; "the author's `title` function still wins for the parts it returns" (`Order 1 · Order 1!`). A throwing route `title` function falls back as the author's does: **not tested** |
+| R-13 Head | Matches | Built page: `<title>`, canonical `https://example.com/orders/1`; under a base `/docs/orders/1` |
+| R-14 What a build writes | Matches, with a note | Pages per `staticParams` and the parameterless route; `route-static-params` from check and build; a `staticParams` entry that does not fit its Schema is a diagnostic. **Note:** that last case was a *crash* in `vlx check` and `vlx info` when first implemented; found by this check and fixed (D-4) |
+| R-15 What `vlx dev` does | Matches, with a note | "renders an address that staticParams does not list, with its query". **Note:** `vlx dev` does not itself warn about a missing `staticParams`; `vlx check` and `vlx build` do |
+| R-16 Sitemap | Matches | Built with `url` set: no `/orders/` in `sitemap.xml` |
+| R-17 `go` | Matches | "go sets…" (`orders/42/?tab=open` written loosely); unknown address → not found |
+| R-18 Guards | Matches | "the application-wide guard is asked about declared addresses… and can stop a move" |
+| R-19 Definition errors | Matches, with a note | Seven declaration cases in one test, each one `entry-definition` at `src/main.ts`. **Note:** a `title` that is neither string nor function is checked in code, not tested |
+| R-20 `vlx info` | Matches | "lists declared routes beside the content, with the pages a build writes"; under a base |
+| R-21 Portable | **Not exercised** | `desktop.ts` takes the same routing and typechecks; the desktop suites pass unchanged. No desktop test declares a route |
+| R-22 First state reads the address bar | Matches | "a link to a declared address…" (opens `/orders/2?tab=open` on a static page; the query is kept and `enter` applied) |
+
+### Differences found, and what they mean
+
+- **D-1 (R-6): the address bar is not canonicalized.** The note assumed the history layer rewrites a non-canonical address before start. It does not, for any page. The state is right; the bar shows what was written. Not changed in 6a, because rewriting the address is a behavior of the history layer that content pages would also get. **Decision for you:** accept (hosts redirect, and the canonical link names the right address), or add a `replaceState` at start for every page.
+- **D-2 (R-22 added).** Not in the first draft. Without it a query on a static page is dropped, which would make `query` useless on a static site. Costs: when the address bar has a query the first state differs from the server's, so the first draw is a hydration mismatch redraw (visible only as a repaint; tested in Chromium).
+- **D-3 (boundary).** `@valancex/common`'s author entry used to load nothing but a types-only file, and a test pinned it. `route` brings the router with it, so that test now allows `routing.ts`, `routing-types.ts` and `@valancex/router`. To keep the cost to those who use it, the router is imported only by `route()` and handed to the engine inside the declaration: a project that declares no route does not ship it (the built bundle is tested for this; the router is about 9 kB minified). **Decision for you:** accept the relaxed boundary, or move `route` to its own entry (`@valancex/common/routes`) and keep the old test as it was.
+- **D-4 (R-14, found by the check).** A `staticParams` entry that does not fit `params` crashed `vlx check` and `vlx info` with a stack trace instead of a diagnostic. Fixed; tested for check, build and info.
+- **D-5 (R-3).** The param/query clash check only sees an `Effect.Struct` query (see the table).
+- **D-6 (R-21).** Desktop is not exercised.
+
+### Not in 6a, as the note said
+
+Per-route guards and redirects, nested routes (6f); `client` delivery (6b); link checking and sitemap (6c); a route that names its screen (6d); loading on entry (6e).
