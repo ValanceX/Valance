@@ -62,10 +62,6 @@ const fillValid = async (page: Page): Promise<void> => {
   await field(page, "Name").fill("Ada");
   await field(page, "Email").fill("ada@example.com");
   await field(page, "Password").fill("analytical1");
-  // Leave the last field and let the render its `blur` causes happen before the click. A click that comes while that render is in flight is lost: the render puts the controlled box back between the
-  // click's toggle and the moment its `change` is read (finding RF-11). Real clicks are tens of milliseconds long; a test's are not.
-  await field(page, "Password").blur();
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.locator('input[aria-label="I accept the terms"]').check();
 };
 const texts = (page: Page, selector: string) => page.locator(selector).allTextContents();
@@ -128,6 +124,38 @@ describe("the sign-up form", () => {
     expect(await page.textContent(".success")).toBe("Welcome, Ada. Your pro account is ready.");
     expect(sent).toEqual([{ name: "Ada", email: "ada@example.com", password: "analytical1", terms: true, plan: "pro" }]);
     expect(errors).toEqual([]);
+    await page.close();
+  });
+
+  it("keeps its stylesheet while the state changes, so a click that follows leaving a field is not lost (RF-11)", async () => {
+    const { page } = await open("/signup");
+
+    // The head is brought to the state's on every change. Taking the stylesheet's <link> out and putting it back made the page lose its styles until the browser applied the new one: the layout jumped
+    // under the pointer between mousedown and mouseup, and the click landed on the page instead of the box.
+    await page.evaluate(() => {
+      (window as unknown as { __head: Array<string> }).__head = [];
+      new MutationObserver((records) => records.forEach((record) => (window as unknown as { __head: Array<string> }).__head.push(record.type))).observe(document.head, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+    });
+    await field(page, "Name").fill("Ada");
+    await field(page, "Email").fill("ada@example.com");
+    await field(page, "Password").fill("analytical1");
+    expect(await page.evaluate(() => (window as unknown as { __head: Array<string> }).__head)).toEqual([]);
+
+    // The click comes the moment the field is left, as fast as a driver can make it, eight times over.
+    for (let n = 0; n < 8; n++) {
+      await field(page, "Password").focus();
+      await page.locator('input[aria-label="I accept the terms"]').uncheck();
+      await field(page, "Password").focus();
+      await page.locator('input[aria-label="I accept the terms"]').check({ timeout: 3000 });
+      expect(await page.locator('input[aria-label="I accept the terms"]').isChecked()).toBe(true);
+    }
+
+    expect(await page.evaluate(() => (window as unknown as { __head: Array<string> }).__head)).toEqual([]);
+    expect(await page.evaluate(() => document.styleSheets.length)).toBeGreaterThan(0);
     await page.close();
   });
 

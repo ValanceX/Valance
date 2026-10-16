@@ -307,8 +307,11 @@ export const renderHead = (head: HeadTags): string => {
 };
 
 /**
- * Makes `document`'s head say `head`: the title is set when there is one, and the metas and links this function wrote before are replaced by these. Elements it did not write
- * (no `data-valance-head`) are never touched, so a stylesheet the server linked stays. Mutates the document it is given and nothing else.
+ * Makes `document`'s head say `head`: the title is set when there is one, and the metas and links this function wrote before are brought to these. Elements it did not write
+ * (no `data-valance-head`) are never touched. Mutates the document it is given and nothing else.
+ *
+ * A tag that is already there with the same attributes **stays the same element**. Taking the old ones out and putting new ones in would drop the page's stylesheet for as long as the
+ * browser takes to apply the new `<link>` (it is not the cache's to decide), and the page would lose its styles and shift every time its state changed.
  */
 export const applyHead = (document: Document, head: HeadTags): void => {
   const { title, meta = [], links = [] } = checked(head);
@@ -317,28 +320,54 @@ export const applyHead = (document: Document, head: HeadTags): void => {
     document.title = title;
   }
 
-  for (const stale of Array.from(document.head.querySelectorAll(`[${HEAD_MARK}]`))) {
-    stale.remove();
+  const wanted: Array<{ readonly tag: string; readonly attributes: Readonly<Record<string, string | undefined>> }> = [
+    ...meta.map((tag) => ({ tag: "meta", attributes: "name" in tag ? { name: tag.name, content: tag.content } : { property: tag.property, content: tag.content } })),
+    ...links.map((tag) => ({ tag: "link", attributes: { rel: tag.rel, href: tag.href, as: tag.as, type: tag.type, hreflang: tag.hreflang, title: tag.title } })),
+  ];
+  const identity = (tag: string, attributes: ReadonlyArray<readonly [string, string]>): string =>
+    JSON.stringify([tag, [...attributes].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))]);
+  const present = new Map<string, Array<Element>>();
+
+  for (const element of Array.from(document.head.querySelectorAll(`[${HEAD_MARK}]`))) {
+    const key = identity(
+      element.localName ?? (element as { tag?: string }).tag ?? "",
+      element
+        .getAttributeNames()
+        .filter((name) => name !== HEAD_MARK)
+        .map((name) => [name, element.getAttribute(name) ?? ""] as const),
+    );
+
+    present.set(key, [...(present.get(key) ?? []), element]);
   }
 
-  const add = (tag: string, attributes: Readonly<Record<string, string | undefined>>): void => {
+  const created: Array<Element> = [];
+
+  for (const { tag, attributes } of wanted) {
+    const given = Object.entries(attributes).filter((entry): entry is [string, string] => entry[1] !== undefined);
+    const kept = present.get(identity(tag, given));
+
+    if (kept !== undefined && kept.length > 0) {
+      kept.shift(); // this one stays where it is
+      continue;
+    }
+
     const element = document.createElement(tag);
 
-    for (const [name, value] of Object.entries(attributes)) {
-      if (value !== undefined) {
-        element.setAttribute(name, value);
-      }
+    for (const [name, value] of given) {
+      element.setAttribute(name, value);
     }
 
     element.setAttribute(HEAD_MARK, "");
-    document.head.append(element);
-  };
-
-  for (const tag of meta) {
-    add("meta", "name" in tag ? { name: tag.name, content: tag.content } : { property: tag.property, content: tag.content });
+    created.push(element);
   }
 
-  for (const tag of links) {
-    add("link", { rel: tag.rel, href: tag.href, as: tag.as, type: tag.type, hreflang: tag.hreflang, title: tag.title });
+  for (const stale of present.values()) {
+    for (const element of stale) {
+      element.remove();
+    }
+  }
+
+  for (const element of created) {
+    document.head.append(element);
   }
 };

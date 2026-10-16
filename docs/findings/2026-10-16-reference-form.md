@@ -45,7 +45,7 @@ Declaring the page and its screen (one `route(...)` and `<screen />`; wiring by 
 | **RF-7** | Content cannot link to a declared route | `vlx check`: `link-broken` | 2 | FW | Already planned: slice 6c |
 | **RF-8** | A screen's contract is long (13 props, 7 events) | `signup-form.ts` | 1 | FW | **No change.** The wiring is free; the length is the form's. RF-5 removes two of them |
 | **RF-9** | A Schema message can be ignored by some combinators | `Schema.Literal` | 1 | Eng | **Document**: the validation recipe says to use `Schema.filter` for a custom message on a literal |
-| **RF-11** | A click that comes while the render of a `blur` is in flight can be lost: the render re-asserts the controlled checkbox between the click's toggle and the read of its `change` | found fixing RF-3; `form.test.ts` waits two frames before clicking; [`FORM-PRIMITIVES.md`](../application-model/FORM-PRIMITIVES.md) D-3 | 2 | FW / PORT | **Look into**: the value of a controlled control should be read when the event happens, or the re-assertion skipped while a gesture on it is in flight. A person is unlikely to meet it; a slow page makes it likely |
+| **RF-11** | A click that comes the moment a field is left could be lost | found fixing RF-3; first read as the render re-asserting the controlled checkbox between the click's toggle and the read of its `change` | 2 | FW | **Fixed, and the first reading was wrong.** The checkbox was not re-asserted: the **page lost its stylesheet** between mousedown and mouseup. The browser-side head update removed every tag it had written, the stylesheet's `<link>` among them, and put new ones in on every state change; until the browser applied the new link the page was unstyled (inputs 44 px high became 21 px, the checkbox moved 141 px up), so the mouseup landed on the page. `applyHead` now leaves a tag that has not changed in place (`valance/src/web-plugin.ts`). It affected every application on every state change, not only forms (WA-8) |
 | **RF-10** | A `settle` returns state, so a success cannot `go` to another page; the form shows its welcome in place | **not tried**: by the signature of `settle` and `page` being the framework's | ? | FW | Try it before deciding; a success that navigates is the next thing a form does |
 
 ## Is a form helper justified?
@@ -59,7 +59,7 @@ Declaring the page and its screen (one `route(...)` and `<screen />`; wiring by 
 | ~~Portable `kind` on `textfield`; PORT Web `type`; Desktop PORT masking~~ | RF-1 | **Done 2026-10-16**: web in Valance, desktop in Port (unreleased) | the Port release, for the desktop |
 | ~~`invalid` and `describedby` on `textfield` and `checkbox`; `id` on `para`~~ | RF-2 | **Done**, without a PORT Web release (a `types` rule in the vocabulary, see FORM-PRIMITIVES.md D-1) | – |
 | ~~`blur` and `focus` events on `textfield`~~ | RF-3 | **Done** | – |
-| Controlled controls and a gesture in flight | RF-11 | S–M | a look at PORT Web |
+| ~~Controlled controls and a gesture in flight~~ | RF-11 | **Done**: the cause was the head's stylesheet link (WA-8), fixed in Valance; no PORT Web change | – |
 | `work` receives the state after `begin` | RF-5 | M | a decision on `@valancex/valance`'s command surface |
 | `request({ errors })` | RF-6 | M | a decision |
 | Slice 6c (links checked against routes) | RF-7 | M | – |

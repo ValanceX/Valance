@@ -239,13 +239,28 @@ describe("the head", () => {
 
   /** The few members of a document that `applyHead` uses. */
   const fakeDocument = () => {
-    type Element = { readonly tag: string; readonly attributes: Map<string, string>; setAttribute: (name: string, value: string) => void; remove: () => void };
+    type Element = {
+      readonly tag: string;
+      readonly localName: string;
+      readonly attributes: Map<string, string>;
+      setAttribute: (name: string, value: string) => void;
+      getAttributeNames: () => Array<string>;
+      getAttribute: (name: string) => string | null;
+      remove: () => void;
+    };
     const children: Array<Element> = [];
     const element = (tag: string): Element => ({
       tag,
+      localName: tag,
       attributes: new Map(),
       setAttribute(name, value) {
         this.attributes.set(name, value);
+      },
+      getAttributeNames() {
+        return [...this.attributes.keys()];
+      },
+      getAttribute(name) {
+        return this.attributes.get(name) ?? null;
       },
       remove() {
         children.splice(children.indexOf(this), 1);
@@ -288,6 +303,28 @@ describe("the head", () => {
     ]);
     expect(page.children).toContain(foreign);
     expect(page.children.every((child) => child === foreign || child.attributes.has(HEAD_MARK))).toBe(true);
+  });
+
+  it("keeps a tag that is unchanged as the same element, replaces one that changed, and adds and removes only the difference (a stylesheet must not be taken out and put back)", () => {
+    const page = fakeDocument();
+    const styles = [
+      { rel: "stylesheet", href: "/a.css" },
+      { rel: "stylesheet", href: "/b.css" },
+    ];
+
+    applyHead(page.document, { title: "one", links: [...styles, { rel: "canonical", href: "/one" }] });
+
+    const [a, b, canonical] = page.children;
+
+    applyHead(page.document, { title: "two", links: [...styles, { rel: "canonical", href: "/two" }] });
+    expect(page.children.slice(0, 2)).toEqual([a, b]); // the same elements, in the same places
+    expect(page.children).not.toContain(canonical);
+    expect(page.children[2]!.attributes.get("href")).toBe("/two");
+
+    applyHead(page.document, { links: styles });
+    expect(page.children).toEqual([a, b]);
+    applyHead(page.document, { links: [] });
+    expect(page.children).toEqual([]);
   });
 
   it("leaves the document as it was when the head is refused, and leaves the title alone when there is none", () => {

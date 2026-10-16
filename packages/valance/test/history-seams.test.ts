@@ -19,7 +19,15 @@ const urlOf = ({ path }: App): string => `/app${path}`;
 const stateOf = (url: URL): { path: string } => ({ path: url.pathname.slice("/app".length) || "/" });
 const NAVIGATE = "app/navigate";
 
-type Marked = { readonly tag: string; readonly attributes: Map<string, string>; setAttribute: (name: string, value: string) => void; remove: () => void };
+type Marked = {
+  readonly tag: string;
+  readonly localName: string;
+  readonly attributes: Map<string, string>;
+  setAttribute: (name: string, value: string) => void;
+  getAttributeNames: () => Array<string>;
+  getAttribute: (name: string) => string | null;
+  remove: () => void;
+};
 
 const fakeBrowser = (initial: string) => {
   let current = new URL(initial, "http://localhost");
@@ -29,9 +37,16 @@ const fakeBrowser = (initial: string) => {
   const children: Array<Marked> = [];
   const created = (tag: string): Marked => ({
     tag,
+    localName: tag,
     attributes: new Map(),
     setAttribute(name, value) {
       this.attributes.set(name, value);
+    },
+    getAttributeNames() {
+      return [...this.attributes.keys()];
+    },
+    getAttribute(name) {
+      return this.attributes.get(name) ?? null;
     },
     remove() {
       children.splice(children.indexOf(this), 1);

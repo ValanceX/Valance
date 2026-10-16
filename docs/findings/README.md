@@ -45,6 +45,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | WA-5 | Form primitives, validation recipe, missing tags in docs | 2 / FW | Open | application-model D1 (partly) |
 | WA-6 | Dev HTML has no stylesheet link: unstyled first paint | 2 / FW | Open (cause read, not measured) | verifier F22 (related) |
 | WA-7 | Components inside Markdown | 2 / FW | Open | application-model D4 (related) |
+| WA-8 | The browser removed and re-inserted the stylesheet `<link>` in the head on **every** state change: the page lost its styles until the browser applied the new link, and the layout jumped (found as RF-11) | 3 / FW | **Fixed**: `applyHead` keeps a tag that has not changed | reference form (RF-11); WA-6 (related: first paint) |
 
 ### 3.1b From the reference form (this folder)
 
@@ -53,7 +54,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-1 | Text field cannot be a password / email / number (no `type`) | 3 / FW, PORT | **Fixed** (web: Valance; desktop: Port, unreleased) |
 | RF-2 | No `aria-invalid` / `aria-describedby` / `id` on messages | 3 / FW, PORT | **Fixed** (same) |
 | RF-3 | No `blur` / `focus` events | 2 / PORT | **Fixed** (same) |
-| RF-11 | A click during the render of a `blur` can be lost (controlled checkbox re-asserted) | 2 / FW, PORT | Open: found fixing RF-3 |
+| RF-11 | A click that follows leaving a field could be lost | 2 / FW | **Fixed**: not a controlled-control race; the stylesheet was re-inserted on every state change (WA-8) |
 | RF-4 | No radio group / select | 2 / FW, PORT | Open: wait for a second form |
 | RF-5 | A waiting command cannot read the state it starts from | 3 / FW | Open: decision on the core command surface |
 | RF-6 | A failed request carries no body (server field messages unreachable) | 2 / FW | Open: opt-in decoded error body |
