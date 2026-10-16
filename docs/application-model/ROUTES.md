@@ -395,3 +395,18 @@ Decisions taken: leaf names are **dotted** (`account.profile`); `staticParams` i
 | **Reactivity:** navigating between siblings under one parent leaves every ancestor the same element and mutates nothing outside the slot (a MutationObserver on the ancestors); only the paths `route` and the changed `at.lN` change in the state; three levels | R-44 |
 | **No tree walk:** entering a route reads its precomputed chain (a counter on the structures read), and the generated switch has one equality per case at each level, none a disjunction over the subtree | R-45 |
 | A project with no nested routes compiles the switch it did before, or its equivalent with the one root level | R-44 |
+
+### Implementation status, slice 6c
+
+Checked 2026-10-16 against `cli/src/content.ts`, `cli/src/addresses.ts`, `cli/src/emit.ts`, `cli/src/build.ts` and `cli/test/routes.test.ts` ("links to declared routes").
+
+| Statement | Status | Evidence |
+|---|---|---|
+| R-30 Markdown | Matches | a link with query and fragment to `/orders/42?tab=open#top` is written `/docs/orders/42/?tab=open#top` under base and policy; `/nowhere` is `link-broken` at its line; an address a route's Schema refuses (`/orders/x` for a number) leads nowhere |
+| R-30 Template | Matches, with a scope note | a literal `href` on `a`/`link` is checked against pages, routes and `public/`, with file, line and column. Built-in layouts' links are not checked (they are the framework's); `image src` is still checked for existence only by Markdown, not in templates |
+| R-31 Fragments | Matches | accepted unchecked on a route link; still checked on a page link |
+| R-32 Sitemap | Matches | the sitemap lists exactly the pathnames the build writes (`/orders/1`, `/orders/2`, `/settings`), not `/orders/3` |
+
+**Differences from the note**
+- The build, `check`, `dev` and `info` now load the definition *before* reading the content, because a link can lead to a route. When the definition cannot be loaded, the content is read with the routes "unknown" and a link that leads nowhere is not reported (the definition's own mistake is). `vlx dev` reads the content again when `src/main.ts` changes, for the same reason.
+- A Markdown link to a page may now carry a query (`/guide/a?x=1`); it was `link-broken` before and is kept as written now.

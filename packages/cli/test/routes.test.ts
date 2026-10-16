@@ -1,10 +1,16 @@
 // Declared routes (`routes` in `defineApp`), checked against the acceptance list in docs/application-model/ROUTES.md. Each test names the statements (R-n) it is evidence for.
 import { init } from "@valancex/mesh-runtime";
 import * as Valance from "@valancex/valance";
-import { application, Navigation, platformOf, Store, webStore } from "@valancex/common/internal";
+import {
+  application,
+  Navigation,
+  platformOf,
+  Store,
+  webStore,
+} from "@valancex/common/internal";
 import type { TextStorage } from "@valancex/common/internal";
 import { Effect, Exit, Scope } from "effect";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { join } from "node:path";
@@ -25,7 +31,16 @@ import { cleanup, project } from "./fixture.js";
 
 afterEach(cleanup);
 
-const answers = { name: "Notes", dir: "/unused", web: { base: "", url: "" }, packageManager: "npm", install: false, git: false, cli: "^0.0.0", targets: ["web"] } as const;
+const answers = {
+  name: "Notes",
+  dir: "/unused",
+  web: { base: "", url: "" },
+  packageManager: "npm",
+  install: false,
+  git: false,
+  cli: "^0.0.0",
+  targets: ["web"],
+} as const;
 
 const ROUTES = `
   routes: {
@@ -51,7 +66,12 @@ const withRoutes = (
   } = {},
 ): string => {
   const files = Object.fromEntries(
-    [...plan({ ...answers, web: { base: options.base ?? "", url: options.url ?? "" } }).files].filter(([name]) => name !== "package.json" && name !== "valance.json"),
+    [
+      ...plan({
+        ...answers,
+        web: { base: options.base ?? "", url: options.url ?? "" },
+      }).files,
+    ].filter(([name]) => name !== "package.json" && name !== "valance.json"),
   );
   const main = files["src/main.ts"]!.replace(
     'import { component, defineApp, field } from "@valancex/common";',
@@ -61,7 +81,10 @@ const withRoutes = (
       'theme: field(Schema.Literal("light", "dark"), "light"),',
       'theme: field(Schema.Literal("light", "dark"), "light"),\n    orderId: field(Schema.String, ""),\n    tab: field(Schema.Literal("all", "open"), "all"),',
     )
-    .replace("export default defineApp({", `export default defineApp({${options.persist === true ? '\n  persist: ["navigation"],' : ""}${options.routes ?? ROUTES}`);
+    .replace(
+      "export default defineApp({",
+      `export default defineApp({${options.persist === true ? '\n  persist: ["navigation"],' : ""}${options.routes ?? ROUTES}`,
+    );
   const layout = files["src/layout.mprx"]!.replace(
     "<screen />",
     '{#if route == "order"}<para class="order">Order {orderId} ({tab}) {title}</para>{:else if route == "settings"}<para class="settings">Settings {title}</para>{:else}<blocks items={blocks} />{/if}\n      <link class="nav-link" href="/orders/1" current="false">Order one</link>\n      <link class="nav-link" href="/settings" current="false">Settings</link>',
@@ -71,7 +94,14 @@ const withRoutes = (
 
   return project({
     ...files,
-    ...(options.trailingSlash === undefined ? {} : { "valance.web.json": JSON.stringify({ ...web, trailingSlash: options.trailingSlash }) }),
+    ...(options.trailingSlash === undefined
+      ? {}
+      : {
+          "valance.web.json": JSON.stringify({
+            ...web,
+            trailingSlash: options.trailingSlash,
+          }),
+        }),
     "src/main.ts": main,
     "src/layout.mprx": layout,
     ...options.extra,
@@ -87,14 +117,30 @@ const started = async (root: string) => {
     const built = await compileViews(root, author);
     const app = application(readContent(root, config), built.program, author);
 
-    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
+    await init(
+      readFileSync(
+        createRequire(import.meta.url).resolve(
+          "@valancex/mesh-runtime/mesh-runtime.wasm",
+        ),
+      ),
+    );
 
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-    const state = () => Effect.runPromise(handle.state) as Promise<Record<string, any>>;
-    const run = (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(handle.invoke(key, values.map((value) => ({ value })) as never));
+    const handle = await Effect.runPromise(
+      Valance.start(app).pipe(Scope.extend(scope)),
+    );
+    const state = () =>
+      Effect.runPromise(handle.state) as Promise<Record<string, any>>;
+    const run = (key: string, ...values: ReadonlyArray<unknown>) =>
+      Effect.runPromise(
+        handle.invoke(key, values.map((value) => ({ value })) as never),
+      );
 
-    return { state, run, close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
+    return {
+      state,
+      run,
+      close: () => Effect.runPromise(Scope.close(scope, Exit.void)),
+    };
   } finally {
     await loader.close();
   }
@@ -110,29 +156,59 @@ const bundleOf = (root: string): string => {
     .join("\n");
 };
 
-const problems = async (root: string): Promise<ReadonlyArray<string>> => (await check(root)).diagnostics.map((each) => `${each.file}:${each.code}`);
+const problems = async (root: string): Promise<ReadonlyArray<string>> =>
+  (await check(root)).diagnostics.map((each) => `${each.file}:${each.code}`);
 
 describe("entering a route (R-5 to R-9, R-17)", () => {
   it("go sets the canonical address, the route and the state `enter` makes, in one change; Back and Forward restore them", async () => {
     const t = await started(withRoutes());
 
-    expect(await t.state()).toMatchObject({ page: "/", route: "", orderId: "" });
+    expect(await t.state()).toMatchObject({
+      page: "/",
+      route: "",
+      orderId: "",
+    });
     await t.run("app/go", "orders/42/?tab=open"); // written loosely: no leading slash, a trailing slash
-    expect(await t.state()).toMatchObject({ page: "/orders/42?tab=open", route: "order", orderId: "42", tab: "open", trail: ["/", "/orders/42?tab=open"], cursor: 1 });
+    expect(await t.state()).toMatchObject({
+      page: "/orders/42?tab=open",
+      route: "order",
+      orderId: "42",
+      tab: "open",
+      trail: ["/", "/orders/42?tab=open"],
+      cursor: 1,
+    });
 
     await t.run("app/go", "/orders/7"); // the query is optional: `enter` ran again, with the default
-    expect(await t.state()).toMatchObject({ page: "/orders/7", route: "order", orderId: "7", tab: "all" });
+    expect(await t.state()).toMatchObject({
+      page: "/orders/7",
+      route: "order",
+      orderId: "7",
+      tab: "all",
+    });
 
     await t.run("app/go", "/settings");
-    expect(await t.state()).toMatchObject({ page: "/settings", route: "settings" });
+    expect(await t.state()).toMatchObject({
+      page: "/settings",
+      route: "settings",
+    });
     await t.run("app/go", "/");
     expect(await t.state()).toMatchObject({ page: "/", route: "" });
 
     await t.run("app/back");
     await t.run("app/back");
-    expect(await t.state()).toMatchObject({ page: "/orders/7", route: "order", orderId: "7", tab: "all" });
+    expect(await t.state()).toMatchObject({
+      page: "/orders/7",
+      route: "order",
+      orderId: "7",
+      tab: "all",
+    });
     await t.run("app/back");
-    expect(await t.state()).toMatchObject({ page: "/orders/42?tab=open", route: "order", orderId: "42", tab: "open" });
+    expect(await t.state()).toMatchObject({
+      page: "/orders/42?tab=open",
+      route: "order",
+      orderId: "42",
+      tab: "open",
+    });
     await t.run("app/forward");
     expect(await t.state()).toMatchObject({ page: "/orders/7", orderId: "7" });
     await t.close();
@@ -142,7 +218,10 @@ describe("entering a route (R-5 to R-9, R-17)", () => {
     const t = await started(withRoutes());
 
     await t.run("app/go", "/orders/42?tab=nope"); // `tab` is "all" or "open"
-    expect(await t.state()).toMatchObject({ page: "/orders/42?tab=nope", route: "" });
+    expect(await t.state()).toMatchObject({
+      page: "/orders/42?tab=nope",
+      route: "",
+    });
     await t.run("app/go", "/nowhere");
     expect(await t.state()).toMatchObject({ page: "/nowhere", route: "" });
     await t.close();
@@ -156,40 +235,65 @@ describe("entering a route (R-5 to R-9, R-17)", () => {
     );
 
     await t.run("app/go", "/orders/5");
-    expect(await t.state()).toMatchObject({ page: "/orders/5", route: "order", trail: ["/", "/orders/5"], cursor: 1, orderId: "set" });
+    expect(await t.state()).toMatchObject({
+      page: "/orders/5",
+      route: "order",
+      trail: ["/", "/orders/5"],
+      cursor: 1,
+      orderId: "set",
+    });
     await t.close();
   }, 120_000);
 });
 
 describe("what the note says beyond the main path (R-3, R-12, R-18)", () => {
   it("without a params Schema the parameters are the strings in the address, and a rest segment is the rest of the path (R-2, R-3)", async () => {
-    const t = await started(withRoutes({ routes: `routes: { file: route("/files/*path", { enter: (input, state) => ({ ...state, orderId: JSON.stringify(input) }) }) },` }));
+    const t = await started(
+      withRoutes({
+        routes: `routes: { file: route("/files/*path", { enter: (input, state) => ({ ...state, orderId: JSON.stringify(input) }) }) },`,
+      }),
+    );
 
     await t.run("app/go", "/files/a/b.txt");
-    expect(await t.state()).toMatchObject({ route: "file", page: "/files/a/b.txt", orderId: '{"path":"a/b.txt"}' });
+    expect(await t.state()).toMatchObject({
+      route: "file",
+      page: "/files/a/b.txt",
+      orderId: '{"path":"a/b.txt"}',
+    });
     await t.close();
   }, 120_000);
 
   it("the author's `title` function still wins for the parts it returns, and the route's title stays the page part (R-12)", async () => {
-    const main = readFileSync(join(withRoutes(), "src/main.ts"), "utf8").replace(
+    const main = readFileSync(
+      join(withRoutes(), "src/main.ts"),
+      "utf8",
+    ).replace(
       "export default defineApp({",
       "export default defineApp({\n  title: (_state, page) => ({ app: `${page.title}!` }),",
     );
     const root = withRoutes({ extra: { "src/main.ts": main } });
 
     await build(root);
-    expect(readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8")).toContain("<title>Order 1 · Order 1!</title>");
+    expect(
+      readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8"),
+    ).toContain("<title>Order 1 · Order 1!</title>");
   }, 240_000);
 
   it("the application-wide guard is asked about declared addresses as it is about pages, and can stop a move (R-18)", async () => {
     const root = withRoutes();
-    const main = readFileSync(join(root, "src/main.ts"), "utf8").replace("export default defineApp({", 'export default defineApp({\n  guard: ({ to }) => to.name !== "/settings",');
+    const main = readFileSync(join(root, "src/main.ts"), "utf8").replace(
+      "export default defineApp({",
+      'export default defineApp({\n  guard: ({ to }) => to.name !== "/settings",',
+    );
     const t = await started(withRoutes({ extra: { "src/main.ts": main } }));
 
     await t.run("app/go", "/orders/3");
     expect(await t.state()).toMatchObject({ route: "order" });
     await t.run("app/go", "/settings");
-    expect(await t.state()).toMatchObject({ page: "/orders/3", route: "order" }); // stopped
+    expect(await t.state()).toMatchObject({
+      page: "/orders/3",
+      route: "order",
+    }); // stopped
     await t.close();
   }, 120_000);
 });
@@ -197,7 +301,12 @@ describe("what the note says beyond the main path (R-3, R-12, R-18)", () => {
 const storage = (): TextStorage & { readonly map: Map<string, string> } => {
   const map = new Map<string, string>();
 
-  return { map, getItem: (key) => map.get(key) ?? null, setItem: (key, value) => void map.set(key, value), removeItem: (key) => void map.delete(key) };
+  return {
+    map,
+    getItem: (key) => map.get(key) ?? null,
+    setItem: (key, value) => void map.set(key, value),
+    removeItem: (key) => void map.delete(key),
+  };
 };
 
 describe("what is easy to miss (R-9, R-5)", () => {
@@ -206,13 +315,25 @@ describe("what is easy to miss (R-9, R-5)", () => {
     const config = loadConfig(root);
     const loader = await createLoader(root, config);
     const author = await loadAuthor(loader, root).finally(() => undefined);
-    const app = application(readContent(root, config), (await compileViews(root, author)).program, author);
+    const app = application(
+      readContent(root, config),
+      (await compileViews(root, author)).program,
+      author,
+    );
 
     await loader.close();
-    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
+    await init(
+      readFileSync(
+        createRequire(import.meta.url).resolve(
+          "@valancex/mesh-runtime/mesh-runtime.wasm",
+        ),
+      ),
+    );
 
     const area = storage();
-    const run = async <A>(use: (handle: Valance.ApplicationHandle<any, any>) => Promise<A>): Promise<A> => {
+    const run = async <A>(
+      use: (handle: Valance.ApplicationHandle<any, any>) => Promise<A>,
+    ): Promise<A> => {
       const scope = await Effect.runPromise(Scope.make());
       const platform = platformOf([
         [Store, webStore("Test", area)],
@@ -220,7 +341,11 @@ describe("what is easy to miss (R-9, R-5)", () => {
       ]);
 
       try {
-        return await use(await Effect.runPromise(Valance.start(app, { platform }).pipe(Scope.extend(scope))));
+        return await use(
+          await Effect.runPromise(
+            Valance.start(app, { platform }).pipe(Scope.extend(scope)),
+          ),
+        );
       } finally {
         await Effect.runPromise(Scope.close(scope, Exit.void));
       }
@@ -232,13 +357,28 @@ describe("what is easy to miss (R-9, R-5)", () => {
     };
 
     await run(async (handle) => {
-      await Effect.runPromise(handle.invoke("app/go", [{ value: "/orders/5?tab=open" }] as never));
-      await settle(async () => area.map.size > 0 && [...area.map.values()].some((text) => text.includes("orders/5")));
+      await Effect.runPromise(
+        handle.invoke("app/go", [{ value: "/orders/5?tab=open" }] as never),
+      );
+      await settle(
+        async () =>
+          area.map.size > 0 &&
+          [...area.map.values()].some((text) => text.includes("orders/5")),
+      );
     });
 
     await run(async (handle) => {
-      await settle(async () => ((await Effect.runPromise(handle.state)) as { page: string }).page.startsWith("/orders"));
-      expect(await Effect.runPromise(handle.state)).toMatchObject({ page: "/orders/5?tab=open", route: "order", orderId: "5", tab: "open" });
+      await settle(async () =>
+        (
+          (await Effect.runPromise(handle.state)) as { page: string }
+        ).page.startsWith("/orders"),
+      );
+      expect(await Effect.runPromise(handle.state)).toMatchObject({
+        page: "/orders/5?tab=open",
+        route: "order",
+        orderId: "5",
+        tab: "open",
+      });
     });
   }, 180_000);
 
@@ -249,19 +389,30 @@ describe("what is easy to miss (R-9, R-5)", () => {
     await t.run("app/go", "/orders/1");
     await t.run("app/go", "/orders/1");
     await t.run("app/go", "/orders/1/");
-    expect(await t.state()).toMatchObject({ orderId: "1#1", trail: ["/", "/orders/1"] }); // entered once
+    expect(await t.state()).toMatchObject({
+      orderId: "1#1",
+      trail: ["/", "/orders/1"],
+    }); // entered once
     await t.close();
   }, 120_000);
 
   it("under a base, the address is the base followed by the page: pages are written there and a layout's literal link gets it (R-5)", async () => {
     const root = withRoutes({ base: "/docs/", url: "https://example.com" });
     const built = await build(root);
-    const html = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
+    const html = readFileSync(
+      join(root, "dist/web/orders/1/index.html"),
+      "utf8",
+    );
 
     expect(built.pages).toContain("/docs/orders/1");
     expect(html).toContain('href="/docs/orders/1"');
-    expect(html).toContain('rel="canonical" href="https://example.com/docs/orders/1"');
-    expect((await info(root)).declared[0]!.pages).toEqual(["/docs/orders/1", "/docs/orders/2"]);
+    expect(html).toContain(
+      'rel="canonical" href="https://example.com/docs/orders/1"',
+    );
+    expect((await info(root)).declared[0]!.pages).toEqual([
+      "/docs/orders/1",
+      "/docs/orders/2",
+    ]);
   }, 240_000);
 });
 
@@ -270,15 +421,26 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
     const cases: ReadonlyArray<readonly [string, RegExp]> = [
       [`routes: { "": route("/a") },`, /needs a name/],
       [`routes: { a: route("a") },`, /must start with "\//],
-      [`routes: { a: route("/a", { nope: 1 } as never) },`, /unknown settings "nope"/],
+      [
+        `routes: { a: route("/a", { nope: 1 } as never) },`,
+        /unknown settings "nope"/,
+      ],
       [`routes: { a: route("/a"), b: route("/a") },`, /cannot be told apart/],
-      [`routes: { a: route("/a/:id", { query: Schema.Struct({ id: Schema.String }) }) },`, /both a path parameter and a query key/],
-      [`routes: { a: route("/a", { enter: 1 as never }) },`, /`enter` must be a function/],
+      [
+        `routes: { a: route("/a/:id", { query: Schema.Struct({ id: Schema.String }) }) },`,
+        /both a path parameter and a query key/,
+      ],
+      [
+        `routes: { a: route("/a", { enter: 1 as never }) },`,
+        /`enter` must be a function/,
+      ],
       [`routes: { notFound: route("/a") },`, /not-found name/],
     ];
 
     for (const [routes, message] of cases) {
-      const found = (await check(withRoutes({ routes }))).diagnostics.filter((each) => each.code === "entry-definition");
+      const found = (await check(withRoutes({ routes }))).diagnostics.filter(
+        (each) => each.code === "entry-definition",
+      );
 
       expect(found, routes).toHaveLength(1);
       expect(found[0]!.message, routes).toMatch(message);
@@ -287,15 +449,31 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
   }, 180_000);
 
   it("refuses a route whose address is a content page (R-4), and a state field called `route` (R-7)", async () => {
-    expect(await problems(withRoutes({ routes: `routes: { guide: route("/guide/getting-started") },` }))).toContain("src/main.ts:route-conflict");
-    expect(await problems(withRoutes({ routes: `routes: { home: route("/") },` }))).toContain("src/main.ts:route-conflict");
+    expect(
+      await problems(
+        withRoutes({
+          routes: `routes: { guide: route("/guide/getting-started") },`,
+        }),
+      ),
+    ).toContain("src/main.ts:route-conflict");
+    expect(
+      await problems(withRoutes({ routes: `routes: { home: route("/") },` })),
+    ).toContain("src/main.ts:route-conflict");
 
-    const taken = (await check(withRoutes())).diagnostics.length === 0 ? withRoutes() : undefined;
+    const taken =
+      (await check(withRoutes())).diagnostics.length === 0
+        ? withRoutes()
+        : undefined;
 
     expect(taken).toBeDefined();
 
-    const main = readFileSync(join(taken!, "src/main.ts"), "utf8").replace("orderId: field(Schema.String", "route: field(Schema.String");
-    const clash = (await check(withRoutes({ extra: { "src/main.ts": main } }))).diagnostics.filter((each) => each.code === "entry-definition");
+    const main = readFileSync(join(taken!, "src/main.ts"), "utf8").replace(
+      "orderId: field(Schema.String",
+      "route: field(Schema.String",
+    );
+    const clash = (
+      await check(withRoutes({ extra: { "src/main.ts": main } }))
+    ).diagnostics.filter((each) => each.code === "entry-definition");
 
     expect(clash).toHaveLength(1);
     expect(clash[0]!.message).toContain('"route"');
@@ -304,12 +482,18 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
   it("a staticParams entry that does not fit its Schema is a diagnostic from check, build and info, not a crash (R-14, R-19)", async () => {
     const routes = `routes: { order: route("/orders/:id", { params: Schema.Struct({ id: Schema.NumberFromString }), staticParams: () => [{ id: "x" as never }] }) },`;
     const root = withRoutes({ routes });
-    const found = (await check(root)).diagnostics.filter((each) => each.code === "entry-definition");
+    const found = (await check(root)).diagnostics.filter(
+      (each) => each.code === "entry-definition",
+    );
 
     expect(found).toHaveLength(1);
-    expect(found[0]!.message).toContain("a `staticParams` entry does not fit its `params` Schema");
+    expect(found[0]!.message).toContain(
+      "a `staticParams` entry does not fit its `params` Schema",
+    );
     await expect(build(root)).rejects.toThrow("entry-definition");
-    expect((await info(root)).problems.map((each) => each.code)).toEqual(["entry-definition"]);
+    expect((await info(root)).problems.map((each) => each.code)).toEqual([
+      "entry-definition",
+    ]);
   }, 180_000);
 
   it("a route with parameters and no staticParams cannot be built, and check and build both say so (R-14)", async () => {
@@ -326,57 +510,113 @@ describe("a built site (R-11 to R-14, R-16)", () => {
     const root = withRoutes({ url: "https://example.com" });
     const built = await build(root);
 
-    expect(built.pages).toEqual(["/", "/guide/getting-started", "/guide/writing-pages", "/orders/1", "/orders/2", "/settings"]);
+    expect(built.pages).toEqual([
+      "/",
+      "/guide/getting-started",
+      "/guide/writing-pages",
+      "/orders/1",
+      "/orders/2",
+      "/settings",
+    ]);
 
-    const order = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
+    const order = readFileSync(
+      join(root, "dist/web/orders/1/index.html"),
+      "utf8",
+    );
 
     expect(order).toContain("<title>Order 1 · Test</title>");
     expect(order).toContain("Order 1 (all) Order 1");
-    expect(order).toContain('rel="canonical" href="https://example.com/orders/1"');
+    expect(order).toContain(
+      'rel="canonical" href="https://example.com/orders/1"',
+    );
     expect(order).not.toContain("<h1"); // the navigation is the content's, but `blocks` is empty for a route // `blocks` is empty for a route: the layout drew the order, not a page
-    expect(readFileSync(join(root, "dist/web/settings/index.html"), "utf8")).toContain("<title>Settings · Test</title>");
+    expect(
+      readFileSync(join(root, "dist/web/settings/index.html"), "utf8"),
+    ).toContain("<title>Settings · Test</title>");
     expect(existsSync(join(root, "dist/web/orders/3/index.html"))).toBe(false); // not in staticParams
     expect(bundleOf(root)).toContain("cannot be told apart");
-    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).not.toContain("/orders/"); // R-16: declared pages are not in the sitemap yet (slice 6c)
+    const sitemap = readFileSync(join(root, "dist/web/sitemap.xml"), "utf8");
+
+    expect(sitemap).toContain("<loc>https://example.com/orders/1</loc>"); // R-32
+    expect(sitemap).toContain("<loc>https://example.com/settings</loc>");
+    expect(sitemap).not.toContain("/orders/3");
   }, 240_000);
 
   it("is the same for a project with no routes: no `route`, the files it always had", async () => {
-    const root = project(Object.fromEntries([...plan({ ...answers }).files].filter(([name]) => name !== "package.json" && name !== "valance.json")));
+    const root = project(
+      Object.fromEntries(
+        [...plan({ ...answers }).files].filter(
+          ([name]) => name !== "package.json" && name !== "valance.json",
+        ),
+      ),
+    );
     const built = await build(root);
 
-    expect(built.pages).toEqual(["/", "/guide/getting-started", "/guide/writing-pages"]);
+    expect(built.pages).toEqual([
+      "/",
+      "/guide/getting-started",
+      "/guide/writing-pages",
+    ]);
     expect(bundleOf(root)).not.toContain("cannot be told apart"); // the router is in the page only when a route is declared
   }, 240_000);
 });
 
 describe("a site whose pages end in a slash (trailingSlash: always)", () => {
   it("writes every page address with one: links, navigation, the canonical link, the sitemap, a layout's literal link and a declared route's pages", async () => {
-    const root = withRoutes({ trailingSlash: "always", url: "https://example.com" });
+    const root = withRoutes({
+      trailingSlash: "always",
+      url: "https://example.com",
+    });
     const built = await build(root);
-    const order = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
+    const order = readFileSync(
+      join(root, "dist/web/orders/1/index.html"),
+      "utf8",
+    );
     const home = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
-    expect(built.pages).toEqual(["/", "/guide/getting-started/", "/guide/writing-pages/", "/orders/1/", "/orders/2/", "/settings/"]);
-    expect(order).toContain('rel="canonical" href="https://example.com/orders/1/"');
+    expect(built.pages).toEqual([
+      "/",
+      "/guide/getting-started/",
+      "/guide/writing-pages/",
+      "/orders/1/",
+      "/orders/2/",
+      "/settings/",
+    ]);
+    expect(order).toContain(
+      'rel="canonical" href="https://example.com/orders/1/"',
+    );
     expect(order).toContain('href="/orders/1/"'); // the layout's literal link
     expect(home).toContain('href="/guide/getting-started/"'); // the navigation
-    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).toContain("<loc>https://example.com/guide/getting-started/</loc>");
-    expect(existsSync(join(root, "dist/web/guide/getting-started/index.html"))).toBe(true); // the files are the same
+    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).toContain(
+      "<loc>https://example.com/guide/getting-started/</loc>",
+    );
+    expect(
+      existsSync(join(root, "dist/web/guide/getting-started/index.html")),
+    ).toBe(true); // the files are the same
   }, 240_000);
 
   it("is the one form under a base too, and vlx info says which it is", async () => {
     const root = withRoutes({ trailingSlash: "always", base: "/docs/" });
     const found = await info(root);
 
-    expect(found.web).toMatchObject({ base: "/docs/", trailingSlash: "always" });
-    expect(found.declared[0]!.pages).toEqual(["/docs/orders/1/", "/docs/orders/2/"]);
+    expect(found.web).toMatchObject({
+      base: "/docs/",
+      trailingSlash: "always",
+    });
+    expect(found.declared[0]!.pages).toEqual([
+      "/docs/orders/1/",
+      "/docs/orders/2/",
+    ]);
     expect(render(found)).toContain("addressed with a trailing slash");
   }, 120_000);
 });
 
 describe("vlx dev and vlx info (R-15, R-20)", () => {
   it("renders an address that staticParams does not list, with its query, and answers an unknown one with 404", async () => {
-    const running = await dev(withRoutes(), { port: 6900 + Math.floor(Math.random() * 300), log: () => undefined });
+    const running = await dev(withRoutes(), {
+      port: 6900 + Math.floor(Math.random() * 300),
+      log: () => undefined,
+    });
 
     try {
       const origin = new URL(running.url).origin;
@@ -395,18 +635,44 @@ describe("vlx dev and vlx info (R-15, R-20)", () => {
     const found = await info(withRoutes());
 
     expect(found.declared).toEqual([
-      { name: "order", pattern: "/orders/:id", parameters: ["id"], delivery: "static", pages: ["/orders/1", "/orders/2"], buildable: true },
-      { name: "settings", pattern: "/settings", parameters: [], delivery: "static", pages: ["/settings"], buildable: true },
+      {
+        name: "order",
+        pattern: "/orders/:id",
+        parameters: ["id"],
+        delivery: "static",
+        pages: ["/orders/1", "/orders/2"],
+        buildable: true,
+      },
+      {
+        name: "settings",
+        pattern: "/settings",
+        parameters: [],
+        delivery: "static",
+        pages: ["/settings"],
+        buildable: true,
+      },
     ]);
   }, 60_000);
 });
 
 /** A built site served the way a static host does: a file, or a directory's index.html, or 404. */
-const serve = async (dist: string): Promise<{ readonly origin: string; readonly close: () => void }> => {
-  const types: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".svg": "image/svg+xml" };
+const serve = async (
+  dist: string,
+): Promise<{ readonly origin: string; readonly close: () => void }> => {
+  const types: Record<string, string> = {
+    ".html": "text/html",
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".wasm": "application/wasm",
+    ".svg": "image/svg+xml",
+  };
   const server = createServer((request, response) => {
-    const path = decodeURIComponent(new URL(request.url ?? "/", "http://x").pathname);
-    const file = [join(dist, path), join(dist, path, "index.html")].find((each) => existsSync(each) && /\.[a-z0-9]+$/.test(each));
+    const path = decodeURIComponent(
+      new URL(request.url ?? "/", "http://x").pathname,
+    );
+    const file = [join(dist, path), join(dist, path, "index.html")].find(
+      (each) => existsSync(each) && /\.[a-z0-9]+$/.test(each),
+    );
 
     if (file === undefined) {
       // what a static host does for an address with no file: its 404 page, with a 404 status
@@ -416,13 +682,19 @@ const serve = async (dist: string): Promise<{ readonly origin: string; readonly 
       return;
     }
 
-    response.setHeader("content-type", types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream");
+    response.setHeader(
+      "content-type",
+      types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream",
+    );
     response.end(readFileSync(file));
   });
 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 
-  return { origin: `http://127.0.0.1:${(server.address() as { port: number }).port}`, close: () => server.close() };
+  return {
+    origin: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
+    close: () => server.close(),
+  };
 };
 
 describe("in a browser (R-5, R-6, R-9, R-22)", () => {
@@ -445,16 +717,28 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
       await page.click('a[href="/orders/1"]');
       await page.waitForSelector("p.order");
       expect(await page.textContent("p.order")).toBe("Order 1 (all) Order 1");
-      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe("/orders/1");
-      expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true); // no reload
+      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(
+        "/orders/1",
+      );
+      expect(
+        await page.evaluate(
+          () => (window as unknown as { __kept?: boolean }).__kept,
+        ),
+      ).toBe(true); // no reload
       expect(await page.title()).toBe("Order 1 · Test");
       await page.goBack();
-      await page.waitForFunction(() => document.querySelector("p.order") === null);
+      await page.waitForFunction(
+        () => document.querySelector("p.order") === null,
+      );
 
       // A static page cannot see its query; the browser can. Opening /orders/2?tab=open keeps the query and applies `enter` to it.
       await page.goto(`${site.origin}/orders/2?tab=open`);
       await page.waitForSelector('#app[data-valance="running"]');
-      await page.waitForFunction(() => document.querySelector("p.order")?.textContent === "Order 2 (open) Order 2");
+      await page.waitForFunction(
+        () =>
+          document.querySelector("p.order")?.textContent ===
+          "Order 2 (open) Order 2",
+      );
       expect(new URL(page.url()).search).toBe("?tab=open");
     } finally {
       await browser.close();
@@ -469,7 +753,10 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
     await build(never);
     await build(always);
 
-    const sites = [await serve(join(never, "dist/web")), await serve(join(always, "dist/web"))];
+    const sites = [
+      await serve(join(never, "dist/web")),
+      await serve(join(always, "dist/web")),
+    ];
     const browser = await chromium.launch();
     const at = async (origin: string, address: string): Promise<string> => {
       const page = await browser.newPage();
@@ -489,14 +776,102 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
     };
 
     try {
-      expect(await at(sites[0]!.origin, "/orders/2/?tab=open")).toBe("/orders/2?tab=open"); // never (the default)
-      expect(await at(sites[0]!.origin, "/guide/getting-started/#top")).toBe("/guide/getting-started#top");
-      expect(await at(sites[1]!.origin, "/orders/2?tab=open")).toBe("/orders/2/?tab=open"); // always
-      expect(await at(sites[1]!.origin, "/guide/getting-started")).toBe("/guide/getting-started/");
+      expect(await at(sites[0]!.origin, "/orders/2/?tab=open")).toBe(
+        "/orders/2?tab=open",
+      ); // never (the default)
+      expect(await at(sites[0]!.origin, "/guide/getting-started/#top")).toBe(
+        "/guide/getting-started#top",
+      );
+      expect(await at(sites[1]!.origin, "/orders/2?tab=open")).toBe(
+        "/orders/2/?tab=open",
+      ); // always
+      expect(await at(sites[1]!.origin, "/guide/getting-started")).toBe(
+        "/guide/getting-started/",
+      );
       expect(await at(sites[0]!.origin, "/nowhere/")).toBe("/nowhere/"); // not a page: left as it was written
     } finally {
       await browser.close();
       sites.forEach((site) => site.close());
     }
   }, 300_000);
+});
+
+describe("links to declared routes (R-30 to R-32)", () => {
+  const links = (body: string): string =>
+    `---\ntitle: Links\n---\n\n# Links\n\n${body}\n`;
+
+  it("a Markdown link to a declared address is accepted and written under base and policy, with its query and fragment; one to nothing is link-broken with its line (R-30, R-31)", async () => {
+    const root = withRoutes({
+      base: "/docs/",
+      trailingSlash: "always",
+      extra: {
+        "content/links.md": links(
+          "[order](/orders/42?tab=open#top) and [settings](/settings) and [gone](/nowhere)",
+        ),
+      },
+    });
+    const found = (await check(root)).diagnostics.filter(
+      (each) => each.code === "link-broken",
+    );
+
+    expect(found.map((each) => `${each.file}:${each.line}`)).toEqual([
+      "content/links.md:7",
+    ]);
+
+    const ok = withRoutes({
+      base: "/docs/",
+      trailingSlash: "always",
+      extra: {
+        "content/links.md": links(
+          "[order](/orders/42?tab=open#top) and [settings](/settings)",
+        ),
+      },
+    });
+
+    await build(ok);
+
+    const page = readFileSync(join(ok, "dist/web/links/index.html"), "utf8");
+
+    expect(page).toContain('href="/docs/orders/42/?tab=open#top"');
+    expect(page).toContain('href="/docs/settings/"');
+  }, 240_000);
+
+  it("a link whose address a route's Schema refuses leads nowhere (R-30)", async () => {
+    const routes = `routes: { order: route("/orders/:id", { params: Schema.Struct({ id: Schema.NumberFromString }), staticParams: () => [{ id: 1 }] }) },`;
+    const root = withRoutes({
+      routes,
+      extra: {
+        "content/links.md": links("[good](/orders/7) [bad](/orders/x)"),
+      },
+    });
+    const found = (await check(root)).diagnostics.filter(
+      (each) => each.code === "link-broken",
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain("/orders/x");
+  }, 180_000);
+
+  it("a template's literal href is checked against pages, routes and public/, with file, line and column; a built-in layout's links are not (R-30)", async () => {
+    const root = withRoutes();
+    const layoutFile = join(root, "src/layout.mprx");
+    const layout = readFileSync(layoutFile, "utf8").replace(
+      '<link class="nav-link" href="/settings" current="false">',
+      '<link class="nav-link" href="/missing" current="false">',
+    );
+
+    writeFileSync(layoutFile, layout);
+
+    const found = (await check(root)).diagnostics.filter(
+      (each) => each.code === "link-broken",
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ file: "src/layout.mprx" });
+    expect(found[0]!.line).toBe(
+      layout.split("\n").findIndex((line) => line.includes("/missing")) + 1,
+    );
+    expect(found[0]!.column).toBeGreaterThan(1);
+    expect((await check(withRoutes())).diagnostics).toEqual([]);
+  }, 180_000);
 });

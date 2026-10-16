@@ -64,15 +64,18 @@ export const info = async (root: string): Promise<Info> => {
   const web = config.targets.includes("web");
   let content: ReturnType<typeof readContent> | undefined;
 
-  try {
-    content = readContent(root, config);
-  } catch (error) {
-    if (!(error instanceof AppError)) {
-      throw error;
-    }
+  // The content is read once the definition is: a link in it may lead to a route the definition declares ("unknown" when it could not be loaded).
+  const readIt = (routes: Parameters<typeof readContent>[2]): void => {
+    try {
+      content = readContent(root, config, routes);
+    } catch (error) {
+      if (!(error instanceof AppError)) {
+        throw error;
+      }
 
-    problems.push(...error.diagnostics);
-  }
+      problems.push(...error.diagnostics);
+    }
+  };
 
   const components: Array<{ name: string; template: string; target?: string }> = [];
   let declared: Info["declared"] = [];
@@ -81,6 +84,9 @@ export const info = async (root: string): Promise<Info> => {
   try {
     const author = await loadAuthor(loader, root);
     const routing = routingFor(author);
+
+    readIt(routing);
+
     const { addresses, missing } = routing.pages();
 
     declared = routing.list.map((each) => ({
@@ -107,6 +113,10 @@ export const info = async (root: string): Promise<Info> => {
       }
     }
   } catch (error) {
+    if (content === undefined && !problems.some((each) => each.file.startsWith("content"))) {
+      readIt("unknown");
+    }
+
     if (error instanceof RouteDeclarationError) {
       problems.push(diagnostic("src/main.ts", 1, "entry-definition", error.message.replace(/^src\/main\.ts: /, "")));
     } else if (error instanceof AppError) {

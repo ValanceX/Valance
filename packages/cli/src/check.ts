@@ -2,6 +2,7 @@
 // or a CI job can read the result (`--json`) as easily as a person reads the terminal.
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError } from "./diagnostics.js";
+import { routingFor } from "@valancex/common/internal";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
@@ -43,18 +44,19 @@ export const check = async (root: string): Promise<Checked> => {
     problems.push(...checkStyles(root));
   }
 
-  const content = await collect(problems, () => generateContent(root, config));
   const server = await createLoader(root, config);
 
   try {
+    // The definition first: a link in the content may lead to a route it declares. (When it cannot be loaded, that mistake is the one reported, and a link is not.)
     const author = await collect(problems, () => loadAuthor(server, root));
     const failedAuthor = problems.some((each) => each.file === "src/main.ts");
+    const content = await collect(problems, () => generateContent(root, config, failedAuthor ? "unknown" : routingFor(author)));
 
     if (!failedAuthor && config.targets.includes("web")) {
       problems.push(...checkRoutes(author, content));
     }
 
-    const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
+    const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config, undefined, content ?? false));
 
     return { diagnostics: problems, pages: content?.pages.length ?? 0, components: components ?? [] };
   } finally {

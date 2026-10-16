@@ -7,8 +7,8 @@ import type { Config } from "./config.js";
 import { siteInfo } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
-import type { Content, Page } from "@valancex/common/internal";
-import { pageUrl } from "@valancex/common/internal";
+import type { Content, Page, Routing } from "@valancex/common/internal";
+import { pageUrl, routingFor } from "@valancex/common/internal";
 import type { LinkRef } from "./markdown.js";
 import { parseMarkdown, plain } from "./markdown.js";
 
@@ -82,7 +82,7 @@ const titleCase = (value: string): string => value.replace(/[-_]+/g, " ").replac
 /** `/a/b#x` → `["/a/b", "x"]`; a trailing slash is not part of the path. */
 const splitAddress = (href: string): readonly [string, string] => {
   const hash = href.indexOf("#");
-  const path = (hash < 0 ? href : href.slice(0, hash)).replace(/(.)\/$/, "$1");
+  const path = (hash < 0 ? href : href.slice(0, hash)).replace(/(.)\/(\?|$)/, "$1$2");
 
   return [path, hash < 0 ? "" : href.slice(hash + 1)];
 };
@@ -92,8 +92,13 @@ export const underBase = (base: string, address: string): string => `${base}${ad
 
 export const publicFiles = (root: string): ReadonlySet<string> => new Set(filesUnder(join(root, PUBLIC_DIR)).map((file) => `/${file}`));
 
-/** Reads `content/` under `root`. Every mistake in every file is reported together, not the first only. */
-export const readContent = (root: string, config: Config): Content => {
+/**
+ * Reads `content/` under `root`. Every mistake in every file is reported together, not the first only.
+ *
+ * `routes` are the declared routes (`src/main.ts`): a link to an address one of them matches is a good link. `"unknown"` is for when the definition could not be loaded, and its own mistake
+ * is what gets reported: a link that leads nowhere is then not reported, because it may lead to a route.
+ */
+export const readContent = (root: string, config: Config, routes: Routing | "unknown" = routingFor(undefined)): Content => {
   const problems: Array<Diagnostic> = [];
   const dir = join(root, CONTENT_DIR);
 
@@ -220,11 +225,23 @@ export const readContent = (root: string, config: Config): Content => {
       href.startsWith("#") || href.startsWith("/")
         ? href
         : `${pathOfFile(posix.join(posix.dirname(from.slice(CONTENT_DIR.length + 1)), href.replace(/#.*$/, "")))}${href.includes("#") ? href.slice(href.indexOf("#")) : ""}`;
-    const [target, fragment] = absolute.startsWith("#") ? [entry.page.path, absolute.slice(1)] : splitAddress(absolute);
+    const [withQuery, fragment] = absolute.startsWith("#") ? [entry.page.path, absolute.slice(1)] : splitAddress(absolute);
+    const question = withQuery.indexOf("?");
+    const target = question < 0 ? withQuery : withQuery.slice(0, question);
+    const query = question < 0 ? "" : withQuery.slice(question);
     const page = target === entry.page.path ? entry : raw.get(target);
 
     if (page === undefined) {
-      return assets.has(target) && fragment === "" ? underBase(base, target) : bad("link-broken", `${href} leads to no page (and no file in ${PUBLIC_DIR}/)`);
+      if (assets.has(target) && fragment === "" && query === "") {
+        return underBase(base, target);
+      }
+
+      // R-30, R-31: an address a declared route matches; its headings are not known here, so a fragment on it is not checked.
+      if (routes === "unknown" || routes.match(withQuery) !== undefined) {
+        return pageUrl(base, target, config.web.trailingSlash) + query + (fragment === "" ? "" : `#${fragment}`);
+      }
+
+      return bad("link-broken", `${href} leads to no page, no declared route and no file in ${PUBLIC_DIR}/`);
     }
 
     if (fragment !== "" && !page.anchors.has(fragment)) {
@@ -234,7 +251,7 @@ export const readContent = (root: string, config: Config): Content => {
       );
     }
 
-    return pageUrl(base, target, config.web.trailingSlash) + (fragment === "" ? "" : `#${fragment}`);
+    return pageUrl(base, target, config.web.trailingSlash) + query + (fragment === "" ? "" : `#${fragment}`);
   };
 
   // The parser recorded the links in document order, and a page's blocks hold them in that same order.

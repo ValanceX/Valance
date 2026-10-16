@@ -9,8 +9,8 @@ describe("what a change asks for", () => {
   it("content and templates rebuild, styles are the page's own, public reloads, configuration restarts", () => {
     expect(stagesFor("content/guide/a.md")).toEqual(["content"]);
     expect(stagesFor("src/layout.mprx")).toEqual(["program"]);
-    expect(stagesFor("src/main.ts")).toEqual(["program"]);
-    expect(stagesFor("src/main.ts", "add")).toEqual(["entries", "program"]);
+    expect(stagesFor("src/main.ts")).toEqual(["content", "program"]);
+    expect(stagesFor("src/main.ts", "add")).toEqual(["entries", "content", "program"]);
     expect(stagesFor("src/styles.css")).toEqual([]);
     expect(stagesFor("src/styles.css", "add")).toEqual(["entries"]);
     expect(stagesFor("src/styles.css", "unlink")).toEqual(["entries"]);

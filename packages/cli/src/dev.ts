@@ -16,6 +16,8 @@ import { createServer } from "vite";
 import { join, relative, sep } from "node:path";
 
 import { loadAuthor } from "./author.js";
+import type { Routing } from "@valancex/common/internal";
+import { routingFor } from "@valancex/common/internal";
 import type { Config } from "./config.js";
 import { loadConfig, PROJECT_FILE, WEB_FILE } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
@@ -61,7 +63,8 @@ export const stagesFor = (file: string, event: "change" | "add" | "unlink" = "ch
     return ["reload"];
   }
   if (file === "src/main.ts") {
-    return event === "change" ? ["program"] : ["entries", "program"];
+    // the routes it declares are what the content's links may lead to, so the content is read again too
+    return event === "change" ? ["content", "program"] : ["entries", "content", "program"];
   }
   if (file.startsWith("src/") && file.endsWith(".mprx")) {
     return ["program"];
@@ -167,6 +170,19 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
   await server.listen();
 
+  // The declared routes the content's links may lead to; "unknown" when the definition cannot be loaded (that mistake is reported by the templates stage).
+  const routesOf = async (): Promise<Routing | "unknown"> => {
+    try {
+      return routingFor(await loadAuthor(server, root));
+    } catch (error) {
+      if (error instanceof AppError) {
+        return "unknown";
+      }
+
+      throw error;
+    }
+  };
+
   const rebuild = async (stages: ReadonlyArray<Stage>): Promise<void> => {
     const run = async (name: string, work: () => Promise<unknown> | unknown): Promise<void> => {
       try {
@@ -193,7 +209,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
       generateEntries(root, config);
     }
     if (stages.includes("content")) {
-      await run("content", () => generateContent(root, config));
+      await run("content", async () => generateContent(root, config, await routesOf()));
     }
     if (stages.includes("program")) {
       await run("templates", async () => generateProgram(root, await loadAuthor(server, root), config, ["web"]));
@@ -269,7 +285,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
   // First build: a mistake here is reported like any other and the server still starts, so the overlay can show it.
   for (const [name, work] of [
-    ["content", () => generateContent(root, config)],
+    ["content", async () => generateContent(root, config, await routesOf())],
     ["templates", async () => generateProgram(root, await loadAuthor(server, root), config, ["web"])],
   ] as const) {
     try {
