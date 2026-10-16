@@ -40,7 +40,17 @@ export const primitives: Web.WebPrimitives = {
   strong: { element: "strong" },
   em: { element: "em" },
   span: { element: "span", props: { class: klass, id } },
-  image: { element: "img", props: { class: klass, src: Web.attribute("src"), alt: Web.attribute("alt"), loading: Web.attribute("loading") } },
+  image: {
+    element: "img",
+    props: {
+      class: klass,
+      src: Web.attribute("src"),
+      alt: Web.attribute("alt"),
+      loading: Web.attribute("loading"),
+      width: Web.attribute("width"),
+      height: Web.attribute("height"),
+    },
+  },
   /** A link inside text. */
   a: { element: "a", props: { href: Web.attribute("href") } },
   /** A link that is part of the page's furniture (navigation, a brand): it has a class, and says whether it is where you are (`aria-current`: "page" or "false"). */

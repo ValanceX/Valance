@@ -70,6 +70,7 @@ export const webVocabulary: WebVocabulary = {
     para: ["id"],
     span: ["id"],
     heading: ["level"],
+    image: ["width", "height"],
   },
-  types: { textfield: { invalid: "boolean" }, checkbox: { invalid: "boolean" } },
+  types: { textfield: { invalid: "boolean" }, checkbox: { invalid: "boolean" }, image: { width: "number", height: "number" } },
 };

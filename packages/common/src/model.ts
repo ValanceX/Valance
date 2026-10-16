@@ -32,6 +32,9 @@ export interface Block {
   /** image: the address under the site's base, and its description. */
   readonly src: string;
   readonly alt: string;
+  /** image: the size the file says it has, in pixels, so the page can keep the room before the image arrives; 0 when the file does not say. */
+  readonly width: number;
+  readonly height: number;
 }
 
 export interface Heading {

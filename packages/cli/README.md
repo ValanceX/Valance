@@ -188,7 +188,7 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `strong` | `<strong>` | none | none |
 | `em` | `<em>` | none | none |
 | `span` | `<span>` | `class`* (string), `id` (string) | none |
-| `image` | `<img>` | `class`* (string), `src`* (string), `alt`* (string), `loading`* (string) | none |
+| `image` | `<img>` | `class`* (string), `src`* (string), `alt`* (string), `loading`* (string), `width` (number), `height` (number) | none |
 | `a` | `<a>` | `href`* (string) | none |
 | `link` | `<a>` | `href`* (string), `class`* (string), `current`* (string) | none |
 | `checkbox` | `<input>` | `checked` (boolean), `label` (string), `invalid` (boolean), `describedby` (string) | `change` (boolean) |

@@ -10,6 +10,7 @@ import { AppError, diagnostic } from "./diagnostics.js";
 import type { Content, Page, Routing } from "@valancex/common/internal";
 import { pageUrl, routingFor } from "@valancex/common/internal";
 import type { LinkRef } from "./markdown.js";
+import { imageSize } from "./image-size.js";
 import { parseMarkdown, plain } from "./markdown.js";
 
 export const CONTENT_DIR = "content";
@@ -254,6 +255,14 @@ export const readContent = (root: string, config: Config, routes: Routing | "unk
     return pageUrl(base, target, config.web.trailingSlash) + query + (fragment === "" ? "" : `#${fragment}`);
   };
 
+  /** The image's address, and the size its file says it has (when `public/` has the file and the file says). */
+  const sized = (href: string | undefined, src: string): { readonly src: string; readonly width?: number; readonly height?: number } => {
+    const file = href === undefined || !assets.has(href) ? undefined : join(root, PUBLIC_DIR, href);
+    const size = file === undefined ? undefined : imageSize(readFileSync(file));
+
+    return size === undefined ? { src } : { src, ...size };
+  };
+
   // The parser recorded the links in document order, and a page's blocks hold them in that same order.
   const rewrite = (entry: Entry): Page => {
     const resolved = entry.links.map((link) => resolve(entry, link));
@@ -263,7 +272,7 @@ export const readContent = (root: string, config: Config, routes: Routing | "unk
 
     const blocks = entry.page.blocks.map((block) => ({
       ...block,
-      ...(block.kind === "image" ? { src: take() } : {}),
+      ...(block.kind === "image" ? sized(entry.links[n]?.href, take()) : {}),
       spans: spansOf(block.spans),
       items: block.items.map((item) => ({ ...item, spans: spansOf(item.spans) })),
     }));

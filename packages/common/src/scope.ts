@@ -20,6 +20,8 @@ const BlockView = Schema.Struct({
   text: Schema.String,
   src: Schema.String,
   alt: Schema.String,
+  width: Schema.Number,
+  height: Schema.Number,
 });
 const Ref = Schema.Struct({ href: Schema.String, label: Schema.String });
 
@@ -95,6 +97,8 @@ export const notFoundPage = (content: Content): Page =>
         text: "",
         src: "",
         alt: "",
+        width: 0,
+        height: 0,
       },
       {
         id: "b1",
@@ -112,6 +116,8 @@ export const notFoundPage = (content: Content): Page =>
         text: "",
         src: "",
         alt: "",
+        width: 0,
+        height: 0,
       },
     ],
   };

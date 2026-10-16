@@ -111,7 +111,7 @@ describe("navigation on a target that is not the web", () => {
 
 describe("a vocabulary without the web's styling and accessibility hooks", () => {
   /** The web's tags with the props that are the web's own (styling hooks, focus, ARIA, loading hints) removed. */
-  const WEB_ONLY = ["class", "theme", "id", "tabindex", "label", "current", "pressed", "loading"];
+  const WEB_ONLY = ["class", "theme", "id", "tabindex", "label", "current", "pressed", "loading", "width", "height"];
   const neutral: WebVocabulary = {
     target: "neutral",
     tags: Object.fromEntries(
@@ -141,8 +141,8 @@ describe("a vocabulary without the web's styling and accessibility hooks", () =>
     // Every complaint is one of the web's own hooks: nothing about state, commands, slots, content or the component model.
     expect([...leaks].every((name) => WEB_ONLY.includes(name))).toBe(true);
     expect(found.every((line) => line.startsWith("unknown-prop:"))).toBe(true);
-    // Measured: eight props, all hooks for styling (`class`, `theme`), focus (`tabindex`), accessibility (`label`, `current`, `pressed`, `id`) or loading (`loading`).
-    expect([...leaks].sort()).toEqual(["class", "current", "id", "label", "loading", "pressed", "tabindex", "theme"]);
+    // Measured: ten props, all hooks for styling (`class`, `theme`), focus (`tabindex`), accessibility (`label`, `current`, `pressed`, `id`), loading (`loading`) or the room an image keeps (`width`, `height`).
+    expect([...leaks].sort()).toEqual(["class", "current", "height", "id", "label", "loading", "pressed", "tabindex", "theme", "width"]);
   }, 120_000);
 
   it("rejects even a layout written without them, while the built-in views still use them: a built-in is part of the target's side", async () => {

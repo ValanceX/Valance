@@ -35,7 +35,7 @@ export const slug = (text: string): string =>
 // A link's address may hold one level of balanced parentheses (`/a_(b)`, `javascript:alert(1)`), so it is read whole: a check that names it quotes all of it.
 const MARKS = /\*\*([^*]+)\*\*|`([^`]+)`|!\[[^\]]*\]\((?:[^()\s]|\([^()\s]*\))*\)|\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)|\*([^*\s][^*]*)\*|(?<![\w])_([^_\s][^_]*)_(?![\w])/g;
 
-const empty = { level: 0, anchor: "", spans: [], items: [], ordered: false, lang: "", text: "", src: "", alt: "" } as const;
+const empty = { level: 0, anchor: "", spans: [], items: [], ordered: false, lang: "", text: "", src: "", alt: "", width: 0, height: 0 } as const;
 
 export const plain = (spans: ReadonlyArray<Span>): string => spans.map((span) => span.text).join("");
 

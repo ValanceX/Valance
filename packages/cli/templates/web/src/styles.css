@@ -21,7 +21,7 @@ a { color: var(--accent); }
 .code { padding: 1rem; overflow-x: auto; background: var(--code); border-radius: 0.5rem; }
 code { font-family: ui-monospace, monospace; font-size: 0.9em; }
 .quote { margin: 1rem 0; padding-left: 1rem; border-left: 3px solid var(--accent); color: var(--muted); }
-.picture { max-width: 100%; }
+.picture { max-width: 100%; height: auto; }
 .pager { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 
 @media (max-width: 40rem) { .frame { grid-template-columns: 1fr; } }
