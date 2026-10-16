@@ -84,13 +84,32 @@ The matrix above was written on 2026-10-14. These rows were checked against the 
 |---|---|---|---|
 | 4 | open for `vlx` | **Built.** `vlx` has a `desktop` target with its own built-in views and the Desktop PORT's vocabulary and content vocabulary as data; the web-only hooks (`class`, `theme`, `width`, `height`, …) are refused on it, by test | `cli/src/targets.ts`, `cli/views-desktop/`, `cli/test/second-target.test.ts` |
 | 8 | not built | **Built**: `appearance` in `defineApp`, and `colorScheme` is told to the layout | `common/src/desktop.ts` (`appearanceOf`, `onScheme`) |
-| 9 | read | **Built (2026-10-16)**: the window sends `resize` (its width in points, when it opens and when it changes); the engine turns it into `viewport`. Engine side tested with a stand-in window; the Rust side's message tested, **a real window was not driven** | Port `app.rs`, `host.rs`, `tests/protocol.rs`; `valance/src/native.ts` (`onResize`), `common/src/desktop.ts`, `cli/test/desktop-host.test.ts` |
+| 9 | read | **Built (2026-10-16)**: the window sends `resize` (its width in points, when it opens and when it changes); the engine turns it into `viewport`. Engine side tested with a stand-in window; the Rust side's message tested; **driven in a real window (2026-10-16)**: a window 500 wide gives `viewport` compact, one 1000 wide expanded | Port `app.rs`, `host.rs`, `tests/protocol.rs`; `valance/src/native.ts` (`onResize`), `common/src/desktop.ts`, `cli/test/desktop-host.test.ts` |
 | 11 | click only | **Partly built**: events by one key (Enter, Escape), `focus` and `blur` on the web and in the Desktop PORT (unreleased) | `FORM-PRIMITIVES.md` |
 | 13 | not built | **Built in the PORT**: `image` in the content vocabulary, decoded from local files; `vlx build` copies `public/` beside the engine. Image sizes (WA-9) are the web's | Port `content.json`, `view.rs` `local_image`; `common/src/desktop.ts` `withAssets` |
 | 15, 16 | open / not built | **Built**: a link is an address, `onLink` turns it into `go`; an external one goes to the `Open` capability | `common/src/desktop.ts`, `common/src/open-system.ts` |
 | 17 | open | **Built**: the `Navigation` capability with the engine owning the list; `back` and `forward` commands; optionally kept between runs | `common/src/navigation.ts`, `common/src/app.ts` |
 | 19 | run | **Run, and larger**: per-route `canActivate`, `canDeactivate` and `redirectTo` on declared routes | ROUTES.md 6f |
-| 20 | web missing | **Web built** (`beforeunload` asks a guard that answers at once); the desktop's `mayClose` is wired to the route guards and tested through the protocol with a stand-in window (a page with edits refuses, a clean one allows, the engine ends on an allowed answer); **not driven in a real window** | ROUTES.md "Implementation status, slices 6e and 6f" |
+| 20 | web missing | **Web built** (`beforeunload` asks a guard that answers at once); the desktop's `mayClose` is wired to the route guards and tested through the protocol with a stand-in window (a page with edits refuses, a clean one allows, the engine ends on an allowed answer); **driven in a real window (2026-10-16)**: a close request on a page with edits left the window open, on a clean page it closed | ROUTES.md "Implementation status, slices 6e and 6f" |
 | 21 | not built | **Built**: the window's title follows the page, in the project's format | `common/src/desktop.ts` (`titleOf`) |
 | 24 | not built | **Built**: `Store` with a file in the user's data directory; `persist` in `defineApp` | `common/src/store-file.ts` |
 | 27 | not built | **Partly built**: `init`, `check`, `info` and `build` know the desktop target; `dev` is web only | `cli/src/targets.ts`, `cli/src/build.ts` |
+
+## Driven in a real window, 2026-10-16
+
+The Desktop PORT's window (`vlx-window`, `valancex-port-desktop` 0.2.0 built from the Port repository) was run under Xvfb against an engine built by `vlx build` from a desktop project, and driven with real X input (`xdotool`, `wmctrl`, screenshots with ImageMagick's `import`). The project was a probe, not an example: a `label` around a checkbox, around two radios and around a text field, a `button` with a `label`, a link to a declared route with `canDeactivate`, and the state printed as text. Mesa's software GL drew the window (`LIBGL_ALWAYS_SOFTWARE=1`); the machine needed `libxkbcommon-x11` and, for the window manager parts, `openbox`.
+
+| What was done | What the window did |
+|---|---|
+| Started it | Drew the layout; the radiogroup's options in a column, each option's text beside it |
+| Clicked the text "I agree" in a `label` around a checkbox | The box ticked; the application's state read `agree=true` |
+| Clicked the text "Pro" in a `label` around a radio | `plan=pro`, "Free" unselected |
+| Clicked the text "Email" in a `label` around a text field | The field took the cursor and raised `focus` (the application counted it); text typed after it went into the field and reached the state (`email=bobZ`) |
+| Resized it to 500 wide, then 1000 | `viewport` told to the layout: `compact`, then `expanded` |
+| Clicked a link to a declared route | The route was entered (its `enter` ran) and the title became that page's |
+| Asked the window manager to close it, on a page with edits | The window stayed open (`canDeactivate` refused), twice |
+| Asked the window manager to close it, on a clean page | The process ended |
+
+**What this proves, and what it does not.** It proves the three rows above that were only tested with a stand-in window (`resize`, the close guard, a link to a declared route) and the `label` component on the real Rust side, with the real engine. It does not cover macOS or Windows (the Port's CI builds and tests those; nothing was drawn there), a pointer other than the mouse, a screen reader (the accessibility tree is tested headless; nothing read it), or a long session.
+
+**Observations, not yet findings.** (1) Without a window manager, X gives the window no keyboard focus, so typing did nothing until `xdotool windowfocus` was run; this is the harness's, not the window's. (2) A declared route that names no screen and has no page is drawn as the not-found page ("Not found" in the title) while its `enter` and state still ran; the probe tripped over it, and ROUTES.md should say which of the two is meant. (3) The desktop draws a radiogroup's options in a column and a `label` as a row; the web draws both inline unless styled, so a portable layout should not depend on either.
