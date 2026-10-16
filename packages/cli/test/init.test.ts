@@ -146,7 +146,7 @@ describe("the scaffold", () => {
         "valance.json",
       ]),
     );
-    expect(written).not.toContain("valance.web.json");
+    expect(written).toContain("valance.web.json"); // where `rendering` is stated, so how pages are delivered can be seen
     expect(JSON.parse(readFileSync(join(dir, "my-notes", "valance.json"), "utf8"))).toMatchObject({ version: 1, name: "My Notes" });
     expect(readFileSync(join(dir, "my-notes", "content/index.md"), "utf8")).toContain("title: My Notes");
 
@@ -160,12 +160,17 @@ describe("the scaffold", () => {
     expect(manifest["devDependencies"]["@valancex/mesh-lsp"]).toMatch(/^\^\d/);
   });
 
-  it("writes valance.web.json only when the web settings are not the defaults, and says so in the README", () => {
+  it("always writes valance.web.json for the web, with the rendering stated; base and url only when they are not the defaults", () => {
     const set = plan(answers("/x/site", { web: { base: "/docs/", url: "https://example.com" } })).files;
 
-    expect(JSON.parse(set.get("valance.web.json")!)).toMatchObject({ version: 1, base: "/docs/", url: "https://example.com" });
+    expect(JSON.parse(set.get("valance.web.json")!)).toMatchObject({ version: 1, rendering: "static", base: "/docs/", url: "https://example.com" });
     expect(set.get("README.md")).toContain("base /docs/");
-    expect(plan(answers("/x/site", { web: { base: "/", url: "" } })).files.has("valance.web.json")).toBe(false);
+    expect(JSON.parse(plan(answers("/x/site", { web: { base: "/", url: "" } })).files.get("valance.web.json")!)).toEqual({
+      $schema: "./node_modules/@valancex/cli/schemas/valance.web.schema.json",
+      version: 1,
+      rendering: "static",
+    });
+    expect(plan(answers("/x/site", { web: { base: "/", url: "" } })).files.get("README.md")).toContain("says how the web site is delivered");
     expect(plan(answers("/x/site", { web: { base: "/", url: "https://example.com" } })).files.get("valance.web.json")).not.toContain('"base"');
   });
 

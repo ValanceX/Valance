@@ -25,7 +25,7 @@ describe("valance.json and valance.web.json", () => {
       name: "Test",
       targets: ["web"],
       title: "{page} · {site}",
-      web: { base: "/", url: "", headers: true, announce: true },
+      web: { base: "/", url: "", headers: true, announce: true, rendering: "static" },
       api: { base: "", proxy: "" },
     });
   });
@@ -33,7 +33,7 @@ describe("valance.json and valance.web.json", () => {
   it("reads the target's settings from valance.web.json", () => {
     const root = project({ "valance.web.json": '{ "version": 1, "base": "/docs/", "url": "https://example.com" }' });
 
-    expect(loadConfig(root).web).toEqual({ base: "/docs/", url: "https://example.com", headers: true, announce: true });
+    expect(loadConfig(root).web).toEqual({ base: "/docs/", url: "https://example.com", headers: true, announce: true, rendering: "static" });
   });
 
   it("names the line of an unknown setting, and lists the known ones", () => {
@@ -48,6 +48,14 @@ describe("valance.json and valance.web.json", () => {
     expect(problems(project({ "valance.web.json": '{ "base": "docs" }' }))).toEqual(["valance.web.json:1 config-value"]);
     expect(problems(project({ "valance.web.json": '{ "url": "https://example.com/" }' }))).toEqual(["valance.web.json:1 config-value"]);
     expect(problems(project({ "valance.json": '{ "name": "x", "version": 2 }' }))).toEqual(["valance.json:1 config-value"]);
+  });
+
+  it("accepts the one rendering there is, and says why the others are not available yet", () => {
+    expect(loadConfig(project({ "valance.web.json": '{ "rendering": "static" }' })).web.rendering).toBe("static");
+    expect(problems(project({ "valance.web.json": '{ "rendering": "client" }' }))).toEqual(["valance.web.json:1 config-value"]);
+    expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "client" }' }))).toThrow(/arrive with declared routes/);
+    expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "server" }' }))).toThrow(/needs a server platform/);
+    expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "ssr" }' }))).toThrow(/must be "static"/);
   });
 
   it("reports both files at once, and invalid JSON as a diagnostic, not a crash", () => {

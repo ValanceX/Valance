@@ -256,7 +256,9 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const flagged = targetFlags(rest);
         const built = await build(findRoot(cwd), flagged.length === 0 ? {} : { targets: flagged });
 
-        console.log(`vlx build: ${built.pages.length} pages, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+        console.log(
+          `vlx build: ${built.pages.length} pages${built.rendering === undefined ? "" : ` (${built.rendering})`}, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`,
+        );
 
         return 0;
       }

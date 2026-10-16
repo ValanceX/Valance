@@ -24,6 +24,13 @@
       "pattern": "^https?://.*[^/]$",
       "description": "Where the site is published, without a trailing slash. With it, pages get canonical links and the build writes sitemap.xml."
     },
+    "rendering": {
+      "enum": [
+        "static"
+      ],
+      "default": "static",
+      "description": "How pages are delivered. \"static\": every page is rendered to HTML when the site is built and the browser takes it over. (\"client\" and \"server\" are not available yet.)"
+    },
     "headers": {
       "type": "boolean",
       "default": true,

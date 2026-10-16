@@ -101,7 +101,7 @@ describe("vlx generate target", () => {
     const before = read(join(root, "src/layout.mprx"), "utf8");
     const made = generateTarget(root, "desktop");
 
-    expect(made.created).toEqual(["valance.web.json", "valance.desktop.json", "src/desktop/layout.mprx"]);
+    expect(made.created).toEqual(["valance.desktop.json", "src/desktop/layout.mprx"]);
     expect(made.changed).toEqual(["src/main.ts"]);
     expect(read(join(root, "src/layout.mprx"), "utf8")).toBe(before);
     expect(read(join(root, "src/main.ts"), "utf8")).toContain("targets: { desktop: { layout: component(desktopLayout) } }");

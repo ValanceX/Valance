@@ -147,7 +147,7 @@ export const plan = (answers: Answers): Plan => {
   const tokens: Readonly<Record<string, string>> = {
     name: title,
     run: runCommand(answers.packageManager),
-    web_note: web && settings.length > 0 ? `, and \`${WEB_FILE}\` says where the web site is served (${settings.join(", ")})` : "",
+    web_note: web ? `, and \`${WEB_FILE}\` says how the web site is delivered${settings.length > 0 ? ` and where it is served (${settings.join(", ")})` : ""}` : "",
   };
   const fill = (text: string): string => text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => tokens[key] ?? match);
 
@@ -169,12 +169,14 @@ export const plan = (answers: Answers): Plan => {
 
   out.set(PROJECT_FILE, json({ $schema: "./node_modules/@valancex/cli/schemas/valance.schema.json", version: 1, name: title }));
 
-  if (web && (hasBase || answers.web.url !== "" || desktop)) {
+  // The web settings file is always written for the web: it is where `rendering` (how pages are delivered) is stated, so the choice can be seen and changed rather than discovered.
+  if (web) {
     out.set(
       WEB_FILE,
       json({
         $schema: "./node_modules/@valancex/cli/schemas/valance.web.schema.json",
         version: 1,
+        rendering: "static",
         ...(hasBase ? { base: answers.web.base } : {}),
         ...(answers.web.url !== "" ? { url: answers.web.url } : {}),
       }),

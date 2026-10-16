@@ -343,6 +343,26 @@ export default defineApp({
 
 Every title and meta is **plain text** by the time it reaches the document: control characters and the bidirectional override and isolate characters (U+202A to U+202E, U+2066 to U+2069) are removed (they let a string reorder or hide what is around it in a tab or a history list), whitespace is collapsed, and a title is cut at 200 characters. A title is written only when it changed. After a page changes in place, a polite live region says the new title and focus moves to `#content` (when your layout's `<main id="content" tabindex="-1">` is focusable, as the scaffold's is), as a page load would; a link to a `#heading` is left to the browser. Turn it off with `"announce": false` in `valance.web.json`.
 
+## How pages are delivered
+
+A page is written in Markdown and a layout, and delivered as **static HTML that the browser then takes over**:
+
+| | `vlx build` | `vlx dev` |
+|---|---|---|
+| When a page is rendered | Once, at build time, for every page in `content/` (and the 404 page) | When the browser asks for it |
+| What the browser gets | The finished HTML, the stylesheets in `<head>`, and the script that takes the page over (links then change page in place, with no reload) | The same HTML, with the stylesheets in `<head>` as `<style>` tags, so the first paint is styled |
+| What serves it | Any host that serves files (`dist/web/`) | The dev server |
+
+The mode is a setting, **`"rendering"` in `valance.web.json`**, which `vlx init` writes:
+
+```json
+{ "version": 1, "rendering": "static" }
+```
+
+`"static"` is the only mode today. `"client"` (a page only the browser renders, for addresses a build cannot list) arrives with declared routes, and `"server"` (a page rendered per request) needs a server platform that does not exist yet; both are refused with a message that says so rather than quietly doing something else. `vlx build` ends with the mode it used (`vlx build: 12 pages (static), …`).
+
+Interactive parts need no setting of their own: the layout and your components are part of the HTML the build writes, and the browser makes them interactive. What is rendered at build time cannot depend on the person looking (their stored choices, the size of their window): those are corrected as soon as the page starts (`viewport`, `colorScheme`, `persist`).
+
 ## Talking to a backend
 
 NEXUS and VALANCE hold no HTTP: what an application needs from where it runs is a **capability**, which the platform supplies. `@valancex/common/http` is that contract for HTTP, and the web page supplies it with `fetch`.

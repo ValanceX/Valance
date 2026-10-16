@@ -21,6 +21,8 @@ export interface Built {
   readonly dir: string;
   readonly files: ReadonlyArray<string>;
   readonly pages: ReadonlyArray<string>;
+  /** How the web target's pages were delivered (`valance.web.json` `rendering`); absent when the web was not built. */
+  readonly rendering?: string;
 }
 
 interface ManifestChunk {
@@ -156,7 +158,7 @@ const buildWeb = async (
       write("_headers", headersFile(config));
     }
 
-    return { dir: dist, files: files.map((file) => `${prefix}${file}`), pages };
+    return { dir: dist, files: files.map((file) => `${prefix}${file}`), pages, rendering: config.web.rendering };
   }
 };
 
@@ -207,5 +209,7 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
     await loader.close();
   }
 
-  return { dir: join(root, OUTPUT_DIR), files: built.flatMap((each) => each.files), pages: built.flatMap((each) => each.pages) };
+  const rendering = built.find((each) => each.rendering !== undefined)?.rendering;
+
+  return { dir: join(root, OUTPUT_DIR), files: built.flatMap((each) => each.files), pages: built.flatMap((each) => each.pages), ...(rendering === undefined ? {} : { rendering }) };
 };

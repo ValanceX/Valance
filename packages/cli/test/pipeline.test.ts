@@ -107,6 +107,7 @@ describe("vlx build", () => {
     const built = await build(root);
 
     expect(built.pages).toEqual(["/", "/guide/a"]);
+    expect(built.rendering).toBe("static"); // reported, so `vlx build` can say how the pages were delivered
     expect(existsSync(join(root, "dist/web/index.html"))).toBe(true);
     expect(existsSync(join(root, "dist/web/guide/a/index.html"))).toBe(true);
     expect(existsSync(join(root, "dist/web/404.html"))).toBe(true);

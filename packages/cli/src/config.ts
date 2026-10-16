@@ -15,6 +15,10 @@ export const DESKTOP_FILE = "valance.desktop.json";
 /** The only version of both files there is. */
 export const CONFIG_VERSION = 1;
 
+/** The ways a page can be delivered. Only `static` exists today; the setting is written out so the choice is visible and the others have a place to arrive. */
+export const RENDERINGS = ["static"] as const;
+export type Rendering = (typeof RENDERINGS)[number];
+
 export interface Config {
   readonly name: string;
   /** The targets the project is built for: each one whose settings file it has (`valance.web.json`, `valance.desktop.json`), else the web alone. One application, one build per target. */
@@ -28,6 +32,8 @@ export interface Config {
     readonly headers: boolean;
     /** Announce a page change made in place to assistive technology. */
     readonly announce: boolean;
+    /** How pages are delivered: `static` renders every page to HTML when the site is built and the browser takes each over. The only mode there is; `client` and `server` wait for declared routes and a server. */
+    readonly rendering: Rendering;
   };
   /** The application's backend: the address its requests are made to (a path on the site's own origin, or an absolute https address), and, for `vlx dev`, where a path is proxied to. */
   readonly api: { readonly base: string; readonly proxy: string };
@@ -109,6 +115,12 @@ const title = (value: unknown): string | undefined =>
     ? undefined
     : 'must contain "{page}" and may use "{site}", for example "{page} · {site}" (at most 120 characters)';
 const flag = (value: unknown): string | undefined => (typeof value === "boolean" ? undefined : "must be true or false");
+const rendering = (value: unknown): string | undefined =>
+  RENDERINGS.includes(value as Rendering)
+    ? undefined
+    : value === "client" || value === "server"
+      ? `"${value}" is not available yet (${value === "client" ? "client-only pages arrive with declared routes" : "server rendering needs a server platform, which does not exist"}); the mode is "static"`
+      : `must be ${RENDERINGS.map((each) => `"${each}"`).join(" or ")}`;
 const api = (value: unknown): string | undefined => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return 'must be an object such as { "base": "/api" }';
@@ -151,7 +163,7 @@ export const loadConfig = (root: string): Config => {
   const problems = [
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
     ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
-    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
+    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, rendering, headers: flag, announce: flag, api }, [])),
   ];
 
   if (problems.length > 0) {
@@ -163,6 +175,7 @@ export const loadConfig = (root: string): Config => {
     readonly url?: string;
     readonly headers?: boolean;
     readonly announce?: boolean;
+    readonly rendering?: Rendering;
     readonly api?: { readonly base: string; readonly proxy?: string };
   };
   const named = project.value as { readonly name: string; readonly title?: string };
@@ -171,7 +184,7 @@ export const loadConfig = (root: string): Config => {
     name: named.name,
     targets: desktop === undefined ? ["web"] : web === undefined ? ["desktop"] : ["web", "desktop"],
     title: named.title ?? DEFAULT_TITLE,
-    web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
+    web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true, rendering: given.rendering ?? "static" },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },
   };
 };

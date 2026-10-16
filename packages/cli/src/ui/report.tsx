@@ -102,6 +102,7 @@ export const BuildResult = ({ built, seconds }: { readonly built: Built; readonl
     <Text>
       <Text color="green" bold>
         ✔ Built {plural(built.pages.length, "page")}
+        {built.rendering === undefined ? "" : ` (${built.rendering})`}
       </Text>
       <Text dimColor>
         {" "}
