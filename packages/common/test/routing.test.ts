@@ -2,7 +2,7 @@
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { route } from "../src/routing.js";
+import { redirect, route } from "../src/routing.js";
 import { conflicts, routeProblems, routingOf } from "../src/routing-engine.js";
 import { frame } from "../src/scope.js";
 import type { Content } from "../src/model.js";
@@ -268,5 +268,143 @@ describe("nested routes (R-39 to R-45)", () => {
 
     expect(reads).toBe(found); // not read again
     expect(calls.length).toBe(50 * 3); // each of the three levels' enter, once per entry, not once per route in the tree
+  });
+});
+
+describe("load (R-50 to R-55)", () => {
+  const load = {
+    begin: (input: { id: string }, state: any) => ({ ...state, order: `loading ${input.id}` }),
+    work: async () => "x",
+    settle: (_outcome: unknown, _input: unknown, state: any) => state,
+  };
+  const withLoad = () =>
+    routingOf({
+      order: route("/orders/:id", { params: Schema.Struct({ id: Schema.String }), enter: ({ id }, state) => ({ ...state, order: `entered ${id}` }), load }),
+      home: route("/"),
+    });
+
+  it("`begin` is part of the entry, after `enter`, so every way of entering shows the loading state (R-51)", () => {
+    const state = withLoad().arrive({ page: "/orders/7", route: "" } as never) as Record<string, unknown>;
+
+    expect(state["order"]).toBe("loading 7");
+    expect((withLoad().arrive({ page: "/", route: "" } as never) as Record<string, unknown>)["order"]).toBeUndefined();
+  });
+
+  it("names the loads of an address, outermost level first, with the merged input (R-52)", () => {
+    const routing = routingOf({
+      shop: route("/shop/:shop", {
+        load: { work: async () => 1, settle: (_o, _i, s) => s },
+        children: { item: route("/:id", { load: { work: async () => 2, settle: (_o, _i, s) => s } }) },
+      }),
+    });
+
+    expect(routing.loads("/shop/a/b").map((each) => [each.route, each.input])).toEqual([
+      ["shop", { shop: "a", id: "b" }],
+      ["shop.item", { shop: "a", id: "b" }],
+    ]);
+    expect(routing.loads("/nowhere")).toEqual([]);
+    expect(withLoad().hasLoad).toBe(true);
+    expect(routingOf({ home: route("/") }).hasLoad).toBe(false);
+  });
+
+  it("refuses a load that is not { work, settle }", () => {
+    expect(() => routingOf({ a: route("/a", { load: { work: 1 } as never }) })).toThrow("`load` is { work, settle }");
+  });
+});
+
+describe("guards, redirects and leaving (R-60 to R-64)", () => {
+  const run = <A>(effect: import("effect").Effect.Effect<A>): Promise<A> => import("effect").then(({ Effect }) => Effect.runPromise(effect));
+  const guarded = (extra: Record<string, unknown> = {}) =>
+    routingOf({
+      home: route("/"),
+      login: route("/login"),
+      account: route("/account", {
+        canActivate: ({ state }: any) => (state.signedIn ? true : redirect("login")),
+        canDeactivate: ({ state }: any) => !state.dirty,
+        children: { profile: route("/profile", extra), security: route("/security") },
+      }),
+      old: route("/old", { redirectTo: redirect("account") }),
+    });
+
+  it("canActivate lets through, refuses or redirects to a route's address (R-60, R-61)", async () => {
+    const routing = guarded();
+
+    expect(await run(routing.decide("/", "/account", { signedIn: true }, "programmatic"))).toBe("/account");
+    expect(await run(routing.decide("/", "/account", { signedIn: false }, "programmatic"))).toBe("/login");
+    expect(await run(routing.decide("/", "/login", { signedIn: false }, "programmatic"))).toBe("/login");
+  });
+
+  it("canDeactivate stops leaving, for another route and not for a move inside (R-61, R-62)", async () => {
+    const routing = guarded();
+    const dirty = { signedIn: true, dirty: true };
+
+    expect(await run(routing.decide("/account/profile", "/", dirty, "history"))).toBeUndefined();
+    expect(await run(routing.decide("/account/profile", "/", { signedIn: true, dirty: false }, "history"))).toBe("/");
+    expect(await run(routing.decide("/account/profile", "/account/security", dirty, "programmatic"))).toBe("/account/security"); // the parent is not left
+    expect(await run(routing.decide("/account/profile", "/account/profile", dirty, "programmatic"))).toBe("/account/profile");
+  });
+
+  it("a parent's canActivate is asked when entering the parent, not when moving between its children (R-62)", async () => {
+    const asked: Array<string> = [];
+    const routing = routingOf({
+      home: route("/"),
+      area: route("/area", {
+        canActivate: () => (asked.push("area"), true),
+        children: { a: route("/a", { canActivate: () => (asked.push("a"), true) }), b: route("/b", { canActivate: () => (asked.push("b"), true) }) },
+      }),
+    });
+
+    await run(routing.decide("/", "/area/a", {}, "programmatic"));
+    expect(asked).toEqual(["area", "a"]); // outermost first
+    asked.length = 0;
+    await run(routing.decide("/area/a", "/area/b", {}, "programmatic"));
+    expect(asked).toEqual(["b"]);
+  });
+
+  it("a guard that fails or throws refuses, and one may answer later (R-60)", async () => {
+    const routing = routingOf({
+      home: route("/"),
+      slow: route("/slow", { canActivate: async () => true }),
+      bad: route("/bad", {
+        canActivate: () => {
+          throw new Error("no");
+        },
+      }),
+    });
+
+    expect(await run(routing.decide("/", "/slow", {}, "programmatic"))).toBe("/slow");
+    expect(await run(routing.decide("/", "/bad", {}, "programmatic"))).toBeUndefined();
+  });
+
+  it("an alias leads to its target, has no page, and is written for a host (R-63)", () => {
+    const routing = guarded();
+
+    expect(routing.match("/old")).toMatchObject({ name: "account", address: "/account" });
+    expect(routing.alias("/old")).toBe("/account");
+    expect(routing.alias("/account")).toBeUndefined();
+    expect(routing.pages().addresses).not.toContain("/old");
+    expect(routing.redirects).toEqual([{ from: "/old", to: "/account" }]);
+    expect(routing.list.find((each) => each.name === "old")!.has).toEqual(["redirectTo"]);
+  });
+
+  it("an alias shows nothing of its own, and its target must be a route", () => {
+    expect(() => routingOf({ a: route("/a", { redirectTo: redirect("b"), load: { work: async () => 1, settle: (_o, _i, s) => s } }), b: route("/b") })).toThrow(
+      "redirects, so it shows nothing",
+    );
+    expect(() => routingOf({ a: route("/a", { redirectTo: redirect("nowhere") }) })).toThrow("not a route");
+  });
+
+  it("leaving a closing page: a guard that answers false at once blocks, one that waits cannot (R-64)", async () => {
+    const routing = routingOf({
+      form: route("/form", { canDeactivate: ({ state }: any) => !state.dirty }),
+      later: route("/later", { canDeactivate: async () => false }),
+      eff: route("/eff", { canDeactivate: () => import("effect").then(() => false) as never }),
+    });
+
+    expect(routing.leaveBlocked({ page: "/form", dirty: true } as never)).toBe(true);
+    expect(routing.leaveBlocked({ page: "/form", dirty: false } as never)).toBe(false);
+    expect(routing.leaveBlocked({ page: "/later" } as never)).toBe(false); // a Promise cannot hold a closing page
+    expect(await run(routing.mayLeave({ page: "/later" }))).toBe(false); // a window can wait
+    expect(await run(routing.mayLeave({ page: "/" }))).toBe(true);
   });
 });

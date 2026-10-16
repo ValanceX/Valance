@@ -1,7 +1,7 @@
 // Declared routes: the engine that reads the author's `route(...)` declarations (what `defineApp({ routes })` takes). An address inside the application (`/orders/42?tab=open`, no base)
 // belongs to a content page, to a declared route, or to neither; this file answers for the declared routes and leaves content to `scope.ts`. The matching, the Schema-decoded parameters and
 // query and the canonical form are `@valancex/router`'s; nothing here reimplements them. The design record is `docs/application-model/ROUTES.md` (statements R-1 to R-22).
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import type { createRouter } from "@valancex/router";
 
 import type { DeclaredRoute } from "./routing-types.js";
@@ -51,6 +51,28 @@ export interface Routing {
     readonly route: string;
     readonly component: Component;
   }>;
+  /** The loads to run after `address` is entered: one per level that has a `load`, outermost first (ROUTES.md R-52). */
+  readonly loads: (address: string) => ReadonlyArray<{
+    readonly route: string;
+    readonly input: Readonly<Record<string, unknown>>;
+    readonly load: NonNullable<DeclaredRoute["config"]["load"]>;
+  }>;
+  /** Whether any route has a `load`, or a guard (`canActivate`, `canDeactivate`): navigation is then an Effect, not a plain transition. */
+  readonly hasLoad: boolean;
+  readonly hasGuards: boolean;
+  /**
+   * The router's decision for a move from the page shown to `to` (R-61): the address to go to (`to`, or a redirect's), or `undefined` when a guard refuses. Content pages have no guards, and a move
+   * between them is allowed.
+   */
+  readonly decide: (from: string, to: string, state: unknown, kind: "programmatic" | "history") => Effect.Effect<string | undefined>;
+  /** Whether the page shown may be left altogether (a window closing), asking the guards of the route shown with kind "close"; it may wait. */
+  readonly mayLeave: (state: { readonly page: string }) => Effect.Effect<boolean>;
+  /** The same question for a page being closed, which cannot wait: only a guard that answers `false` at once (a value, or an Effect that finishes without waiting) blocks. */
+  readonly leaveBlocked: (state: { readonly page: string }) => boolean;
+  /** Where an address that is an alias (a route with `redirectTo`) leads, as an address, or `undefined` for any other address. */
+  readonly alias: (address: string) => string | undefined;
+  /** The routes that redirect, as pattern and the address they lead to, for a host's rewrite file (R-63). */
+  readonly redirects: ReadonlyArray<{ readonly from: string; readonly to: string }>;
   /** The routes that name an `index`: what shows in a parent's slot at the parent's own address. */
   readonly indexes: ReadonlyArray<{ readonly route: string; readonly component: Component }>;
   /** How many levels the routes nest (0 when none has children): the state then holds `at`, with a field `l0`, `l1`, … for each. */
@@ -64,6 +86,8 @@ export interface Routing {
     readonly parameters: ReadonlyArray<string>;
     readonly delivery: "static" | "client";
     readonly parent?: string;
+    /** What the route declares beyond its address: `load`, `canActivate`, `canDeactivate`, `redirectTo`. */
+    readonly has: ReadonlyArray<string>;
   }>;
 }
 
@@ -75,6 +99,14 @@ const NONE: Routing = {
   pages: () => ({ addresses: [], missing: [] }),
   screens: [],
   indexes: [],
+  loads: () => [],
+  hasLoad: false,
+  hasGuards: false,
+  decide: (_from, to) => Effect.succeed(to),
+  mayLeave: () => Effect.succeed(true),
+  leaveBlocked: () => false,
+  redirects: [],
+  alias: () => undefined,
   levels: 0,
   tree: [],
   list: [],
@@ -105,6 +137,8 @@ interface Node {
   readonly chain: Array<Node>;
   /** The `enter` of each level that has one, in the order they run. */
   readonly enters: Array<NonNullable<DeclaredRoute["config"]["enter"]>>;
+  /** The `load` of each level that has one, outermost first. */
+  readonly loads: Array<NonNullable<DeclaredRoute["config"]["load"]>>;
   /** The level whose `title` is used: the deepest that gives one. */
   titled: Node | undefined;
   readonly delivery: "static" | "client";
@@ -183,6 +217,38 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
     if (!each.pattern.startsWith("/")) {
       fail(`the route "${name}": the path "${each.pattern}" must start with "/" (and has no base: the site's base is put in front)`);
     }
+
+    const { load, redirectTo } = each.config;
+
+    if (load !== undefined) {
+      if (
+        typeof load !== "object" ||
+        load === null ||
+        typeof load.work !== "function" ||
+        typeof load.settle !== "function" ||
+        (load.begin !== undefined && typeof load.begin !== "function")
+      ) {
+        fail(
+          `the route "${name}": \`load\` is { work, settle } (and \`begin\`, optionally), each a function: \`work(input, signal)\` fetches, \`settle(outcome, input, state)\` puts the result in the state`,
+        );
+      }
+    }
+    for (const guard of ["canActivate", "canDeactivate"] as const) {
+      if (each.config[guard] !== undefined && typeof each.config[guard] !== "function") {
+        fail(`the route "${name}": \`${guard}\` must be a function`);
+      }
+    }
+    if (redirectTo !== undefined) {
+      if (typeof redirectTo !== "object" || redirectTo === null || redirectTo._tag !== "Redirect" || typeof redirectTo.name !== "string") {
+        fail(`the route "${name}": \`redirectTo\` is made with redirect("route-name")`);
+      }
+
+      const clash = (["screen", "index", "children", "load", "staticParams", "canActivate", "canDeactivate"] as const).filter((setting) => each.config[setting] !== undefined);
+
+      if (clash.length > 0) {
+        fail(`the route "${name}" redirects, so it shows nothing of its own: remove ${clash.map((setting) => `\`${setting}\``).join(", ")}`);
+      }
+    }
   };
 
   const visit = (key: string, each: DeclaredRoute, parent: Node | undefined): void => {
@@ -214,6 +280,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       children: [],
       chain: [],
       enters: [],
+      loads: [],
       titled: undefined,
       delivery: each.config.delivery ?? parent?.delivery ?? "static",
       at: {},
@@ -221,6 +288,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
     node.chain.push(...(parent?.chain ?? []), node);
     node.enters.push(...node.chain.flatMap((level) => (level.declared.config.enter === undefined ? [] : [level.declared.config.enter])));
+    node.loads.push(...node.chain.flatMap((level) => (level.declared.config.load === undefined ? [] : [level.declared.config.load])));
     node.titled = [...node.chain].reverse().find((level) => level.declared.config.title !== undefined);
     parent?.children.push(node);
     nodes.push(node);
@@ -290,7 +358,59 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
   };
 
   // The router comes with the declarations (`route()` is what imports it).
-  const { createRouter: make, routed, RouteDefinitionError } = roots[0]![1].router;
+  const { createRouter: make, routed, RouteDefinitionError, permit } = roots[0]![1].router;
+
+  // A level's guards are asked when the move enters or leaves that level, not when it moves inside it (R-62). `inside` says whether a route state is in the level, with the parameters of its path.
+  type State = { readonly name: string; readonly params: Readonly<Record<string, unknown>> };
+  const inside = (level: Node, state: State | undefined, other: State | undefined): boolean =>
+    state !== undefined &&
+    (state.name === level.name || state.name.startsWith(`${level.name}.`)) &&
+    (other === undefined || namesIn(level.pattern).every((name) => JSON.stringify(state.params[name]) === JSON.stringify(other.params[name])));
+  const levelsWith = (node: Node, guard: "canActivate" | "canDeactivate"): ReadonlyArray<Node> => node.chain.filter((level) => level.declared.config[guard] !== undefined);
+  const activating = (node: Node) => {
+    const own = levelsWith(node, "canActivate");
+
+    return own.length === 0
+      ? undefined
+      : (context: any) =>
+          Effect.gen(function* () {
+            for (const level of own) {
+              if (context.kind !== "initial" && inside(level, context.from, context.to) && inside(level, context.to, context.from)) {
+                continue; // already inside this level
+              }
+
+              const answer = yield* permit(level.declared.config.canActivate as never, context);
+
+              if (answer !== true) {
+                return answer;
+              }
+            }
+
+            return true;
+          });
+  };
+  const leaving = (node: Node) => {
+    const own = [...levelsWith(node, "canDeactivate")].reverse();
+
+    return own.length === 0
+      ? undefined
+      : (context: any) =>
+          Effect.gen(function* () {
+            for (const level of own) {
+              if (context.kind !== "close" && inside(level, context.to, context.from)) {
+                continue; // staying inside this level
+              }
+
+              const answer = yield* permit(level.declared.config.canDeactivate as never, context);
+
+              if (answer !== true) {
+                return answer;
+              }
+            }
+
+            return true;
+          });
+  };
   let router: ReturnType<typeof createRouter>;
 
   try {
@@ -299,7 +419,18 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
         const params = merged(node, "params");
         const query = merged(node, "query");
 
-        return routed(node.pattern, { name: node.name, ...(params === undefined ? {} : { params }), ...(query === undefined ? {} : { query }) });
+        const activate = activating(node);
+        const deactivate = leaving(node);
+        const redirectTo = node.declared.config.redirectTo;
+
+        return routed(node.pattern, {
+          name: node.name,
+          ...(params === undefined ? {} : { params }),
+          ...(query === undefined ? {} : { query }),
+          ...(activate === undefined ? {} : { canActivate: activate as never }),
+          ...(deactivate === undefined ? {} : { canDeactivate: deactivate as never }),
+          ...(redirectTo === undefined ? {} : { redirectTo }),
+        });
       }),
     });
   } catch (error) {
@@ -309,6 +440,19 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
     throw error;
   }
+
+  // The aliases, matched as themselves (the main router follows a redirect, and so cannot say that an address was one).
+  const aliasNodes = nodes.filter((node) => node.declared.config.redirectTo !== undefined);
+  const aliasRouter =
+    aliasNodes.length === 0
+      ? undefined
+      : make({
+          routes: aliasNodes.map((node) => {
+            const params = merged(node, "params");
+
+            return routed(node.pattern, { name: node.name, ...(params === undefined ? {} : { params }) });
+          }),
+        });
 
   const byName = new Map(nodes.map((node) => [node.name, node]));
   const blank = Object.fromEntries(Array.from({ length: levels }, (_, level) => [`l${level}`, ""]));
@@ -337,7 +481,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       const node = entered === undefined ? undefined : byName.get(entered.name)!;
       const named = { ...state, route: node?.name ?? "", ...(nested ? { at: node?.at ?? blank } : {}) };
 
-      if (node === undefined || entered === undefined || node.enters.length === 0) {
+      if (node === undefined || entered === undefined || (node.enters.length === 0 && node.loads.length === 0)) {
         return named;
       }
 
@@ -346,6 +490,10 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
       for (const enter of node.enters) {
         next = enter(entered.input, next) as S;
+      }
+      // then the loading state of each level that loads (R-51)
+      for (const { begin } of node.loads) {
+        next = begin === undefined ? next : (begin(entered.input, next) as S);
       }
 
       return {
@@ -370,7 +518,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
         const config = node.declared.config;
 
         // A client route has no page: the shell answers. A parent with children and no `index` has none of its own either: its leaves do (R-43).
-        if (node.delivery === "client" || (node.children.length > 0 && config.index === undefined)) {
+        if (node.delivery === "client" || config.redirectTo !== undefined || (node.children.length > 0 && config.index === undefined)) {
           continue;
         }
 
@@ -393,6 +541,76 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
 
       return { addresses, missing };
     },
+    loads: (address) => {
+      const entered = match(address);
+      const node = entered === undefined ? undefined : byName.get(entered.name);
+
+      return node === undefined || entered === undefined
+        ? []
+        : node.chain.flatMap((level) => (level.declared.config.load === undefined ? [] : [{ route: level.name, input: entered.input, load: level.declared.config.load }]));
+    },
+    hasLoad: nodes.some((node) => node.declared.config.load !== undefined),
+    hasGuards: nodes.some((node) => node.declared.config.canActivate !== undefined || node.declared.config.canDeactivate !== undefined),
+    decide: (from, to, state, kind) =>
+      Effect.gen(function* () {
+        const target = router.match(to);
+        const here = router.match(from);
+        const decision = yield* router.decide({
+          from: here.name === router.notFoundName ? undefined : here,
+          to: target,
+          state: state as never,
+          kind,
+        });
+
+        return decision._tag === "Refuse" ? undefined : decision._tag === "Allow" ? to : router.hrefOf(decision.to);
+      }),
+    mayLeave: (state) =>
+      Effect.gen(function* () {
+        const here = router.match(state.page);
+        const node = here.name === router.notFoundName ? undefined : byName.get(here.name);
+        const guard = node === undefined ? undefined : router.route(node.name)?.config.canDeactivate;
+
+        return guard === undefined ? true : (yield* permit(guard as never, { from: here, to: here, state, kind: "close", data: {} } as never)) === true;
+      }),
+    leaveBlocked: (state) => {
+      const here = router.match(state.page);
+      const node = here.name === router.notFoundName ? undefined : byName.get(here.name);
+
+      for (const level of [...(node?.chain ?? [])].reverse()) {
+        const guard = level.declared.config.canDeactivate;
+
+        if (guard === undefined) {
+          continue;
+        }
+
+        try {
+          const answer = guard({ from: here, to: here, state, kind: "close", data: {} } as never);
+          const settled = Effect.isEffect(answer) ? Effect.runSyncExit(answer as Effect.Effect<unknown>) : undefined;
+
+          // a Promise, or an Effect that waits, cannot hold a page that is closing
+          if (answer === false || (settled !== undefined && settled._tag === "Success" && settled.value === false)) {
+            return true;
+          }
+        } catch {
+          return true; // a guard that throws refuses, as everywhere
+        }
+      }
+
+      return false;
+    },
+    alias: (address) => {
+      const found = aliasRouter?.match(address);
+      const target = found === undefined ? undefined : byName.get(found.name)?.declared.config.redirectTo;
+
+      return found === undefined || found.name === aliasRouter!.notFoundName || target === undefined
+        ? undefined
+        : router.href(target.name, target.params as never, target.query as never);
+    },
+    redirects: nodes.flatMap((node) => {
+      const target = node.declared.config.redirectTo;
+
+      return target === undefined ? [] : [{ from: node.pattern, to: router.href(target.name, target.params as never, target.query as never) }];
+    }),
     screens: nodes.flatMap((node) => (node.declared.config.screen === undefined ? [] : [{ route: node.name, component: node.declared.config.screen }])),
     indexes: nodes.flatMap((node) => (node.declared.config.index === undefined ? [] : [{ route: node.name, component: node.declared.config.index }])),
     list: nodes.map((node) => ({
@@ -401,6 +619,7 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       parameters: router.route(node.name)!.pattern.names,
       delivery: node.delivery,
       ...(node.parent === undefined ? {} : { parent: node.parent.name }),
+      has: (["load", "canActivate", "canDeactivate", "redirectTo"] as const).filter((setting) => node.declared.config[setting] !== undefined),
     })),
   };
 };

@@ -43,6 +43,8 @@ export interface Info {
     readonly buildable: boolean;
     /** The component the route shows (`screen`), when it names one. */
     readonly screen?: string;
+    /** What the route declares beyond its address: `load`, `canActivate`, `canDeactivate`, `redirectTo`. */
+    readonly has: ReadonlyArray<string>;
     /** The route this one is a child of (its name is then the parent's, a dot and its key). */
     readonly parent?: string;
   }>;
@@ -190,7 +192,7 @@ export const render = (found: Info): string => {
 
   for (const each of found.declared) {
     lines.push(
-      `  ${each.pattern}  route "${each.name}"${each.parent === undefined ? "" : ` in "${each.parent}"`}${each.screen === undefined ? "" : ` shows <${each.screen}>`}${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.delivery === "client" ? "answered by the app shell" : each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
+      `  ${each.pattern}  route "${each.name}"${each.parent === undefined ? "" : ` in "${each.parent}"`}${each.screen === undefined ? "" : ` shows <${each.screen}>`}${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.has.length === 0 ? "" : `[${each.has.join(", ")}]  `}${each.has.includes("redirectTo") ? "an alias, no page" : each.delivery === "client" ? "answered by the app shell" : each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
     );
   }
 

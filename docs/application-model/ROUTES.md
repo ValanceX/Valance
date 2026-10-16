@@ -507,3 +507,29 @@ old: route("/old", { redirectTo: redirect("account") }),
 | `redirectTo`: `go` lands on the target, the first state is the target's, no page, `_redirects` 301 line, dev 302 | R-63 |
 | `beforeunload` listener asks a sync `false` and stops the unload; a Promise is ignored; none registered without a `canDeactivate`; `mayClose` on the desktop | R-64 |
 | `vlx info` lists them; a project without them unchanged | R-65, R-66 |
+
+### Implementation status, slices 6e and 6f
+
+Checked 2026-10-16 against `common/src/{routing-engine,app,client,desktop,server}.ts`, `valance/src/waiting.ts`, `cli/src/{dev,build,info}.ts`, `common/test/routing.test.ts` ("load", "guards, redirects and leaving") and `cli/test/load-guards.test.ts`.
+
+| Statement | Status | Evidence |
+|---|---|---|
+| R-50 `load` | Matches | `command.waiting`'s run was moved to `valance/src/waiting.ts` (internal entry) and is used by both; success and failure reach `settle`; a bad shape is refused |
+| R-51 `begin` in the entry | Matches | the built page shows `loading report`; a module-level flag set by `work` is still unset after the build; the engine test shows `begin` after `enter` |
+| R-52 When `work` runs | Matches, with a note | `go`, Back and Forward (node, `started`); first draw and a link in Chromium. **Note:** the start-up run is gated on the platform supplying a store, because a server render starts the application too and supplies nothing; a host with no store does not start loads at start-up |
+| R-53 Relevance | Matches | `/orders/slow` left for `/settings` before it answered: the result is dropped; a newer entry supersedes |
+| R-54 Failure is state | Matches | `Promise.reject` and an HTTP 500 both reach `settle` as failure |
+| R-55 Entering is not reloading | Matches | the same address does not call `work`; Back then Forward does |
+| R-56 Cost | Matches | with no load and no guard `go`, `back`, `forward` stay plain transitions (the suites that existed pass unchanged) |
+| R-60 The router's guards | Matches | `canActivate` true/false/redirect; a Promise answer; a throw refuses; `redirect` exported |
+| R-61 Where asked | Matches, with a note | after the application guard; leaving first, then entering; a query-only move does not ask `canDeactivate` (also for Back). **Note:** a browser's own Back/Forward reaches the guards as `programmatic`/`history` through `go`, not as the router's `popstate` |
+| R-62 Levels | Matches | engine tests: a move between siblings asks neither parent; entering asks outermost first |
+| R-63 `redirectTo` | Matches, with limits | `go("/old")` lands on the target; no page; `_redirects` `/old  /settings  301` (and no shell when no client route exists); 302 in `vlx dev`. **Limits:** the target is a declared route and fixed (it cannot take the source's parameters); a redirecting route that also names `screen`, `load`, `children`, `staticParams` or a guard is refused |
+| R-64 `beforeunload` | Matches for the web; **desktop not exercised** | Chromium: a navigation away from a dirty form raises the `beforeunload` dialog, a clean form none; engine: a Promise answer cannot block, `mayLeave` waits. The desktop's `mayClose` is wired to `mayLeave` and was **not driven** in a window |
+| R-65 `vlx info` | Matches | `[load]`, `[canActivate]`, `an alias, no page` |
+| R-66 Cost | Matches | no listener without a `canDeactivate`; the full suites pass |
+
+**Differences from the note**
+- `go` (and Back and Forward) now complete when the route's loads settle, since the loads run inside the command. A caller that awaits `go` waits for the data.
+- `routeStart` is a new framework command (reserved), the application's `start` when it has loads and does not persist; with `persist` the loads start inside `persist`, after the restore, beside the saving.
+- Not tested: a load whose `work` is an Effect needing a capability; loads of nested levels at run time (the engine is tested); the desktop window.

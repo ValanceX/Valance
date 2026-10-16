@@ -16,6 +16,7 @@ import { application, stateFor } from "./app.js";
 import { plugin } from "./web-app.js";
 import { urlOf } from "./routes.js";
 import { pageAt } from "./scope.js";
+import { routingFor } from "./routing-engine.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 
@@ -111,6 +112,20 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       container.dataset["viewport"] = viewport; // for a stylesheet or a test; the layout reads the state's own `viewport`
       void Effect.runPromise(host.handle.invoke("app/resize", [{ value: viewport }])).catch(() => undefined);
     });
+
+    // A route's `canDeactivate` also guards closing the page (R-64). A browser cannot wait for an answer, so only a guard that answers `false` at once can make it ask the person.
+    const routing = routingFor(author);
+
+    if (routing.hasGuards) {
+      addEventListener("beforeunload", (event) => {
+        const read = Effect.runSyncExit(host.handle.state);
+
+        if (read._tag === "Success" && routing.leaveBlocked(read.value as never)) {
+          event.preventDefault();
+          event.returnValue = ""; // some browsers still need it
+        }
+      });
+    }
 
     container.dataset["valance"] = "running"; // readiness marker for whoever drives the page
     addEventListener("pagehide", (event) => {

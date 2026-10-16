@@ -2,6 +2,7 @@
 // `defineApp`'s state and commands. This is one Valance application (`Valance.define`): the page is its state, going to a page is its `go` command, and the layout is its one view.
 // The server renders it and the browser runs it, from the same function.
 import * as Valance from "@valancex/valance";
+import { waitingRun } from "@valancex/valance/internal";
 import { History, permit } from "@valancex/router";
 import * as Nexus from "@valancex/nexus";
 import { Effect, Schema, Stream } from "effect";
@@ -122,6 +123,7 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
     ["resize", "tells the layout how much room the page has"],
     ["colorScheme", "tells the layout which colors the system asks for"],
     ["persist", "keeps the fields named in `persist` between runs"],
+    ["routeStart", "starts the loads of the route the application opens on"],
   ] as const) {
     if (name in own) {
       throw new AppDefinitionError(`src/main.ts: "${name}" is the framework's command (it ${what}); choose another name`);
@@ -158,6 +160,49 @@ export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, 
 };
 
 /**
+ * The loads of the routes (ROUTES.md R-50 to R-55): `run(address)` starts those of the route that `address` is, together, each as a waiting run that commits only while the application is still
+ * at that address and that a newer entry of the same route supersedes. Made once per started application, since the supersession is counted here.
+ */
+const routeLoading = (routing: Routing, state: Parameters<typeof Valance.command>[0]) => {
+  const serials = new Map<string, { latest: number }>();
+  // A render on the server starts the application too, and must start no work (R-51). A host that runs one supplies the platform's store (the browser, the shell, a window); a render supplies nothing.
+  const running = (Nexus.Capability.require(StoreOps.Store) as Effect.Effect<unknown, Nexus.Capability.CapabilityUnavailableError, Nexus.Capability.EnvironmentShape>).pipe(
+    Effect.as(true),
+    Effect.catchAll(() => Effect.succeed(false)),
+  );
+  const handle = state as unknown as Parameters<typeof waitingRun<AppState, any, any>>[0];
+
+  const run = (address: string): Effect.Effect<void> =>
+    Effect.forEach(
+      routing.loads(address),
+      ({ route, input, load }) => {
+        const serial = serials.get(route) ?? { latest: 0 };
+
+        serials.set(route, serial);
+
+        return waitingRun<AppState, Record<string, unknown>, unknown, never>(
+          handle,
+          {
+            work: (given, signal) => load.work(given as never, signal) as never,
+            wanted: (_given, current) => current.page === address,
+            settle: (outcome, given, current) => load.settle(outcome, given as never, current),
+          },
+          serial,
+        )(input);
+      },
+      { concurrency: "unbounded", discard: true },
+    );
+
+  return {
+    run,
+    /** The loads of the page shown now: what an application does as it starts. */
+    current: Effect.flatMap(running, (yes) =>
+      yes ? Effect.flatMap((state as unknown as { readonly get: Effect.Effect<AppState> }).get, (current) => run(current.page)) : Effect.void,
+    ),
+  };
+};
+
+/**
  * The command the application starts with when the author names fields in `persist`: load them from the platform's store, then save them whenever they change. A platform with no store
  * ends it at once (the application runs without persistence); stored data that no longer fits is ignored, and the next change replaces it. It never ends otherwise: it belongs to the
  * application and ends with it.
@@ -168,6 +213,7 @@ const keepBetweenRuns = (
   command: Valance.CommandMaker<AppState>,
   known: (page: string) => boolean,
   routing: Routing,
+  starting: Effect.Effect<void, never, Nexus.Capability.EnvironmentShape>,
 ) => {
   const names = persistedFields(author);
   const navigation = persisted(author).includes("navigation");
@@ -200,7 +246,7 @@ const keepBetweenRuns = (
       );
 
       if (!stored.store) {
-        return;
+        return yield* starting; // no store: nothing to restore, and the page shown loads what it needs
       }
       if (stored.value !== undefined) {
         const { navigation: list, ...kept } = stored.value;
@@ -221,18 +267,25 @@ const keepBetweenRuns = (
 
       let last = JSON.stringify(pick((yield* state.get) as Record<string, unknown>, engineKeepsList));
 
-      yield* Stream.runForEach(state.values, (current) => {
-        const picked = pick(current as Record<string, unknown>, engineKeepsList);
-        const text = JSON.stringify(picked);
+      // the page shown (restored, perhaps) loads what it needs while the changes are kept
+      yield* Effect.all(
+        [
+          starting,
+          Stream.runForEach(state.values, (current) => {
+            const picked = pick(current as Record<string, unknown>, engineKeepsList);
+            const text = JSON.stringify(picked);
 
-        if (text === last) {
-          return Effect.void;
-        }
+            if (text === last) {
+              return Effect.void;
+            }
 
-        last = text;
+            last = text;
 
-        return StoreOps.set(STORE_KEY, schema, picked).pipe(Effect.ignore);
-      });
+            return StoreOps.set(STORE_KEY, schema, picked).pipe(Effect.ignore);
+          }),
+        ],
+        { concurrency: 2, discard: true },
+      );
     }),
   );
 };
@@ -245,7 +298,12 @@ const routeOf = (page: string) => ({ name: page, params: {}, query: {} });
  * `go`, `back` and `forward`: moves along the list of pages (`History`, from the router), each first asking the author's `guard` if there is one. Going to a page puts it after the one shown
  * and drops the pages that were ahead; Back and Forward move along the list, for a target with no browser history of its own. Without a guard they are plain transitions.
  */
-const navigationCommands = (author: DefinedApp | undefined, state: Parameters<typeof Valance.command>[0], command: Valance.CommandMaker<AppState>) => {
+const navigationCommands = (
+  author: DefinedApp | undefined,
+  state: Parameters<typeof Valance.command>[0],
+  command: Valance.CommandMaker<AppState>,
+  loading: ReturnType<typeof routeLoading>,
+) => {
   const guard = author?.guard;
   const routing = routingFor(author);
   /** The address `go` is given, as the application knows it: a declared route's canonical address, else the content page's tidied path. */
@@ -263,12 +321,17 @@ const navigationCommands = (author: DefinedApp | undefined, state: Parameters<ty
   const traverse = (current: AppState, distance: number): AppState => routing.arrive(withList(current, History.go(listOf(current), distance))) as AppState;
   const handle = state as unknown as { readonly get: Effect.Effect<AppState>; readonly update: (f: (current: AppState) => Effect.Effect<AppState>) => Effect.Effect<unknown> };
   /** Asks the guard about a move to `to`; the page to go to instead when it redirects, `undefined` when it stops the move. */
-  const asked = (current: AppState, to: string, kind: "programmatic" | "history"): Effect.Effect<string | undefined> =>
+  const askedGuard = (current: AppState, to: string, kind: "programmatic" | "history"): Effect.Effect<string | undefined> =>
     guard === undefined || to === current.page
       ? Effect.succeed(to)
       : permit(guard as never, { from: routeOf(current.page), to: routeOf(to), state: current, kind, data: {} } as never).pipe(
           Effect.map((answer) => (answer === true ? to : answer === false ? undefined : (answer as { readonly name: string }).name)),
         );
+  /** The application-wide guard first (R-18), then the routes' (R-61): the address to go to, or `undefined` when something refuses. */
+  const asked = (current: AppState, to: string, kind: "programmatic" | "history"): Effect.Effect<string | undefined> =>
+    Effect.flatMap(askedGuard(current, to, kind), (allowed) =>
+      allowed === undefined || !routing.hasGuards || allowed === current.page ? Effect.succeed(allowed) : routing.decide(current.page, allowed, current, kind),
+    );
   const guarded = (target: (current: AppState) => string | undefined, kind: "programmatic" | "history", apply: (current: AppState, to: string) => AppState) =>
     Effect.gen(function* () {
       const current = yield* handle.get;
@@ -278,10 +341,17 @@ const navigationCommands = (author: DefinedApp | undefined, state: Parameters<ty
       if (allowed !== undefined) {
         // a redirect is a page to go to, not a place in the list: it is added after the page shown
         yield* handle.update((latest) => Effect.succeed(allowed === to ? apply(latest, allowed) : go(latest, allowed)));
+
+        // an entry loads what the route needs (R-52); a move to where the application already was is not an entry (R-55)
+        const now = yield* handle.get;
+
+        if (now.page !== current.page) {
+          yield* loading.run(now.page);
+        }
       }
     });
 
-  if (guard === undefined) {
+  if (guard === undefined && !routing.hasGuards && !routing.hasLoad) {
     return {
       go: command(Schema.Struct({ id: Schema.String }), ({ id }, current) => go(current, id)),
       back: command((current) => traverse(current, -1)),
@@ -320,16 +390,18 @@ export const commandTable =
   (state: Parameters<typeof Valance.command>[0]): Valance.CommandTable<any, Valance.Ambient> => {
     const command = Valance.command(state as never) as Valance.CommandMaker<AppState>;
     const own = author?.commands?.(command as never) ?? {};
+    const loading = routeLoading(routingFor(author), state);
 
-    for (const name of ["go", "back", "forward", "resize", "colorScheme", "persist"]) {
+    for (const name of ["go", "back", "forward", "resize", "colorScheme", "persist", "routeStart"]) {
       if (name in own) {
         throw new AppDefinitionError(`src/main.ts: "${name}" is the framework's command; choose another name`);
       }
     }
 
     return {
-      ...(persisted(author).length === 0 ? {} : { persist: keepBetweenRuns(author, state, command, known, routingFor(author)) }),
-      ...navigationCommands(author, state, command),
+      ...(persisted(author).length === 0 ? {} : { persist: keepBetweenRuns(author, state, command, known, routingFor(author), loading.current) }),
+      ...(persisted(author).length === 0 && routingFor(author).hasLoad ? { routeStart: command.effect(() => loading.current) } : {}),
+      ...navigationCommands(author, state, command, loading),
       // The window changed size: the browser tells the application, which tells the layout (`viewport`).
       resize: command(Schema.Struct({ viewport: Schema.Literal("compact", "medium", "expanded") }), ({ viewport }, current) => ({ ...current, viewport })),
       // The person's system changed colors: the page or the window tells the application, which tells the layout (`colorScheme`).
@@ -381,7 +453,7 @@ export const application = (content: Content, program: Valance.Program, author?:
     },
     view: () => "layout" as const,
     commands: commandTable(author, (page) => pageAt(content, page) !== undefined || routing.match(page) !== undefined) as never,
-    ...(persisted(author).length === 0 ? {} : { start: "persist" }),
+    ...(persisted(author).length > 0 ? { start: "persist" } : routing.hasLoad ? { start: "routeStart" } : {}),
   });
 };
 

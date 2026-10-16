@@ -29,7 +29,7 @@ import { Schema } from "effect";
 import type { Interceptor } from "./transport.js";
 import type { DeclaredRoute } from "./routing-types.js";
 
-export { route } from "./routing.js";
+export { redirect, route } from "./routing.js";
 export type { DeclaredRoute, RouteConfig } from "./routing-types.js";
 
 /** The part of the application's state the framework owns: which page is shown. A command's `state` always has it. */

@@ -400,7 +400,39 @@ components: [themeToggle, orderPage],           // the screen is listed like any
 - **An address is a content page or a route, never both**: a route that matches a content page is `route-conflict`.
 - **Pages and delivery.** `vlx build` writes a page for a route with no parameters, and one per entry of `staticParams`; a route with parameters and no `staticParams` is `route-static-params` unless it says `delivery: "client"` (see [How pages are delivered](#how-pages-are-delivered)). `vlx dev` renders any matching address. A static page cannot see its query, so the browser reads it from the address bar when the page opens. The routes' static pages are in `sitemap.xml`; a client route's are not.
 - **Links are checked.** A Markdown link, or a template's literal `href` on `a` and `link`, to an address a declared route matches is a good link (a `#fragment` on it is not checked); one to nothing is `link-broken`, with the file and line (and the column, in a template).
-- **Not yet**: per-route guards and redirects, and loading on entry. The design and the order are in [`docs/application-model/ROUTES.md`](../../docs/application-model/ROUTES.md).
+- **Not yet**: nothing planned beyond what is below. The design and the order are in [`docs/application-model/ROUTES.md`](../../docs/application-model/ROUTES.md).
+
+### Loading data on entry: `load`
+
+```ts
+order: route("/orders/:id", {
+  params: Schema.Struct({ id: Schema.String }),
+  delivery: "client",
+  load: {
+    begin: ({ id }, state) => ({ ...state, order: { status: "loading", id } }),
+    work: ({ id }, signal) => fetch(`/api/orders/${id}`, { signal }).then((r) => r.json()),
+    settle: (outcome, { id }, state) => ({ ...state, order: outcome.ok ? { status: "ready", id, data: outcome.value } : { status: "failed", id } }),
+  },
+})
+```
+
+`work` is a Promise or an Effect (as in `command.waiting`); `settle` receives `{ ok, value }` or `{ ok: false, error }`, so loading, success and failure are all ordinary state a layout reads. **`begin` is part of the entry**: the page a build writes and the first state of a request show the loading state, and no `work` runs there (a render starts no work). `work` runs where there is a running application: after `go`, Back or Forward enters the route, and once when the application starts on it. A result is committed only if the application is still at that address, and a newer entry of the same route supersedes an older run. A move to the address already shown is not an entry, so it does not load again; going Back to a route is, and does. The loads of a nested route's levels run together.
+
+### Guards, redirects and leaving the page
+
+```ts
+account: route("/account", {
+  canActivate: ({ state }) => (state.signedIn ? true : redirect("login")),
+  canDeactivate: ({ state }) => !state.dirty,
+}),
+old: route("/old", { redirectTo: redirect("account") }),
+```
+
+These are `@valancex/router`'s guards on a declared route (`redirect` comes from `@valancex/common`): the answer is `true`, `false` or `redirect("route-name")`, plain, a Promise or an Effect; one that fails or throws refuses. They are asked by `go`, `back` and `forward` after the application-wide `guard`: the route being left first (not when only the query changes), then the route being entered; a redirect restarts the entering side at its target. A parent's guards are asked when a move enters or leaves the parent, not when it moves between its children. A redirect names a declared route (not a content page).
+
+`redirectTo` makes an **alias**: `go("/old")` and the first state for `/old` land on the target. The alias has no page; `_redirects` gets `/old  /account  301` and `vlx dev` answers it with a 302. Its pattern may not carry the source's parameters to the target (the target is fixed), and an alias shows nothing of its own (`screen`, `load`, `children` and guards on it are refused).
+
+`canDeactivate` also guards **closing the page**: when any route has one, the page asks the guards of the route shown with the kind `"close"`, and an answer of `false` makes the browser ask the person before the page goes. A browser cannot wait, so **only an answer given at once counts** (a value, or an Effect that finishes without waiting); a Promise is ignored on close. A desktop window asks the same when it is asked to close, and there a guard may wait.
 
 ### Routes inside routes: `children`, `index` and the outlet
 

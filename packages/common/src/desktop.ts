@@ -77,6 +77,8 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
   const opener = systemOpen();
 
   await Native.run(application(content, program, author), {
+    // A route's `canDeactivate` is asked when the window is asked to close, and may wait (R-64).
+    mayClose: (state) => routingFor(author).mayLeave(state as never),
     // The window follows the system's colors unless the application asks otherwise (`appearance` in `defineApp`), and the application learns the system's (`colorScheme`).
     appearanceOf: (state) => author?.appearance?.(state as never) ?? "system",
     onScheme: (scheme, handle) => handle.invoke("app/colorScheme", [{ value: scheme }]),

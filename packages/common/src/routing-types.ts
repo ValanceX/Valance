@@ -1,7 +1,8 @@
 // The shapes of a route declaration. Kept apart from `route()` (which brings in the router) so the parts of the framework that only read declarations need not.
 import type { Schema } from "effect";
 
-import type { Component } from "./index.js";
+import type { Component, NavigationGuard } from "./index.js";
+import type { Outcome } from "@valancex/valance";
 
 /** What a route may declare. `P` is what its parameters decode to, `Q` its query. */
 export interface RouteConfig<P, Q> {
@@ -35,6 +36,22 @@ export interface RouteConfig<P, Q> {
   readonly children?: Readonly<Record<string, DeclaredRoute>>;
   /** For a route with `children`: the screen drawn in its slot at the parent's own address (`/account`). Without it the slot is empty there. */
   readonly index?: Component;
+  /**
+   * Data the route needs, fetched when it is entered. `begin` is pure and part of the entry (so the page a build writes, and the first state of a request, show the loading state); `work` runs
+   * in the running application after the entry (a Promise, or an Effect that needs a capability), and `settle` puts its success or failure into the state. A result is dropped if the application
+   * has left the address by then. See ROUTES.md R-50.
+   */
+  readonly load?: {
+    readonly begin?: (input: P & Q, state: any) => any;
+    readonly work: (input: P & Q, signal: AbortSignal) => Promise<any> | import("effect").Effect.Effect<any, unknown, any>;
+    readonly settle: (outcome: Outcome<any>, input: P & Q, state: any) => any;
+  };
+  /** Asked before the route is entered (the router's guard: `true`, `false`, or `redirect(route)`; plain, a Promise or an Effect). */
+  readonly canActivate?: NavigationGuard;
+  /** Asked before the route is left for another route or other parameters (not for a query alone), and when the page closes. Only an answer given at once can stop a page closing. */
+  readonly canDeactivate?: NavigationGuard;
+  /** An address of this route is the target's: `redirectTo: redirect("account")`. A redirecting route has no page of its own. */
+  readonly redirectTo?: { readonly _tag: "Redirect"; readonly name: string; readonly params: Readonly<Record<string, unknown>>; readonly query: Readonly<Record<string, unknown>> };
 }
 
 export const ROUTE = Symbol.for("valancex.common.route");
@@ -44,6 +61,8 @@ export interface RouterApi {
   readonly createRouter: typeof import("@valancex/router").createRouter;
   readonly routed: typeof import("@valancex/router").route;
   readonly RouteDefinitionError: typeof import("@valancex/router").RouteDefinitionError;
+  readonly permit: typeof import("@valancex/router").permit;
+  readonly redirect: typeof import("@valancex/router").redirect;
 }
 
 /** A declared route: the value `route(...)` makes and `defineApp({ routes })` takes by name. */
@@ -54,4 +73,4 @@ export interface DeclaredRoute<P = any, Q = any> {
   readonly router: RouterApi;
 }
 
-export const KEYS = ["params", "query", "title", "enter", "screen", "staticParams", "delivery", "children", "index"] as const;
+export const KEYS = ["params", "query", "title", "enter", "screen", "staticParams", "delivery", "children", "index", "load", "canActivate", "canDeactivate", "redirectTo"] as const;

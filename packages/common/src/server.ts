@@ -12,6 +12,7 @@ import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { normalize, routes } from "./routes.js";
 import { routingFor } from "./routing-engine.js";
+import { pageUrl } from "./url.js";
 
 export type { Built };
 export { routes };
@@ -65,14 +66,28 @@ export const createShell =
 export const clientDelivered = (content: Content, author: DefinedApp | undefined, pathname: string): boolean =>
   routingFor(author).match(normalize(pathname, content.site.base))?.delivery === "client";
 
-/** The rewrites a host reads beside the site (`_redirects`, in the syntax Netlify and Cloudflare Pages share): each client route's addresses answered by the shell with status 200. */
+/** Whether a build writes the app shell: some route is client-delivered, or the whole site is. */
+export const needsShell = (author: DefinedApp | undefined, everything = false): boolean => everything || routingFor(author).list.some((each) => each.delivery === "client");
+
+/** Where an alias (a route with `redirectTo`) leads, as an address under the base, or `undefined` when `pathname` is not one. */
+export const movedTo = (content: Content, author: DefinedApp | undefined, pathname: string): string | undefined => {
+  const to = routingFor(author).alias(normalize(pathname, content.site.base));
+
+  return to === undefined ? undefined : pageUrl(content.site.base, to, content.site.trailingSlash);
+};
+
+/**
+ * The rewrites a host reads beside the site (`_redirects`, in the syntax Netlify and Cloudflare Pages share): each alias sent to its target (301), then each client route's addresses answered by
+ * the shell with status 200.
+ */
 export const redirectsFor = (content: Content, author: DefinedApp | undefined, shell: string, everything = false): string => {
   const base = content.site.base;
-  const lines = everything
-    ? [`${base}*`]
-    : routingFor(author)
-        .list.filter((each) => each.delivery === "client")
-        .map((each) => `${base.replace(/\/$/, "")}${each.pattern.replace(/\*[A-Za-z_][A-Za-z0-9_]*$/, "*")}`);
+  const host = (pattern: string): string => `${base.replace(/\/$/, "")}${pattern.replace(/\*[A-Za-z_][A-Za-z0-9_]*$/, "*")}`;
+  const routing = routingFor(author);
+  const lines = [
+    ...routing.redirects.map((each) => `${host(each.from)}  ${pageUrl(base, each.to, content.site.trailingSlash)}  301`),
+    ...(everything ? [`${base}*  ${base}${shell}  200`] : routing.list.filter((each) => each.delivery === "client").map((each) => `${host(each.pattern)}  ${base}${shell}  200`)),
+  ];
 
-  return lines.length === 0 ? "" : `${lines.map((from) => `${from}  ${base}${shell}  200`).join("\n")}\n`;
+  return lines.length === 0 ? "" : `${lines.join("\n")}\n`;
 };

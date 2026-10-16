@@ -160,11 +160,22 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
               }
 
               try {
-                const { render, shell, delivered } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
+                const { render, shell, delivered, moved } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
                   render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }, search?: string) => Promise<{ status: number; html: string }>;
                   shell: (built: { script: string; styles: ReadonlyArray<string> }) => string;
                   delivered: (pathname: string) => boolean;
+                  moved: (pathname: string) => string | undefined;
                 };
+                // An alias (a route with `redirectTo`) is answered as a host would: a redirect (R-63).
+                const alias = moved(url.pathname);
+
+                if (alias !== undefined) {
+                  response.statusCode = 302;
+                  response.setHeader("location", alias);
+                  response.end();
+                  return;
+                }
+
                 const built = {
                   script: `${config.web.base}${GENERATED_DIR}/client.ts`,
                   styles: [],

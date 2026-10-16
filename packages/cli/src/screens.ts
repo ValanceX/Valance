@@ -13,7 +13,7 @@ import { nameOf } from "./tree.js";
 import type { DefinedApp } from "@valancex/common";
 
 /** The commands the framework adds to every application. */
-const FRAMEWORK_COMMANDS = ["go", "back", "forward", "resize", "colorScheme", "persist"];
+const FRAMEWORK_COMMANDS = ["go", "back", "forward", "resize", "colorScheme", "persist", "routeStart"];
 
 /** Whether an event carries no value: `Schema.Void`. */
 const bare = (schema: unknown): boolean => (schema as { readonly ast?: { readonly _tag?: string } } | undefined)?.ast?._tag === "VoidKeyword";

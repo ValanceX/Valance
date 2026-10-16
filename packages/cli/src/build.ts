@@ -135,6 +135,7 @@ const buildWeb = async (
     readonly paths: () => ReadonlyArray<string>;
     readonly shell: (built: { readonly script: string; readonly styles: ReadonlyArray<string> }) => string;
     readonly redirects: (everything: boolean) => string;
+    readonly shelled: (everything: boolean) => boolean;
   };
 
   {
@@ -186,7 +187,9 @@ const buildWeb = async (
     const redirects = rendered.redirects(everything);
 
     if (redirects !== "") {
-      write(SHELL_FILE, rendered.shell(built));
+      if (rendered.shelled(everything)) {
+        write(SHELL_FILE, rendered.shell(built));
+      }
 
       if (!existsSync(join(dist, "_redirects"))) {
         write("_redirects", redirects);

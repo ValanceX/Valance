@@ -508,6 +508,7 @@ describe("vlx dev and vlx info (R-15, R-20)", () => {
         delivery: "static",
         pages: ["/orders/1", "/orders/2"],
         buildable: true,
+        has: [],
       },
       {
         name: "settings",
@@ -516,6 +517,7 @@ describe("vlx dev and vlx info (R-15, R-20)", () => {
         delivery: "static",
         pages: ["/settings"],
         buildable: true,
+        has: [],
       },
     ]);
   }, 60_000);
