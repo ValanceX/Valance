@@ -197,18 +197,20 @@ Tags you may use: the target's vocabulary, below (generated from it, so it is al
 | `radio` | `<input>` | `checked` (boolean), `value`* (string), `label` (string), `name` (string), `disabled` (boolean) | `select` (string) |
 | `button` | `<button>` | `class` (string), `pressed` (string), `disabled` (boolean) | `click` |
 
-**Desktop** (16 tags). A `*` marks a prop every use must write.
+**Desktop** (18 tags). A `*` marks a prop every use must write.
 
 | Tag | Props | Events |
 |---|---|---|
 | `column` | none | none |
 | `row` | none | none |
 | `heading` | `level` (number) | none |
-| `text` | none | none |
+| `text` | `id` (string) | none |
 | `button` | `disabled` (boolean), `label` (string) | `click` |
-| `checkbox` | `checked`* (boolean), `label` (string) | `change` (boolean) |
-| `textfield` | `value`* (string), `placeholder` (string), `label` (string) | `change` (string), `submit`, `cancel` |
-| `paragraph` | none | none |
+| `checkbox` | `checked`* (boolean), `label` (string), `invalid` (boolean), `describedby` (string) | `change` (boolean) |
+| `textfield` | `value`* (string), `placeholder` (string), `label` (string), `kind` (string), `invalid` (boolean), `describedby` (string) | `change` (string), `submit`, `cancel`, `blur`, `focus` |
+| `radiogroup` | `label` (string), `invalid` (boolean), `describedby` (string) | none |
+| `radio` | `checked`* (boolean), `value`* (string), `label` (string), `disabled` (boolean) | `select` (string) |
+| `paragraph` | `id` (string) | none |
 | `list` | `ordered` (boolean) | none |
 | `listitem` | none | none |
 | `code` | none | none |

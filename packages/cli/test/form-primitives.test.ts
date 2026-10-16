@@ -61,11 +61,10 @@ describe("what a template may say (F-2, F-6)", () => {
 describe("the two targets agree (F-7)", () => {
   const desktop = tagsOf(TARGETS.find((each) => each.id === "desktop")!.vocabulary);
   const web = tagsOf(TARGETS.find((each) => each.id === "web")!.vocabulary);
-  const carries = desktop.find((tag) => tag.name === "textfield")?.props.some((prop) => prop.startsWith("`kind`")) === true;
   const shape = (tags: typeof web, name: string) => tags.find((tag) => tag.name === name);
 
-  // The Desktop PORT's vocabulary comes from `@valancex/port-desktop-vocabulary`. Until the release that carries the form primitives is installed, this documents the gap instead of failing on it.
-  it.skipIf(!carries)("name the same props and events, with the same types, on the form primitives", () => {
+  // The Desktop PORT's vocabulary comes from `@valancex/port-desktop-vocabulary` (0.7 and later carry the form primitives).
+  it("name the same props and events, with the same types, on the form primitives", () => {
     for (const name of ["textfield", "checkbox"]) {
       for (const prop of ["kind", "invalid", "describedby"]) {
         const on = (tags: typeof web) => shape(tags, name)!.props.find((each) => each.startsWith(`\`${prop}\``));
@@ -82,8 +81,7 @@ describe("the two targets agree (F-7)", () => {
     expect(shape(desktop, "textfield")!.events.map((each) => each.split(" ")[0])).toEqual(expect.arrayContaining(["`focus`", "`blur`"]));
   });
 
-  it("(until the release that carries them) the web offers them and the desktop does not yet", () => {
-    expect(carries ? "carried" : "not yet").toBe(carries ? "carried" : "not yet");
+  it("the web offers them too", () => {
     expect(shape(web, "textfield")!.props.map((each) => each.split(" ")[0])).toEqual(expect.arrayContaining(["`kind`", "`invalid`", "`describedby`"]));
     expect(shape(web, "textfield")!.events.map((each) => each.split(" ")[0])).toEqual(expect.arrayContaining(["`focus`", "`blur`"]));
   });
