@@ -4,6 +4,7 @@
 //   vlx dev [--port N] [--host H]   serve the project and rebuild it as it changes
 //   vlx build                       write the site to dist/web/
 //   vlx check [--json]              find mistakes in authored files without building
+//   vlx info [--json] [--tags]      what the project is: targets, how pages are delivered, routes, styles, components, tags
 //   vlx generate page|component <name>   add a page, or a component registered in src/main.ts (alias: g)
 //   vlx sync                        bring .valance/ (generated types, manifest, entries) up to date; runs by itself after install and generate
 //   vlx help [command]              what a command does
@@ -19,6 +20,8 @@ import { packageDesktop } from "./package.js";
 import { generateComponent, generatePage, generateTarget, GenerateError, KINDS } from "./add.js";
 import type { Kind } from "./add.js";
 import { check } from "./check.js";
+import { info, render } from "./info.js";
+import { tagReference } from "./tags.js";
 import { findRoot } from "./config.js";
 import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
@@ -34,6 +37,7 @@ const HELP = `vlx <command>
   dev [--port N] [--host H]        serve it and rebuild as it changes
   build                            write the site to dist/web/
   check [--json]                   find mistakes in your files without building
+  info [--json] [--tags]           what the project is: routes, styles, components, settings, tags
   generate page|component <name>  add a page, or a component (alias: g)
   generate target web|desktop      add a target to the project
   package --desktop                the desktop target as one executable beside its window (unsigned)
@@ -68,6 +72,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
   package:
     "vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>] [--archive]\n\nBuild the desktop target and package it: the engine as one executable (Node's single executable application, with the MESH runtime inside) beside the Desktop PORT's window program, in dist/package/<platform>/. --window is the window program for that platform (default: VLX_WINDOW, else vlx-window on the PATH; build it from the PORT repository). For another platform, --node is a node binary of this version for it. --archive also writes the package as one file, a .tar.gz (Linux) or a .zip (Windows), with its SHA-256 beside it. The result is unsigned.\n",
+  info: "vlx info [--json] [--tags]\n\nSay what the project is, read from its files without building: the targets and the web settings (valance.web.json), every route and the file that makes it, how pages are delivered, the stylesheets in the order they load, the components src/main.ts registers, and how many tags each target has. --tags lists every tag with its props and events; --json prints all of it for tools.\n",
   check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
 };
 
@@ -169,7 +174,16 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
   }
 
   // A global `vlx` runs the project's own (see `delegate.ts`).
-  if (command === "dev" || command === "build" || command === "package" || command === "check" || command === "sync" || command === "generate" || command === "g") {
+  if (
+    command === "dev" ||
+    command === "build" ||
+    command === "package" ||
+    command === "check" ||
+    command === "info" ||
+    command === "sync" ||
+    command === "generate" ||
+    command === "g"
+  ) {
     const local = localCli(cwd);
 
     if (local !== undefined) {
@@ -305,6 +319,19 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         return result.diagnostics.length === 0 ? 0 : 1;
+      }
+      case "info": {
+        if (rest.includes("--tags")) {
+          console.log(tagReference());
+
+          return 0;
+        }
+
+        const found = await info(findRoot(cwd));
+
+        console.log(rest.includes("--json") ? JSON.stringify(found, null, 2) : render(found));
+
+        return found.problems.length === 0 ? 0 : 1;
       }
       case "sync": {
         const synced = await sync(cwd);

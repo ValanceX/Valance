@@ -9,6 +9,7 @@ $ vlx init my-app --web   # make a new application (asks what you leave out)
 $ vlx dev       # serve the project, rebuild as files change
 $ vlx build     # write the site to dist/
 $ vlx check     # find mistakes in your files without building (--json for tools)
+$ vlx info      # what the project is: settings, routes, styles, components (--tags, --json)
 $ vlx generate component post-card    # add a component (or: generate page guide/intro)
 $ vlx sync      # refresh the generated files (it runs by itself; rarely typed)
 $ vlx help      # every command; `vlx help <command>` says more
@@ -342,6 +343,10 @@ export default defineApp({
 `title` returns `{ page?, app?, status? }` (a string is the page part). `status` is what is going on right now and belongs to no page (an unread count, "Saving…"); it is written first, in parentheses. A target that is not a web page uses the same three parts for its own surfaces (a window title, a navigation bar, a badge). The function runs for every committed state, on the server for the one it renders and in the browser after each; if it throws, the default title is used and the failure is logged by name.
 
 Every title and meta is **plain text** by the time it reaches the document: control characters and the bidirectional override and isolate characters (U+202A to U+202E, U+2066 to U+2069) are removed (they let a string reorder or hide what is around it in a tab or a history list), whitespace is collapsed, and a title is cut at 200 characters. A title is written only when it changed. After a page changes in place, a polite live region says the new title and focus moves to `#content` (when your layout's `<main id="content" tabindex="-1">` is focusable, as the scaffold's is), as a page load would; a link to a `#heading` is left to the browser. Turn it off with `"announce": false` in `valance.web.json`.
+
+## What the project is: `vlx info`
+
+Everything above is decided somewhere in the project; `vlx info` puts it in one place, read from the files without building anything: the targets and the web settings, every route with the file that makes it (a page's address is its file's path under `content/`), how pages are delivered, the stylesheets in the order they load, the components `src/main.ts` registers, and how many tags each target has. `vlx info --tags` prints the tag tables; `--json` prints it all for tools. A mistake that keeps something from being read (a broken link in the content, a bad `src/main.ts`) is listed as a problem and `vlx check` reports it in full.
 
 ## How pages are delivered
 

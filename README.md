@@ -75,6 +75,7 @@ Everything you do to a Valance application starts here.
 | `vlx dev` | Serves it and rebuilds as you edit |
 | `vlx build` | Writes the site to `dist/web/` |
 | `vlx check` | Finds mistakes in your files without building |
+| `vlx info` | Says what the project is: how pages are delivered, every route and its file, the styles, the components, the tags (`--json` for tools) |
 | `vlx package --desktop` | Packs the desktop engine and its window (`--archive` for one file) |
 | `vlx generate page <path>` | Adds a Markdown page |
 | `vlx generate component <name>` | Adds a component and registers it |
