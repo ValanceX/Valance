@@ -10,7 +10,7 @@ import { application, stateFor } from "./app.js";
 import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
-import { routes } from "./routes.js";
+import { normalize, routes } from "./routes.js";
 import { routingFor } from "./routing-engine.js";
 
 export type { Built };
@@ -49,3 +49,30 @@ export const createRenderer = ({ content, program, author }: ServerParts) => {
 
 /** The pathnames a static export writes, under the base. */
 export const pathsOf = (content: Content, author?: DefinedApp): ReadonlyArray<string> => routes(content, routingFor(author)).paths();
+
+const escape = (text: string): string => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
+
+/**
+ * The app shell (ROUTES.md R-33, R-34): a document with an empty `#app`, the script and the stylesheets, that a host answers a client route's addresses with. Nothing in it depends on the address, so
+ * one file serves them all; the browser draws the page from the address bar.
+ */
+export const createShell =
+  ({ content }: Pick<ServerParts, "content">) =>
+  (built: Built): string =>
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(content.site.name)}</title>${built.styles.map((href) => `<link rel="stylesheet" href="${escape(href)}">`).join("")}</head><body><div id="app"></div><script id="valance-boot" type="application/json">${safe(JSON.stringify({ shell: true, built }))}</script><script type="module" src="${built.script}"></script></body></html>`;
+
+/** Whether the shell, not a page, answers `pathname` (under the base): it is an address of a route that says `delivery: "client"`. */
+export const clientDelivered = (content: Content, author: DefinedApp | undefined, pathname: string): boolean =>
+  routingFor(author).match(normalize(pathname, content.site.base))?.delivery === "client";
+
+/** The rewrites a host reads beside the site (`_redirects`, in the syntax Netlify and Cloudflare Pages share): each client route's addresses answered by the shell with status 200. */
+export const redirectsFor = (content: Content, author: DefinedApp | undefined, shell: string, everything = false): string => {
+  const base = content.site.base;
+  const lines = everything
+    ? [`${base}*`]
+    : routingFor(author)
+        .list.filter((each) => each.delivery === "client")
+        .map((each) => `${base.replace(/\/$/, "")}${each.pattern.replace(/\*[A-Za-z_][A-Za-z0-9_]*$/, "*")}`);
+
+  return lines.length === 0 ? "" : `${lines.map((from) => `${from}  ${base}${shell}  200`).join("\n")}\n`;
+};

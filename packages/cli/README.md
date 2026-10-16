@@ -421,7 +421,9 @@ The mode is a setting, **`"rendering"` in `valance.web.json`**, which `vlx init`
 { "version": 1, "rendering": "static" }
 ```
 
-`"static"` is the only mode today. `"client"` (a page only the browser renders, for addresses a build cannot list) arrives with declared routes, and `"server"` (a page rendered per request) needs a server platform that does not exist yet; both are refused with a message that says so rather than quietly doing something else. `vlx build` ends with the mode it used (`vlx build: 12 pages (static), …`).
+`"static"` (the default) writes a page for every address the build can list. `"client"` writes none: the build writes the **app shell** (`__app-shell.html`: an empty `#app`, the script and the stylesheets) and a `_redirects` file with `/*  /__app-shell.html  200`, and the browser draws the page from the address bar. `"server"` (a page rendered per request) needs a server platform that does not exist yet, and is refused with a message that says so. `vlx build` ends with the mode it used (`vlx build: 12 pages (static), …`).
+
+One route can opt in without changing the site: `route("/orders/:id", { delivery: "client" })`. Its addresses are not known at build time (`/orders/:id` for any id), so the build writes no page for it, needs no `staticParams` (and refuses one: it would be ignored), and writes `_redirects` with one rewrite (status 200, not a redirect) from its pattern to the shell: `/orders/:id  /__app-shell.html  200`, under the site's base. Netlify and Cloudflare Pages read that file; another host takes the same lines in its own syntax. A project that brings its own `public/_redirects` keeps it. The shell is the same bytes for every address, so it carries nothing of the page (no title, no canonical link); the page sets its title when it starts. The shell **draws** where a static page is **taken over**, and `vlx dev` answers a client route with the shell, as a host would. A link in the content or a layout to a client route's address is checked like any other (it must match a declared route).
 
 ### One address per page: `trailingSlash`
 

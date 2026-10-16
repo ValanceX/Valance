@@ -30,9 +30,7 @@ export const ROOT = "layout";
 
 export const BUILT_IN = fileURLToPath(new URL("../views/", import.meta.url));
 /** The desktop target's built-in views: the same components as the web's, written in the desktop vocabulary. */
-export const BUILT_IN_DESKTOP = fileURLToPath(
-  new URL("../views-desktop/", import.meta.url),
-);
+export const BUILT_IN_DESKTOP = fileURLToPath(new URL("../views-desktop/", import.meta.url));
 /** The package directory: where its README, which documents the framework's own names, is. */
 export const PACKAGE_DIR = fileURLToPath(new URL("../", import.meta.url));
 
@@ -69,12 +67,7 @@ export interface Templates {
  * Built-in templates, then the author's. The author's are exactly the ones `src/main.ts` declares: `layout`, `components` and `override`. A file under `src/` that is not declared is an error, not
  * a guess; a registered component that no template writes is allowed (it is not part of the program until one does). Which components a template uses is read from the template. A name that is a built-in's replaces it only through `override`.
  */
-export const templatesOf = (
-  root: string,
-  author: DefinedApp | undefined,
-  vocabulary: Vocabulary = webVocabulary,
-  views: string = BUILT_IN,
-): Templates => {
+export const templatesOf = (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Templates => {
   const found = new Map<string, Template>();
 
   for (const file of mprxIn(views)) {
@@ -96,21 +89,14 @@ export const templatesOf = (
   /** Where a template's component is defined: its `component(…)` call, else where it is imported, else the top of the entry file. */
   const at = (file: string): Place => {
     const site = declarations.get(file);
-    return (
-      site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 }
-    );
+    return site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
   };
   const problem = (place: Place, code: string, message: string): void => {
-    problems.push(
-      diagnostic(place.file, place.line, code, message, place.column),
-    );
+    problems.push(diagnostic(place.file, place.line, code, message, place.column));
   };
 
   // The layout's inputs are the state and the commands, so it has no props or events of its own to declare.
-  if (
-    layout !== undefined &&
-    (layout.props !== undefined || layout.events !== undefined)
-  ) {
+  if (layout !== undefined && (layout.props !== undefined || layout.events !== undefined)) {
     problem(
       at(layout.template.mprx),
       "layout-contract",
@@ -119,11 +105,7 @@ export const templatesOf = (
   }
 
   if (layout !== undefined && nameOf(layout.template.mprx) !== ROOT) {
-    problem(
-      at(layout.template.mprx),
-      "layout-name",
-      `the layout's template must be named ${ROOT}.mprx, not ${basename(layout.template.mprx)}`,
-    );
+    problem(at(layout.template.mprx), "layout-name", `the layout's template must be named ${ROOT}.mprx, not ${basename(layout.template.mprx)}`);
   }
 
   const builtInNames = new Set(found.keys());
@@ -146,27 +128,15 @@ export const templatesOf = (
     const place = at(node.file);
 
     if (files.has(node.name) && files.get(node.name) !== node.file) {
-      problem(
-        place,
-        "template-duplicate",
-        `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`,
-      );
+      problem(place, "template-duplicate", `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`);
       continue;
     }
     if (namesOf(vocabulary).includes(node.name)) {
-      problem(
-        place,
-        "template-primitive",
-        `<${node.name}> is already a tag the framework draws as an element; name the file something else`,
-      );
+      problem(place, "template-primitive", `<${node.name}> is already a tag the framework draws as an element; name the file something else`);
       continue;
     }
     if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(node.name)) {
-      problem(
-        place,
-        "template-name",
-        `"${node.name}" cannot be a tag: use lowercase words joined by - (for example callout or post-card)`,
-      );
+      problem(place, "template-name", `"${node.name}" cannot be a tag: use lowercase words joined by - (for example callout or post-card)`);
       continue;
     }
     if (!existsSync(join(root, node.file))) {
@@ -186,16 +156,10 @@ export const templatesOf = (
   // Every template under src/ must be somewhere in a tree: this target's, or another target's (a project for more than one target keeps each one's templates side by side).
   const claimed = new Set(files.values());
 
-  const whole = ((
-    author as unknown as Record<symbol, DefinedApp | undefined> | undefined
-  )?.[WHOLE] ?? author) as DefinedApp | undefined;
+  const whole = ((author as unknown as Record<symbol, DefinedApp | undefined> | undefined)?.[WHOLE] ?? author) as DefinedApp | undefined;
 
   for (const parts of [whole, ...Object.values(whole?.targets ?? {})]) {
-    for (const node of treeOf(
-      parts?.layout,
-      parts?.override ?? [],
-      parts?.components ?? [],
-    )) {
+    for (const node of treeOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
       claimed.add(node.file);
     }
   }
@@ -218,12 +182,7 @@ export const templatesOf = (
   // The screens of the routes: `<screen />` in the layout is replaced by the switch over the routes this target draws (slice 6d).
   try {
     for (const [name, template] of found) {
-      const expanded = expandScreen(
-        template.source,
-        name === ROOT,
-        screenSource(author, files),
-        template.path,
-      );
+      const expanded = expandScreen(template.source, name === ROOT, screenSource(author, files), template.path);
 
       if (expanded !== template.source) {
         found.set(name, { ...template, source: expanded });
@@ -238,9 +197,7 @@ export const templatesOf = (
   }
 
   // Who uses whom is what the templates write: a component's uses are the declared components whose tags its template has.
-  const tree = linked(declared, layout, overrides, (name) => [
-    ...tagsOf(found.get(name)?.source ?? "").keys(),
-  ]);
+  const tree = linked(declared, layout, overrides, (name) => [...tagsOf(found.get(name)?.source ?? "").keys()]);
 
   if (problems.length > 0) {
     throw new AppError(problems);
@@ -273,10 +230,7 @@ const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
   return all.filter((template) => seen.has(template.component));
 };
 
-export const manifestOf = (
-  author: DefinedApp | undefined,
-  vocabulary: Vocabulary = webVocabulary,
-) => {
+export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary) => {
   const derived = manifest({
     // A web vocabulary is a table the manifest is derived from; any other is a manifest already, and its components are merged in as they are.
     primitives: "tags" in vocabulary ? vocabulary.tags : {},
@@ -295,10 +249,7 @@ export const manifestOf = (
   }
 
   // The props the vocabulary says a template may leave out.
-  const components = { ...derived.components } as Record<
-    string,
-    (typeof derived.components)[string]
-  >;
+  const components = { ...derived.components } as Record<string, (typeof derived.components)[string]>;
 
   for (const [tag, names] of Object.entries(vocabulary.optional ?? {})) {
     const entry = components[tag];
@@ -306,12 +257,7 @@ export const manifestOf = (
     if (entry !== undefined) {
       components[tag] = {
         ...entry,
-        props: Object.fromEntries(
-          Object.entries(entry.props).map(([name, prop]) => [
-            name,
-            names.includes(name) ? { ...prop, required: false } : prop,
-          ]),
-        ),
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, names.includes(name) ? { ...prop, required: false } : prop])),
       };
     }
   }
@@ -323,14 +269,7 @@ export const manifestOf = (
     if (entry !== undefined) {
       components[tag] = {
         ...entry,
-        props: Object.fromEntries(
-          Object.entries(entry.props).map(([name, prop]) => [
-            name,
-            retyped[name] === undefined
-              ? prop
-              : { ...prop, type: { kind: retyped[name]! } },
-          ]),
-        ),
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, retyped[name] === undefined ? prop : { ...prop, type: { kind: retyped[name]! } }])),
       };
     }
   }
@@ -338,11 +277,7 @@ export const manifestOf = (
   return { ...derived, components: { ...components, screen } };
 };
 
-const isManifestError = (
-  error: unknown,
-): error is Error & { readonly path: string } =>
-  error instanceof Error &&
-  (error as { readonly _tag?: string })._tag === "ManifestError";
+const isManifestError = (error: unknown): error is Error & { readonly path: string } => error instanceof Error && (error as { readonly _tag?: string })._tag === "ManifestError";
 
 /**
  * The model the templates are checked against: the derived one (the tags, the layout's scope, the commands), and an entry for each component that declares its interface. A declared interface is
@@ -350,12 +285,7 @@ const isManifestError = (
  * uses. MESH checks every use against it (an undeclared prop, a missing one, a wrong type, an undeclared event in a handler), at the use or in the template. A schema with no model type is a
  * diagnostic at the declaration, not a crash.
  */
-const modelOf = (
-  root: string,
-  author: DefinedApp | undefined,
-  tree: ReadonlyArray<Node>,
-  vocabulary: Vocabulary,
-): unknown => {
+const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArray<Node>, vocabulary: Vocabulary): unknown => {
   const problems: Array<Diagnostic> = [];
   const mainText = entryText(root);
   let derived: ReturnType<typeof manifestOf> | undefined;
@@ -369,10 +299,7 @@ const modelOf = (
 
     // `layout.theme.deep`: a state field (the layout's scope) names where; anything else is the commands.
     const field = /^layout\.([^.[]+)/.exec(error.path)?.[1];
-    const place =
-      field === undefined
-        ? { file: ENTRY_FILE, line: 1, column: 1 }
-        : locateKey(mainText, field);
+    const place = field === undefined ? { file: ENTRY_FILE, line: 1, column: 1 } : locateKey(mainText, field);
 
     problems.push(
       diagnostic(
@@ -397,9 +324,7 @@ const modelOf = (
     const site = declarations.get(node.file);
 
     for (const each of bad) {
-      const place = site?.member(each.kind, each.name) ??
-        site?.call ??
-        site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+      const place = site?.member(each.kind, each.name) ?? site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
 
       problems.push(
         diagnostic(
@@ -462,26 +387,12 @@ export const compileViews = async (
   const model = modelOf(root, author, tree, vocabulary);
 
   if (!used.some((template) => template.component === ROOT)) {
-    throw new AppError([
-      diagnostic(
-        `${SOURCE_DIR}/${ROOT}.mprx`,
-        0,
-        "layout-missing",
-        "there is no layout",
-      ),
-    ]);
+    throw new AppError([diagnostic(`${SOURCE_DIR}/${ROOT}.mprx`, 0, "layout-missing", "there is no layout")]);
   }
 
   // A link a template writes leads somewhere that exists (ROUTES.md R-30); a built-in layout's links are the framework's own.
   const known = site?.known;
-  const links =
-    known === undefined
-      ? []
-      : used
-          .filter((template) => !template.builtIn)
-          .flatMap((template) =>
-            brokenLinks(template.source, template.path, known),
-          );
+  const links = known === undefined ? [] : used.filter((template) => !template.builtIn).flatMap((template) => brokenLinks(template.source, template.path, known));
 
   if (links.length > 0) {
     throw new AppError(links);
@@ -492,10 +403,7 @@ export const compileViews = async (
     root: ROOT,
     components: used.map((template) => ({
       component: template.component,
-      source:
-        site === undefined
-          ? template.source
-          : underBase(template.source, site.base, site.trailingSlash),
+      source: site === undefined ? template.source : underBase(template.source, site.base, site.trailingSlash),
       path: template.path,
     })),
   });
@@ -510,10 +418,7 @@ export const compileViews = async (
               each.path,
               each.span.start.line,
               each.code,
-              each.message +
-                (each.suggestions.length > 0
-                  ? ` (did you mean ${each.suggestions.map((suggestion) => `"${suggestion.replacement}"`).join(" or ")}?)`
-                  : ""),
+              each.message + (each.suggestions.length > 0 ? ` (did you mean ${each.suggestions.map((suggestion) => `"${suggestion.replacement}"`).join(" or ")}?)` : ""),
               each.span.start.column,
             ),
           ),
@@ -536,15 +441,7 @@ export const compileViews = async (
               }
             | undefined
         )?.diagnostics ?? []
-      ).map((each) =>
-        diagnostic(
-          each.path ?? "program",
-          each.span?.start.line ?? 0,
-          each.code,
-          each.message,
-          each.span?.start.column ?? 0,
-        ),
-      ),
+      ).map((each) => diagnostic(each.path ?? "program", each.span?.start.line ?? 0, each.code, each.message, each.span?.start.column ?? 0)),
     ];
 
     throw new AppError(found.map((each) => relocate(each, root)));
@@ -552,18 +449,13 @@ export const compileViews = async (
 
   const program = result.program as unknown as Valance.Program;
   const enriched = (program as unknown as { readonly model: unknown }).model;
-  const manifestOfProgram =
-    typeof enriched === "string" ? JSON.parse(enriched) : enriched;
+  const manifestOfProgram = typeof enriched === "string" ? JSON.parse(enriched) : enriched;
 
   return {
     program,
     manifest: manifestOfProgram,
     tree,
-    files: Object.fromEntries(
-      used
-        .filter((template) => !template.builtIn)
-        .map((template) => [template.path, template.component]),
-    ),
+    files: Object.fromEntries(used.filter((template) => !template.builtIn).map((template) => [template.path, template.component])),
     components: used.map((template) => template.component),
     templates: used.map((template) => ({
       component: template.component,

@@ -1,13 +1,7 @@
 // Declared routes (`routes` in `defineApp`), checked against the acceptance list in docs/application-model/ROUTES.md. Each test names the statements (R-n) it is evidence for.
 import { init } from "@valancex/mesh-runtime";
 import * as Valance from "@valancex/valance";
-import {
-  application,
-  Navigation,
-  platformOf,
-  Store,
-  webStore,
-} from "@valancex/common/internal";
+import { application, Navigation, platformOf, Store, webStore } from "@valancex/common/internal";
 import type { TextStorage } from "@valancex/common/internal";
 import { Effect, Exit, Scope } from "effect";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -81,10 +75,7 @@ const withRoutes = (
       'theme: field(Schema.Literal("light", "dark"), "light"),',
       'theme: field(Schema.Literal("light", "dark"), "light"),\n    orderId: field(Schema.String, ""),\n    tab: field(Schema.Literal("all", "open"), "all"),',
     )
-    .replace(
-      "export default defineApp({",
-      `export default defineApp({${options.persist === true ? '\n  persist: ["navigation"],' : ""}${options.routes ?? ROUTES}`,
-    );
+    .replace("export default defineApp({", `export default defineApp({${options.persist === true ? '\n  persist: ["navigation"],' : ""}${options.routes ?? ROUTES}`);
   const layout = files["src/layout.mprx"]!.replace(
     "<screen />",
     '{#if route == "order"}<para class="order">Order {orderId} ({tab}) {title}</para>{:else if route == "settings"}<para class="settings">Settings {title}</para>{:else}<blocks items={blocks} />{/if}\n      <link class="nav-link" href="/orders/1" current="false">Order one</link>\n      <link class="nav-link" href="/settings" current="false">Settings</link>',
@@ -117,24 +108,12 @@ const started = async (root: string) => {
     const built = await compileViews(root, author);
     const app = application(readContent(root, config), built.program, author);
 
-    await init(
-      readFileSync(
-        createRequire(import.meta.url).resolve(
-          "@valancex/mesh-runtime/mesh-runtime.wasm",
-        ),
-      ),
-    );
+    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
 
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(
-      Valance.start(app).pipe(Scope.extend(scope)),
-    );
-    const state = () =>
-      Effect.runPromise(handle.state) as Promise<Record<string, any>>;
-    const run = (key: string, ...values: ReadonlyArray<unknown>) =>
-      Effect.runPromise(
-        handle.invoke(key, values.map((value) => ({ value })) as never),
-      );
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+    const state = () => Effect.runPromise(handle.state) as Promise<Record<string, any>>;
+    const run = (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(handle.invoke(key, values.map((value) => ({ value })) as never));
 
     return {
       state,
@@ -156,8 +135,7 @@ const bundleOf = (root: string): string => {
     .join("\n");
 };
 
-const problems = async (root: string): Promise<ReadonlyArray<string>> =>
-  (await check(root)).diagnostics.map((each) => `${each.file}:${each.code}`);
+const problems = async (root: string): Promise<ReadonlyArray<string>> => (await check(root)).diagnostics.map((each) => `${each.file}:${each.code}`);
 
 describe("entering a route (R-5 to R-9, R-17)", () => {
   it("go sets the canonical address, the route and the state `enter` makes, in one change; Back and Forward restore them", async () => {
@@ -264,27 +242,19 @@ describe("what the note says beyond the main path (R-3, R-12, R-18)", () => {
   }, 120_000);
 
   it("the author's `title` function still wins for the parts it returns, and the route's title stays the page part (R-12)", async () => {
-    const main = readFileSync(
-      join(withRoutes(), "src/main.ts"),
-      "utf8",
-    ).replace(
+    const main = readFileSync(join(withRoutes(), "src/main.ts"), "utf8").replace(
       "export default defineApp({",
       "export default defineApp({\n  title: (_state, page) => ({ app: `${page.title}!` }),",
     );
     const root = withRoutes({ extra: { "src/main.ts": main } });
 
     await build(root);
-    expect(
-      readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8"),
-    ).toContain("<title>Order 1 · Order 1!</title>");
+    expect(readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8")).toContain("<title>Order 1 · Order 1!</title>");
   }, 240_000);
 
   it("the application-wide guard is asked about declared addresses as it is about pages, and can stop a move (R-18)", async () => {
     const root = withRoutes();
-    const main = readFileSync(join(root, "src/main.ts"), "utf8").replace(
-      "export default defineApp({",
-      'export default defineApp({\n  guard: ({ to }) => to.name !== "/settings",',
-    );
+    const main = readFileSync(join(root, "src/main.ts"), "utf8").replace("export default defineApp({", 'export default defineApp({\n  guard: ({ to }) => to.name !== "/settings",');
     const t = await started(withRoutes({ extra: { "src/main.ts": main } }));
 
     await t.run("app/go", "/orders/3");
@@ -315,25 +285,13 @@ describe("what is easy to miss (R-9, R-5)", () => {
     const config = loadConfig(root);
     const loader = await createLoader(root, config);
     const author = await loadAuthor(loader, root).finally(() => undefined);
-    const app = application(
-      readContent(root, config),
-      (await compileViews(root, author)).program,
-      author,
-    );
+    const app = application(readContent(root, config), (await compileViews(root, author)).program, author);
 
     await loader.close();
-    await init(
-      readFileSync(
-        createRequire(import.meta.url).resolve(
-          "@valancex/mesh-runtime/mesh-runtime.wasm",
-        ),
-      ),
-    );
+    await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
 
     const area = storage();
-    const run = async <A>(
-      use: (handle: Valance.ApplicationHandle<any, any>) => Promise<A>,
-    ): Promise<A> => {
+    const run = async <A>(use: (handle: Valance.ApplicationHandle<any, any>) => Promise<A>): Promise<A> => {
       const scope = await Effect.runPromise(Scope.make());
       const platform = platformOf([
         [Store, webStore("Test", area)],
@@ -341,11 +299,7 @@ describe("what is easy to miss (R-9, R-5)", () => {
       ]);
 
       try {
-        return await use(
-          await Effect.runPromise(
-            Valance.start(app, { platform }).pipe(Scope.extend(scope)),
-          ),
-        );
+        return await use(await Effect.runPromise(Valance.start(app, { platform }).pipe(Scope.extend(scope))));
       } finally {
         await Effect.runPromise(Scope.close(scope, Exit.void));
       }
@@ -357,22 +311,12 @@ describe("what is easy to miss (R-9, R-5)", () => {
     };
 
     await run(async (handle) => {
-      await Effect.runPromise(
-        handle.invoke("app/go", [{ value: "/orders/5?tab=open" }] as never),
-      );
-      await settle(
-        async () =>
-          area.map.size > 0 &&
-          [...area.map.values()].some((text) => text.includes("orders/5")),
-      );
+      await Effect.runPromise(handle.invoke("app/go", [{ value: "/orders/5?tab=open" }] as never));
+      await settle(async () => area.map.size > 0 && [...area.map.values()].some((text) => text.includes("orders/5")));
     });
 
     await run(async (handle) => {
-      await settle(async () =>
-        (
-          (await Effect.runPromise(handle.state)) as { page: string }
-        ).page.startsWith("/orders"),
-      );
+      await settle(async () => ((await Effect.runPromise(handle.state)) as { page: string }).page.startsWith("/orders"));
       expect(await Effect.runPromise(handle.state)).toMatchObject({
         page: "/orders/5?tab=open",
         route: "order",
@@ -399,20 +343,12 @@ describe("what is easy to miss (R-9, R-5)", () => {
   it("under a base, the address is the base followed by the page: pages are written there and a layout's literal link gets it (R-5)", async () => {
     const root = withRoutes({ base: "/docs/", url: "https://example.com" });
     const built = await build(root);
-    const html = readFileSync(
-      join(root, "dist/web/orders/1/index.html"),
-      "utf8",
-    );
+    const html = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
 
     expect(built.pages).toContain("/docs/orders/1");
     expect(html).toContain('href="/docs/orders/1"');
-    expect(html).toContain(
-      'rel="canonical" href="https://example.com/docs/orders/1"',
-    );
-    expect((await info(root)).declared[0]!.pages).toEqual([
-      "/docs/orders/1",
-      "/docs/orders/2",
-    ]);
+    expect(html).toContain('rel="canonical" href="https://example.com/docs/orders/1"');
+    expect((await info(root)).declared[0]!.pages).toEqual(["/docs/orders/1", "/docs/orders/2"]);
   }, 240_000);
 });
 
@@ -421,26 +357,15 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
     const cases: ReadonlyArray<readonly [string, RegExp]> = [
       [`routes: { "": route("/a") },`, /needs a name/],
       [`routes: { a: route("a") },`, /must start with "\//],
-      [
-        `routes: { a: route("/a", { nope: 1 } as never) },`,
-        /unknown settings "nope"/,
-      ],
+      [`routes: { a: route("/a", { nope: 1 } as never) },`, /unknown settings "nope"/],
       [`routes: { a: route("/a"), b: route("/a") },`, /cannot be told apart/],
-      [
-        `routes: { a: route("/a/:id", { query: Schema.Struct({ id: Schema.String }) }) },`,
-        /both a path parameter and a query key/,
-      ],
-      [
-        `routes: { a: route("/a", { enter: 1 as never }) },`,
-        /`enter` must be a function/,
-      ],
+      [`routes: { a: route("/a/:id", { query: Schema.Struct({ id: Schema.String }) }) },`, /both a path parameter and a query key/],
+      [`routes: { a: route("/a", { enter: 1 as never }) },`, /`enter` must be a function/],
       [`routes: { notFound: route("/a") },`, /not-found name/],
     ];
 
     for (const [routes, message] of cases) {
-      const found = (await check(withRoutes({ routes }))).diagnostics.filter(
-        (each) => each.code === "entry-definition",
-      );
+      const found = (await check(withRoutes({ routes }))).diagnostics.filter((each) => each.code === "entry-definition");
 
       expect(found, routes).toHaveLength(1);
       expect(found[0]!.message, routes).toMatch(message);
@@ -456,24 +381,14 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
         }),
       ),
     ).toContain("src/main.ts:route-conflict");
-    expect(
-      await problems(withRoutes({ routes: `routes: { home: route("/") },` })),
-    ).toContain("src/main.ts:route-conflict");
+    expect(await problems(withRoutes({ routes: `routes: { home: route("/") },` }))).toContain("src/main.ts:route-conflict");
 
-    const taken =
-      (await check(withRoutes())).diagnostics.length === 0
-        ? withRoutes()
-        : undefined;
+    const taken = (await check(withRoutes())).diagnostics.length === 0 ? withRoutes() : undefined;
 
     expect(taken).toBeDefined();
 
-    const main = readFileSync(join(taken!, "src/main.ts"), "utf8").replace(
-      "orderId: field(Schema.String",
-      "route: field(Schema.String",
-    );
-    const clash = (
-      await check(withRoutes({ extra: { "src/main.ts": main } }))
-    ).diagnostics.filter((each) => each.code === "entry-definition");
+    const main = readFileSync(join(taken!, "src/main.ts"), "utf8").replace("orderId: field(Schema.String", "route: field(Schema.String");
+    const clash = (await check(withRoutes({ extra: { "src/main.ts": main } }))).diagnostics.filter((each) => each.code === "entry-definition");
 
     expect(clash).toHaveLength(1);
     expect(clash[0]!.message).toContain('"route"');
@@ -482,18 +397,12 @@ describe("declaring routes (R-1 to R-4, R-19)", () => {
   it("a staticParams entry that does not fit its Schema is a diagnostic from check, build and info, not a crash (R-14, R-19)", async () => {
     const routes = `routes: { order: route("/orders/:id", { params: Schema.Struct({ id: Schema.NumberFromString }), staticParams: () => [{ id: "x" as never }] }) },`;
     const root = withRoutes({ routes });
-    const found = (await check(root)).diagnostics.filter(
-      (each) => each.code === "entry-definition",
-    );
+    const found = (await check(root)).diagnostics.filter((each) => each.code === "entry-definition");
 
     expect(found).toHaveLength(1);
-    expect(found[0]!.message).toContain(
-      "a `staticParams` entry does not fit its `params` Schema",
-    );
+    expect(found[0]!.message).toContain("a `staticParams` entry does not fit its `params` Schema");
     await expect(build(root)).rejects.toThrow("entry-definition");
-    expect((await info(root)).problems.map((each) => each.code)).toEqual([
-      "entry-definition",
-    ]);
+    expect((await info(root)).problems.map((each) => each.code)).toEqual(["entry-definition"]);
   }, 180_000);
 
   it("a route with parameters and no staticParams cannot be built, and check and build both say so (R-14)", async () => {
@@ -510,29 +419,15 @@ describe("a built site (R-11 to R-14, R-16)", () => {
     const root = withRoutes({ url: "https://example.com" });
     const built = await build(root);
 
-    expect(built.pages).toEqual([
-      "/",
-      "/guide/getting-started",
-      "/guide/writing-pages",
-      "/orders/1",
-      "/orders/2",
-      "/settings",
-    ]);
+    expect(built.pages).toEqual(["/", "/guide/getting-started", "/guide/writing-pages", "/orders/1", "/orders/2", "/settings"]);
 
-    const order = readFileSync(
-      join(root, "dist/web/orders/1/index.html"),
-      "utf8",
-    );
+    const order = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
 
     expect(order).toContain("<title>Order 1 · Test</title>");
     expect(order).toContain("Order 1 (all) Order 1");
-    expect(order).toContain(
-      'rel="canonical" href="https://example.com/orders/1"',
-    );
+    expect(order).toContain('rel="canonical" href="https://example.com/orders/1"');
     expect(order).not.toContain("<h1"); // the navigation is the content's, but `blocks` is empty for a route // `blocks` is empty for a route: the layout drew the order, not a page
-    expect(
-      readFileSync(join(root, "dist/web/settings/index.html"), "utf8"),
-    ).toContain("<title>Settings · Test</title>");
+    expect(readFileSync(join(root, "dist/web/settings/index.html"), "utf8")).toContain("<title>Settings · Test</title>");
     expect(existsSync(join(root, "dist/web/orders/3/index.html"))).toBe(false); // not in staticParams
     expect(bundleOf(root)).toContain("cannot be told apart");
     const sitemap = readFileSync(join(root, "dist/web/sitemap.xml"), "utf8");
@@ -543,20 +438,10 @@ describe("a built site (R-11 to R-14, R-16)", () => {
   }, 240_000);
 
   it("is the same for a project with no routes: no `route`, the files it always had", async () => {
-    const root = project(
-      Object.fromEntries(
-        [...plan({ ...answers }).files].filter(
-          ([name]) => name !== "package.json" && name !== "valance.json",
-        ),
-      ),
-    );
+    const root = project(Object.fromEntries([...plan({ ...answers }).files].filter(([name]) => name !== "package.json" && name !== "valance.json")));
     const built = await build(root);
 
-    expect(built.pages).toEqual([
-      "/",
-      "/guide/getting-started",
-      "/guide/writing-pages",
-    ]);
+    expect(built.pages).toEqual(["/", "/guide/getting-started", "/guide/writing-pages"]);
     expect(bundleOf(root)).not.toContain("cannot be told apart"); // the router is in the page only when a route is declared
   }, 240_000);
 });
@@ -568,31 +453,15 @@ describe("a site whose pages end in a slash (trailingSlash: always)", () => {
       url: "https://example.com",
     });
     const built = await build(root);
-    const order = readFileSync(
-      join(root, "dist/web/orders/1/index.html"),
-      "utf8",
-    );
+    const order = readFileSync(join(root, "dist/web/orders/1/index.html"), "utf8");
     const home = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
-    expect(built.pages).toEqual([
-      "/",
-      "/guide/getting-started/",
-      "/guide/writing-pages/",
-      "/orders/1/",
-      "/orders/2/",
-      "/settings/",
-    ]);
-    expect(order).toContain(
-      'rel="canonical" href="https://example.com/orders/1/"',
-    );
+    expect(built.pages).toEqual(["/", "/guide/getting-started/", "/guide/writing-pages/", "/orders/1/", "/orders/2/", "/settings/"]);
+    expect(order).toContain('rel="canonical" href="https://example.com/orders/1/"');
     expect(order).toContain('href="/orders/1/"'); // the layout's literal link
     expect(home).toContain('href="/guide/getting-started/"'); // the navigation
-    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).toContain(
-      "<loc>https://example.com/guide/getting-started/</loc>",
-    );
-    expect(
-      existsSync(join(root, "dist/web/guide/getting-started/index.html")),
-    ).toBe(true); // the files are the same
+    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).toContain("<loc>https://example.com/guide/getting-started/</loc>");
+    expect(existsSync(join(root, "dist/web/guide/getting-started/index.html"))).toBe(true); // the files are the same
   }, 240_000);
 
   it("is the one form under a base too, and vlx info says which it is", async () => {
@@ -603,10 +472,7 @@ describe("a site whose pages end in a slash (trailingSlash: always)", () => {
       base: "/docs/",
       trailingSlash: "always",
     });
-    expect(found.declared[0]!.pages).toEqual([
-      "/docs/orders/1/",
-      "/docs/orders/2/",
-    ]);
+    expect(found.declared[0]!.pages).toEqual(["/docs/orders/1/", "/docs/orders/2/"]);
     expect(render(found)).toContain("addressed with a trailing slash");
   }, 120_000);
 });
@@ -656,9 +522,7 @@ describe("vlx dev and vlx info (R-15, R-20)", () => {
 });
 
 /** A built site served the way a static host does: a file, or a directory's index.html, or 404. */
-const serve = async (
-  dist: string,
-): Promise<{ readonly origin: string; readonly close: () => void }> => {
+const serve = async (dist: string): Promise<{ readonly origin: string; readonly close: () => void }> => {
   const types: Record<string, string> = {
     ".html": "text/html",
     ".js": "text/javascript",
@@ -667,12 +531,30 @@ const serve = async (
     ".svg": "image/svg+xml",
   };
   const server = createServer((request, response) => {
-    const path = decodeURIComponent(
-      new URL(request.url ?? "/", "http://x").pathname,
-    );
-    const file = [join(dist, path), join(dist, path, "index.html")].find(
-      (each) => existsSync(each) && /\.[a-z0-9]+$/.test(each),
-    );
+    const path = decodeURIComponent(new URL(request.url ?? "/", "http://x").pathname);
+    const file = [join(dist, path), join(dist, path, "index.html")].find((each) => existsSync(each) && /\.[a-z0-9]+$/.test(each));
+
+    // `_redirects`, as Netlify and Cloudflare Pages read it: a rewrite (status 200) whose `:name` is one segment and whose `*` is the rest.
+    const rewrite = existsSync(join(dist, "_redirects"))
+      ? readFileSync(join(dist, "_redirects"), "utf8")
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .map((line) => line.trim().split(/\s+/) as [string, string, string])
+          .find(([from]) =>
+            new RegExp(
+              `^${from
+                .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+                .replace(/:[A-Za-z_]+/g, "[^/]+")
+                .replace(/\*/g, ".*")}/?$`,
+            ).test(path),
+          )
+      : undefined;
+
+    if (file === undefined && rewrite !== undefined) {
+      response.setHeader("content-type", "text/html");
+      response.end(readFileSync(join(dist, rewrite[1])));
+      return;
+    }
 
     if (file === undefined) {
       // what a static host does for an address with no file: its 404 page, with a 404 status
@@ -682,10 +564,7 @@ const serve = async (
       return;
     }
 
-    response.setHeader(
-      "content-type",
-      types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream",
-    );
+    response.setHeader("content-type", types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream");
     response.end(readFileSync(file));
   });
 
@@ -717,28 +596,16 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
       await page.click('a[href="/orders/1"]');
       await page.waitForSelector("p.order");
       expect(await page.textContent("p.order")).toBe("Order 1 (all) Order 1");
-      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(
-        "/orders/1",
-      );
-      expect(
-        await page.evaluate(
-          () => (window as unknown as { __kept?: boolean }).__kept,
-        ),
-      ).toBe(true); // no reload
+      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe("/orders/1");
+      expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true); // no reload
       expect(await page.title()).toBe("Order 1 · Test");
       await page.goBack();
-      await page.waitForFunction(
-        () => document.querySelector("p.order") === null,
-      );
+      await page.waitForFunction(() => document.querySelector("p.order") === null);
 
       // A static page cannot see its query; the browser can. Opening /orders/2?tab=open keeps the query and applies `enter` to it.
       await page.goto(`${site.origin}/orders/2?tab=open`);
       await page.waitForSelector('#app[data-valance="running"]');
-      await page.waitForFunction(
-        () =>
-          document.querySelector("p.order")?.textContent ===
-          "Order 2 (open) Order 2",
-      );
+      await page.waitForFunction(() => document.querySelector("p.order")?.textContent === "Order 2 (open) Order 2");
       expect(new URL(page.url()).search).toBe("?tab=open");
     } finally {
       await browser.close();
@@ -753,10 +620,7 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
     await build(never);
     await build(always);
 
-    const sites = [
-      await serve(join(never, "dist/web")),
-      await serve(join(always, "dist/web")),
-    ];
+    const sites = [await serve(join(never, "dist/web")), await serve(join(always, "dist/web"))];
     const browser = await chromium.launch();
     const at = async (origin: string, address: string): Promise<string> => {
       const page = await browser.newPage();
@@ -776,18 +640,10 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
     };
 
     try {
-      expect(await at(sites[0]!.origin, "/orders/2/?tab=open")).toBe(
-        "/orders/2?tab=open",
-      ); // never (the default)
-      expect(await at(sites[0]!.origin, "/guide/getting-started/#top")).toBe(
-        "/guide/getting-started#top",
-      );
-      expect(await at(sites[1]!.origin, "/orders/2?tab=open")).toBe(
-        "/orders/2/?tab=open",
-      ); // always
-      expect(await at(sites[1]!.origin, "/guide/getting-started")).toBe(
-        "/guide/getting-started/",
-      );
+      expect(await at(sites[0]!.origin, "/orders/2/?tab=open")).toBe("/orders/2?tab=open"); // never (the default)
+      expect(await at(sites[0]!.origin, "/guide/getting-started/#top")).toBe("/guide/getting-started#top");
+      expect(await at(sites[1]!.origin, "/orders/2?tab=open")).toBe("/orders/2/?tab=open"); // always
+      expect(await at(sites[1]!.origin, "/guide/getting-started")).toBe("/guide/getting-started/");
       expect(await at(sites[0]!.origin, "/nowhere/")).toBe("/nowhere/"); // not a page: left as it was written
     } finally {
       await browser.close();
@@ -797,34 +653,25 @@ describe("in a browser (R-5, R-6, R-9, R-22)", () => {
 });
 
 describe("links to declared routes (R-30 to R-32)", () => {
-  const links = (body: string): string =>
-    `---\ntitle: Links\n---\n\n# Links\n\n${body}\n`;
+  const links = (body: string): string => `---\ntitle: Links\n---\n\n# Links\n\n${body}\n`;
 
   it("a Markdown link to a declared address is accepted and written under base and policy, with its query and fragment; one to nothing is link-broken with its line (R-30, R-31)", async () => {
     const root = withRoutes({
       base: "/docs/",
       trailingSlash: "always",
       extra: {
-        "content/links.md": links(
-          "[order](/orders/42?tab=open#top) and [settings](/settings) and [gone](/nowhere)",
-        ),
+        "content/links.md": links("[order](/orders/42?tab=open#top) and [settings](/settings) and [gone](/nowhere)"),
       },
     });
-    const found = (await check(root)).diagnostics.filter(
-      (each) => each.code === "link-broken",
-    );
+    const found = (await check(root)).diagnostics.filter((each) => each.code === "link-broken");
 
-    expect(found.map((each) => `${each.file}:${each.line}`)).toEqual([
-      "content/links.md:7",
-    ]);
+    expect(found.map((each) => `${each.file}:${each.line}`)).toEqual(["content/links.md:7"]);
 
     const ok = withRoutes({
       base: "/docs/",
       trailingSlash: "always",
       extra: {
-        "content/links.md": links(
-          "[order](/orders/42?tab=open#top) and [settings](/settings)",
-        ),
+        "content/links.md": links("[order](/orders/42?tab=open#top) and [settings](/settings)"),
       },
     });
 
@@ -844,9 +691,7 @@ describe("links to declared routes (R-30 to R-32)", () => {
         "content/links.md": links("[good](/orders/7) [bad](/orders/x)"),
       },
     });
-    const found = (await check(root)).diagnostics.filter(
-      (each) => each.code === "link-broken",
-    );
+    const found = (await check(root)).diagnostics.filter((each) => each.code === "link-broken");
 
     expect(found).toHaveLength(1);
     expect(found[0]!.message).toContain("/orders/x");
@@ -855,23 +700,145 @@ describe("links to declared routes (R-30 to R-32)", () => {
   it("a template's literal href is checked against pages, routes and public/, with file, line and column; a built-in layout's links are not (R-30)", async () => {
     const root = withRoutes();
     const layoutFile = join(root, "src/layout.mprx");
-    const layout = readFileSync(layoutFile, "utf8").replace(
-      '<link class="nav-link" href="/settings" current="false">',
-      '<link class="nav-link" href="/missing" current="false">',
-    );
+    const layout = readFileSync(layoutFile, "utf8").replace('<link class="nav-link" href="/settings" current="false">', '<link class="nav-link" href="/missing" current="false">');
 
     writeFileSync(layoutFile, layout);
 
-    const found = (await check(root)).diagnostics.filter(
-      (each) => each.code === "link-broken",
-    );
+    const found = (await check(root)).diagnostics.filter((each) => each.code === "link-broken");
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ file: "src/layout.mprx" });
-    expect(found[0]!.line).toBe(
-      layout.split("\n").findIndex((line) => line.includes("/missing")) + 1,
-    );
+    expect(found[0]!.line).toBe(layout.split("\n").findIndex((line) => line.includes("/missing")) + 1);
     expect(found[0]!.column).toBeGreaterThan(1);
     expect((await check(withRoutes())).diagnostics).toEqual([]);
   }, 180_000);
+});
+
+describe("client delivery (R-33 to R-38)", () => {
+  const CLIENT = `routes: {
+    order: route("/orders/:id", {
+      params: Schema.Struct({ id: Schema.String }),
+      query: Schema.Struct({ tab: Schema.optional(Schema.Literal("all", "open")) }),
+      title: ({ id }) => \`Order \${id}\`,
+      enter: ({ id, tab }, state) => ({ ...state, orderId: id, tab: tab ?? "all" }),
+      delivery: "client",
+    }),
+    settings: route("/settings", { title: "Settings" }),
+  },`;
+
+  it("refuses what cannot work: staticParams on a client route, and a delivery that is neither (R-36)", async () => {
+    const both = withRoutes({ routes: `routes: { order: route("/orders/:id", { delivery: "client", staticParams: () => [{ id: "1" }] }) },` });
+    const odd = withRoutes({ routes: `routes: { order: route("/orders/:id", { delivery: "server" as never }) },` });
+
+    expect((await check(both)).diagnostics.map((each) => each.code)).toEqual(["entry-definition"]);
+    expect((await check(both)).diagnostics[0]!.message).toContain("has `staticParams`");
+    expect((await check(odd)).diagnostics[0]!.message).toContain('`delivery` is "static" or "client"');
+  }, 180_000);
+
+  it("a client route needs no staticParams, writes no page, and is listed by vlx info (R-33, R-36)", async () => {
+    const root = withRoutes({ routes: CLIENT, url: "https://example.com" });
+
+    expect(await problems(root)).toEqual([]); // no route-static-params
+    expect((await info(root)).declared.map((each) => `${each.name}:${each.pages.length}`)).toEqual(["order:0", "settings:1"]);
+    expect((await info(root)).declared[0]).toMatchObject({ buildable: true });
+
+    const built = await build(root);
+
+    expect(built.pages).toEqual(["/", "/guide/getting-started", "/guide/writing-pages", "/settings"]);
+    expect(existsSync(join(root, "dist/web/orders"))).toBe(false);
+    expect(readFileSync(join(root, "dist/web/sitemap.xml"), "utf8")).not.toContain("/orders"); // R-32
+  }, 240_000);
+
+  it("writes the shell with an empty #app and `_redirects` naming each client route, under the base (R-33, R-35)", async () => {
+    const root = withRoutes({ routes: CLIENT, base: "/docs/" });
+
+    await build(root);
+
+    const shell = readFileSync(join(root, "dist/web/__app-shell.html"), "utf8");
+
+    expect(shell).toContain('<div id="app"></div>');
+    expect(shell).toContain('"shell":true');
+    expect(shell).not.toContain("Order "); // nothing of any address
+    expect(readFileSync(join(root, "dist/web/_redirects"), "utf8")).toBe("/docs/orders/:id  /docs/__app-shell.html  200\n");
+  }, 240_000);
+
+  it("a project with no client route writes neither the shell nor `_redirects` (R-35)", async () => {
+    const root = withRoutes();
+
+    await build(root);
+    expect(existsSync(join(root, "dist/web/__app-shell.html"))).toBe(false);
+    expect(existsSync(join(root, "dist/web/_redirects"))).toBe(false);
+  }, 240_000);
+
+  it("rendering: client writes no page, the shell and a catch-all, and still checks links (R-37)", async () => {
+    const root = withRoutes({ routes: CLIENT, url: "https://example.com" });
+    const web = JSON.parse(readFileSync(join(root, "valance.web.json"), "utf8")) as Record<string, unknown>;
+
+    writeFileSync(join(root, "valance.web.json"), JSON.stringify({ ...web, rendering: "client" }));
+
+    const built = await build(root);
+
+    expect(built.pages).toEqual([]);
+    expect(built.rendering).toBe("client");
+    expect(existsSync(join(root, "dist/web/index.html"))).toBe(false);
+    expect(existsSync(join(root, "dist/web/guide"))).toBe(false);
+    expect(existsSync(join(root, "dist/web/__app-shell.html"))).toBe(true);
+    expect(existsSync(join(root, "dist/web/404.html"))).toBe(true);
+    expect(readFileSync(join(root, "dist/web/_redirects"), "utf8")).toBe("/*  /__app-shell.html  200\n");
+    expect(existsSync(join(root, "dist/web/sitemap.xml"))).toBe(false);
+
+    writeFileSync(join(root, "content/links.md"), "---\ntitle: Links\n---\n\n# Links\n\n[gone](/nowhere)\n");
+    await expect(build(root)).rejects.toThrow("link-broken");
+  }, 300_000);
+
+  it("vlx dev answers a client route with the shell and a static one with its page (R-38)", async () => {
+    const root = withRoutes({ routes: CLIENT });
+    const running = await dev(root, { port: 0, log: () => undefined });
+
+    try {
+      const shell = await (await fetch(`${running.url}orders/77?tab=open`)).text();
+      const page = await (await fetch(`${running.url}settings`)).text();
+
+      expect(shell).toContain('<div id="app"></div>');
+      expect(shell).toContain('"shell":true');
+      expect(page).toContain("Settings Settings");
+    } finally {
+      await running.close();
+    }
+  }, 180_000);
+
+  it("in Chromium, an address of a client route is answered by the shell and drawn from the address bar: parameter, query, trailing slash, and a link to a static page (R-34)", async () => {
+    const root = withRoutes({ routes: CLIENT });
+
+    await build(root);
+
+    const site = await serve(join(root, "dist/web"));
+    const browser = await chromium.launch();
+
+    try {
+      const raw = await (await fetch(`${site.origin}/orders/77`)).text();
+
+      expect(raw).toContain('<div id="app"></div>'); // what a crawler or a slow connection gets: no page, and no wrong page
+
+      const page = await browser.newPage();
+
+      await page.goto(`${site.origin}/orders/77?tab=open`);
+      await page.waitForSelector('#app[data-valance="running"]');
+      await page.waitForFunction(() => document.querySelector("p.order")?.textContent === "Order 77 (open) Order 77");
+      expect(await page.title()).toBe("Order 77 · Test");
+      expect(new URL(page.url()).search).toBe("?tab=open");
+
+      await page.goto(`${site.origin}/orders/5/`);
+      await page.waitForSelector('#app[data-valance="running"]');
+      await page.waitForFunction(() => document.querySelector("p.order")?.textContent === "Order 5 (all) Order 5");
+      expect(new URL(page.url()).pathname).toBe("/orders/5"); // the policy's form, put there by the page
+
+      await page.click('a[href="/settings"]'); // a link to a static page changes the page in place
+      await page.waitForSelector("p.settings");
+      expect(new URL(page.url()).pathname).toBe("/settings");
+    } finally {
+      await browser.close();
+      site.close();
+    }
+  }, 300_000);
 });

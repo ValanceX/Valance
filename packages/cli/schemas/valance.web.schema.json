@@ -26,10 +26,11 @@
     },
     "rendering": {
       "enum": [
-        "static"
+        "static",
+        "client"
       ],
       "default": "static",
-      "description": "How pages are delivered. \"static\": every page is rendered to HTML when the site is built and the browser takes it over. (\"client\" and \"server\" are not available yet.)"
+      "description": "How pages are delivered. \"static\": every page is rendered to HTML when the site is built and the browser takes it over. \"client\": no page is written; the host answers every address with the app shell and the browser draws the page (a single route can opt in with delivery: \"client\"). (\"server\" is not available yet.)"
     },
     "trailingSlash": {
       "enum": [

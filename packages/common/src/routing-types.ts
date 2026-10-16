@@ -21,8 +21,13 @@ export interface RouteConfig<P, Q> {
    * name and running the command named like each event it declares. It must be listed in `components` and declare its `props` and `events`.
    */
   readonly screen?: Component;
-  /** The parameter sets a build writes a page for. A route with parameters and no `staticParams` cannot be built until client delivery exists. */
+  /** The parameter sets a build writes a page for. A route with parameters and no `staticParams` cannot be built unless it is `delivery: "client"`. */
   readonly staticParams?: () => ReadonlyArray<P>;
+  /**
+   * How the route's pages reach the browser. `"static"` (the default): the build writes a page for each address, and the browser takes it over. `"client"`: the build writes no page; the host answers
+   * the route's addresses with the app shell and the browser draws the page from the address bar. Use it for a route whose addresses are not known at build time (`/orders/:id` for any id).
+   */
+  readonly delivery?: "static" | "client";
 }
 
 export const ROUTE = Symbol.for("valancex.common.route");
@@ -42,4 +47,4 @@ export interface DeclaredRoute<P = any, Q = any> {
   readonly router: RouterApi;
 }
 
-export const KEYS = ["params", "query", "title", "enter", "screen", "staticParams"] as const;
+export const KEYS = ["params", "query", "title", "enter", "screen", "staticParams", "delivery"] as const;

@@ -410,3 +410,21 @@ Checked 2026-10-16 against `cli/src/content.ts`, `cli/src/addresses.ts`, `cli/sr
 **Differences from the note**
 - The build, `check`, `dev` and `info` now load the definition *before* reading the content, because a link can lead to a route. When the definition cannot be loaded, the content is read with the routes "unknown" and a link that leads nowhere is not reported (the definition's own mistake is). `vlx dev` reads the content again when `src/main.ts` changes, for the same reason.
 - A Markdown link to a page may now carry a query (`/guide/a?x=1`); it was `link-broken` before and is kept as written now.
+
+### Implementation status, slice 6b
+
+Checked 2026-10-16 against `common/src/{routing-engine,routing-types,server,client}.ts`, `cli/src/{build,dev,emit,config,info}.ts` and `cli/test/routes.test.ts` ("client delivery").
+
+| Statement | Status | Evidence |
+|---|---|---|
+| R-33 Shell | Matches | the build writes `__app-shell.html` (an empty `#app`, boot data `{"shell":true}`, script, stylesheets) and no page for a client route; Chromium is answered with it for `/orders/77` |
+| R-34 Draws | Matches | the browser test: parameter, query (`?tab=open`), a trailing slash (moved to the policy's form), title set; a link to a static page changes the page in place |
+| R-35 `_redirects` | Matches | `/docs/orders/:id  /docs/__app-shell.html  200` under a base; a rest segment `*name` is written `*`; none when no client route exists; a project's own `public/_redirects` is kept |
+| R-36 No static pages | Matches | `staticParams` with `delivery: "client"` is `entry-definition`; no `route-static-params`; `vlx info` says "answered by the app shell" |
+| R-37 `rendering: "client"` | Matches, with two choices | `pages: []`, the shell, `/*  /__app-shell.html  200`, `404.html`, no sitemap (there is no page to list); links still checked. `404.html` is the rendered not-found page, as in static mode, not the shell |
+| R-38 Dev | Matches | `vlx dev` answers a client route (or every address, under `rendering: "client"`) with the shell and a static route with its page |
+
+**Differences from the note**
+- The shell carries the site's name as `<title>` and no canonical link: it is the same bytes for every address, so anything about the page would be wrong for most. The page sets the title when it starts. (The note said only "empty `#app`".)
+- A client route's `_redirects` line is written from its pattern, so a route that a content page's address also matches is caught by R-4 as before; two client routes with overlapping patterns keep the router's ranking in the page but the host's first-match order in `_redirects` (both lead to the same shell, so the order does not change the result).
+- Not exercised: Cloudflare Pages' and Netlify's own reading of the file (the test's host implements the documented `:name` and `*`).

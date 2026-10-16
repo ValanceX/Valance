@@ -50,12 +50,12 @@ describe("valance.json and valance.web.json", () => {
     expect(problems(project({ "valance.json": '{ "name": "x", "version": 2 }' }))).toEqual(["valance.json:1 config-value"]);
   });
 
-  it("accepts the one rendering there is, and says why the others are not available yet", () => {
+  it("accepts static and client, and says why server is not available yet", () => {
     expect(loadConfig(project({ "valance.web.json": '{ "rendering": "static" }' })).web.rendering).toBe("static");
-    expect(problems(project({ "valance.web.json": '{ "rendering": "client" }' }))).toEqual(["valance.web.json:1 config-value"]);
-    expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "client" }' }))).toThrow(/arrive with declared routes/);
+    expect(loadConfig(project({ "valance.web.json": '{ "rendering": "client" }' })).web.rendering).toBe("client");
+    expect(problems(project({ "valance.web.json": '{ "rendering": "server" }' }))).toEqual(["valance.web.json:1 config-value"]);
     expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "server" }' }))).toThrow(/needs a server platform/);
-    expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "ssr" }' }))).toThrow(/must be "static"/);
+    expect(() => loadConfig(project({ "valance.web.json": '{ "rendering": "ssr" }' }))).toThrow(/must be "static" or "client"/);
   });
 
   it("takes the trailing-slash policy, and says why the ones other routers offer are not", () => {

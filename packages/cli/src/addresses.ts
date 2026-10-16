@@ -10,11 +10,7 @@ import type { Diagnostic } from "./diagnostics.js";
 import { addressesIn } from "./outline.js";
 
 /** The template with the base put in front of each site address it writes. A base of "/" and a policy of "never" change nothing. */
-export const underBase = (
-  source: string,
-  base: string,
-  trailingSlash: TrailingSlash = "never",
-): string => {
+export const underBase = (source: string, base: string, trailingSlash: TrailingSlash = "never"): string => {
   if (base === "/" && trailingSlash === "never") {
     return source;
   }
@@ -23,10 +19,7 @@ export const underBase = (
 
   for (const address of [...addressesIn(source)].reverse()) {
     if (address.value.startsWith("/") && !address.value.startsWith("//")) {
-      const written =
-        address.attribute === "href"
-          ? pageUrl(base, address.value, trailingSlash)
-          : `${base}${address.value.slice(1)}`;
+      const written = address.attribute === "href" ? pageUrl(base, address.value, trailingSlash) : `${base}${address.value.slice(1)}`;
 
       out = `${out.slice(0, address.start)}${written}${out.slice(address.end)}`;
     }
@@ -36,27 +29,12 @@ export const underBase = (
 };
 
 /** The literal `href`s of `a` and `link` that start with a single "/" and lead to nothing `known` answers for: each as a `link-broken` diagnostic with its place in the template. */
-export const brokenLinks = (
-  source: string,
-  path: string,
-  known: (address: string) => boolean,
-): ReadonlyArray<Diagnostic> =>
+export const brokenLinks = (source: string, path: string, known: (address: string) => boolean): ReadonlyArray<Diagnostic> =>
   addressesIn(source)
-    .filter(
-      (address) =>
-        address.attribute === "href" &&
-        address.value.startsWith("/") &&
-        !address.value.startsWith("//"),
-    )
+    .filter((address) => address.attribute === "href" && address.value.startsWith("/") && !address.value.startsWith("//"))
     .filter((address) => !known(address.value.replace(/#.*$/, "")))
     .map((address) => {
       const before = source.slice(0, address.start).split("\n");
 
-      return diagnostic(
-        path,
-        before.length,
-        "link-broken",
-        `${address.value} leads to no page, no declared route and no file in public/`,
-        before[before.length - 1]!.length + 1,
-      );
+      return diagnostic(path, before.length, "link-broken", `${address.value} leads to no page, no declared route and no file in public/`, before[before.length - 1]!.length + 1);
     });

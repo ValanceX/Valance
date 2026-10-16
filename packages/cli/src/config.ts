@@ -16,7 +16,7 @@ export const DESKTOP_FILE = "valance.desktop.json";
 export const CONFIG_VERSION = 1;
 
 /** The ways a page can be delivered. Only `static` exists today; the setting is written out so the choice is visible and the others have a place to arrive. */
-export const RENDERINGS = ["static"] as const;
+export const RENDERINGS = ["static", "client"] as const;
 export type Rendering = (typeof RENDERINGS)[number];
 
 /** How a page's address is written: with a trailing slash or without. One form per page; a static host cannot redirect, so the page keeps it (see docs/application-model/ROUTES.md). */
@@ -124,8 +124,8 @@ const flag = (value: unknown): string | undefined => (typeof value === "boolean"
 const rendering = (value: unknown): string | undefined =>
   RENDERINGS.includes(value as Rendering)
     ? undefined
-    : value === "client" || value === "server"
-      ? `"${value}" is not available yet (${value === "client" ? "client-only pages arrive with declared routes" : "server rendering needs a server platform, which does not exist"}); the mode is "static"`
+    : value === "server"
+      ? `"server" is not available yet (server rendering needs a server platform, which does not exist); the modes are "static" and "client"`
       : `must be ${RENDERINGS.map((each) => `"${each}"`).join(" or ")}`;
 const trailingSlash = (value: unknown): string | undefined =>
   TRAILING_SLASHES.includes(value as TrailingSlash)
@@ -175,7 +175,25 @@ export const loadConfig = (root: string): Config => {
   const problems = [
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
     ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
-    ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, rendering, trailingSlash, headers: flag, announce: flag, api }, [])),
+    ...(web === undefined
+      ? []
+      : check(
+          WEB_FILE,
+          web.text,
+          web.value,
+          {
+            $schema: schema,
+            version,
+            base,
+            url,
+            rendering,
+            trailingSlash,
+            headers: flag,
+            announce: flag,
+            api,
+          },
+          [],
+        )),
   ];
 
   if (problems.length > 0) {
@@ -191,7 +209,10 @@ export const loadConfig = (root: string): Config => {
     readonly trailingSlash?: TrailingSlash;
     readonly api?: { readonly base: string; readonly proxy?: string };
   };
-  const named = project.value as { readonly name: string; readonly title?: string };
+  const named = project.value as {
+    readonly name: string;
+    readonly title?: string;
+  };
 
   return {
     name: named.name,

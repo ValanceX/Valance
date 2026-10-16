@@ -19,7 +19,7 @@ describe("routingOf", () => {
   const routing = routingOf({ order, settings: route("/settings", { title: "Settings" }) });
 
   it("matches an address to a route and writes the canonical address (R-6)", () => {
-    expect(routing.match("/orders/42?tab=open")).toEqual({ name: "order", input: { tab: "open", id: "42" }, address: "/orders/42?tab=open" });
+    expect(routing.match("/orders/42?tab=open")).toEqual({ name: "order", input: { tab: "open", id: "42" }, address: "/orders/42?tab=open", delivery: "static" });
     expect(routing.match("/orders/42/")?.address).toBe("/orders/42");
     expect(routing.match("/orders/a%20b")?.input).toEqual({ id: "a b" });
     expect(routing.match("/orders/42?tab=nope")).toBeUndefined(); // fails its Schema: not this route (R-8)
@@ -41,6 +41,17 @@ describe("routingOf", () => {
     expect(routing.titleOf("/orders/9")).toBe("Order 9");
     expect(routing.titleOf("/settings")).toBe("Settings");
     expect(routing.titleOf("/guide/a")).toBeUndefined();
+  });
+
+  it("a client route has no pages and is not missing staticParams; one with staticParams is refused (R-33, R-36)", () => {
+    const client = routingOf({ order: route("/orders/:id", { delivery: "client" }), home: route("/home") });
+
+    expect(client.pages()).toEqual({ addresses: ["/home"], missing: [] });
+    expect(client.match("/orders/9")?.delivery).toBe("client");
+    expect(client.match("/home")?.delivery).toBe("static");
+    expect(client.list.map((each) => each.delivery)).toEqual(["client", "static"]);
+    expect(() => routingOf({ order: route("/orders/:id", { delivery: "client", staticParams: () => [{ id: "1" }] }) })).toThrow("has `staticParams`");
+    expect(() => routingOf({ order: route("/orders/:id", { delivery: "server" as never }) })).toThrow('"static" or "client"');
   });
 
   it("lists the pages a build writes: one for a route without parameters, one per staticParams entry, encoded (R-14)", () => {

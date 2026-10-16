@@ -1,15 +1,7 @@
 // `vlx build`: the project → a static site in `dist/web/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
 // when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only what is built.
 import { build as bundle } from "vite";
-import {
-  copyFileSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
@@ -20,7 +12,7 @@ import { headersFile } from "./security.js";
 import { checkRoutes } from "./routes-check.js";
 import { checkStyles } from "./styles.js";
 import { AppError } from "./diagnostics.js";
-import { generateContent, generateEntries, generateProgram } from "./emit.js";
+import { generateContent, generateEntries, generateProgram, SHELL_FILE } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
 import { routingFor } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
@@ -54,12 +46,7 @@ const sitemap = (url: string, pathnames: ReadonlyArray<string>): string =>
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pathnames.map((pathname) => `  <url><loc>${url}${pathname}</loc></url>`).join("\n")}\n</urlset>\n`;
 
 /** The stages of a build, in order, as `onStage` reports them. */
-export type BuildStage =
-  | "configuration"
-  | "content"
-  | "templates"
-  | "bundle"
-  | "pages";
+export type BuildStage = "configuration" | "content" | "templates" | "bundle" | "pages";
 
 export interface BuildOptions {
   /** Called as each stage begins. */
@@ -71,9 +58,7 @@ export interface BuildOptions {
 /** The MESH runtime's module, found the way the project's own dependency would be: through `@valancex/common`, which depends on it. */
 const wasmOf = (root: string): string => {
   const fromRoot = createRequire(join(root, "package.json"));
-  const fromCommon = createRequire(
-    fromRoot.resolve("@valancex/common/package.json"),
-  );
+  const fromCommon = createRequire(fromRoot.resolve("@valancex/common/package.json"));
 
   return fromCommon.resolve("@valancex/mesh-runtime/mesh-runtime.wasm");
 };
@@ -102,8 +87,7 @@ const buildDesktop = async (root: string): Promise<Built> => {
         output: {
           format: "es",
           entryFileNames: "engine.mjs",
-          banner:
-            'import { createRequire as __vlxRequire } from "node:module"; const require = __vlxRequire(import.meta.url);',
+          banner: 'import { createRequire as __vlxRequire } from "node:module"; const require = __vlxRequire(import.meta.url);',
         },
       },
     },
@@ -149,16 +133,14 @@ const buildWeb = async (
       search?: string,
     ) => Promise<{ readonly status: number; readonly html: string }>;
     readonly paths: () => ReadonlyArray<string>;
+    readonly shell: (built: { readonly script: string; readonly styles: ReadonlyArray<string> }) => string;
+    readonly redirects: (everything: boolean) => string;
   };
 
   {
     const dist = join(root, out);
-    const manifest = JSON.parse(
-      readFileSync(join(dist, ".vite", "manifest.json"), "utf8"),
-    ) as Record<string, ManifestChunk>;
-    const entry = Object.values(manifest).find(
-      (chunk) => chunk.isEntry === true,
-    );
+    const manifest = JSON.parse(readFileSync(join(dist, ".vite", "manifest.json"), "utf8")) as Record<string, ManifestChunk>;
+    const entry = Object.values(manifest).find((chunk) => chunk.isEntry === true);
 
     if (entry === undefined) {
       throw new AppError([
@@ -184,25 +166,31 @@ const buildWeb = async (
       writeFileSync(join(dist, relative), text);
       files.push(relative);
     };
-    const pages = rendered.paths();
+    const everything = config.web.rendering === "client"; // R-37: no page is written, the shell answers every address
+    const pages = everything ? [] : rendered.paths();
 
     stage("pages");
 
     for (const pathname of pages) {
-      write(
-        fileOf(pathname, config.web.base),
-        (await rendered.render(pathname, built)).html,
-      );
+      write(fileOf(pathname, config.web.base), (await rendered.render(pathname, built)).html);
     }
 
     // An address that is not a page: the file a static host serves with a 404.
-    write(
-      "404.html",
-      (await rendered.render(`${config.web.base}404`, built)).html,
-    );
+    write("404.html", (await rendered.render(`${config.web.base}404`, built)).html);
 
-    if (config.web.url !== "") {
+    if (config.web.url !== "" && pages.length > 0) {
       write("sitemap.xml", sitemap(content.site.url, pages));
+    }
+
+    // The app shell and the rewrites that send the client routes' addresses to it (R-33, R-35). A host reads `_redirects` (Netlify, Cloudflare Pages); a project that brings its own keeps it.
+    const redirects = rendered.redirects(everything);
+
+    if (redirects !== "") {
+      write(SHELL_FILE, rendered.shell(built));
+
+      if (!existsSync(join(dist, "_redirects"))) {
+        write("_redirects", redirects);
+      }
     }
 
     // The headers to serve it with: the page is only as safe as the host makes it (src/security.ts).
@@ -219,10 +207,7 @@ const buildWeb = async (
   }
 };
 
-export const build = async (
-  root: string,
-  options: BuildOptions = {},
-): Promise<Built> => {
+export const build = async (root: string, options: BuildOptions = {}): Promise<Built> => {
   const stage = options.onStage ?? (() => undefined);
 
   stage("configuration");
@@ -265,9 +250,7 @@ export const build = async (
 
     stage("templates");
 
-    const routing = selected.includes("web")
-      ? checkRoutes(author, content)
-      : [];
+    const routing = selected.includes("web") ? checkRoutes(author, content) : [];
 
     if (routing.length > 0) {
       throw new AppError(routing);
@@ -277,17 +260,7 @@ export const build = async (
 
     // Each target writes to a directory of its own, whatever else the project has: dist/web/ and dist/desktop/.
     if (selected.includes("web")) {
-      built.push(
-        await buildWeb(
-          root,
-          config,
-          loader,
-          content,
-          `${OUTPUT_DIR}/web`,
-          "web/",
-          stage,
-        ),
-      );
+      built.push(await buildWeb(root, config, loader, content, `${OUTPUT_DIR}/web`, "web/", stage));
     }
 
     if (selected.includes("desktop")) {
@@ -298,9 +271,7 @@ export const build = async (
     await loader.close();
   }
 
-  const rendering = built.find(
-    (each) => each.rendering !== undefined,
-  )?.rendering;
+  const rendering = built.find((each) => each.rendering !== undefined)?.rendering;
 
   return {
     dir: join(root, OUTPUT_DIR),

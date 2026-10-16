@@ -35,7 +35,14 @@ const firstState = (content: Content, served: AppState, author?: DefinedApp): Ap
 
   return here.route === "" || here.page === served.page
     ? served
-    : { ...served, page: here.page, route: here.route, trail: here.trail, cursor: here.cursor, ...routedOwn(here, served) };
+    : {
+        ...served,
+        page: here.page,
+        route: here.route,
+        trail: here.trail,
+        cursor: here.cursor,
+        ...routedOwn(here, served),
+      };
 };
 
 /** The fields the route's `enter` set, which the served state did not have. */
@@ -66,22 +73,32 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
   const container = document.getElementById("app")!;
 
   try {
-    const boot = JSON.parse(document.getElementById("valance-boot")!.textContent!) as { readonly state: AppState; readonly built: Built };
+    const boot = JSON.parse(document.getElementById("valance-boot")!.textContent!) as {
+      readonly state?: AppState;
+      readonly shell?: true;
+      readonly built: Built;
+    };
 
     await init(wasmUrl);
 
-    // A static page cannot know the query it is opened with; the address bar does. For a declared route the first state is the address the person is at, so `?tab=open` is not lost.
-    const first = firstState(content, boot.state, author);
+    // The shell has drawn nothing and knows no address; the address bar is the first state (R-34). A static page cannot know the query it is opened with, and the address bar does: for a declared
+    // route the first state is the address the person is at, so `?tab=open` is not lost.
+    const shell = boot.shell === true;
+    const first = shell ? stateFor(content, window.location.pathname, author, window.location.search) : firstState(content, boot.state!, author);
 
     canonicalize(content, first);
 
     const host = await Web.run(application(content, program, author), {
       container,
-      present: "hydrate",
+      present: shell ? "mount" : "hydrate",
       state: first,
       plugins: [plugin(content, boot.built, author)],
       // What the application's commands may ask the page for: the backend (`Http`), at `api.base` of valance.web.json.
-      platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [], store: webStore(content.site.name) }),
+      platform: webPlatform({
+        base: content.site.api,
+        interceptors: author?.http?.interceptors ?? [],
+        store: webStore(content.site.name),
+      }),
       shutdown: { grace: "250 millis" },
     });
 

@@ -27,6 +27,8 @@ export interface Entered {
   readonly input: Readonly<Record<string, unknown>>;
   /** The canonical address (path and query, no base). */
   readonly address: string;
+  /** How the route's pages are delivered: written by the build (`static`) or drawn by the browser from the app shell (`client`). */
+  readonly delivery: "static" | "client";
 }
 
 export interface Routing {
@@ -39,11 +41,22 @@ export interface Routing {
   /** The page part of the title of a declared route's address, when the route has a title. */
   readonly titleOf: (address: string) => string | undefined;
   /** The addresses a build writes for declared routes (path and canonical query), and the routes that cannot be built without `staticParams`. */
-  readonly pages: () => { readonly addresses: ReadonlyArray<string>; readonly missing: ReadonlyArray<string> };
+  readonly pages: () => {
+    readonly addresses: ReadonlyArray<string>;
+    readonly missing: ReadonlyArray<string>;
+  };
   /** The routes that name a screen. */
-  readonly screens: ReadonlyArray<{ readonly route: string; readonly component: Component }>;
+  readonly screens: ReadonlyArray<{
+    readonly route: string;
+    readonly component: Component;
+  }>;
   /** The routes' names and patterns, for tools. */
-  readonly list: ReadonlyArray<{ readonly name: string; readonly pattern: string; readonly parameters: ReadonlyArray<string> }>;
+  readonly list: ReadonlyArray<{
+    readonly name: string;
+    readonly pattern: string;
+    readonly parameters: ReadonlyArray<string>;
+    readonly delivery: "static" | "client";
+  }>;
 }
 
 const NONE: Routing = {
@@ -95,6 +108,13 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
     if (each.config.title !== undefined && typeof each.config.title !== "string" && typeof each.config.title !== "function") {
       fail(`the route "${name}": \`title\` must be a string or a function`);
     }
+    if (each.config.delivery !== undefined && each.config.delivery !== "static" && each.config.delivery !== "client") {
+      fail(`the route "${name}": \`delivery\` is "static" or "client" (found ${JSON.stringify(each.config.delivery)})`);
+    }
+    if (each.config.delivery === "client" && each.config.staticParams !== undefined) {
+      fail(`the route "${name}" is \`delivery: "client"\` and has \`staticParams\`: a client route has no static pages, so they would be ignored. Remove one`);
+    }
+
     const screen = each.config.screen;
 
     if (screen !== undefined) {
@@ -148,7 +168,14 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
   const match: Routing["match"] = (address) => {
     const state = router.match(address);
 
-    return state.name === router.notFoundName ? undefined : { name: state.name, input: { ...state.query, ...state.params }, address: router.hrefOf(state) };
+    return state.name === router.notFoundName
+      ? undefined
+      : {
+          name: state.name,
+          input: { ...state.query, ...state.params },
+          address: router.hrefOf(state),
+          delivery: byName.get(state.name)!.config.delivery ?? "static",
+        };
   };
 
   return {
@@ -166,7 +193,12 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       // The route may set the application's state; which page is shown, and the trail, are not its to change.
       const next = enter(entered.input, named) as S;
 
-      return { ...next, page: state.page, route: named.route, ...("trail" in state ? { trail: (state as any).trail, cursor: (state as any).cursor } : {}) };
+      return {
+        ...next,
+        page: state.page,
+        route: named.route,
+        ...("trail" in state ? { trail: (state as any).trail, cursor: (state as any).cursor } : {}),
+      };
     },
     titleOf: (address) => {
       const entered = match(address);
@@ -179,6 +211,10 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       const missing: Array<string> = [];
 
       for (const [name, each] of entries) {
+        if (each.config.delivery === "client") {
+          continue; // no page is written for it: the shell answers
+        }
+
         const parametric = router.route(name)!.pattern.names.length > 0;
 
         if (!parametric) {
@@ -199,7 +235,12 @@ export const routingOf = (declared: Readonly<Record<string, DeclaredRoute>> | un
       return { addresses, missing };
     },
     screens: entries.flatMap(([name, each]) => (each.config.screen === undefined ? [] : [{ route: name, component: each.config.screen }])),
-    list: entries.map(([name, each]) => ({ name, pattern: each.pattern, parameters: router.route(name)!.pattern.names })),
+    list: entries.map(([name, each]) => ({
+      name,
+      pattern: each.pattern,
+      parameters: router.route(name)!.pattern.names,
+      delivery: each.config.delivery ?? "static",
+    })),
   };
 };
 
@@ -243,7 +284,10 @@ export const routeProblems = (
   const routing = routingFor(author);
 
   return [
-    ...conflicts(routing, contentPaths).map((message) => ({ code: "route-conflict", message })),
+    ...conflicts(routing, contentPaths).map((message) => ({
+      code: "route-conflict",
+      message,
+    })),
     ...routing.pages().missing.map((name) => ({
       code: "route-static-params",
       message: `the route "${name}" has path parameters and no \`staticParams\`, so a build has no page to write for it (pages that only the browser renders arrive with client delivery). Add \`staticParams: () => [{ … }]\`, or run it with \`vlx dev\``,

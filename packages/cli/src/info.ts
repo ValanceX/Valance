@@ -91,8 +91,11 @@ export const info = async (root: string): Promise<Info> => {
 
     declared = routing.list.map((each) => ({
       ...each,
-      delivery: config.web.rendering,
-      pages: addresses.filter((address) => routing.match(address)?.name === each.name).map((address) => pageUrl(config.web.base, address, config.web.trailingSlash)),
+      delivery: config.web.rendering === "client" ? "client" : each.delivery,
+      pages:
+        config.web.rendering === "client"
+          ? []
+          : addresses.filter((address) => routing.match(address)?.name === each.name).map((address) => pageUrl(config.web.base, address, config.web.trailingSlash)),
       buildable: !missing.includes(each.name),
       ...(routing.screens.some((screen) => screen.route === each.name) ? { screen: screenName(routing.screens.find((screen) => screen.route === each.name)!.component) } : {}),
     }));
@@ -185,7 +188,7 @@ export const render = (found: Info): string => {
 
   for (const each of found.declared) {
     lines.push(
-      `  ${each.pattern}  route "${each.name}"${each.screen === undefined ? "" : ` shows <${each.screen}>`}${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
+      `  ${each.pattern}  route "${each.name}"${each.screen === undefined ? "" : ` shows <${each.screen}>`}${each.parameters.length === 0 ? "" : ` (parameters ${each.parameters.join(", ")})`}  ${each.delivery === "client" ? "answered by the app shell" : each.buildable ? `${each.pages.length} page${each.pages.length === 1 ? "" : "s"} when built` : "needs staticParams to be built"}  ${each.delivery}`,
     );
   }
 

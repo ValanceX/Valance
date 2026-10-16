@@ -100,7 +100,9 @@ const styleTags = async (vite: ViteDevServer, root: string): Promise<string> => 
   const tags: Array<string> = [];
 
   for (const file of stylesheets(root)) {
-    const { default: css } = (await vite.ssrLoadModule(`/${file}?inline`)) as { default: string };
+    const { default: css } = (await vite.ssrLoadModule(`/${file}?inline`)) as {
+      default: string;
+    };
 
     tags.push(`<style type="text/css" data-vite-dev-id="${join(root, file).split(sep).join("/")}">${css.replace(/<\/style/gi, "<\\/style")}</style>`);
   }
@@ -130,7 +132,16 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
       strictPort: false,
       fs: { allow: [root] },
       // The backend, reached through the page's own origin: no CORS settings to write (valance.web.json `api`).
-      ...(config.api.proxy === "" || !config.api.base.startsWith("/") ? {} : { proxy: { [config.api.base.replace(/\/$/, "")]: { target: config.api.proxy, changeOrigin: true } } }),
+      ...(config.api.proxy === "" || !config.api.base.startsWith("/")
+        ? {}
+        : {
+            proxy: {
+              [config.api.base.replace(/\/$/, "")]: {
+                target: config.api.proxy,
+                changeOrigin: true,
+              },
+            },
+          }),
     },
     plugins: [
       ...(base.plugins ?? []),
@@ -149,10 +160,18 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
               }
 
               try {
-                const { render } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
+                const { render, shell, delivered } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
                   render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }, search?: string) => Promise<{ status: number; html: string }>;
+                  shell: (built: { script: string; styles: ReadonlyArray<string> }) => string;
+                  delivered: (pathname: string) => boolean;
                 };
-                const { status, html } = await render(url.pathname, { script: `${config.web.base}${GENERATED_DIR}/client.ts`, styles: [] }, url.search);
+                const built = {
+                  script: `${config.web.base}${GENERATED_DIR}/client.ts`,
+                  styles: [],
+                };
+                // What a host would do (R-38): a client route's address, or every address under `rendering: "client"`, is answered by the shell.
+                const { status, html } =
+                  config.web.rendering === "client" || delivered(url.pathname) ? { status: 200, html: shell(built) } : await render(url.pathname, built, url.search);
 
                 response.statusCode = status;
                 response.setHeader("content-type", "text/html; charset=utf-8");
@@ -325,7 +344,13 @@ export const dev = async (root: string, options: DevOptions = {}): Promise<Dev> 
 
   if (target !== undefined && !config.targets.includes(target)) {
     throw new AppError([
-      { file: "valance.json", line: 0, column: 0, code: "dev-target", message: `this project is not built for ${target} (its targets: ${config.targets.join(", ")})` },
+      {
+        file: "valance.json",
+        line: 0,
+        column: 0,
+        code: "dev-target",
+        message: `this project is not built for ${target} (its targets: ${config.targets.join(", ")})`,
+      },
     ]);
   }
 
