@@ -135,3 +135,38 @@ export const rootOf = (source: string): { readonly name: string; readonly classe
 
   return { name, classes: (written?.[1] ?? written?.[2] ?? "").split(/\s+/).filter((each) => each !== "") };
 };
+
+/** A literal address written on an element that makes one: `src` on an `image`, `href` on an `a` or a `link`. */
+export interface Address {
+  /** Where the value starts and ends in the source, quotes excluded. */
+  readonly start: number;
+  readonly end: number;
+  readonly value: string;
+}
+
+const ADDRESSED: Readonly<Record<string, string>> = { image: "src", a: "href", link: "href" };
+
+/** The literal addresses a template writes (`<image src="/logo.svg">`); an address built from an expression (`href={home}`) is not one. */
+export const addressesIn = (source: string): ReadonlyArray<Address> => {
+  const found: Array<Address> = [];
+
+  for (const tag of outline(source).tags) {
+    const attribute = ADDRESSED[tag.name];
+
+    if (attribute === undefined) {
+      continue;
+    }
+
+    const from = tag.offset + 1 + tag.name.length;
+    const end = endOfTag(source, from);
+    const written = new RegExp(`(?<![\\w.-])${attribute}\\s*=\\s*"([^"{}]*)"`).exec(source.slice(from, end));
+
+    if (written !== null) {
+      const start = from + written.index + written[0].length - 1 - written[1]!.length;
+
+      found.push({ start, end: start + written[1]!.length, value: written[1]! });
+    }
+  }
+
+  return found;
+};

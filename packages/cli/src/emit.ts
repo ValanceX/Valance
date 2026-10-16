@@ -128,7 +128,7 @@ export const generateProgram = async (root: string, author: DefinedApp | undefin
     const target = targetOf(id);
 
     try {
-      compiledAll.push({ id, compiled: await compileViews(root, forTarget(author, id), target.vocabulary, target.views) });
+      compiledAll.push({ id, compiled: await compileViews(root, forTarget(author, id), target.vocabulary, target.views, id === "web" ? config?.web.base : undefined) });
     } catch (error) {
       if (!(error instanceof AppError)) {
         throw error;

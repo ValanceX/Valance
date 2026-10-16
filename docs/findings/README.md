@@ -52,7 +52,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | F1 to F8 | Tracer implementation failures | Fixed (source) | |
 | D1 | Every primitive prop required | Blocker in source | **Checked, closed for the web vocabulary** (`webVocabulary.optional`; `MULTI-TARGET-PLAN.md` Phase 2 gap 3). Form-specific part is WA-5 |
 | D2 | `mesh-case` cannot contain `mesh-if`/`mesh-switch`/`mesh-slot` | Blocker (MESH language) | Not re-checked |
-| D3 | No string concatenation in MPRX (layout cannot build base-aware addresses) | Blocker (MESH language) | **Checked:** still true and an explicit non-goal (`MPRX-SPEC.md` §9.4); fix by framework-supplied addresses (WP-12) |
+| D3 | No string concatenation in MPRX (layout cannot build base-aware addresses) | Blocker (MESH language) | **Checked:** still true and an explicit non-goal (`MPRX-SPEC.md` §9.4). **Worked around by the framework**: literal site addresses in a template get the base put in front at build (`cli/src/addresses.ts`) |
 | D4 | No reusable kit of templates/tags | Blocker (design decision) | Overlaps WA-7 |
 | D5 | State has no URL fragment | Worked around | `onNavigated` restores it |
 | D6 | No hot swap of compiled templates | Blocker (MESH runtime) | README "Limits": updates are reloads |

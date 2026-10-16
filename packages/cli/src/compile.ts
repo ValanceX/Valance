@@ -14,6 +14,7 @@ import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "@valancex/common";
 import type { Node, Place } from "./tree.js";
 import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
+import { underBase } from "./addresses.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
@@ -317,7 +318,14 @@ export interface Compiled {
 }
 
 /** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
-export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
+export const compileViews = async (
+  root: string,
+  author: DefinedApp | undefined,
+  vocabulary: Vocabulary = webVocabulary,
+  views: string = BUILT_IN,
+  /** The web's base: a site address a template writes (`<image src="/logo.svg">`) is put under it. Absent for a target with no addresses of this kind. */
+  base?: string,
+): Promise<Compiled> => {
   const { all, tree } = templatesOf(root, author, vocabulary, views);
   const used = reachable(all);
   const model = modelOf(root, author, tree, vocabulary);
@@ -329,7 +337,7 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
   const result = await compileProgram({
     model: { manifest: JSON.stringify(model), path: ".valance/manifest.json" },
     root: ROOT,
-    components: used.map((template) => ({ component: template.component, source: template.source, path: template.path })),
+    components: used.map((template) => ({ component: template.component, source: base === undefined ? template.source : underBase(template.source, base), path: template.path })),
   });
 
   if (result.program === undefined) {
