@@ -45,6 +45,21 @@ describe("vlx dev", () => {
     }
   });
 
+  it("writes the project's styles into the server-rendered head, so the first paint is styled", async () => {
+    const root = project({ "content/index.md": PAGE("Home"), "src/styles.css": "body { color: rgb(1, 2, 3); }", "src/desktop/skip.css": ".desktop-only { color: red; }" });
+    const running = await dev(root, { port: 6200 + Math.floor(Math.random() * 300), log: () => undefined });
+
+    try {
+      const html = await (await fetch(running.url)).text();
+      const head = html.slice(0, html.indexOf("</head>"));
+
+      expect(head).toMatch(/<style[^>]*data-vite-dev-id="[^"]*src\/styles\.css"[^>]*>[^<]*rgb\(1, 2, 3\)/);
+      expect(head).not.toContain("desktop-only");
+    } finally {
+      await running.close();
+    }
+  });
+
   it("starts even when the content is wrong, and reports it where it is", async () => {
     const lines: Array<string> = [];
     const root = project({ "content/index.md": PAGE("Home", "[x](/nowhere)") });

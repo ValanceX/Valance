@@ -86,6 +86,18 @@ describe("vlx dev", () => {
     expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);
   });
 
+  it("is styled before any script runs, and an edit replaces the style tag instead of adding one", async () => {
+    // No script at all: whatever is styled is styled by the document alone, which is what the first paint is.
+    const bare = await browser.newContext({ javaScriptEnabled: false });
+    const plain = await bare.newPage();
+
+    await plain.goto(`${running.url}guide/getting-started`);
+    expect(await plain.evaluate(() => getComputedStyle(document.body).margin)).toBe("0px");
+    await bare.close();
+
+    expect(await page.evaluate(() => document.querySelectorAll("style[data-vite-dev-id$='src/styles.css']").length)).toBe(1);
+  });
+
   it("shows a mistake in the content as an overlay that names the file and line, keeps serving the last good page, and recovers when it is fixed", async () => {
     edit("content/guide/getting-started.md", "[writing pages](./writing-pages.md)", "[writing pages](./nope.md)");
     await page.waitForSelector("vite-error-overlay");

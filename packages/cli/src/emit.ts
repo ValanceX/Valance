@@ -47,7 +47,7 @@ vlx-row {
 `;
 
 /** The stylesheets the web loads: every one under `src/` except those in another target's directory (`src/desktop/`). */
-const stylesheets = (root: string): ReadonlyArray<string> =>
+export const stylesheets = (root: string): ReadonlyArray<string> =>
   existsSync(join(root, SOURCE_DIR))
     ? readdirSync(join(root, SOURCE_DIR), { recursive: true, encoding: "utf8" })
         .map((file) => file.split(sep).join("/"))

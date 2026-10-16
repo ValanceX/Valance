@@ -13,7 +13,7 @@
 // A mistake in any of them leaves the last good build serving, and is shown in the terminal and as an overlay in the page, naming the file and line. Fixing it reloads the page.
 import type { ViteDevServer } from "vite";
 import { createServer } from "vite";
-import { relative, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { loadAuthor } from "./author.js";
 import type { Config } from "./config.js";
@@ -22,7 +22,7 @@ import type { Diagnostic } from "./diagnostics.js";
 import { AppError, format } from "./diagnostics.js";
 import type { TargetId } from "./targets.js";
 import { devDesktop } from "./dev-desktop.js";
-import { generateContent, generateEntries, generateProgram } from "./emit.js";
+import { generateContent, generateEntries, generateProgram, stylesheets } from "./emit.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 import { baseConfig, SERVER_ENTRY } from "./vite.js";
 
@@ -88,6 +88,25 @@ const overlay = (diagnostics: ReadonlyArray<Diagnostic>) => {
   };
 };
 
+/**
+ * The project's stylesheets as `<style>` tags for the server-rendered head. Without them the first paint has no styles at all: they arrive with the browser entry, after its modules have been
+ * fetched and run, and the page shifts when they do. A build writes `<link rel="stylesheet">` in the head for the same reason. The tag carries the id the bundler's client looks for, so an edit to
+ * the stylesheet replaces this very tag in place, as it would one the entry had added.
+ */
+const styleTags = async (vite: ViteDevServer, root: string): Promise<string> => {
+  const tags: Array<string> = [];
+
+  for (const file of stylesheets(root)) {
+    const { default: css } = (await vite.ssrLoadModule(`/${file}?inline`)) as { default: string };
+
+    tags.push(`<style type="text/css" data-vite-dev-id="${join(root, file).split(sep).join("/")}">${css.replace(/<\/style/gi, "<\\/style")}</style>`);
+  }
+
+  return tags.join("");
+};
+
+const inHead = (html: string, tags: string): string => (tags === "" ? html : html.replace("</head>", () => `${tags}</head>`));
+
 const start = async (root: string, config: Config, options: DevOptions, restart: () => Promise<void>): Promise<Dev & { readonly server: ViteDevServer }> => {
   const log =
     options.log ??
@@ -134,7 +153,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
 
                 response.statusCode = status;
                 response.setHeader("content-type", "text/html; charset=utf-8");
-                response.end(await vite.transformIndexHtml(url.pathname, html));
+                response.end(inHead(await vite.transformIndexHtml(url.pathname, html), await styleTags(vite, root)));
               } catch (error) {
                 vite.ssrFixStacktrace(error as Error);
                 next(error);
