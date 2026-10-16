@@ -10,6 +10,7 @@ import { resolve, sep } from "node:path";
 import type * as Valance from "@valancex/valance";
 
 import { application, titleFor } from "./app.js";
+import type { AppState } from "./app.js";
 import { Open } from "./open.js";
 import { systemOpen } from "./open-system.js";
 import { platformOf } from "./platform.js";
@@ -20,6 +21,7 @@ import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
 import { routes } from "./routes.js";
 import { routingFor } from "./routing-engine.js";
+import { viewportOf } from "./viewport.js";
 import { pageAt } from "./scope.js";
 
 export interface DesktopParts {
@@ -68,19 +70,29 @@ export const withAssets = (tree: RenderTree, assets: string): RenderTree => {
   return { ...tree, root: walk(tree.root as unknown as Node) } as unknown as RenderTree;
 };
 
-export const start = async ({ content, program, author, wasm, assets }: DesktopParts): Promise<void> => {
-  if (wasm !== undefined) {
-    await init(wasm);
-  }
-
+/** What the window's host needs of the application, as `Native.run` takes it: the close guard, the appearance, the width, the colors, Back and Forward, the platform, the title and the links. */
+export const hostOptions = ({ content, author, assets }: Pick<DesktopParts, "content" | "author" | "assets">): Native.RunOptions<AppState, any> => {
   const table = routes(content, routingFor(author));
   const opener = systemOpen();
+  let lastViewport: ReturnType<typeof viewportOf> | undefined;
 
-  await Native.run(application(content, program, author), {
+  return {
     // A route's `canDeactivate` is asked when the window is asked to close, and may wait (R-64).
     mayClose: (state) => routingFor(author).mayLeave(state as never),
     // The window follows the system's colors unless the application asks otherwise (`appearance` in `defineApp`), and the application learns the system's (`colorScheme`).
     appearanceOf: (state) => author?.appearance?.(state as never) ?? "system",
+    // How wide the window is, told to the layout as the class of room it has (`viewport`), as the web tells it from the page's width.
+    onResize: (width, handle) => {
+      const next = viewportOf(width);
+
+      if (next === lastViewport) {
+        return Effect.void;
+      }
+
+      lastViewport = next;
+
+      return handle.invoke("app/resize", [{ value: next }]);
+    },
     onScheme: (scheme, handle) => handle.invoke("app/colorScheme", [{ value: scheme }]),
     // Back and Forward, as the window's keys and mouse buttons ask for them: the framework's own commands, which the author's `guard` may refuse.
     onNavigate: (direction, handle) => handle.invoke(direction === "back" ? "app/back" : "app/forward", []),
@@ -100,5 +112,13 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
         ? handle.invoke("app/go", [{ value: (table.stateOf(new URL(href, "http://app.invalid/")) as { readonly id: string }).id }] as never)
         : // an address elsewhere goes to the person's own program for it, when it is one a link may open; anything else is dropped
           opener.open(href).pipe(Effect.catchAll((error) => Effect.sync(() => console.error(`a link was not opened: ${error.message}`)))),
-  });
+  };
+};
+
+export const start = async (parts: DesktopParts): Promise<void> => {
+  if (parts.wasm !== undefined) {
+    await init(parts.wasm);
+  }
+
+  await Native.run(application(parts.content, parts.program, parts.author), hostOptions(parts));
 };

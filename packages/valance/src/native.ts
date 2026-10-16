@@ -41,7 +41,9 @@ export type Inbound =
   /** The person asked to move along the pages they visited (a key or a mouse button the platform has a convention for). The application owns the list and may refuse. */
   | { readonly op: "navigate"; readonly direction: "back" | "forward" }
   /** The person asked to close the window. The engine decides (unsaved edits), and answers with `closeAnswer`. */
-  | { readonly op: "closeRequested" };
+  | { readonly op: "closeRequested" }
+  /** How wide the window's content is, in points: sent when the window opens and whenever the width changes. The application learns how much room it has from it. */
+  | { readonly op: "resize"; readonly width: number };
 
 const jsonValue = (value: unknown, depth = 0): value is BoundaryValue => {
   if (depth > 8) {
@@ -83,13 +85,14 @@ export const parseInbound = (line: string): Inbound | undefined => {
     return undefined;
   }
 
-  const { op, handler, payload, href, scheme, direction } = message as {
+  const { op, handler, payload, href, scheme, direction, width } = message as {
     readonly op?: unknown;
     readonly handler?: unknown;
     readonly payload?: unknown;
     readonly href?: unknown;
     readonly scheme?: unknown;
     readonly direction?: unknown;
+    readonly width?: unknown;
   };
 
   if (op === "ready" || op === "close" || op === "closeRequested") {
@@ -101,6 +104,9 @@ export const parseInbound = (line: string): Inbound | undefined => {
   }
   if (op === "scheme" && (scheme === "light" || scheme === "dark")) {
     return { op, scheme };
+  }
+  if (op === "resize" && typeof width === "number" && Number.isInteger(width) && width > 0 && width <= 100_000) {
+    return { op, width };
   }
   if (op === "navigate" && (direction === "back" || direction === "forward")) {
     return { op, direction };
@@ -117,6 +123,8 @@ export interface HostOptions<S, E = unknown> {
   readonly appearanceOf?: (state: S) => "light" | "dark" | "system";
   /** The system's colors changed (or were first told): what that means to the application. Called with the scheme and the application's handle; absent: ignored. */
   readonly onScheme?: (scheme: "light" | "dark", handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
+  /** The window's width changed (or was first told), in points: what that means to the application. Called with the width and the application's handle; absent: ignored. */
+  readonly onResize?: (width: number, handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** What a link means. Called with the address the person activated and the application's handle; absent: links do nothing. The address is untrusted text from another program. */
   readonly onLink?: (href: string, handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /**
@@ -218,6 +226,10 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
           } else if (message.op === "scheme") {
             if (options.onScheme !== undefined) {
               void Effect.runPromise(options.onScheme(message.scheme, handle)).catch(() => undefined);
+            }
+          } else if (message.op === "resize") {
+            if (options.onResize !== undefined) {
+              void Effect.runPromise(options.onResize(message.width, handle)).catch(() => undefined);
             }
           } else if (message.op === "navigate") {
             if (options.onNavigate !== undefined) {

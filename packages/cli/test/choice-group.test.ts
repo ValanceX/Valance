@@ -1,5 +1,5 @@
 // A portable choice group (docs/application-model/CHOICE-GROUP.md, CG-1 to CG-6): what the page writes for a radio group, and that a neutral target refuses the web's hooks on it.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -49,4 +49,36 @@ describe("the radio group on the web", () => {
 
     expect(found.length).toBeGreaterThan(0);
   }, 120_000);
+});
+
+describe("the two targets agree on the controls (CG-7), checked against a Port checkout", () => {
+  // The Desktop PORT is released on its own. Until a release carries a control, Valance cannot see it in the installed package, so a checkout of the Port repository next to this one (or PORT_REPO)
+  // stands in: every prop and event the Desktop PORT names for a shared control must be the web's, with the same type and requiredness.
+  const port = process.env["PORT_REPO"] ?? join(import.meta.dirname, "../../../../Port");
+  const available = existsSync(join(port, "packages/port-desktop/vocabulary.json"));
+
+  it.skipIf(!available)("a desktop prop or event that a shared control has is the web's, of the same type", async () => {
+    const { fromManifests, webVocabulary } = await import("@valancex/common/internal");
+    const { tagsOf } = await import("../src/tags.js");
+    const read = (name: string): { readonly components: Readonly<Record<string, unknown>> } => JSON.parse(readFileSync(join(port, "packages/port-desktop", name), "utf8"));
+    const desktop = tagsOf(fromManifests("desktop", read("vocabulary.json"), read("content.json")));
+    const web = tagsOf(webVocabulary);
+
+    for (const name of ["checkbox", "textfield", "radiogroup", "radio"]) {
+      const there = desktop.find((tag) => tag.name === name);
+      const here = web.find((tag) => tag.name === name);
+
+      expect(there, `${name} (desktop)`).toBeDefined();
+      expect(here, `${name} (web)`).toBeDefined();
+      for (const prop of there!.props) {
+        expect(
+          here!.props.map((each) => each.replace("*", "")),
+          `${name}: ${prop}`,
+        ).toContain(prop.replace("*", ""));
+      }
+      for (const event of there!.events) {
+        expect(here!.events, `${name}: ${event}`).toContain(event);
+      }
+    }
+  });
 });
