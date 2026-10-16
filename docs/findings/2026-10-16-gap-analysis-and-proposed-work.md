@@ -235,3 +235,23 @@ Every live gap and where it goes. A blank in "Work" would be an untracked gap.
 - **No router in `@valancex/valance` core** (`CONSTRAINTS.md`). Routing integration belongs to `@valancex/router` and the CLI.
 - **No form helper before a reference form exists** (DP2).
 - **No hot swap before the lifecycle question is answered in NEXUS terms** (DP4).
+
+## 9. Progress
+
+Started 2026-10-16, in the order of §7. Each row is a commit on `claude/inspiring-ptolemy-fssz6c` in `Valance`; "tests" means the CLI suite (186 tests) and the example smoke suites were green at that commit.
+
+| WP | Result | Where |
+|---|---|---|
+| WP-1a | **Done.** `vlx dev` writes the project's styles into the server-rendered head as `<style>` tags with the bundler's id, so the first paint is styled and an edit still replaces the tag in place. Chromium test: with scripts off the page is styled. **Not measured**: a built site's first paint (WA-6 said to confirm both) | `cli/src/dev.ts` |
+| WP-7 | **Done.** The CLI guide's tag reference is generated from the vocabularies (both targets) and a test fails when it drifts. The hand-written list had omitted `textfield`, `checkbox`, `column`, `row`, `heading`, `text` | `cli/src/tags.ts`, `pnpm docs:tags` |
+| WP-16 | **Done.** `BoundaryValue` is exported from `@valancex/valance`. The `go` normalization bug (a trailing slash showed "Not found") was real and is fixed | `valance/src/index.ts`, `common/src/routes.ts` |
+| WP-10 | **First pass done**: the register records what was re-checked (§3.7). Still to do: the NATIVE-PARITY matrix, and the CI check that every Open row names a WP | `docs/findings/README.md` |
+| WP-3 (comment) | **Done.** The scaffold's `main.ts` says where routes come from | `cli/templates/web/src/main.ts` |
+| WP-4 | **Done.** The three-tier styling note | `docs/application-model/STYLING.md` |
+| WP-2 | **Done.** `rendering` in `valance.web.json` (`static` only; `client` and `server` are refused with the reason), always written by `vlx init`, reported by `vlx build`, documented. Q2 resolved as recommended | `cli/src/config.ts` |
+| WP-3 | **Done.** `vlx info` (`--json`, `--tags`): targets, settings, routes with their files, styles (scoped or global), components per target, tag counts | `cli/src/info.ts` |
+| WP-5 | **Done.** `X.css` beside `X.mprx` is built inside `@scope (.X)`; `style-scope` and `style-global` checks; web only. Browser test: styled inside the component, not outside. The scaffold, docs-app and todo-multi use it for the theme toggle. Not done: fragment-rooted components, a generated stylesheet in `vlx generate component`, old-browser fallback | `cli/src/styles.ts` |
+| WP-12(i) | **Done.** A literal `/…` on an `image` `src` or `a`/`link` `href` in a template gets the base, as Markdown does (D3 without changing MPRX) | `cli/src/addresses.ts` |
+| WP-12(ii) | **No work needed.** F18/D2 are superseded by the `{#if}`/`{#each}` block syntax (probe) | register §3.7 |
+
+Not started, as ordered: WP-6 (routes) with WP-8 (reference form), then the "later, on evidence" group.

@@ -108,7 +108,9 @@ Checked against current code; each row replaces a "not re-checked" above.
 | Routes and project listing (WA-3) | **Fixed**: `vlx info` (routes with their files, styles, components, settings, tags) | `cli/src/info.ts`, `cli/test/info.test.ts` |
 | Dev first paint (WA-6) | **Fixed for `vlx dev`** (head carries the styles). The built site was not measured | `cli/src/dev.ts`; tests in `cli/test/dev.test.ts` and `examples/docs-app/test/dev.test.ts` |
 | Tag documentation drift (WA-5, docs part) | **Fixed**: the guide's table is generated and tested | `cli/src/tags.ts`, `cli/test/tags.test.ts` |
-| D2, F12, F18, NATIVE-PARITY rows | Still not re-checked | |
+| F18 `mesh-if`/`mesh-each` directly under `mesh-each` | **Superseded by the block syntax**: `{#each}` containing `{#if}` compiles (probe in a scaffolded layout; the only diagnostic was an unrelated missing prop, with file, line and column) | `vlx check` probe 2026-10-16 |
+| D2 `mesh-case`/`mesh-switch` nesting | Likely superseded: `mesh-switch`, `mesh-if` and `mesh-each` are retired and rejected in favour of `{#if}`/`{#each}` blocks (CLI guide) | Not probed for `{#if}` chains inside slots |
+| F12, NATIVE-PARITY rows | Still not re-checked | |
 
 ## 4. How to audit coverage later
 
