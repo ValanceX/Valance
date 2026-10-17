@@ -75,9 +75,9 @@ A log is line-JSON, appendable and readable after a crash, the same shape as the
 | Line | Holds |
 |---|---|
 | `header` | `format` (a number), `runtime` (the version that recorded it), `program` (a SHA-256 of the templates in order), `manifest` (a SHA-256 of the model), `snapshot` (the initial root scope), `units` (initial, once [Bet 8](state-units.md) lands) |
-| `changes` | The edits to the snapshot as the `updateChanges` form, **without `base`** |
-| `event` | A handler identifier and its payload, as a PORT reported them, and the intent the runtime returned |
-| `result` | A command's outcome, as the data that came back into the snapshot |
+| `changes` | The edits to the snapshot as the `updateChanges` form, **without `base`**, with a `units` member when a state unit changed ([Bet 8](state-units.md)) |
+| `event` | A handler identifier and its payload, as a PORT reported them, with `n` (its sequence number), `on` (the ordinal of the `tree` line the PORT had drawn) and `out` (the intent or the diagnostic code the runtime returned); an early-input event carries `"origin": "early"` |
+| `result` | A command's outcome, as the data that came back into the snapshot, informational, with an optional `of` naming the `event` it answers; the player does not consume it |
 | `tree` | A SHA-256 of the compact JSON of the current tree, after every `changes` line, and the whole tree at every 50th line and at the end |
 
 Only inputs and hashes are recorded. The trees are not, except at checkpoints, so a log of a thousand steps is kilobytes and a divergence still shows a readable tree.
@@ -141,10 +141,23 @@ Stage 3 repeats the measurement on a larger base before the format is frozen:
 - The manifest gains an optional `sensitive` marker on fields.
 - `vlx dev` gains `--record`; `vlx replay` is new.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) R11 to R15. Run on the published runtime 0.13.0 and Effect 3.22.2.
+
+**The log records what arrived, with the outcome and the render it was drawn against.** The `event` line gains `n` (its sequence number), `on` (the ordinal of the `tree` line the PORT had drawn) and `out` (`{ "intent": ... }` or `{ "diag": "runtime-unknown-handler" }`). Measured with a keyed list and an `{#if}`: dispatching the same id twice on one render gave equal intents; after removing an item and hiding the `{#if}` the old render still dispatched the old id, while the new render gave `runtime-unknown-handler` for the removed row's id and for the alternative's id (also on a second try); a malformed or foreign id gave `runtime-handler-other-program`; a payload on a payloadless event gave `runtime-unexpected-payload`; re-inserting the item restored the same id. The runtime manual says the host pairs an event with "the render whose tree the renderer had drawn", and dispatch is pure in (render, id, payload), so replay is reproducible only if that pairing is logged; the first design left it out. Valance's `connect` does the pairing with `drawn.current` but forks each dispatch concurrently, so outcomes complete in any order. If a PORT applied a patch late (in an animation frame, say), a click on a just-removed node would dispatch against the newer render; whether the PORTs do that was not checked. Recording only accepted events would hide PORT bugs and make the kit's interaction script unreproducible.
+
+**Pixel scroll offset is not logged.** The window is data in the template's scope ([Bet 10](collections.md)); only `start` and `count` reach the tree. The `window` event the PORT reports is an ordinary `event` line and the change to `start` it causes is an ordinary change. The PORT should coalesce `window` reports, because each is a line. **A gap in the first design:** `changes` lines have no form for state units, though [Bet 8](state-units.md) makes units a render input; a `units` member is added to `changes` lines.
+
+**No sequence number is needed on `result`.** Results can complete out of order (the async-work guide: "Nothing orders results for you"), but the commit sequence is a total order and replay applies presented snapshot changes in line order. A newer run of a `command.waiting` supersedes an older one and nothing is committed for a superseded or unwanted answer, so those are not logged as results. `result` lines are informational with an optional `of` correlating to an `event`'s `n`; the player consumes only `event`, `changes` and `tree`. A `changes` line is a presented snapshot delta, not necessarily one commit, because commits coalesce.
+
+**Redaction has five rules.** (1) Redact in the log only; the live snapshot is untouched and the placeholder is a fixed typed constant (`""` for a string). (2) **A manifest `sensitive` value is opaque in templates**: the checker accepts a bare reference in a prop or as a child and refuses it as an operand of a unary or binary operator, as an `{#if}` condition, or as an `{#each}` list or key. That makes the placeholder unable to change the tree's shape. Measured: with `{#if secret == "open"}<btn on.press=.../>{/if}` the tree hash differs between the real and the redacted snapshot, and the recorded handler id then gives `runtime-unknown-handler` on the redacted render, so a redacted log would fail at the first such event without rule 2. (3) Redact the three places a value flows: a scope field, an event payload and a command parameter. (4) Scrub issue text: log the diagnostic code and path only. Measured in Effect 3.22.2: `Schema.Redacted` stringifies as `<redacted>` for `String()`, `JSON.stringify`, `util.inspect` and template strings, but `Schema.encode` returns the plaintext (the encoded side is a plain string, and Nexus snapshots and form values are encoded values), and the default issue message leaks the value even for a `Redacted` field. (5) The recorder takes the tree hashes from a second render of the redacted snapshot, which costs one extra render in development only. Values derived by host code before MESH sees them (such as a boolean computed from a password's length) are not covered by the marker.
+
+**Replayed early input appears in the log as ordinary `event` lines** with `"origin": "early"`, informational and ignored by the player. The shell's drops are not logged, since dropped events never reach the host. The development recorder must start before hydration completes, so the header snapshot is the server's state.
+
 ## Open questions for stage 3
 
-- **Events that a PORT reports out of order or twice.** Whether the log records what arrived or what was accepted.
-- **Windows and units** ([Bet 10](collections.md), [Bet 8](state-units.md)): whether scroll position is an input to the log.
-- **Streams of commands** that finish out of order: whether the `result` line carries a sequence number.
-- **Redaction semantics** for values that decide control flow.
-- **The relation to the early-input shell** ([Bet 14](resumable-start.md)): whether replayed early input appears in the log.
+- **Whether the PORTs apply patches late** (in an animation frame), which would make a click on a just-removed node dispatch against a newer render.
+- **Event order across the Desktop protocol**, which needs the Rust PORT run.
+- **Whether authors accept opaque `sensitive` values** (a usability trial).
+- **Redaction of values derived by host code** before MESH sees them.

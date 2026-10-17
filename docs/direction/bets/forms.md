@@ -115,7 +115,7 @@ The submit command may fail with a typed `FieldErrors` (a map from path to messa
 
 | Field kind | Primitive |
 |---|---|
-| Text | `textfield` (with `kind` where the target has it) |
+| Text | `textfield` (with a `kind` of text, password, email, tel, url or search: the Desktop has `kind` already and the web gains it) |
 | Number | `textfield` holding text, decoded on submit |
 | Boolean | `checkbox` |
 | One of a closed set | `radiogroup` of `radio`s (the web gains both in [Bet 7](accessibility.md)) |
@@ -166,12 +166,26 @@ The submit command may fail with a typed `FieldErrors` (a map from path to messa
 - The reference-library `labeled-field` takes a descriptor.
 - Schema authors add `title` and `message` annotations where they build forms.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) F11 to F16. Measured with Effect 3.22.2 (the lockfile's version).
+
+**Nested records and lists of records: yes.** `Form.fields(form)` returns the static descriptor tree in schema order; a list descriptor has an `item` (a descriptor with `*` in its path) and `minItems`. `Form.rows(form, ["items"])` returns the current row keys in order. A field instance is addressed as `["items", {key}, "qty"]`, where the row key is the item's declared key (`Form.make(schema, { keys: { items: "id" } })`); a struct with no key field gets a hidden row key kept in the form's own state, outside the encoded value (a decode ignores an extra `_key`, so it never reaches the command). After each decode, translate issue-path indices to row keys at once and store `touched` and `errors` by key, so they follow the row across a re-sort. Precedents agree: Angular's `FormArray` is "any number of unnamed controls"; Phoenix's `inputs_for` assigns a hidden `_persistent_id` per child and uses the index only for sort and drop; react-hook-form's `useFieldArray` generates an `id` per row and says to key by `field.id`, not by index. Measured: issue paths are arrays with numeric indices (`customer.address.zip`, `items.1.sku`, `items.2.qty`, `tags.1`); a list-level rule reports at `["items"]`. A `Schema.Array(...).pipe(minItems)` is a `Refinement` over `TupleType`, so the descriptor walker must unwrap `Refinement` and `Transformation`.
+
+**Cross-field rules: a struct-level filter reporting at a path.** `Schema.filter((v) => ok ? undefined : { path: ["confirm"], message: "Passwords must match" })` gives the issue path `["confirm"]`; an array of such objects gives one issue each; a deep path works (`["ranges", 1, "max"]` inside a list item); an unknown path is accepted silently; returning `false` or a string gives path `[]`, which becomes the form-level message. The error shows on the later field by the F5 rule. **Limitation, measured: a struct-level filter runs only when every field is valid**, so with `{password: "ab", confirm: "x"}` under `errors: "all"` only the password issue appears, and a mismatch error cannot show while any other field is invalid.
+
+**Inputs the primitives lack.** The Web `textfield` has only `value`, `placeholder` and `label` (`primitives.ts`), with no `kind`, so **the Web has no way to render a password**; the Desktop has `kind`, `invalid`, `describedby`, `radiogroup` and `radio`. For version 1 add `kind` to the Web `textfield` with the string-valued types text, password, email, tel, url and search (the controlled-text model fits). Do not add file, date or select. A file input's value is `C:\fakepath\name` and "you cannot set the value of a file picker from a script"; its payload is a `File` or `FileList`, which is not in the boundary data model and needs a new kind. A date input's value is always `yyyy-mm-dd`, so a `kind="date"` text field is possible later; the Desktop has no date widget (egui_extras's date picker was not checked). For closed sets use `radiogroup`. **Usage frequency of input types could not be sourced:** the Web Almanac chapters reachable (markup 2019 to 2024, accessibility 2021 to 2024) cover only button-style types and no forms chapter was found.
+
+**Drafts that survive a reload: out of the core for version 1.** The core provides `Form.draft(form)`, a serializable value holding the encoded values only plus a schema-version tag, and `Form.make(schema, { initial: draft })` to restore it. Persistence is a library concern (a NEXUS resource or capability wrapping local storage). A `sensitive` or `Redacted` field is never in a persisted draft; `touched` is not persisted. Phoenix's recovery re-triggers the same change event with the form's encoded params after a reconnect, so its recovery payload is also the encoded values. Schema migration of stale drafts and expiry are application decisions.
+
+**Translation.** The core's boundary is an application-supplied `(issue) => string`, applied when a field has no `message` annotation. The core hands it a leaf record `{ path, code, params, actual }`, where `code` is the schema id and `params` the JSON Schema annotation (`{ minLength: 2 }`). Measured: `message` can be a function receiving the parse issue and returning a string or `{ message, override }`; the leaf issue's `ast` carries `Symbol(effect/SchemaId/MinLength)` and `{ minLength: 2 }` (likewise for `Int` and `Pattern`), so a stable code and parameters are derivable, but `ArrayFormatter` output has only `_tag`, `path` and `message`, so **the form needs its own issue walker**. Labels come from `title` annotations or the same function. Plural and gender logic belong to the application's message library. The TC39 `proposal-intl-messageformat` README says "Stage: 1" (possibly stale); Unicode MessageFormat 2 is a Unicode Consortium specification.
+
+**Redaction reaches issue text.** The default issue message leaks the value even for a `Redacted` field ("Expected a string at least 8 character(s) long, actual "secret1""); a custom `message` annotation hides it. Form messages are scrubbed before they reach a log ([Bet 15](replay.md)).
+
 ## Open questions for stage 3
 
-- **Nested records and lists of records** (addresses, line items): whether a form can hold a list of sub-forms, and how their identity works with keyed lists.
-- **Cross-field rules** (password confirmation): where the error is shown, and on which field.
-- **Files and other inputs** that the primitives lack.
-- **Autosave and drafts** that survive a reload.
-- **Two mechanisms no bet designs yet:** a host request to focus a node by key (for the first invalid field), and a live-region primitive or command for the form-level message. Both are open questions in Bets 7 and 9; the success line on focus and announcement holds only once they exist.
-- **Translation** of messages and labels.
-- **Standard Schema** adoption for interop, with the version floor (`effect >= 3.13`).
+- **Which input types real applications need**: usage data could not be sourced.
+- **Whether the late appearance of cross-field errors annoys people** (a usability trial).
+- **Schema migration and expiry** of stale persisted drafts (application decisions).
+- **A Desktop date widget** (egui_extras's date picker was not checked).
+- **The focus-request mechanism** for the first invalid field: decided in [decisions](../decisions.md) I13; a live region is decided in A13.

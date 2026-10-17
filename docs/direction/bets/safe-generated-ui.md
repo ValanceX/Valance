@@ -105,11 +105,11 @@ const done = session.close();       // same result as a batch check of the whole
 ```
 
 - **Prefix acceptance.** After each chunk the session cuts back to the last complete token and closes what is open (the repair above, done by the checker, not by the host). It checks the result. The model never sees the synthesized closers.
-- **`preview`** is the tree from the repaired prefix, or nothing while a diagnostic stands. It holds only complete elements and the ancestors still open.
+- **`preview`** is the tree from the repaired prefix, or nothing while a diagnostic stands. It holds only complete elements and the ancestors still open, plus a trailing text run that is still growing inside a complete open element. An open `{#each}` is withheld until its `{/each}` arrives.
 - **`diagnostics`** are the repaired prefix's, with spans mapped back to the real text, each reported once.
 - **`pending`** lists what is open (an element, a block), so a host can show a placeholder.
 - **The law:** `close()` returns exactly what a batch check of the concatenated text returns. Property-tested.
-- **Append-only:** a later chunk can add nodes, never change or reorder those already in a preview. Keys and positions give the identity ([§9.10](https://github.com/ValanceX/Mesh/blob/main/docs/MPRX-SPEC.md)), so a preview updates by `update` with append patches.
+- **Each step is a fresh render.** A repaired prefix is a different program from the next one, so no node keeps its identity between steps (measured: 0 of 3 keys shared) and `update` cannot carry one preview to the next; the PORT draws each preview afresh. The earlier claim that a later chunk only appends to a preview holds for text and for `{#if}` blocks, and fails for an open `{#each}` with a multi-element body.
 
 ### 3. Limits, and an incremental check
 
@@ -158,7 +158,7 @@ The session, the limits and the incremental check are in MESH (a `mesh-compiler`
 ## Experiment
 
 1. **The law.** Property-test `close()` against the batch checker over the conformance programs and 100,000 random prefixes and mutations. Any difference is a finding.
-2. **The preview.** Stream the 276-byte page through `update`, byte by byte, and check that each step is an append patch and the final tree equals a direct render.
+2. **The preview.** Stream the 276-byte page through `render`, byte by byte, and check that every step is a prefix of the final tree except for a growing text run, and that the final tree equals a direct render. (Done on a 491-character page: see "Answered by research".)
 3. **Limits.** Add the limits and fix the quadratic paths. Re-run the table above; no row may exceed its limit's time.
 4. **A real model.** Give a model the profile of the [reference library](reference-library.md) and ten tasks. Count rounds to a clean file, with and without streaming diagnostics, and tokens spent.
 5. **Hostile set.** Fuzz with a seed (the MESH fuzzers already take `MESH_FUZZ_SEED`) and record any input that takes over 100 ms per kilobyte.
@@ -183,9 +183,23 @@ The session, the limits and the incremental check are in MESH (a `mesh-compiler`
 - New diagnostic codes (`input-too-large`, `too-many-elements`, `too-many-attributes`, `check-budget-exceeded`).
 - A profile format beside the manifest.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) G11 to G14. Run on a 491-character page (long text, an attribute string, interpolations, `{#if}`, `{#each}`, an accented letter and an emoji) with every prefix, using the published compiler and runtime and a scanner-based repair of my own.
+
+**Correction to the design above.** The brief said a preview updates with `update` and append patches, and that a later chunk only adds nodes. **Both are wrong as written.** Each repaired prefix is a different program, and node identity includes the program (spec §9.10.8): a repaired prefix and a longer program share 0 of 3 keys, and `update` cannot change program. So **every preview step is a fresh `render` that the PORT draws afresh** (Valance's `connect` does exactly that when the view changes). And the append-only property is false in one case: for an open `{#each}` whose body has two elements, 24 of the prefixes tested are not a prefix of the final tree (the preview holds `[row1, row2, row3]` where the final tree is `[row1, text1, row2, text2, ...]`; `each` inside `each` gave 21 violations). `mesh-each` takes exactly one element child and a longer body becomes a fragment.
+
+**Text growing mid-stream.** Raw prefixes are clean 1 time in 491. Cutting at the last complete token and closing what is open checked clean and rendered for 486 of 486 prefixes (5 repair to nothing and are excluded); 360 are an exact prefix of the final tree and 126 differ only because a text run grows. Keeping the partial trailing text was clean and prefix-consistent for 485 of 486; the exception is a lone surrogate, which the checker accepts and renders as U+FFFD (a cut UTF-8 byte does the same). **The rule: draw a trailing text run as it grows, but only inside an already-complete open element; never draw anything cut inside an attribute string, an attribute expression, an interpolation or a tag.** Measured why: closing a cut attribute string and its tag checks clean with a **different value** in 39 of 40 attribute-string prefixes, so drawing it would show wrong data. Drop a trailing lone high surrogate, or decode with a streaming UTF-8 decoder, before checking. MPRX has no entities, so a text run is any text outside `<` and `{`. A number that grows ("5" then "50") is visible and wrong for a moment; that is a product choice.
+
+**Blocks.** `{#if}`/`{:else}` and nesting may show early after repair: in both data states every prefix was a prefix of the final tree, as were `each` inside `if` and `if` inside `each`. **An open `{#each}` is withheld until `{/each}` arrives.** A body of one element was append-only (116 prefixes, plus 6 where text grows). Bodies of three or more elements and composites were not run.
+
+**Consent for commands that change data.** Add `effect: "read" | "write" | "destructive"` to a command in the manifest; it is required for any command in a generation profile, so a missing one is a profile error. The host (Valance) shows the prompt at dispatch, before invoking the Nexus command, built from the manifest's command title and the typed arguments with sensitive arguments masked, **never from text the model wrote**. MCP's 2025-11-25 specification defines the hints `readOnlyHint` (default false), `destructiveHint` (default true), `idempotentHint` (default false) and `openWorldHint` (default true), says "Clients should never make tool use decisions based on ToolAnnotations received from untrusted servers", and says "there SHOULD always be a human in the loop with the ability to deny tool invocations". Our annotations come from the application's own manifest, so they are trustworthy where MCP's are not; a model-generated button label can lie, which is why the prompt cannot come from it. A2UI's actions page has no consent concept: safety there is restriction to pre-registered behaviors. Prompt appearance per target is not settled.
+
+**Replaying a generation session.** Log `chunk` lines verbatim with a round number; the `profile` and `limits` hashes in the header; a `program` hash line per preview (each preview is a different program, so one header hash is not enough); `check` lines with the diagnostic `code` and `span`; and a `tree` hash per preview. Do not log the prompt or the model's reasoning. **The 50 ms per-push budget is wall-clock, so replay cannot recompute it: log a budget trip as an input**, as a `result`. The player re-runs the compiler, and a program-hash mismatch is reported separately from a runtime divergence. Treat chunks as sensitive and development-only: the model may copy user data into text and string literals, which the `sensitive` field marker cannot cover. Whether compiler output is stable across versions was not measured.
+
 ## Open questions for stage 3
 
-- **Streaming inside text and strings.** Whether a half-written text run shows as it grows, or only when its element closes.
-- **Which block constructs a preview may show early** (an `{#each}` with one row written).
-- **Consent for commands** that change data, and who owns the prompt that asks.
-- **Replay of a generation session** ([Bet 15](replay.md)): whether chunks and diagnostics are logged, and what is redacted.
+- **How a model chunks its output in practice**, and whether people dislike growing text.
+- **Open `{#each}` with three or more elements, and composites**, were not run.
+- **Consent prompt appearance** per target and how a PORT surfaces it.
+- **Whether compiler output is stable across versions**, for replaying a generation session.

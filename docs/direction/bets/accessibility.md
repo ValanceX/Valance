@@ -179,11 +179,45 @@ Said once, here, so nobody reads "compiles" as "accessible": reading order, focu
 - MESH gains a `ref` kind and two diagnostic codes (`unnamed-control`, `unknown-ref`).
 - `placeholder` stops counting as a name in documentation; the web PORT does not rely on it.
 
+## Answered by research (2026-10-17)
+
+These were the open questions. Sources and measurements are in [decisions](../decisions.md) A11 to A15 and in [prior art](../prior-art.md).
+
+**The version-1 role set (22 names).** Pinned to AccessKit 0.17.1, the version egui 0.31.1 and the Desktop PORT use (the enum has 186 roles in 0.17.1 and 182 in 0.25.1 and differs between them). The mapping from egui is in its `response.rs`: it emits Label, Link, TextInput, Button, Image, CheckBox, RadioButton, RadioGroup, ComboBox, Slider, SpinButton, ProgressIndicator and Window, and **never** Heading, List, ListItem, Paragraph, Table, Status, Alert or Dialog.
+
+| Role | Web | AccessKit `Role` | Desktop provider |
+|---|---|---|---|
+| group (`column`, `row`) | custom element, generic | GenericContainer, or no node | none needed |
+| text | `span` | Label | egui (the text is in `value`, not `label`) |
+| heading | `h2` with `aria-level` | Heading with a level | **the PORT must set it**: today the Desktop `heading` is drawn as a styled horizontal label, so it exposes Label and drops `level` |
+| paragraph | `p` | Paragraph | the PORT |
+| list, listitem | `ul`/`ol`, `li` | List, ListItem | the PORT |
+| link | `a` | Link | egui |
+| image | `img` | Image | egui |
+| button | `button` | Button | egui |
+| checkbox | `input` checkbox | CheckBox | egui |
+| textfield | `input` | TextInput | egui |
+| radiogroup, radio | radiogroup, `input` radio | RadioGroup, RadioButton | the PORT sets the group (it does); egui sets the radio |
+| table, row, cell, columnheader, rowheader | same | Table, Row, Cell, ColumnHeader, RowHeader | the PORT (it does) |
+| rowgroup (`tablehead`, `tablebody`) | `thead`, `tbody` | RowGroup | the PORT (not set today) |
+| status, alert | `role=status`, `role=alert` | Status, Alert with a live setting | the PORT |
+| dialog | `dialog` | Dialog (not egui's Window) | the PORT |
+
+No role is needed that AccessKit lacks. Landmarks (`nav`, `main`) are not in version 1: AccessKit has them, but the Desktop vocabulary has no such primitives. `Window`, `Pane` and `TitleBar` are desktop-only and the web does not need them.
+
+**References.** A node is marked `ref="name"` and a relation prop takes a `ref`. A bare reference resolves inside one template instance, checked at compile time. A reference crosses a component boundary only downward, as the value of a declared `ref`-typed prop on a child; a child's inner nodes are never reachable from the parent, and a child cannot export one upward in version 1. Measured in Chromium 141 through its accessibility tree: id-based `aria-describedby` and `ariaDescribedByElements` work within one shadow root; an element reference works from a shadow root outward to the light DOM; **id references fail across shadow boundaries in either direction, and element references fail from the light DOM into a shadow root and between sibling roots**. So **the web PORT must not use shadow DOM for composed components**. MDN agrees: ids "are only valid in the scope in which they are declared". Every precedent passes ids or references down as props (Angular Material generates ids; Svelte's `$props.id()`, "unique to the current component instance" and "consistent between server and client", exists for `aria-labelledby`; React's `useId`) and none reaches into a child's template.
+
+**Live regions.** `status` (polite, atomic) and `alert` (assertive, atomic) are declarative primitives with fixed roles and no name; their text content is the message. There is no `announce` command in version 1. Measured through the browser's accessibility tree: `role=status` exposes `live: polite, atomic: true`; `role=alert` `live: assertive, atomic: true`; a bare `div` exposes nothing; a `display:none` region is not exposed. The APG alert pattern says screen readers do not announce alerts present before page load completes, so a region must exist **before** its text changes. Angular CDK's announcer and React Aria's both keep a hidden region and set its text after a short delay (100 ms in each, for Safari and older screen-reader combinations). AccessKit 0.17.1 has `Live` (Off, Polite, Assertive), `LiveAtomic` and `Busy`; egui sets none of them. The platform adapters differ: Windows raises a live-region event only when the node has a name and the name or live setting changed; macOS announces the node's `value`. A Desktop `status` node must therefore carry its text as both name and value. Whether each adapter actually speaks it is not measurable without a screen reader.
+
+**Name sources.** Keep exactly four values: `content`, `prop`, `either`, `none`. `either` means a non-empty prop or text content, the prop winning, and is used by `button` and `link` only (icon-only controls). `heading` is `content`; `checkbox`, `textfield`, `radiogroup` and `table` are `prop`; `image` is `prop` (alt) or `decorative`. `title` and `placeholder` do not count as names, although Chromium uses both (measured). The ARIA specification lists name-from-contents for button, link, checkbox, radio and heading and author-only for textbox, radiogroup, status, alert, dialog and table, and prohibits naming on `generic` and `paragraph`. The two vocabularies disagree today: the Desktop `button` has an optional `label` prop and takes its text from content, while the web `button` has no `label` prop; the Desktop also has a `label` component that names the one control inside it, which the web has no equivalent of. That wrapper is a composition feature, not a `name.from` value.
+
+**Screen readers for the gate (a proposal; WebAIM's survey could not be read directly).** Required: NVDA with Chrome on Windows; VoiceOver with Safari on macOS; NVDA on Windows against the Desktop PORT (it reads through UI Automation); VoiceOver on macOS against the Desktop PORT. Advisory: Orca on Linux (AT-SPI) and JAWS with Chrome if a licence is available. Secondhand figures for WebAIM survey 10 (Dec 2023 to Jan 2024, 1,539 responses, an uncontrolled sample): JAWS 40.5 percent, NVDA 37.7 percent and VoiceOver 9.7 percent as primary desktop screen readers. The report records the release candidate, date, tester (and whether they use the screen reader daily), screen reader and version, browser or OS and version, a task script (form fill, list, dialog, table), and per task a result, what was announced and a severity (blocker, major, minor), plus any mismatch with the `observe` snapshot. **Who owns the report is a people question** that research cannot answer; the proposed rule is that the release manager files it, an independent daily screen-reader user writes it, it is committed with the release tag, and any blocker holds the release.
+
 ## Open questions for stage 3
 
-- **The exact role set** and its mapping to AccessKit roles.
-- **`ref` syntax** and whether a relation may reach a node in a child component.
-- **Live regions** (announcements) as a primitive or a command.
+- **Landmarks and `rowgroup`** in version 1 or later.
+- **Heading on the Desktop**: a test that the PORT exposes Heading with a level (needs code).
+- **The MESH parser** for `ref`, and whether a child may ever export a reference upward.
+- **Whether each AccessKit adapter speaks a live region**, and whether an imperative `announce` is needed (needs real screen readers).
+- **Real screen-reader runs**, and the owner of the report.
 - **Focus** movement after an update, which [Bet 9](interaction-state.md) takes up.
-- **Whether `either`** (a prop or text) should exist or be split.
-- **The screen readers** the gate names, and who owns the report.

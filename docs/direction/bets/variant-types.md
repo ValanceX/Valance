@@ -97,7 +97,8 @@ error[unknown-variant]: "dangr" is not one of "neutral", "primary", "danger"
  --> toolbar.mprx:4:25
   |
 4 |   <button intent="dangr" />
-  |                   ^^^^^^ did you mean "danger"?
+  |                   ^^^^^^
+  = help: did you mean "danger"?
 ```
 
 The expected type also flows into the branches of `c ? a : b` and into list elements, because the checker already carries an expected type into literals. Nothing else narrows: there is no flow typing, and a string variable is never silently treated as a member.
@@ -137,7 +138,7 @@ component(button, { props: { size: field(Schema.Literal("sm", "md", "lg"), "md")
 
 MPRX cannot build a string from other values, which is why a layout cannot build a base-aware address (finding D3). The non-goal's reason is that "a prop's text is its value's (§9.7.7)": producing text from a number or boolean means formatting. `string + string` involves no conversion: it is concatenation of two present strings, with no coercion (the `+` rule today requires numbers on both sides). Allow that and nothing more.
 
-This is the part of the bet I am least sure belongs here, and it can be cut without affecting the rest.
+This is the part of the bet I was least sure belonged here. **It is cut** (see "Answered by research" below): there are no string joins in 203 templates, and the one recorded need is solved outside the language.
 
 ### Alternatives considered
 
@@ -152,7 +153,7 @@ This is the part of the bet I am least sure belongs here, and it can be cut with
 ## Experiment
 
 1. **Rust checker and manifest.** Add the `enum` kind to `manifest-v1`'s schema, to `mesh-manifest`, and to the checker's `is_assignable` and `join`; add literal-site checking and `unknown-variant`. Write the conformance vectors below first.
-2. **Runtime and JS packages.** Validate enums at the boundary; add `runtime-value-not-in-enum`. Confirm the render tree and patches are byte-identical for existing programs.
+2. **Runtime and JS packages.** Validate enums at the boundary, reporting a value outside the set with the existing `runtime-value-mismatch`, `runtime-prop-mismatch` and `runtime-argument-mismatch` codes (no new runtime code). Confirm the render tree and patches are byte-identical for existing programs.
 3. **`has` and `??`, then defaults.** Spec text, diagnostics, runtime, then composite `default`.
 4. **Valance.** The Effect Schema bridge, `field` on component props, and the typed template imports (`.d.mprx.ts`).
 5. **Editor.** Completion lists the values inside an attribute whose prop is an enum; hover shows the set.
@@ -180,9 +181,32 @@ This is the part of the bet I am least sure belongs here, and it can be cut with
 - State fields declared with `Schema.Literal` become enums, so templates that compared them with a non-member literal now fail to check.
 - An `any`-typed workaround for a union can be replaced; none has to be.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) T10 to T13. Run against MESH 0.13.0.
+
+**The upper limit on an `enum` is 256, a MESH resource limit and not a format rule.** MESH has no count limits today; its limits are depth 128 (`nesting.rs:24`, `mesh-manifest/src/lib.rs:31`, `value.rs:95`, `encoding.rs:28`), and the manifest manual says resource limits are not part of the format (diagnostics.md: "a later version may raise it"). The largest closed set in the four repositories is 4 values (`Schema.Literal("idle", "loading", "done", "failed")`); the others have 2 or 3. The limit is reported as a new manifest code, `manifest-enum-too-large`, modelled on `manifest-nesting-too-deep`, and applies to declared enums only. Named types are not required for large sets: the manifest already says "Two named types with the same definition are the same type", so a large enum and a named alias of it read the same. The did-you-mean search is a linear scan with a quadratic edit distance (`diagnose.rs`), so 256 candidates is trivial, and the "is not one of ..." list in `unknown-variant` is capped at about 8 nearest values. Precedents place no tight cap on a literal union: TypeScript 5.9.2's checker has none on a plain literal union (its caps are a 100,000-constituent cross product and about 1,000 unique object types, both reported as "Expression produces a union type that is too complex to represent"); JSON Schema 2020-12 §6.1.2 says an `enum` array "SHOULD have at least one element" and "SHOULD be unique", with no maximum; Protobuf requires enumerators to fit 32 bits. Icon-name sets run to thousands and should stay `string`, validated by the application. No consumer with a large set exists, so the exact number is a judgement; 256 would cover the ISO country codes (249 from memory, unchecked).
+
+**New diagnostic codes**, following the catalogue's conventions (model errors carry no prefix, `unknown-*` carries a did-you-mean `= help:` line, warnings are noun-phrase defects, `manifest-*` and `runtime-*` are prefixed):
+
+| Code | Kind | Trigger |
+|---|---|---|
+| `unknown-variant` | model error | a literal not in the enum (attribute, `==`/`!=`, `?:` branch, list element) |
+| `manifest-enum-too-large` | manifest error | more than 256 values |
+| `manifest-duplicate-variant` | manifest error | a repeated value, like `manifest-duplicate-parameter` |
+| `redundant-presence-test` | warning | `has(x)` where `x` is not optional |
+| `redundant-default` | warning | `x ?? y` where `x` is not optional |
+| `type-mismatch` (existing) | model error | `y` in `x ?? y` is itself optional (the "which may be absent" suffix exists) |
+| `syntax-error` (existing fallback) | syntax | `has` with the wrong arity |
+
+An empty or non-string `values` is `manifest-invalid-value` through the schema. **`runtime-value-not-in-enum` is not added**: the boundary already reports a value that does not fit with `runtime-value-mismatch` (snapshot fields, "at the deepest path where it stops fitting"), `runtime-prop-mismatch` and `runtime-argument-mismatch` (values through `any`), and hosts that match those codes get fail-closed behavior for free. If a distinct code is wanted it is `runtime-unknown-variant`, matching the existing pair `unknown-field` and `runtime-unknown-field`. `has(` is not an existing construct, so no reserved word is needed; reserving `has` as a name would reject manifests valid today and break the version-1 promise. `??` is not valid MPRX today.
+
+**A `default` in the manifest is allowed on every prop, and is applied only when the occurrence expands as a composite.** The manifest cannot say "composites only": the templates manual states that composite versus primitive "is decided by the program, and only by the program ... The manifest has no say". So `default` is an optional property on the field declaration for every prop (the field schema has `additionalProperties: false`, so today it gives `manifest-unknown-property`; an optional property is allowed by the manifest's versioning rule), applied by the runtime at composite expansion and ignored for primitive occurrences, which makes it documentation only in effect. Assembly rule 2 changes from `is_assignable(P?, S)` to `is_assignable(P, S)` for a prop with a default. The manifest fingerprint changes when a default does, so templates must be recompiled; whether a default belongs in the fingerprint's "meaning" is the maintainer's call.
+
+**String joining is cut from this bet.** There are 0 string `+` in 203 `.mprx` files across the four repositories (the only `+` in templates are numeric test fixtures). The one recorded need, finding D3 (a base-aware image `src`), is solved outside the language by `withBase` in `common/src/scope.ts`, used wherever a layout builds a link. The specification says "There is no string concatenation: text content already interleaves text and expressions" (§ on expressions), and `+` would become overloaded with new rules for `any` operands. Revisit when a template needs it.
+
 ## Open questions for stage 3
 
-- The diagnostic code names (`unknown-variant`, `runtime-value-not-in-enum`) and whether `has` and `??` need new codes for misuse.
-- The upper limit on the number of values, and whether very large sets should be named types.
-- Whether a `default` may be written in the manifest for a primitive's prop for documentation only. Current answer: no.
-- String joining (design item 8): keep or cut.
+- **Whether `has` redundancy is a warning or a silent pass** (the maintainer's call).
+- **Whether a `default` belongs in the manifest fingerprint's meaning.**
+- **The right enum limit** needs a real consumer with a large set; none exists in the repositories.

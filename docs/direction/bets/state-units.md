@@ -231,10 +231,27 @@ State lives in memory per visible instance, as in LiveView. It is bounded by the
 
 Accessibility ([Bet 7](accessibility.md)) resumed after this brief. Nothing here blocks it, and one choice keeps it cheap: a unit instance has a stable identity, which is also what generated ids for relationships between parts would derive from.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) V11 to V14. Memory was measured with the published `@valancex/nexus` 0.12.3 on Node 22.22.
+
+**`controllable` is declared per field.** Radix's `useControllableState` is one hook per value (`isControlled = prop !== undefined`) and warns in development if a value switches between controlled and uncontrolled; Svelte's `$bindable` is declared per prop; the intent of V5 already lists controlled fields. React Spectrum's `useControlledState` was not read (the first path returned 404).
+
+**No keep-alive opt-in on a unit.** Vue's `<KeepAlive>` (include, exclude, max, least-recently-used) and React's `<Activity mode="visible|hidden">` are caller-side wrappers; Activity hides children with `display: none`, keeps them in the tree, destroys their effects and re-renders them at lower priority. If an application wants a hidden panel to keep its state it keeps the node rendered and hides it with a prop, instead of removing it under an `{#if}`, since §9.10.6 keeps the identity alive. A keep-alive boundary would need the tree to omit nodes while remembering state, which is a new input in the `units` map; add it at the hide site later if wanted.
+
+**Hot reload (low to medium confidence).** React Fast Refresh keeps state per component family by id and resets when the hook signature changes (`forceReset`); MESH keys hash the whole program identity, so they are not stable across programs. The proposed rule for when state-preserving reload becomes a goal: identify an instance by the path of (component name, declared repeat key or the ordinal among same-named siblings), keep its state if the unit's state signature (field names and kinds) is unchanged, otherwise reset. Unkeyed same-named siblings match by ordinal, so inserting before one shifts state, as in React. Svelte's hot reload was not read.
+
+**Memory budget: about 12 KB and 150 µs per unit instance.** One `Scope.make()` plus `State.create(Schema.Struct({ open: boolean, selected: number }), ...)` per instance, forced garbage collection before and after:
+
+| N | Heap | Per instance | Create | Close |
+|---|---|---|---|---|
+| 10,000 | +110 MB | about 11.6 KB | 83 to 125 µs | 32 to 43 µs |
+| 1,000 | +11.5 MB | about 12.0 KB | 171 µs (warm-up) | 52 µs |
+
+That is about 12 MB at 1,000 instances and about 116 MB at 10,000. After closing the scopes and dropping references, 147 bytes per instance remained (no leak at this scale). One machine and one two-field schema; units with more fields cost more, and the cost with a real `units` input and the update path is unmeasured.
+
 ## Open questions for stage 3
 
-- **Hot reload resets units** because keys are not stable across programs. A more stable instance identity (component name plus declared-key path) would survive an edit but risks collisions for unkeyed siblings. Decide when state-preserving reload becomes a goal.
-- **Keep-alive.** A hidden panel loses its state. Whether a unit may opt in to surviving a hide, and how, is open.
-- **Effects in transitions.** Pure transitions cover disclosure and tabs. Focusing an element or announcing a change needs capabilities. Add the Effect form when a component needs it.
-- **Memory limits** for very many instances.
-- **Whether `controllable` is declared per field or per unit.**
+- **State-preserving reload** as a goal, and how Svelte's hot reload handles it (not read).
+- **The cost of a real `units` input** on the update path (the 1.2x budget needs the implementation).
+- **Effects in transitions**: focus is a host request ([Bet 9](interaction-state.md), I13) and an announcement is a `status` primitive ([Bet 7](accessibility.md), A13), so the Effect form is not needed for version 1.

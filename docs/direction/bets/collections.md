@@ -183,11 +183,24 @@ The snapshot still carries the whole list, at about 3 ms per 1,000 rows. For lis
 - The grammar and template format gain the `window` clause and `len` (with the template format bump already decided as U8).
 - The vocabulary gains `scroller`. The Desktop's tier-3 note "not planned" for virtualized lists is superseded.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) L11 to L14. Measured in Chromium 141; library sources read from GitHub.
+
+**Scroll anchoring: render the window as in-flow rows between a top and a bottom spacer, leave `overflow-anchor: auto`, and do not position rows absolutely.** Measured: inserting 5 rows above the visible ones moved `scrollTop` from 1000 to 1200 with the same row staying at the top; the same held with `content-visibility: auto` rows; growing a top spacer from 4000 to 4200 px moved `scrollTop` from 4050 to 4250 and the row stayed put. With `overflow-anchor: none` the row jumped. **Rows positioned absolutely (by `top` or `translateY`) get no anchoring in Chromium 141** (the row jumped from -10 to 190), so the web realization must not place rows that way. Removing two top rows while growing the spacer by the same height left `scrollTop` unchanged either way. Support: `overflow-anchor` is Baseline "newly available" from 2026-09-14 and needs Safari 27, so earlier Safari has no anchoring.
+
+**Pinning a focused or selected row far from the window: not in version 1.** Selection stays data held by key, and the focus-loss rule of [Bet 9](interaction-state.md) applies when the focused row leaves the window; the scroller carries `tabindex="-1"` as the landing target. TanStack Virtual shows why a pin is costly: its `rangeExtractor` returns the contiguous range, and its sticky example unions in the pinned index (`new Set([activeStickyIndex, ...defaultRangeExtractor(range)])`), making the result non-contiguous, which works only because every item is positioned absolutely from a measurement array. A contiguous window with in-flow rows cannot do that. If a pin is needed later, add it as a second one-row range with a spacer between the ranges, not a non-contiguous window.
+
+**Measured row sizes: version 1 stays with a declared fixed `itemSize`.** TanStack Virtual's variable-size path needs a required `estimateSize` (its docs recommend estimating the largest size), a `ResizeObserver` observation for every mounted row, rounding of the border-box size, a cache by key, and a rebuild of the measurement array from the earliest changed index to the end on each resize batch; it also corrects scroll position when a row above the fold is first measured. That is code to write and maintain; none of it was benchmarked here.
+
+**Initial server window: derive the count from a viewport hint.** `count = ceil(viewportHint / itemSize) + overscan`, with an explicit viewport-height hint. All three libraries read need the caller to supply a size: TanStack's `initialRect` defaults to 0 by 0 (about 2 rows on the server unless given one; overscan default 1), react-window's `defaultHeight` ("important for server rendering") defaults to 0 with overscan 3, and Angular CDK skips measurement on the server and renders no items ("Scrolling depends on the element dimensions which we can't get during SSR"). Without a hint, use a fixed count; **20 is the suggested default, which is my inference and not sourced**.
+
+**A windowed table body emits `aria-rowcount` and `aria-rowindex`.** The table carries `aria-rowcount` (the total row count, header rows included; `-1` if the total is unknown), and every rendered row carries `aria-rowindex`, 1-based and counting header rows. MDN: `aria-rowcount` is needed "if the rows aren't all present in the DOM at any time"; `aria-rowindex` is "an integer greater than or equal to 1, greater than the aria-rowindex value of any previous rows" and "must be added to each row" when a subset is present. Headers stay outside the window in their own `rowgroup`, always rendered, with their own `aria-rowindex` values (1 to n), as in MDN's example; `aria-colcount` is added only if columns are ever omitted, which they are not here. The APG table pattern says the same. The existing `total` and `start` props map to the count and the index plus the header offset. A real screen-reader test is still owed.
+
+**The clause spelling stays `{#each rows as row (row.id) window start, count}`.** Nothing was found that beats it and it keeps the key and the window together. The spellings of Angular's `@for` with a slice, Jinja's `[start:end]`, SwiftUI's `ForEach(range)` and Compose's `items(count)` were not researched, so this is judgement.
+
 ## Open questions for stage 3
 
-- The spelling of the clause.
-- **Pinning:** how a focused or selected row far from the window stays.
-- **Scroll anchoring** when the list above the window changes length.
-- **Measured sizes** and when they become worth the complexity.
-- **Initial window on the server:** the default count, and whether it can come from the layout.
-- A windowed table body, and what row and column headers do.
+- **The clause spelling** is the maintainer's taste (kept as drafted).
+- **A real screen-reader test** of the windowed table.
+- **Pinning** in a later version, as a second one-row range.

@@ -129,13 +129,13 @@ This is what keeps "function types" a non-goal in every way that matters: a snip
 
 ### 5. Recursion
 
-A snippet may render itself or another snippet that renders it. The composite rule against cycles is unchanged, because a composite's expansion is a structural fact checked before evaluation. For snippets the question is termination, and the data is finite and acyclic (a value that contains itself is rejected at the boundary), so recursion over data terminates unless a snippet re-renders itself with the same argument. That case is stopped at runtime: exceeding a render depth limit (proposed 100, a resource limit like the manifest nesting limit) is the diagnostic `runtime-snippet-depth`, and the render fails closed.
+A snippet may render itself or another snippet that renders it. The composite rule against cycles is unchanged, because a composite's expansion is a structural fact checked before evaluation. For snippets the question is termination, and the data is finite and acyclic (a value that contains itself is rejected at the boundary), so recursion over data terminates unless a snippet re-renders itself with the same argument. That case is stopped at runtime: exceeding a limit is the diagnostic `runtime-snippet-depth`, and the render fails closed. The research below sets two limits, a snippet-recursion cap of 64 and a cap of 512 on total render nesting (the existing composite nesting has no guard and crashes the runtime near 690 levels), and shows that the first proposal of 100 snippet levels would crash before it was reached.
 
 ### 6. Identity
 
 Identity is a sequence of steps from the root (§9.10). A render site adds a step, as a slot does (`0x06`) and a repeat does (`0x05`):
 
-- `{@render name(args)}` adds a **render step** (a new kind, proposed `0x07`) at the render site's position, with no component.
+- `{@render name(args)}` adds a **render step** (a new kind, `0x08`: `0x07` is the existing fragment step) at the render site's position, with no component.
 - The snippet body's own sites follow, at their positions within the body.
 - The step carries the site's path in the *rendering* template, so one snippet rendered at two sites, or under two parents, or in two repeat items, never shares a key. The declaring template contributes only the positions inside the body.
 - A render site inside a `{#each}` is keyed by the item's declared key like any other node.
@@ -206,10 +206,24 @@ The update path (memoization of unchanged inputs, `reads` derived by the runtime
 - Composites that rely on being usable as a slot host change to declare a `children` snippet prop where they accept content.
 - Documentation and examples that teach slots are rewritten.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) U10 to U14. Depth was measured with the published runtime 0.13.0.
+
+**The format: bump to `template-v2`, the runtime keeps reading v1, and the compiler emits v2 only for templates that use snippets or the window clause.** The stability policy says `-v1` formats "may gain optional properties only" and "a new required one is a new version"; the runtime already has `assembly-unsupported-format-version`; a template runs only if the runtime supports its version and its fingerprint equals the model's, and it is a build artifact ("Recompiling is the remedy"). On consumers: every `@valancex` package on npm is published by the single user `valancex` (mesh-runtime has 9 versions, created 2026-09-25) and no other publisher's package depends on them in what I could see, but **the download-count API was blocked and the registry has no dependents API, so the premise "no outside consumers" is unverified**. Reading both versions is the safe superset.
+
+**`children` is reserved.** In a composite manifest a prop named `children` must be of kind `snippet` with no parameters, and writing `children={...}` together with loose content is an error. Svelte's snippet documentation: "you cannot have a prop called `children` if you also have content inside the component — for this reason, you should avoid having props with that name". No prop named `children` exists in any checkout (the only hit is a record field `i.children` in `list-items.mprx`, which is unaffected), so the reservation is a free-window break.
+
+**Recursion: a counter for total render nesting, capped at 512, plus a snippet-recursion cap of 64; neither is configurable by the host.** The proposed 100 snippet levels is not a safe guard. Measured: a chain of nested composites, one `<box>` each, renders at 685 levels and crashes at 690 with `MeshInternalError: the runtime failed` (cause `RuntimeError: memory access out of bounds`, which looks like a stack overflow in the WebAssembly module; that reading is my inference); with 10 elements per level it crashes by 80 levels (70 passes), about 700 element levels in total. So existing composite nesting has **no guard at all**, and a snippet recursion of 100 with a 10-element body would crash near 70. A related mismatch: the manuals say MPRX can nest 128 levels, but a compiled `template-v1` failed at about 42 nested elements with `assembly-malformed-template` ("recursion limit exceeded", from the JSON parser; 40 passed, 42 failed). Data depth is capped at 128, and a recursive tree of record and list uses 2 data levels per tree level (from the loop structure), so data recursion needs at most about 64 levels, which is the basis for the 64. Both limits fail closed with a `runtime-*` diagnostic (`runtime-snippet-depth` for the snippet cap). No MESH limit is host-configurable today. Precedent: Go's `text/template` has `maxExecDepth` 100000 (1000 on WebAssembly) with "exceeded maximum template depth"; React's `NESTED_UPDATE_LIMIT` is 50 but bounds update loops, not render nesting. Rust's recursion limit and Jinja, Svelte and Angular behavior were not fetched.
+
+**`{@render}` may be the root of a composite's template, with fragment semantics, and may not be the program root.** `mesh-fragment` may be a composite template's root but not the program's; a block may be a fragment's child but not a template's root; a slot is not the root; MPRX-SPEC §7 wraps a lone block or slot in a branch in a `mesh-fragment` automatically; the runtime gives a fragment the identity step `(i, 0x07, "")`. A lone `{@render}` as a composite root is therefore treated like a fragment child (an implicit wrapper), and a program root that resolves to one gives the existing `assembly-root-fragment`. **The earlier claim that this comes "for free" (section 7) was an overclaim without the program-root exception**, and the update and identity vectors still decide the rest.
+
+**Keep the word "snippet".** Svelte uses the same pair (`{#snippet}`, `{@render}`) and MPRX's blocks already mirror Svelte's. Other frameworks name the concept differently (Vue slots and scoped slots, React children functions and render props, Angular `ng-template`, Swift `ViewBuilder`, Compose slot APIs); that comparison is from memory and was not fetched. A rename costs nothing now, and nothing found favors another word.
+
+**Correction to the identity design:** the render step cannot be `0x07`. `FRAGMENT = 0x07` already exists (`program.rs`; runtime.md), so the render step is the next free byte, `0x08`.
+
 ## Open questions for stage 3
 
-- **The template format.** A format version bump, or an agreed rule for extending the child kinds within `template-v1`. Current lean: bump to `template-v2` while there are no outside consumers.
-- **Where `children` is declared.** Svelte's caveat (a prop called `children` conflicts with inline content) suggests reserving the name.
-- **The depth limit's value** and whether it is configurable by the host.
-- **Whether `{@render}` may appear as the root of a template.** The consequence of section 7 says yes; the update and identity vectors will say whether it is safe.
-- **The word "snippet".**
+- **The real consumer count** of the `@valancex` packages (npm's download API was blocked).
+- **Per-level stack cost** of real snippet frames, which needs the implementation.
+- **The update and identity vectors** for a `{@render}` at a composite's root.
