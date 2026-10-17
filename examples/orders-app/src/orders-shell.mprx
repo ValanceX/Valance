@@ -13,7 +13,7 @@
       {#if empty}<para class="state">No orders with this status.</para>{/if}
       <list class="rows">
         {#each rows as r (r.id)}
-          <item><link class="row" href={r.href} current="false">{r.id}: {r.customer}</link> <span class="status">{r.status}</span> <span class="total">{r.total}</span></item>
+          <item><link class="row" href={r.href} current="false">#{r.id} {r.customer}</link> <span class="status">{r.status}</span> <span class="total">{r.total}</span></item>
         {/each}
       </list>
     </div>

@@ -118,11 +118,11 @@ describe("the orders screen", () => {
     const { page, calls, errors } = await open("/orders");
 
     await page.waitForSelector(".rows li");
-    expect(await rows(page)).toEqual(["1: Ada", "2: Grace", "3: Linus"]);
+    expect(await rows(page)).toEqual(["#1 Ada", "#2 Grace", "#3 Linus"]);
     expect(await page.textContent(".hint")).toBe("Pick an order from the list.");
     await page.click('a.filter[href="/orders?status=paid"]');
     await page.waitForFunction(() => document.querySelectorAll(".rows li").length === 1);
-    expect(await rows(page)).toEqual(["2: Grace"]);
+    expect(await rows(page)).toEqual(["#2 Grace"]);
     expect(new URL(page.url()).search).toBe("?status=paid");
     expect(await page.getAttribute('a.filter[href="/orders?status=paid"]', "aria-current")).toBe("page");
     expect(calls).toEqual(["GET /api/orders", "GET /api/orders?status=paid"]);
@@ -155,7 +155,7 @@ describe("the orders screen", () => {
 
     await page.waitForSelector(".order-detail h2");
     expect(await page.textContent(".order-detail h2")).toBe("Order 3: Linus");
-    expect(await rows(page)).toEqual(["1: Ada", "2: Grace", "3: Linus"]);
+    expect(await rows(page)).toEqual(["#1 Ada", "#2 Grace", "#3 Linus"]);
     expect([...calls].sort()).toEqual(["GET /api/orders", "GET /api/orders/3"]);
     expect(await page.title()).toBe("Order 3 · Orders");
     await page.close();

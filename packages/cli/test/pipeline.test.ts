@@ -332,7 +332,7 @@ describe("state declared field by field", () => {
 
     const content = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
-    expect(content).toContain("0light");
+    expect(content).toContain("0 light");
   });
 
   it("checks a default against its field's type", async () => {
