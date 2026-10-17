@@ -104,7 +104,7 @@ Ceilings are the 2026-10-17 baseline plus 5 percent, rounded up. Wall-clock rows
 
 | Metric | Baseline | Ceiling | Target and notes |
 |---|---:|---:|---|
-| Counter app JavaScript, brotli | 162,138 B | 170,300 B (baseline plus 5 percent, rounded up to the next 100 bytes) | Superseded: a Vite build of the same counter is 79,220 B brotli (see "Answered by research"); re-baseline from `vlx build` before any ceiling is set |
+| Counter app JavaScript, brotli | 162,138 B | 170,300 B (baseline plus 5 percent, rounded up to the next 100 bytes) | Superseded. Recomputed from `vlx build` in [the 2026-10-17 `vlx build` baseline](../baselines/2026-10-17-vlx-build.md#ceilings-recomputed-w3): 87,918 B baseline, 92,400 B ceiling. (The 79,220 B Vite figure was a hand-run Vite build of the bare counter entry.) |
 | `mesh-runtime.wasm`, brotli | 170,828 B | 179,400 B | Hold. Do not apply `wasm-opt -Oz` (measured worse) |
 | Transferred, all files, brotli | 333,683 B | 350,400 B | |
 | First paint, no throttling | 211 ms | 2x the previous release | Report the trend |
