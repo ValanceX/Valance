@@ -183,6 +183,21 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | R9 | Sensitive data? | **A `sensitive` marker on manifest fields**; the recorder substitutes a typed placeholder, and hashes are taken over the redacted snapshot | Replay stays structural and the log is safe to share | Medium |
 | R10 | Versions? | **Exact within a runtime minor version.** Across versions the player reports the first divergent step as information. Goldens are regenerated on purpose, with a changelog note. A new format sits beside the old for one release | Deliberate changes must not look like failures | Low |
 
+## Safe generated UI ([Bet 13](bets/safe-generated-ui.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| G1 | What may a model use? | **A profile: a named subset of the manifest** (components, props, events, commands). The checker runs against it; the model's prompt text is generated from it | The checker and the prompt cannot disagree. A2UI's catalog is the same idea | Low |
+| G2 | How is a partial file checked? | **Repair the prefix** (cut to the last complete token, close what is open) and check that. The checker does the repair, not the host | Measured: raw prefixes give a syntax error 275 times in 276; repaired prefixes were clean 233 of 271 and reported planted mistakes 8 to 13 bytes after them | Low |
+| G3 | What is drawn while streaming? | **Only checked, complete elements and their open ancestors**, as ordinary `update` patches. Unknown components are never drawn, even in a preview | Fail closed. This differs from A2UI's graceful fallback on purpose | Low |
+| G4 | What is the session contract? | **`open`, `push`, `close`.** `close()` equals the batch check of the whole text. A later chunk only appends | A property that can be tested | Low |
+| G5 | What limits apply? | **64 KB source, 5,000 elements, 64 attributes per element, the existing depth cap, 50 ms of checker time per push**, each with a diagnostic code | Measured: 20,000 siblings gave no answer in 40 seconds; 10,000 attributes took 15 seconds | Low |
+| G6 | What about the quadratic checker? | **Fix it, with or without streaming.** Sibling and attribute paths become linear, and a session checks only from its last stable point | 1,000 siblings 131 ms, 8,000 siblings 7 s | Low |
+| G7 | How does correction work? | **At most 3 rounds; a diagnostic is sent once; match on `code`**; the host chooses to continue or restart | Keeps the loop finite and the guide's rules | Low |
+| G8 | Do commands from generated UI need a new path? | **No.** The same Nexus handler, with the manifest's typed arguments. A command that needs consent says so in its own contract | Generation must add no way to act | Medium |
+| G9 | Who stops `javascript:` in a link? | **The primitive's specification types the value, and the PORT refuses what it does not allow.** The checker only knows strings | Measured: a string prop accepts it, correctly. Meaning belongs to the primitive | Medium |
+| G10 | Where does it live? | **MESH: session, limits, incremental check. Valance: profile, prompt text, loop helper.** Nothing in a PORT. It loads only when a page uses generation | The build-mode rule and fixed point 9 | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -220,3 +235,6 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 21. **Q4, `observe` without roles.** If libraries need role checks before accessibility work resumes, `observe` grows early and Q4 is revisited.
 22. **R5, never re-running commands.** A replay then cannot catch a bug in a command. If that is the bugs people report, add the second tier: re-run under a recorded clock and random source, advisory.
 23. **R9, redaction.** A value that decides control flow changes the tree when redacted. If that is common, redact by field and warn when the placeholder changes a branch.
+24. **G2, repairing the prefix.** If the repair hides real errors (a mistake reported late or not at all in over 5 percent of random cases), report fewer prefixes as acceptable.
+25. **G3, never drawing an unknown component.** If assistants need a placeholder to feel responsive, draw a labeled placeholder that is not the component, never the component.
+26. **G8, no new path for commands.** If consent for data-changing commands needs its own protocol, it becomes a separate bet.

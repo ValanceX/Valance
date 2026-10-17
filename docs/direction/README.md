@@ -19,6 +19,7 @@ An honest map. Tiers are the ones in [API stability](../stability.md); stages ar
 | Components you can share as a package | **Partly works** (tested 2026-10-17, [Bet 12](bets/reference-library.md)). A package that ships its templates as TypeScript source and a `component()` contract is found, type-checked and built for both targets. A package shipped as compiled JavaScript, the normal way, fails to load; there is no way to declare which targets a library supports, and CSS arrives only by a side-effect import. A package still cannot add new primitives | You can try a library as source today. You cannot publish one the usual way yet |
 | Verification | The language vectors are copied by hand into the Web PORT, whose copy is at v0.6 and lacks the identity vectors. The Desktop PORT does not run them. There is no gallery ([Bet 2](bets/conformance-kit.md)) | A PORT or library can drift without anything failing |
 | Replay and bug reports | The design for a session log was written on 2026-10-06 and never built. A short session replays to identical trees by three routes ([Bet 15](bets/replay.md)) | A bug cannot yet be sent as a file that reproduces it |
+| Generated UI | A finished file is checked and repaired by diagnostics. A half-written file gets only a syntax error, and there is no input limit: 20,000 sibling elements gave no answer in 40 seconds ([Bet 13](bets/safe-generated-ui.md)) | Fine for small generated screens from a trusted source. Do not point it at unbounded input yet |
 | Styling and themes | **No contract.** The web uses plain CSS hooks on some tags; the Desktop has no styling ([Bet 6](bets/style-contract.md)) | You cannot publish a style library yet |
 | Accessibility | Roles, names and states are mapped per primitive on both targets. There is no shared model, and no check that a control has a name | Do not assume a primitive is accessible because it compiles |
 | Behavior that needs its own state (tabs, menus, dialogs) | **Not designed.** State is application-level only | Such components would leak state into your application |
@@ -106,7 +107,7 @@ Written down because a small foundation stays small by refusing things.
 ## How to take part
 
 - **Try it and tell us what hurt.** Open an [issue](https://github.com/ValanceX/Valance/issues) with what you tried, what you expected, and what happened. The repositories have none yet, so yours will be the first. A friction report is more useful to us than a feature request.
-- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first eleven briefs, with the reason for each and what it would cost to undo.
+- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first twelve briefs, with the reason for each and what it would cost to undo.
 - **Read the evidence.** [Prior art](prior-art.md) lists what other frameworks decided and why, with the quality of each source. If we have a source wrong, say so.
 - **Build a library before the gate.** If you want to be one of the first outside authors, say so in an issue. The Reference Gate needs people who will build against a surface that is known to be unstable, and their friction becomes our evidence.
 

@@ -67,6 +67,13 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 | Nexus reference platform (`tests/platform/reference.ts`) | Repo | A platform may supply a clock (`Layer.setClock`) | Time is injectable at the host | 15 |
 | Elm debugger, Redux DevTools, rr and Replay.io | S | Replay pure updates; record at the nondeterminism boundary | Not read in this session. Verify before quoting | 15 |
 
+## Generated UI
+
+| Source | Mark | The authors' reasoning | Lesson | Feeds |
+|---|---|---|---|---|
+| A2UI, [README](https://raw.githubusercontent.com/google/A2UI/main/README.md), [catalogs](https://raw.githubusercontent.com/google/A2UI/main/docs/public/concepts/catalogs.md), [protocol v0.9.1](https://raw.githubusercontent.com/google/A2UI/main/specification/v0_9_1/docs/a2ui_protocol.md) | P | "A declarative data format, not executable code"; a client "catalog" of approved components; all JSON "validated against the chosen catalog"; components may reference children not yet sent and clients render placeholders; unknown components degrade gracefully; errors return to the agent with `code`, `path`, `message`. "Early stage public preview" at v0.9.1. The overview, transports and actions pages and the v1.0 candidate were not read | The catalog and the error loop match our profile and diagnostics. We differ on unknown components (fail closed) | 13 |
+| MESH, [Repairing generated UI](https://github.com/ValanceX/Mesh/blob/main/docs/guides/checking-against-a-component-model.md) | Repo | Diagnostics as data: stable codes, spans, suggestions, one per mistake | The loop's wire format exists for finished files | 13 |
+
 ## Cross-process and wire formats
 
 | Source | Mark | The authors' reasoning | Lesson | Feeds |

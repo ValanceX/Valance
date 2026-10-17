@@ -4,7 +4,7 @@ A bet is one open question, written as a hypothesis we can test and a rule for w
 
 ## The index
 
-Briefs exist for the eleven bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units, collections, start-up, the reference build, the conformance kit and replay. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
+Briefs exist for the twelve bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units, collections, start-up, the reference build, the conformance kit, replay and generated UI. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
 
 | # | Bet | Question | Stage | Depends on |
 |---|---|---|---|---|
@@ -20,7 +20,7 @@ Briefs exist for the eleven bets the rest depend on or that carry the most risk:
 | 10 | [Collections](collections.md) | Can windowing be a property of `{#each}` without changing meaning? | 2 Design (by delegation) | 1, 5, 8 |
 | 11 | Forms from the schema | Can field state and validation derive from the schema NEXUS already validates with? | 0 Question | 7, 8 |
 | 12 | [The reference library, themes and a third target](reference-library.md) | Can outside authors build against public seams only? | 2 Design (by delegation); seam measured (stage 3) | 3, 4, 5, 6, 8, 10, 14 |
-| 13 | Safe generated UI | Can a model's partial MPRX be validated and repaired against a manifest as it streams? | 0 Question | |
+| 13 | [Safe generated UI](safe-generated-ui.md) | Can a model's partial MPRX be validated and repaired against a manifest as it streams? | 2 Design (by delegation); checker measured (stage 3) | 1, 3 |
 | 14 | [Starting from what the server did](resumable-start.md) | Can a page start from the render tree without re-evaluating it, and what happens to a tap before the app is ready? | 3 Prototype (early-input shell); 2 Design (by delegation) | 3 |
 | 15 | [Replay as a contract](replay.md) | Can a recorded session reproduce every tree byte for byte, as a conformance requirement? | 2 Design (by delegation); determinism measured (stage 3) | 2, 8 |
 
