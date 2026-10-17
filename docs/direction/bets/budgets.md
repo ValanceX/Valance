@@ -61,6 +61,11 @@ Reliability: **P** primary source read through a fetch agent; **S** secondary; *
 | Runtime CSS-in-JS (**S**, one team's comparison) | Render time nearly doubled with Emotion against Sass modules (27.7 ms against 54 ms) in one codebase | Measure the effect of a design choice in your own application, not someone else's |
 | This ecosystem, the reactivity design (**Repo**) | Gates a design on a measured improvement, counts evaluations instead of milliseconds | The method already exists. This bet generalizes it |
 | This ecosystem, `bench-update.mjs` (**Repo**) | Reports "the least of several runs ... since a machine's noise only adds time" | The right way to take a wall-clock number |
+| webpack (**P**, [performance](https://raw.githubusercontent.com/webpack/webpack.js.org/main/src/content/configuration/performance.mdx)) | `performance.hints` defaults to `'warning'` in production and `false` in development; `maxEntrypointSize` is "all assets that would be utilized during initial load time" | Size warnings belong to production builds, and the thing budgeted is the initial load |
+| Vite (**P**, [build options](https://raw.githubusercontent.com/vitejs/vite/main/docs/config/build-options.md)) | `chunkSizeWarningLimit` defaults to 500 kB, "compared against the uncompressed chunk size"; "Unless noted, the options in this section are only applied to build" | The same split. The uncompressed comparison is the metric W2 rejects |
+| Angular budgets (**P**, [builder schema](https://raw.githubusercontent.com/angular/angular-cli/main/packages/angular/build/src/builders/application/schema.json), [CLI docs](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/cli/build.md)) | Configurable budgets by type (`initial`, `bundle`, `anyComponentStyle`, ...), with warning and error thresholds in bytes or percent. `initial` is "the size of JavaScript and CSS needed for bootstrapping the application", defaulting to warn at 500 kB and error at 1 MB. The docs' example puts them under the production configuration | A model for author-facing budgets. The docs do not say budgets are production-only; the example is |
+| Angular deferrable views (**P**, [defer](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/templates/defer.md)) | `@defer` "reduce[s] the initial bundle size ... by deferring the loading of code that is not strictly necessary for the initial rendering of a page". Triggers: idle (the default), viewport, interaction, hover, immediate, timer; `prefetch` is separate from rendering. Caveats: avoid deferring above-the-fold content (layout shift); under HMR "all `@defer` block chunks are fetched eagerly"; on the server a deferred block renders its placeholder | The closest precedent for the start-up and after-start sets, including that development may load eagerly |
+| MDN (**P**, [modulepreload](https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/html/reference/attributes/rel/modulepreload/index.md), [compileStreaming](https://raw.githubusercontent.com/mdn/content/main/files/en-us/webassembly/reference/javascript_interface/compilestreaming_static/index.md), [requestIdleCallback](https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/api/window/requestidlecallback/index.md)) | `modulepreload` fetches, parses and compiles a module early, with the warning "you can't just preload everything!". `compileStreaming` compiles from a stream, and a wrong MIME type rejects with a `TypeError`. `requestIdleCallback`: "A `timeout` option is strongly recommended for required work" | The tools for the start-up set. Browser support statements were not in the fetched text; check Baseline |
 
 Not researched in this session: other frameworks' sizes. The baseline does not say whether 333 KB is large or small for a counter, and a comparison would use the same harness on a counter in other stacks.
 
@@ -137,25 +142,93 @@ Its deterministic parts (the wire bytes and the evaluation counter) are cheap an
 
 A bet cannot reach stage 4 over its allowance. Going over needs a recorded decision with the reason.
 
+### 7. Production and development builds
+
+The goal of a production build is the smallest, fastest-starting output possible. The goal of a development build is fast rebuilds and clear errors. So they differ in tooling, not in meaning.
+
+| | Production (`vlx build`, the release dry run) | Development (`vlx dev`) |
+|---|---|---|
+| Minification, tree-shaking, dead-code removal, development-only code stripped | Yes | No |
+| Size and budget reporting | A size report (brotli, per chunk, split into start-up and after-start) and budget warnings and errors | **None.** No size warnings, no budget checks, no chunk-size messages |
+| Deferral | Applied: split, preloaded, prefetched | The same behavior, but nothing is optimized away and a deferred chunk may load eagerly, as Angular's does under HMR |
+| Source maps | Separate files, not fetched at start-up | Complete |
+
+**What happens today.** The web build sets Vite's `chunkSizeWarningLimit` to 1,500 (kB) and the Desktop engine's to 4,000, where the default is 500, and the Desktop engine is built with `minify: false`. So the production build neither reduces as far as it could nor warns. It silences the warning instead (`packages/cli/src/vite.ts` and `build.ts`). The raised limits are replaced by real budgets, below.
+
+**Author-facing budgets.** A project may set budgets in `valance.json`, in the shape Angular uses (a type, a warning threshold and an error threshold, in bytes, kB or percent). With no setting, the defaults are the framework's own ceilings from section 3, applied to the **start-up set** only. Budgets are checked by `vlx build` and never by `vlx dev`.
+
+### 8. The start-up path and the deferred set
+
+**What happens today** (read from the code):
+
+1. `vlx build` writes one entry chunk, and every page's document points at it. There is no code splitting.
+2. The generated client calls `await init(wasmUrl)` **after** the entry has been downloaded, parsed and run. `init` fetches the module with `fetch` and `arrayBuffer`, then compiles it. So the WebAssembly download cannot begin until the JavaScript has arrived, and compiling never overlaps downloading.
+3. Nothing is preloaded. The document has the script and the styles.
+4. Whether the client bundle carries the content of every page, which would make it grow with the site, was not measured.
+
+**Three sets:**
+
+| Set | Contains | Loads |
+|---|---|---|
+| **Paint** | The page's server-rendered HTML and the CSS it needs | With the document. Nothing else blocks first paint, because the server already rendered the page |
+| **Start** | The entry chunk (runtime core, the current page's program, the state boot) and the WebAssembly runtime | Starts with the document, in parallel with each other, the WebAssembly compiled while it streams. Hydration waits for these two and nothing more |
+| **After start** | Everything else | Starts as soon as `start` resolves, in parallel, at low priority. Never blocks paint, hydration or the first interaction |
+
+Candidates for **after start**: other routes' programs and code, capabilities the first view does not use, heavy components (tables, lists, menus), per-page content that grows with the site, locale data, and anything an author marks as lazy. Never in a production build: development tooling.
+
+**Rules:**
+
+1. **The necessity test.** A thing is in the start-up set only if hydration cannot run without it. Everything else has to justify its place.
+2. **Parallel by default, not lazy on first use.** Once the application has started, deferred chunks begin loading at once, using idle time (`requestIdleCallback` with a timeout, since MDN recommends one for required work, and a timer where it is missing), so the first click usually finds them already there. Rare or heavy things load on interaction or when they become visible instead. Angular's trigger set (idle, viewport, interaction, hover, immediate, timer, with `prefetch` separate from render) is the model.
+3. **Loading is async work, and async work is state.** A deferred load is a waiting command, and its loading and failure are state, as the ecosystem already treats async work. Navigating to a route whose code has not arrived shows the busy state and then the page. A failed chunk is a typed failure, never a crash.
+4. **No holes above the fold.** Content the first view shows is never deferred (Angular warns of layout shift).
+5. **Deferral is about code, not content.** The server renders the complete page, so the HTML is whole before any deferred code arrives. This differs from Angular, whose deferred blocks render a placeholder on the server.
+6. **A new deploy can strand an open tab.** Chunks are content-hashed and the page records its build, so a missing chunk after a deploy becomes a "new version available" state. (Not researched; flagged for the design.)
+
+**The prototype.** `init` already accepts a `WebAssembly.Module`, so the parallel path needed no change to the runtime. In a scratch copy of the counter application, a head script starts `WebAssembly.compileStreaming(fetch("mesh-runtime.wasm"))` as the document is parsed, and the entry calls `init(await window.__wasm)` before `Web.run`. Median of 5 fresh Chromium contexts to a visible `Count: 0` (the counter renders on the client, so this is time to a working application), network and CPU throttled:
+
+| Network | CPU | Serial (today) | Parallel and streaming | Faster |
+|---|---|---:|---:|---:|
+| Slow 4G (1.6 Mbps, 150 ms RTT) | 1x | 2,373 ms | 2,119 ms | 11% |
+| Slow 4G | 4x | 2,866 ms | 2,684 ms | 6% |
+| Regular 4G (9 Mbps, 170 ms RTT) | 1x | 1,002 ms | 783 ms | 22% |
+| Regular 4G | 4x | 1,551 ms | 1,374 ms | 11% |
+| Fast wifi (30 Mbps, 20 ms RTT) | 1x | 352 ms | 298 ms | 15% |
+| Fast wifi | 4x | 920 ms | 854 ms | 7% |
+
+Reading it: parallelism and streaming compile always help, and most where latency is high and bandwidth is good (22 percent at 9 Mbps and 170 ms). On a slow link the bytes dominate (6 to 11 percent), so **reducing bytes stays the main lever** and the two work together. Caveats: one machine, throttling emulated by Chromium, localhost, and `compileStreaming` rejects a response with the wrong MIME type, so the shipped path must fall back to `arrayBuffer` as the current loader does.
+
+**Planned work** (nothing here is built):
+
+- **Document head:** `modulepreload` for the entry and an early streaming compile of the WebAssembly, written by `vlx build`.
+- **Bundle:** split by route, cut from the component tree declared in `main.ts` (the CLI notes already say "the tree is the thing a split would be cut from"); import Effect through subpaths and leave out `fast-check` (the measured 12.4 KB brotli); minify the Desktop engine unless a measurement shows no start-up benefit; remove the raised warning limits.
+- **After start:** a prefetch step that begins when `start` resolves.
+- **Authoring:** zero configuration by default (a component the first route does not use is after-start). An author may mark a component to load on interaction or visibility; progressive disclosure keeps the common path free of it.
+- **Later:** [Bet 14](README.md) may move the WebAssembly out of the start-up set entirely, by hydrating from the render tree without evaluating it.
+
 ## Experiment
 
 1. **Harness and baseline.** Done in this change: the script and the dated record.
 2. **Wire it in.** Run it on the release dry run and weekly, keep the output, and fail the dry run above a ceiling. First, prove each gate fails on a deliberate regression.
 3. **Fix the known reds.** Each belongs to a place that can fix it: the barrel imports in NEXUS and Valance (the `fast-check` saving), the peer ranges in `valance` and `common` (installability), and patches in the Desktop protocol (wire, its own bet).
 4. **Move the deterministic parts into `pnpm test`.**
-5. **Optional: a comparison.** The same counter in a few other stacks through the same harness, to place the numbers in context. Budgets stay relative to our own history, not to anyone else's.
+5. **The start-up path.** Parallel preload and streaming compile in the build's HTML, then route splitting and the after-start prefetch, each shown with the harness (section 8's prototype is the first data point). Replace the raised chunk-size limits with budgets, applied to `vlx build` only.
+6. **Optional: a comparison.** The same counter in a few other stacks through the same harness, to place the numbers in context. Budgets stay relative to our own history, not to anyone else's.
 
 ## Success
 
 - Every release dry run produces the table in section 3 and fails if a ceiling is crossed.
 - A deliberate regression (a new dependency, a changed `wasm-opt` flag, an extra evaluation) fails the right gate in a test of the gate.
 - The three known reds are fixed or each has an owner and a date to be re-examined.
+- `vlx dev` prints nothing about size, and `vlx build` prints a size report split into start-up and after-start sets.
+- The start-up set is smaller than today's single entry, and a deliberate regression in it fails the build when a project budget is set.
 - Every bet brief has an allowance, and the next bets to advance are measured against it.
 
 ## Kill
 
 - If run-to-run noise on the CI machine exceeds 25 percent, wall-clock metrics stop being gates and become reports. The deterministic metrics stay.
 - If a full run takes more than ten minutes, move it to weekly only.
+- If route splitting makes first navigation visibly slower than today because the after-start prefetch loses to the user's click, prefetch earlier or merge the chunks of the routes most often visited next.
 - If maintaining the harness costs more attention than the regressions it catches, shrink it to the footprint and wire metrics, which are exact.
 
 ## Breaks (allowed in the free window)

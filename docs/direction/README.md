@@ -14,6 +14,7 @@ An honest map. Tiers are the ones in [API stability](../stability.md); stages ar
 | Web and Desktop targets | Both work. The Desktop PORT is built from source for now. The two vocabularies differ in places ([Bet 1](bets/primitive-specification.md) lists exactly where) | A template written with only the portable core may still need a change to run on both |
 | Application model and `vlx` | Provisional | Expect renames |
 | Size, speed and installing | Measured on 2026-10-17 ([baseline](baselines/2026-10-17.md)): a counter application transfers about 334 KB (brotli) and shows in about 0.2 s locally, and 83 percent of its JavaScript is Effect. The newest published versions of `mesh-runtime` and `port-web` are not accepted by `valance` 0.13.0, so a plain install gets older ones | Fine for an application. Worth knowing before choosing it for a very small page |
+| Loading | One entry chunk, and the WebAssembly runtime is fetched after the JavaScript has run. No code splitting, no preloading. The build raises the bundler's chunk-size warning limit to 1,500 kB instead of reporting size ([Bet 3](bets/budgets.md#8-the-start-up-path-and-the-deferred-set)) | Works, and starts slower and heavier than it needs to |
 | Components you can share as a package | **Not built.** A package cannot yet contribute templates or tags | You cannot publish a component library yet |
 | Styling and themes | **No contract.** The web uses plain CSS hooks on some tags; the Desktop has no styling ([Bet 6](bets/style-contract.md)) | You cannot publish a style library yet |
 | Accessibility | Roles, names and states are mapped per primitive on both targets. There is no shared model, and no check that a control has a name | Do not assume a primitive is accessible because it compiles |
@@ -38,7 +39,7 @@ We follow one rule on this page: **dates appear only on things already shipped.*
 
 ## What we hold fixed
 
-These are already written down in the repositories; they are the reason to build here, and a bet may not trade them away.
+The first eight are already written down in the repositories; the ninth is new direction. They are the reason to build here, and a bet may not trade them away.
 
 1. **A view is data, not code.** MPRX has no arbitrary code, no side effects and no business logic ([MESH architecture rules](https://github.com/ValanceX/Mesh/blob/main/docs/ARCHITECTURE.md)).
 2. **Checked before it runs.** Mistakes are diagnostics with stable codes and a suggestion, never a surprise in front of a user.
@@ -48,6 +49,7 @@ These are already written down in the repositories; they are the reason to build
 6. **Nothing is dropped silently.** A PORT refuses or visibly surfaces what it cannot realize ([PORT contract](https://github.com/ValanceX/Port/blob/main/docs/CONTRACT.md)).
 7. **Evidence before abstraction.** A primitive enters the portable layer only after two targets have realized it, and a design records the alternatives it rejected.
 8. **Data only on every wire format.** No executable references in render trees, patches or the host protocol.
+9. **Start-up carries only what start-up needs.** A production build ships the smallest output it can, the rest loads in parallel as soon as the application has started, and a development build says nothing about size ([budgets](bets/budgets.md#7-production-and-development-builds)).
 
 ## The free window
 
@@ -95,6 +97,7 @@ Written down because a small foundation stays small by refusing things.
 - Component-local mutable state inside templates.
 - A portable primitive with only one realization.
 - Optimizing arbitrary JavaScript as part of the critical path ([NEXUS future direction](https://github.com/ValanceX/Nexus/blob/main/docs/FUTURE_DIRECTION.md) is research, and nothing here depends on it).
+- Size warnings in development builds, or raising a build tool's warning limit to hide a size problem.
 - Per-subtree catch semantics in templates. A failed render fails closed, and isolation is a host pattern.
 
 ## How to take part
