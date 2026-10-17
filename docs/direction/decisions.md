@@ -111,6 +111,21 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | W13 | How is a deferred load treated? | **As async work: loading and failure are state**, not a crash. A route whose code has not arrived shows the busy state. A failed chunk is a typed failure, and a stale tab after a deploy becomes a "new version available" state. The server still renders the complete page, because deferral is about code, not content | The ecosystem already treats async work this way ("a failure is state") | Medium |
 | W14 | Who sets the budgets? | **Defaults are the framework's start-up ceilings** (Bet 3, section 3), checked on the start-up set. A project may set its own in `valance.json` in Angular's shape (a type, a warning and an error threshold, in bytes, kB or percent). The raised `chunkSizeWarningLimit` values (1,500 web, 4,000 Desktop) are removed | Hiding the warning is not a budget. Angular's `initial` budget is the model | Low |
 
+## Collections ([Bet 10](bets/collections.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| L1 | Where does windowing live? | **A clause on the repeat**: `{#each rows as row (row.id) window start, count}` renders only the items at those indices, clamped, with their declared keys unchanged. An invalid window is a diagnostic. The spelling is a sketch | Evaluating a 50-row window of 10,000 rows took 30 ms against 443 ms, and the tree 9 KB against 1.88 MB. Renderer-only virtualization cannot do that | Medium |
+| L2 | How does the PORT learn the sizes? | **A `scroller` primitive** with props `total`, `start` and `itemSize`, and an event `window` carrying the visible range. **`render-v1` gains nothing** | Ordinary props and events keep the contract unchanged, and a PORT without a realization surfaces the primitive visibly | Low |
+| L3 | What does the template need? | **`len(list)`**, a number. Subscripts, `?.` and string length stay deferred | It is the consumer T5 was waiting for | Low |
+| L4 | Who holds the window? | **A unit of the library component**, or application state when the application wants control. **The runtime has no host input for it** | The window is data in the template's scope, so there is nothing new to thread | Low |
+| L5 | Row sizes? | **A uniform declared `itemSize`.** Measured variable sizes wait for a need | Angular's fixed-size strategy and egui's `show_rows` both assume it, and Angular's variable-size strategy is "not ready for production use yet" | Low |
+| L6 | Key uniqueness? | **Whole list in development, tests and verify mode; within the window in production** | The whole-list check would cost an estimated 70 ms at 10,000 rows and give back the saving. It mirrors the changes form's verify mode | Medium |
+| L7 | Pinning and what scrolling out means? | **A contiguous window only, no pinning in v1.** A row outside the window has ended, so its unit state resets and browser find does not see it. Durable state is application state | Matches spec §9.10.6 and the Bet 8 litmus test. Pinning is the first open question | Medium |
+| L8 | Server rendering? | Server and client **render the initial window from the unit's defaults**, so hydration sees identical trees | Same rule as units (V8) | Low |
+| L9 | Is this paging? | **No.** Windowing the view is for the range where the data fits. About 3 ms per 1,000 rows of snapshot remains, so past tens of thousands of rows the application slices in its scope function or pages its data, and that stays a supported pattern | The measured floor | Low |
+| L10 | What about moderate lists? | **`content-visibility: auto` on rows is an optional web realization** for lists up to a few thousand rows. It is web-only and does not reduce the engine, tree or wire cost | A cheap tier with no script. Its browser support must be checked on MDN and Baseline | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -136,4 +151,6 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 9. **W4, the wall-clock thresholds (2x and 1.5x).** They come from one machine. If the CI machine is noisier, the gate widens or becomes a report.
 10. **W12, loading at once after start.** If idle-time prefetch competes with the user's first interactions on slow devices, defer the prefetch until after the first interaction or a short delay.
 11. **W6, running only on release and weekly.** If regressions are found late, the deterministic subset moves into every push sooner.
-12. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.
+12. **L7, no pinning.** If a focused or selected row far from the window is common, a pin list becomes necessary and the window stops being contiguous.
+13. **L6, checking keys only in the window in production.** If duplicate-key bugs reach production, check the whole list there too.
+14. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.

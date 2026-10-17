@@ -4,7 +4,7 @@ A bet is one open question, written as a hypothesis we can test and a rule for w
 
 ## The index
 
-Briefs exist for the six bets the rest depend on: the primitive specification, budgets, the language's types, typed template values, the style contract and state units. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
+Briefs exist for the seven bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units and collections. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
 
 | # | Bet | Question | Stage | Depends on |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@ Briefs exist for the six bets the rest depend on: the primitive specification, b
 | 7 | Accessibility as types | Can the spec make an unnamed control a compile error and bind each role to its keyboard contract? | 0 Question, deferred by direction | 1 |
 | 8 | [Identity-keyed state units](state-units.md) | Can a component hold interaction state without leaking it into the application or breaking purity? | 2 Design (by delegation) | 4 |
 | 9 | Interaction state, focus and layers | Can pressed, hover, focus scopes and overlays be primitives realized natively? | 0 Question | 1, 7, 8 |
-| 10 | Collections | Can windowing be a property of `{#each}` without changing meaning? | 0 Question | 1 |
+| 10 | [Collections](collections.md) | Can windowing be a property of `{#each}` without changing meaning? | 2 Design (by delegation) | 1, 5, 8 |
 | 11 | Forms from the schema | Can field state and validation derive from the schema NEXUS already validates with? | 0 Question | 7, 8 |
 | 12 | The reference library, theme and a third PORT | Can outside authors build against public seams only? | 0 Question | 4, 5, 6, 8 |
 | 13 | Safe generated UI | Can a model's partial MPRX be validated and repaired against a manifest as it streams? | 0 Question | |

@@ -142,6 +142,7 @@ By spec §9.10.6, a node's lifetime is the run of consecutive renders in which i
 | The node is reordered inside a keyed `{#each}` | Same identity, same state |
 | The node is hidden by an `{#if}` and shown again | A new occurrence, state back to defaults |
 | The item's declared key changes | A different identity, a new unit |
+| The node leaves a windowed list ([Bet 10](collections.md)) | The occurrence has ended, so the unit resets when the row scrolls out and back. State a row must keep is application state |
 | The program changes (a template edit) | Keys are not stable across programs, so units reset. See the open questions |
 
 Units are **not persisted**. State that must survive a reload is application state (it can then use the `persist` list).
