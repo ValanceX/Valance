@@ -139,7 +139,8 @@ The gallery is an application, generated and checked like any other (the ecosyst
 |---|---|---|
 | Vectors and primitive cases | **Gate** | Deterministic, language-neutral |
 | Structure snapshots: the observed tree and text of every gallery cell | **Gate** | Stable across machines. They contain no pixels and no fonts |
-| Pixel screenshots, per target, per theme | **Advisory**, per machine, **never committed** | Rendering varies by host, as Playwright and the `docs-verifier` both found |
+| Specification verifiers on the emitted output (HTML and ARIA, names and roles, CSS, tokens, the Desktop tree; see [Bet 7](accessibility.md)) | **Gate** | The output is ours to check against the specifications; browsers and screen readers are not |
+| Pixel screenshots, per target, per theme | **Advisory, not a conformance check**, per machine, **never committed** | Rendering varies by host, as Playwright and the `docs-verifier` both found |
 | Desktop pixel snapshots | Optional, if a renderer for them is accepted | `egui_kittest` snapshots need `wgpu`, and the PORT uses `glow` |
 
 ### 7. Where it lives
@@ -202,6 +203,5 @@ Sources and decision ids: [decisions](../decisions.md) Q10 to Q13. Suites were r
 ## Open questions for stage 3
 
 - **How units and replay fit**: a unit's behavior is a script of interactions with expected observations, which is the same artifact [Bet 15](replay.md) derives from a log (decided in R1; the script format is the log's `event` lines).
-- **Whether a GPU or software Vulkan adapter exists in CI**, which decides whether `wgpu` snapshots could ever gate.
 - **The AccessKit scroll action** in `egui_kittest`.
 - **The 16 failing MESH JavaScript tests** seen with the substituted `dist` (likely the substitution).

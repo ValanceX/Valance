@@ -142,7 +142,7 @@ The gate passes when all of these hold:
 5. At least **two outsiders** have published a working component or theme using only the documentation, and every severity-3 friction they logged is fixed or recorded as a decision.
 6. Each design the kit exercises (Bets 1, 4, 5, 6, 8, 10 and 14) has reached stage 4 or has an explicit decision to defer.
 
-A screen-reader run on the web and one on the Desktop are part of the gate ([Bet 7](accessibility.md)).
+The spec-conformance report of [Bet 7](accessibility.md) (HTML and ARIA, names and roles, CSS, tokens and the Desktop tree) is part of the gate; screen-reader runs are not.
 
 ### 9. Order
 

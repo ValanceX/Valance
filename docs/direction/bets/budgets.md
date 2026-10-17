@@ -258,12 +258,11 @@ The heap and WebAssembly bytes were identical every run; resident size varied un
 
 **Late admission: it works only as a fresh `render` with the full templates list, and node keys change when the set changes.** `render()` takes the whole templates list every call; `update(previous, snapshot)` takes two arguments, and a third `{ program }` argument is silently ignored (it returned a patch for the old program only). Rendering `[A]` and then `[A, B]` with root A both succeed, but the same root and snapshot give different node keys (`kGw7...` against `k874...`): keys are stable only for the same program, which is consistent with keys being derived from the program (the derivation was not located). A late-admitted render therefore re-keys the DOM, which breaks adopted-node identity, focus restoration and the replay of [Bet 14](resumable-start.md). Errors return as diagnostic values (`assembly-malformed-template` at the template index, `assembly-missing-root`). The minimal change is to define admission in the Valance client as "re-render with the larger list and re-key" and leave `update` alone; a key-preserving admission would need a MESH change.
 
-**Real networks** and **real devices** cannot be measured here. A proposal for the protocol, from Lighthouse's own configuration: mobile form factor, simulated throttling with the `mobileSlow4G` preset, a Moto G Power (2022) profile, 5 runs per URL with the median, and `benchmarkIndex` recorded beside every number (Lighthouse's documentation says CPU throttling is relative to the host and must be calibrated with it); plus a small pass on a mid-tier Android phone for "interactive at" and the tap-in-the-dead-zone metric, comparing only against the same device.
+**Real networks and real devices are the platform's concern.** Under the tenth fixed point the project measures what it emits (bytes, which are exact) and its own runtime costs (the update counter and the least-of-N time), and reports wall-clock numbers with the conditions they were taken under; it does not set budgets for how a particular phone or network treats the output.
 
 ## Open questions for stage 3
 
 - **First paint and 4x CPU for `docs-app`**, which the sandbox could measure but did not.
 - **Whether keys can be made program-independent**, which would let late admission keep identity (a MESH change).
 - **The Desktop window's memory** (egui, GPU), and per-unit memory once Bet 8 exists.
-- **Real networks and real devices**, which need hardware.
 - **Angular's golden size files**, unreachable as a history precedent.

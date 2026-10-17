@@ -26,7 +26,7 @@ Both targets map accessibility per primitive, by hand, with no shared model.
 | Roles | Implied by the element (`input`, `button`, `h2`) | Mostly egui's own per-widget roles; `view.rs` sets them itself only for `radiogroup` and the table family |
 | Keyboard | The browser's own | egui's. `keyboard.rs` tests only text-field submit and cancel and back/forward navigation |
 
-Chromium's accessibility tree for the elements the web table produces (read through the browser's debugging protocol, not a test library's own computation):
+The accessible name and role the **specifications** give for the elements the web table produces (Accessible Name and Description Computation 1.2 with HTML-AAM, computed in the consistency pass with `dom-accessibility-api`; a browser's accessibility tree was read earlier and agreed on every row except the placeholder, where the library omits a step that HTML-AAM 4.1.1 contains):
 
 | Element | Role and name exposed |
 |---|---|
@@ -40,9 +40,9 @@ Chromium's accessibility tree for the elements the web table produces (read thro
 | `image` with `alt=""` | not exposed (decorative, correctly) |
 | Field with `aria-invalid` and `aria-describedby` | `textbox "Name"`, description "Enter your name" |
 
-So **an unnamed checkbox, textfield, button or link compiles on both targets and reaches a screen reader as an unlabeled control.** An `image` must write `alt` (web) or `label` (Desktop) but may write it empty, and an empty `alt` is a decorative image, so the gap there is a missing choice, not a missing prop. The mechanism for the right result (an invalid field described by its error text) exists on the Desktop and works in the browser, but the web vocabulary cannot express it.
+So **an unnamed checkbox, textfield, button or link compiles on both targets and has no accessible name under the specifications.** An `image` must write `alt` (web) or `label` (Desktop) but may write it empty, and an empty `alt` is a decorative image, so the gap there is a missing choice, not a missing prop. The mechanism for the right result (an invalid field described by its error text) exists on the Desktop and works in the browser, but the web vocabulary cannot express it.
 
-One thing I checked and found *not* to be a bug: Playwright's role-and-level lookup reported the `heading` primitive's `level` as ignored on a native `h2`, but the browser's own tree gives the `aria-level` value. The library's computation differs from the browser's; the browser is the authority.
+One earlier worry turned out to be no concern of ours: a test library's role-and-level lookup disagreed with a browser's tree about the `heading` level. Our output is an `h2` with `aria-level`, which the HTML and ARIA specifications define; how a given tool reads it is that tool's concern.
 
 ### Why this is more than a lint
 
@@ -96,7 +96,7 @@ Each primitive declares, in the [Bet 1](primitive-specification.md) schema:
 
 | Field | Values | Meaning |
 |---|---|---|
-| `role` | A closed set, the intersection of what the web and AccessKit support | What the primitive is to assistive technology. **Authors cannot set it** |
+| `role` | A closed set of ARIA role names (or none) that AccessKit also has | What the primitive is to assistive technology. **Authors cannot set it** |
 | `name.from` | `content`, `prop`, `either`, `none` | `content`: the name is the text inside (a button). `prop`: a required prop (a checkbox's `label`). `either`: a prop or text content. `none`: the primitive is not named (layout, text) |
 | `keyboard` | Rows of `{ key, raises \| moves }` | The keys the role promises. A PORT must realize each row |
 | `states` | A map from state to prop | Which props are exposed as states |
@@ -124,7 +124,7 @@ An author never writes an `id` to relate two nodes. A node can be marked `ref="e
 
 ### 6. Observation gains roles, names and descriptions
 
-`observe` returns `role`, `name`, `description` and the states, besides text and value. On the web the observation comes from the browser's accessibility tree through its debugging protocol (not from the element's attributes). On the Desktop it comes from the AccessKit update the PORT already produces. The structure snapshots in the gallery then include role and name, so a regression in either is a diff.
+`observe` returns `role`, `name`, `description` and the states, besides text and value. **On the web they are computed from the emitted markup by the specifications' own algorithms** (the accessible name and description computation with HTML-AAM, and the ARIA role mappings), not read from a browser. On the Desktop they come from the AccessKit `TreeUpdate` the PORT already produces. The structure snapshots in the gallery then include role and name, so a regression in either is a diff.
 
 ### 7. Lists and tables
 
@@ -136,7 +136,7 @@ A theme ([Bet 6](style-contract.md)) declares pairs of tokens that are used toge
 
 ### 9. What this does not check
 
-Said once, here, so nobody reads "compiles" as "accessible": reading order, focus order across a page, the quality of a name ("click here"), heading structure, motion, timing, cognitive load, and anything that depends on a run-time value. These need people and assistive technology. The Reference Gate adds one run of a screen reader on the web and one on the Desktop per release candidate, recorded as a short written report.
+Said once, here, so nobody reads "compiles" as "accessible": reading order, focus order across a page, the quality of a name ("click here"), heading structure, motion, timing, cognitive load, and anything that depends on a run-time value. The checks in this bet verify that our **output conforms to the specifications** (see "Verifying the output" below). How a screen reader, a browser or an operating system then presents it is that software's concern, and no release gate depends on it.
 
 ### Alternatives considered
 
@@ -155,7 +155,7 @@ Said once, here, so nobody reads "compiles" as "accessible": reading order, focu
 3. **Keyboard vectors** generated for button, checkbox, textfield and radiogroup. Run on the web (a real browser) and the Desktop (egui's test harness).
 4. **`observe` with roles** on both targets and the identical-structure snapshot test across them.
 5. **Cost.** AccessKit updates for a 1,000-node tree on the Desktop, and the browser's tree size on the web, as [Bet 3](budgets.md) metrics.
-6. **An outside review.** Two people who use a screen reader daily run the reference build and write down what is wrong. This is not optional for the Reference Gate.
+6. **A spec-conformance run** of the generated reference-build output through the verifiers in "Verifying the output", with the report committed beside the release tag.
 
 ## Success
 
@@ -163,7 +163,7 @@ Said once, here, so nobody reads "compiles" as "accessible": reading order, focu
 - The `unnamed-control` check has no false positive on the true examples, and every false negative is a run-time case that the development check catches.
 - Both targets pass the generated keyboard vectors for the four patterns in the experiment (button, checkbox, textfield, radiogroup); tabs and disclosure follow when their primitives land.
 - `observe` reports the same role and name for the same tree on both targets for all portable-core primitives.
-- The screen-reader runs find no blocker in the reference build.
+- The verifiers report no error on the reference build's output on either target, and every remaining finding is recorded as a decision.
 
 ## Kill
 
@@ -187,13 +187,13 @@ These were the open questions. Sources and measurements are in [decisions](../de
 
 | Role | Web | AccessKit `Role` | Desktop provider |
 |---|---|---|---|
-| group (`column`, `row`) | custom element, generic | GenericContainer, or no node | none needed |
-| text | `span` | Label | egui (the text is in `value`, not `label`) |
+| none (`column`, `row`) | custom elements with no ARIA role | GenericContainer, or no node | none needed |
+| generic (`text`) | `span`, which maps to `generic` | Label | egui (the text is in `value`, not `label`) |
 | heading | `h2` with `aria-level` | Heading with a level | **the PORT must set it**: today the Desktop `heading` is drawn as a styled horizontal label, so it exposes Label and drops `level` |
 | paragraph | `p` | Paragraph | the PORT |
 | list, listitem | `ul`/`ol`, `li` | List, ListItem | the PORT |
 | link | `a` | Link | egui |
-| image | `img` | Image | egui |
+| img (`image`) | `img`, role `img` | Image | egui |
 | button | `button` | Button | egui |
 | checkbox | `input` checkbox | CheckBox | egui |
 | textfield | `input` | TextInput | egui |
@@ -205,19 +205,32 @@ These were the open questions. Sources and measurements are in [decisions](../de
 
 No role is needed that AccessKit lacks. Landmarks (`nav`, `main`) are not in version 1: AccessKit has them, but the Desktop vocabulary has no such primitives. `Window`, `Pane` and `TitleBar` are desktop-only and the web does not need them.
 
-**References.** A node is marked `ref="name"` and a relation prop takes a `ref`. A bare reference resolves inside one template instance, checked at compile time. A reference crosses a component boundary only downward, as the value of a declared `ref`-typed prop on a child; a child's inner nodes are never reachable from the parent, and a child cannot export one upward in version 1. Measured in Chromium 141 through its accessibility tree: id-based `aria-describedby` and `ariaDescribedByElements` work within one shadow root; an element reference works from a shadow root outward to the light DOM; **id references fail across shadow boundaries in either direction, and element references fail from the light DOM into a shadow root and between sibling roots**. So **the web PORT must not use shadow DOM for composed components**. MDN agrees: ids "are only valid in the scope in which they are declared". Every precedent passes ids or references down as props (Angular Material generates ids; Svelte's `$props.id()`, "unique to the current component instance" and "consistent between server and client", exists for `aria-labelledby`; React's `useId`) and none reaches into a child's template.
+**References.** A node is marked `ref="name"` and a relation prop takes a `ref`. A bare reference resolves inside one template instance, checked at compile time. A reference crosses a component boundary only downward, as the value of a declared `ref`-typed prop on a child; a child's inner nodes are never reachable from the parent, and a child cannot export one upward in version 1. **This follows the HTML Standard's ID rule: an ID reference resolves only when "candidate's root is the same as element's root", and an element reference set through the reflection API must be a descendant of a shadow-including ancestor of the element.** So our output must not rely on a reference that crosses a shadow root, and the web PORT emits composed components in the light DOM; that is checkable from the emitted markup. (A browser measurement agreed: id references failed across shadow boundaries in both directions. That agreement is incidental.) MDN: ids "are only valid in the scope in which they are declared". Every precedent passes ids or references down as props (Angular Material generates ids; Svelte's `$props.id()`, "unique to the current component instance" and "consistent between server and client", exists for `aria-labelledby`; React's `useId`) and none reaches into a child's template.
 
-**Live regions.** `status` (polite, atomic) and `alert` (assertive, atomic) are declarative primitives with fixed roles and no name; their text content is the message. There is no `announce` command in version 1. Measured through the browser's accessibility tree: `role=status` exposes `live: polite, atomic: true`; `role=alert` `live: assertive, atomic: true`; a bare `div` exposes nothing; a `display:none` region is not exposed. The APG alert pattern says screen readers do not announce alerts present before page load completes, so a region must exist **before** its text changes. Angular CDK's announcer and React Aria's both keep a hidden region and set its text after a short delay (100 ms in each, for Safari and older screen-reader combinations). AccessKit 0.17.1 has `Live` (Off, Polite, Assertive), `LiveAtomic` and `Busy`; egui sets none of them. The platform adapters differ: Windows raises a live-region event only when the node has a name and the name or live setting changed; macOS announces the node's `value`. A Desktop `status` node must therefore carry its text as both name and value. Whether each adapter actually speaks it is not measurable without a screen reader.
+**Live regions.** `status` and `alert` are declarative primitives with fixed roles and no name; their text content is the message. There is no `announce` command in version 1. The ARIA specification defines the values: `role=status` implies a polite, atomic live region and `role=alert` an assertive, atomic one, and a `div` with neither has no live properties. The APG alert pattern says alerts present before page load completes are not announced, so a region must exist **before** its text changes (spec guidance on authoring, which our primitives follow by rendering the region ahead of its text). AccessKit 0.17.1 has `Live` (Off, Polite, Assertive), `LiveAtomic` and `Busy`, so the Desktop `status` and `alert` nodes set them; egui sets none today. A `TreeUpdate` must carry the live setting and the text; what an adapter or screen reader then does with it is theirs. Angular CDK's announcer and React Aria's use hidden regions with a short delay for the reasons of those tools; they are precedent only.
 
-**Name sources.** Keep exactly four values: `content`, `prop`, `either`, `none`. `either` means a non-empty prop or text content, the prop winning, and is used by `button` and `link` only (icon-only controls). `heading` is `content`; `checkbox`, `textfield`, `radiogroup` and `table` are `prop`; `image` is `prop` (alt) or `decorative`. `title` and `placeholder` do not count as names, although Chromium uses both (measured). The ARIA specification lists name-from-contents for button, link, checkbox, radio and heading and author-only for textbox, radiogroup, status, alert, dialog and table, and prohibits naming on `generic` and `paragraph`. The two vocabularies disagree today: the Desktop `button` has an optional `label` prop and takes its text from content, while the web `button` has no `label` prop; the Desktop also has a `label` component that names the one control inside it, which the web has no equivalent of. That wrapper is a composition feature, not a `name.from` value.
+**Name sources.** Keep exactly four values: `content`, `prop`, `either`, `none`. `either` means a non-empty prop or text content, the prop winning, and is used by `button` and `link` only (icon-only controls). `heading` is `content`; `checkbox`, `textfield`, `radiogroup` and `table` are `prop`; `image` is `prop` (alt) or `decorative`. **`title` and `placeholder` do not count as names. That is our contract being stricter than the specification:** HTML-AAM 4.1.1 lists, in order, `aria-labelledby`, `aria-label`, the label, `title`, and then, "if the accessible name is still empty", the `placeholder`. The ARIA specification (via `aria-query`'s role data, which matched exactly) lists name-from-contents for button, link, checkbox, radio and heading, author-only for textbox, radiogroup, status, alert, dialog and table, and prohibits naming on `generic` and `paragraph`. The two vocabularies disagree today: the Desktop `button` has an optional `label` prop and takes its text from content, while the web `button` has no `label` prop; the Desktop also has a `label` component that names the one control inside it, which the web has no equivalent of. That wrapper is a composition feature, not a `name.from` value.
 
-**Screen readers for the gate (a proposal; WebAIM's survey could not be read directly).** Required: NVDA with Chrome on Windows; VoiceOver with Safari on macOS; NVDA on Windows against the Desktop PORT (it reads through UI Automation); VoiceOver on macOS against the Desktop PORT. Advisory: Orca on Linux (AT-SPI) and JAWS with Chrome if a licence is available. Secondhand figures for WebAIM survey 10 (Dec 2023 to Jan 2024, 1,539 responses, an uncontrolled sample): JAWS 40.5 percent, NVDA 37.7 percent and VoiceOver 9.7 percent as primary desktop screen readers. The report records the release candidate, date, tester (and whether they use the screen reader daily), screen reader and version, browser or OS and version, a task script (form fill, list, dialog, table), and per task a result, what was announced and a severity (blocker, major, minor), plus any mismatch with the `observe` snapshot. **Who owns the report is a people question** that research cannot answer; the proposed rule is that the release manager files it, an independent daily screen-reader user writes it, it is committed with the release tag, and any blocker holds the release.
+**Verifying the output (a proposal, run in the consistency pass on real output).** Under the project's tenth fixed point the gate is conformance to the specifications, by verifiers that are runnable offline:
+
+| Output | Specification | Verifier | Result on a sample |
+|---|---|---|---|
+| Web HTML and ARIA | HTML Standard content model, ARIA in HTML | the Nu HTML Checker (`vnu-jar`, needs Java) | 0 errors on the 7-primitive sample; 11 of 11 deliberate faults caught; **it does not check names** |
+| Web names | Accessible Name and Description Computation 1.2, HTML-AAM | `dom-accessibility-api` (checked against the W3C web-platform-tests accname cases) plus a name-presence rule from the spec's name-source table | unnamed checkbox, button and link flagged; the library omits the placeholder step, so our stricter rule is ours to state |
+| Web roles | HTML-AAM, ARIA | `aria-query` `elementRoles` and `roles`, and the web-platform-tests `html-aam` cases | 20 of 21 declared mappings match; the 21st was the check's own error |
+| Web rules from WCAG | WCAG, ARIA | `axe-core` (third-party, but its rules encode the specifications) | 3 genuine violations on the sample; passes a placeholder-only field |
+| CSS | CSS specifications | `stylelint` core rules (`css-tree` only for parsing) | 6 of 6 injected errors caught; `var()` values cannot be validated statically |
+| Tokens | Design Tokens 2025.10 | the official JSON Schema and test suite in `design-tokens/community-group`, with Ajv | 190 of 220 fixtures agree; 30 are graph-level (circular `$extends` and references) and need a second pass; Style Dictionary does not validate |
+| Desktop tree | the AccessKit `TreeUpdate` documentation | `accesskit_consumer` (panics on structural errors) and an invariant checker of our own (ids, parents, role rules) | on a real egui update it reported exactly the unnamed checkbox |
+
+Two findings from the run belong in the specification: **a `list`'s children must be `item`** (the HTML content model rejects a custom element as a child of `ul`), and **`text` and `image` are not ARIA roles** (the web realizations are `generic` and `img`; `column` and `row` have no role). The report is regenerated per release candidate, committed with the tag, and signed by an accessibility maintainer (a named role) who can block the release. Screen-reader runs by individuals are welcome as dated community notes and gate nothing. In the accessibility practice of other projects, spec-based checks are the part that is gated: Carbon runs automated checks on every change and keeps the report per release, and no project publishes a per-release, named screen-reader report as a hard gate.
 
 ## Open questions for stage 3
 
 - **Landmarks and `rowgroup`** in version 1 or later.
 - **Heading on the Desktop**: a test that the PORT exposes Heading with a level (needs code).
 - **The MESH parser** for `ref`, and whether a child may ever export a reference upward.
-- **Whether each AccessKit adapter speaks a live region**, and whether an imperative `announce` is needed (needs real screen readers).
-- **Real screen-reader runs**, and the owner of the report.
+- **Whether an imperative `announce` is ever needed** beyond the declarative `status` and `alert`.
+- **The graph-level pass for tokens** (circular `$extends` and references) and the name-presence rule's home (a check in `vlx`).
+- **Who the accessibility maintainer is** (a named role; a people decision for the maintainer).
 - **Focus** movement after an update, which [Bet 9](interaction-state.md) takes up.

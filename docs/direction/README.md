@@ -23,7 +23,7 @@ An honest map. Tiers are the ones in [API stability](../stability.md); stages ar
 | Focus and overlays | A keyed row that moves loses the keyboard focus on the web (measured in Chromium 141); there is no dialog or popover primitive, and the Desktop has no layers ([Bet 9](bets/interaction-state.md)) | Keep forms and lists that re-sort simple |
 | Forms | There is no form model. The schema already holds the constraints, but the manifest drops them, so each application writes validation by hand ([Bet 11](bets/forms.md)) | Validate in the command, as today |
 | Styling and themes | **No contract.** The web uses plain CSS hooks on some tags; the Desktop has no styling ([Bet 6](bets/style-contract.md)) | You cannot publish a style library yet |
-| Accessibility | Roles, names and states are mapped per primitive on both targets, by hand. There is no shared model. A checkbox, text field, button, link or image with no name compiles on both targets and reaches a screen reader unnamed ([Bet 7](bets/accessibility.md)) | Do not assume a primitive is accessible because it compiles |
+| Accessibility | Roles, names and states are mapped per primitive on both targets, by hand. There is no shared model. A checkbox, text field, button, link or image with no name compiles on both targets and has no accessible name under the specifications ([Bet 7](bets/accessibility.md)) | Do not assume a primitive is accessible because it compiles |
 | Behavior that needs its own state (tabs, menus, dialogs) | **Not designed.** State is application-level only | Such components would leak state into your application |
 | Overlays, virtual lists, forms from a schema | Not built | |
 
@@ -91,7 +91,7 @@ A bet can also be **killed**. A killed bet stays in the index with the reason, b
 |---|---|---|
 | **Spec Gate** | Today's tables regenerate from the primitive specifications with no test changes, and the web/Desktop parity report is green or waived per primitive with a reason | New primitives are written only as specifications |
 | **Language Gate** | Variant-capable types and typed template values are at stage 4, with conformance vectors in Rust and JavaScript | Component libraries can be typed |
-| **Reference Gate** | A component library and a theme, built outside these repositories using only public seams, work on both targets, and a third, minimal target accepts the portable part; budgets are met. (One screen-reader run on the web and one on the Desktop join this list, as [Bet 7](bets/accessibility.md) states) | We invite outside authors and freeze edition 1 |
+| **Reference Gate** | A component library and a theme, built outside these repositories using only public seams, work on both targets, and a third, minimal target accepts the portable part; budgets are met. (The spec-conformance report of [Bet 7](bets/accessibility.md) joins this list: the output passes the specification verifiers on both targets) | We invite outside authors and freeze edition 1 |
 | **Edition Gate** | The edition field, the evolution policy and deprecation diagnostics exist | The first stable promise |
 
 ## What we will not do

@@ -202,5 +202,5 @@ Sources and decision ids: [decisions](../decisions.md) L11 to L14. Measured in C
 ## Open questions for stage 3
 
 - **The clause spelling** is the maintainer's taste (kept as drafted).
-- **A real screen-reader test** of the windowed table.
+- **The ARIA attributes on a windowed table** checked with the name and role verifiers of [Bet 7](accessibility.md) (`aria-rowcount` and `aria-rowindex` are defined by the ARIA specification).
 - **Pinning** in a later version, as a second one-row range.

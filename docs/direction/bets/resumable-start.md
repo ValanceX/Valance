@@ -171,10 +171,8 @@ Sources and decision ids: [decisions](../decisions.md) H9 to H12. Measured in Ch
 
 **Keyboard shortcuts: the shell covers none for now.** The vocabularies declare no shortcuts: a search of the common, valance, port-web and port-desktop sources finds only the text field's `submit` (Enter) and `cancel` (Escape), the per-event `key` field, and the Desktop's Enter, Escape and back/forward mapping. The event types needed are click, input, change and the Enter and Escape keys, matching the brief's kill threshold. Revisit when the primitive specification adds a shortcut field.
 
-**Real devices** cannot be measured here; the proposed protocol is in [Bet 3](budgets.md).
+**Real devices** are the platform's concern (see [Bet 3](budgets.md)). What the shell does is specified in terms of events and DOM state, and checked against the DOM and UI Events specifications.
 
 ## Open questions for stage 3
 
 - **Which real controls are non-idempotent** needs real applications.
-- **Input-method composition, autofill, file inputs and select/radio/checkbox state** at replay were not tested.
-- **Real-device numbers** need devices.
