@@ -4,15 +4,15 @@ A bet is one open question, written as a hypothesis we can test and a rule for w
 
 ## The index
 
-Briefs exist for the two bets that every other one touches. The rest are named so the dependencies are visible; their briefs are written when they reach stage 1.
+Briefs exist for the four bets the rest depend on: the primitive specification, the language's types, typed template values and the style contract. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
 
 | # | Bet | Question | Stage | Depends on |
 |---|---|---|---|---|
 | 1 | [Primitive specification](primitive-specification.md) | Can one declarative record be the only place a primitive is defined? | 2 Design (by delegation) | |
 | 2 | Conformance kit and gallery | Can every primitive and library be verified, and shown in every state, from data? | 0 Question | 1 |
 | 3 | Budgets as gates | Can bundle size, startup and update cost be limits a bet must meet? | 0 Question | |
-| 4 | Types that can name variants | Can MPRX express literal sets, optional values and defaults without general unions? | 0 Question | |
-| 5 | Typed template values | Can a template be a value passed, recursed and typed, instead of a slot? | 0 Question | 4 |
+| 4 | [Types that can name variants](variant-types.md) | Can MPRX express literal sets, optional values and defaults without general unions? | 2 Design (by delegation) | |
+| 5 | [Typed template values](template-values.md) | Can a template be a value passed, recursed and typed, instead of a slot? | 2 Design (by delegation) | 4 |
 | 6 | [Style contract](style-contract.md) | Can the core define what a theme may depend on, without becoming a style engine? | 2 Design (by delegation) | 1, 4 |
 | 7 | Accessibility as types | Can the spec make an unnamed control a compile error and bind each role to its keyboard contract? | 0 Question | 1 |
 | 8 | Identity-keyed state units | Can a component hold interaction state without leaking it into the application or breaking purity? | 0 Question | 1 |
