@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Stage** | 1 Evidence. A design is drafted below for review; it is not accepted |
+| **Stage** | 2 Design, accepted by delegation. The open questions are decided in [decisions](../decisions.md) (S1 to S8); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
 | **Depends on** | [Bet 1](primitive-specification.md) (primitives declare parts and states) and Bet 4 (variants need literal sets) |
@@ -29,7 +29,7 @@ The question is about a **contract**: the small set of things a theme can rely o
 | The Desktop does receive an `appearance` (light, dark, system) and reports its `scheme`, and the web has `viewport` classes (`compact`, `medium`, `expanded`) fed by `resize` | [Desktop PORT architecture](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md), `NATIVE-PARITY.md` row 9 |
 | An `intent` (`primary`, `danger`) for buttons was proposed from SwiftUI's `ButtonRole`, as tier 2 | D7 in [`NATIVE-VOCABULARY.md`](../../application-model/NATIVE-VOCABULARY.md) |
 
-One claim I could not verify: the PORT roadmap says "VALANCE scopes component CSS for the web". I searched the CLI sources and docs and found per-target stylesheet loading but no scoping mechanism. This should be checked before the brief moves to stage 2.
+One claim did not hold up: the PORT roadmap says "VALANCE scopes component CSS for the web". The CLI, common and valance sources contain per-target stylesheet loading and no scoping mechanism. The contract does not assume scoping (decision S6), and the roadmap sentence should be corrected.
 
 ### The condition in the PORT roadmap has been met
 
@@ -90,7 +90,7 @@ Themes are Design Tokens documents with named modes (light, dark, high contrast)
 
 ### Parts and states
 
-A primitive's specification lists its parts and states. A realization says how each is reachable: on the web, a part is an element or a documented pseudo-element, and a state is an attribute the PORT keeps current (the PORT already keeps controlled values current; this is the same kind of work). A realization may leave a part unrealized, and a theme that styles one gets a warning.
+A primitive's specification lists its parts and states. A realization says how each is reachable: on the web, a part is an element or a documented pseudo-element, and a state is an attribute the PORT keeps current (the PORT already keeps controlled values current; this is the same kind of work). A realization may leave a part unrealized, and a theme that styles one gets a warning. Decided (S1, P3): a primitive has one part, `root`, until a realization shows it needs another.
 
 ### Variants
 
@@ -102,7 +102,7 @@ Variants are props with closed literal sets, declared in the specification. The 
 | B. A theme declares the variants it adds | Maximum freedom | A template then depends on its theme; swapping breaks it |
 | C. A and, inside a library's own components, private variants | A theme is swappable; a library keeps its own vocabulary | Needs template values (Bet 5) to stay checkable |
 
-Recommendation: C, built from A first.
+Decided (S4): C, built from A first. The first sets are `intent` (`neutral`, `primary`, `danger`) and `size` (`sm`, `md`, `lg`).
 
 ### Recipes
 
@@ -184,14 +184,24 @@ The portable property set is closed and small: spacing, size, color roles, type 
 - `core.css` and the example stylesheets (`docs-app`, `todo-multi`, the `vlx init` templates) are rewritten as recipes.
 - The Desktop gains styling, which changes how existing applications look there.
 
-## Open questions
+## Decided
 
-1. **Parts on native elements.** A native `<input type="checkbox">` has no indicator element to style. Options: the realization adds wrappers (breaks one-node-per-primitive), or it uses a pseudo-element or `::part`-style hook (web only), or `indicator` is simply not a part of `checkbox`. Choose per primitive in Bet 1.
-2. **Per-instance dynamic values**, such as a progress bar's width. Options: a typed prop on the primitive that the realization applies, or no dynamic styling at all.
-3. **Who owns the portable style semantics.** MESH's architecture note says MESH; the PORT roadmap says PORT adds nothing. The proposal is MESH owns the definition and checking, each PORT owns realization.
-4. **Variant ownership** (option C above) depends on typed template values (Bet 5).
-5. **Forced colors and high contrast** as conditions, and what the Desktop does with them.
-6. **The unverified scoping claim** in the PORT roadmap.
+The open questions in the first draft are answered in [decisions](../decisions.md):
+
+| Question | Decision |
+|---|---|
+| Parts on native elements | `root` only until a realization demonstrates another (S1) |
+| Per-instance dynamic values | None; a typed prop the realization applies (S2) |
+| Who owns portable style semantics | Valance first, MESH when its tooling must check recipes (S3) |
+| Variant ownership | Option C, built from A (S4) |
+| Forced colors and high contrast | Conditions from day one; the Desktop reports them unsupported until it can honor them (S5) |
+| The scoping claim | Not assumed; the roadmap sentence needs correcting (S6) |
+
+## Still open for stage 3
+
+- The exact portable property names and the token naming scheme.
+- Where a project keeps its theme and recipe files, and how `vlx check` reports theme coverage per target.
+- How the Desktop's `egui` styling is driven from tokens, and which recipes it cannot express.
 
 ## What would change our minds
 

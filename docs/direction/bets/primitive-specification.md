@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Stage** | 1 Evidence. A design is drafted below for review; it is not accepted |
+| **Stage** | 2 Design, accepted by delegation. The open questions are decided in [decisions](../decisions.md) (P1 to P7); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
 | **Depends on** | Nothing. Bets 2, 6, 7, 8, 9, 10 and 11 depend on this one |
@@ -83,8 +83,8 @@ Bounded by [fixed points](../README.md#what-we-hold-fixed) 4, 5, 7 and 8 in part
 
 | Document | Says | Owned by |
 |---|---|---|
-| **Primitive specification** (`primitive-v1`) | What a primitive is: its role, props with types and requiredness, events with payloads, what it may contain, its keyboard contract, its states and parts, and its status | Valance (the portable core), or the author of a target-specific primitive |
-| **Realization** | How one target draws it: web element, attributes, controlled slots, event mapping; or Desktop widget and accessibility mapping | Each PORT, as data it already half has (`WebPrimitive`, `vocabulary.json`) |
+| **Primitive specification** (`primitive-v1`) | What a primitive is: its role, props with types and requiredness, events with payloads, what it may contain, its keyboard contract, its states and parts, and its status | Valance (the portable core, in `@valancex/primitives`), or the author of a target-specific primitive |
+| **Realization** | How one target draws it: web element, attributes, controlled slots, event mapping; or Desktop widget and accessibility mapping | The target's owner. The Desktop's is the PORT's `vocabulary.json`, which stays authoritative because the window compiles it in. The web's table lives in Valance today and is generated from the specifications |
 
 A tool joins them by name. A PORT that lacks a realization for a specification says so; it does not silently skip it.
 
@@ -122,7 +122,7 @@ Reserved fields are filled by other bets and are shown here so the shape is visi
 
 | Artifact | Today | From the specification |
 |---|---|---|
-| MESH manifest for a target | Derived on the web, hand-kept on the Desktop | Generated for both. The `optional` side table disappears because requiredness is stated once |
+| MESH manifest for a target | Derived on the web, hand-kept on the Desktop | Web: generated, and the `optional` side table disappears because requiredness is stated once. Desktop: stays the PORT's data and is **checked** against the specifications by the parity report |
 | Parity report between targets | Does not exist | Generated: for each shared name, which props, events and states each realization covers |
 | Realization completeness | Discovered when a template fails | Checked: every specification has a realization or a declared gap per PORT |
 | Documentation tables (`desktop-vocabulary.md` and its web counterpart) | Hand-written | Generated |
@@ -145,13 +145,13 @@ Each phase has an output that can be checked.
 
 1. **Parity report, no new format.** Write a script that compares the web table with `vocabulary.json` and prints the table above. Make it a test that fails on an unlisted difference. This costs a day and turns the drift into a visible list. Output: the report, with each divergence marked *close* or *waive (reason)*.
 2. **Describe the seven shared names** as `primitive-v1` documents, with a JSON Schema published beside `manifest-v1`.
-3. **Generate the manifests** for both targets from those documents and compare them with the current ones after normalization. Output: identical, or a list of intended differences.
+3. **Generate the web manifest and table** from those documents and compare them with the current ones after normalization, and run the parity check against the Desktop's `vocabulary.json`. Output: identical, or a list of intended differences.
 4. **Extend** to the remaining Desktop primitives (`radiogroup`, `radio`, `label`, the table family) and the content layer, and to the web-only tags marked `web only`.
 5. **Generate the documentation tables** and delete the hand-written ones.
 
 ## Success
 
-- Phases 3 and 5: today's manifests regenerate with no change to any existing test, except for divergences deliberately closed in phase 1.
+- Phases 3 and 5: today's web manifest regenerates and the Desktop's data passes the check, with no change to any existing test except for divergences deliberately closed in phase 1.
 - The parity report has no unexplained row.
 - Adding a primitive means writing one specification and one realization per target, and the tooling says if one is missing.
 - A template author can answer "is this portable?" from one generated page.
@@ -164,24 +164,22 @@ Each phase has an output that can be checked.
 
 ## Breaks (allowed in the free window)
 
-Closing the divergences changes templates and realizations. A proposal per row, to be decided in phase 1:
+Closing the divergences changes templates and realizations. Each row is decided in [decisions](../decisions.md), P6 and P7: props added to the web, `button.class` out of the portable core, `button.pressed` replaced by a portable `toggle`, `image` and `list` unified, and the web's short tag names moved to ARIA's names, with the old names kept as diagnostics that name their replacement.
 
-| Divergence | Proposal | Reason |
-|---|---|---|
-| `text.id` (Desktop only) | Owner to say what it is for; keep it in both or drop it | Not documented in the places I read |
-| `button.label` (Desktop only) | Add to the web as `aria-label` | An accessible name; see [Bet 7](README.md) |
-| `button.class` (web only) | Leaves the portable core; becomes the web's style hook | See [Bet 6](style-contract.md) |
-| `button.pressed` (web only) | Split out a separate toggle primitive | A button that stays pressed is a boolean control; the toolkits NATIVE-VOCABULARY read call it `Toggle` (SwiftUI) or `Switch` (React Native) |
-| `checkbox.invalid`, `describedby` (Desktop only) | Add to the web | `aria-invalid` and `aria-describedby` |
-| `textfield.kind`, `invalid`, `describedby`, `focus`, `blur` (Desktop only) | Add to the web | `type`, the same two ARIA attributes, and the DOM events |
-| `image.alt` or `label`; `list` and `olist` or `ordered` | Choose one set of names | The content layer already uses ARIA's names by decision D10 in [NATIVE-VOCABULARY](../../application-model/NATIVE-VOCABULARY.md) |
+## Decided
 
-The web table's short names (`para`, `item`, `olist`, `quote`, `em`) versus the ARIA names the content layer uses is the same question, which the maintainer deferred on 2026-10-14. The free window is the cheapest time to settle it.
+The open questions in the first draft are answered in [decisions](../decisions.md):
 
-## Open questions
+| Question | Decision |
+|---|---|
+| Where do the format and the specifications live? | Valance (P1) |
+| How are web-only primitives named? | A status, no namespace; shared templates enforce portability (P2) |
+| Who owns states and parts? | Semantic states in the specification, interaction states in the style contract, `root` the only part for now (P3) |
+| How are relationships typed? | Naming by containment, describing by a checked reference (P4) |
+| What is `text.id` for? | The target of `describedby` (P5) |
 
-1. **Where does the format live, and where do the portable specifications live?** Options: (a) the schema beside `manifest-v1` in MESH, the portable core in Valance, realizations in each PORT; (b) a new repository for all three; (c) everything in Valance. (a) matches who owns what today; (b) is simplest to version together; (c) risks Valance becoming the owner of every target's meaning.
-2. **How are web-only primitives named?** A status field on the specification, or a distinct namespace so a template cannot accidentally depend on one.
-3. **Does a specification list the states and parts a theme may target, or does the style contract own them?** This brief reserves the fields; [Bet 6](style-contract.md) decides.
-4. **How should relationships such as `describedby` be typed** so they cannot point at nothing? That needs identity-derived ids, which is [Bet 7](README.md).
-5. **What is `text.id` for?** I could not find it described.
+## Still open for stage 3
+
+- The exact file layout of `@valancex/primitives` and the name of its generator command.
+- How a primitive that is portable on only one axis is described (a `link` whose `current` prop is web-only).
+- The small PORT Web feature P6 depends on: choosing a web element from a closed prop.

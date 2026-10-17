@@ -8,12 +8,12 @@ Briefs exist for the two bets that every other one touches. The rest are named s
 
 | # | Bet | Question | Stage | Depends on |
 |---|---|---|---|---|
-| 1 | [Primitive specification](primitive-specification.md) | Can one declarative record be the only place a primitive is defined? | 1 Evidence, design drafted | |
+| 1 | [Primitive specification](primitive-specification.md) | Can one declarative record be the only place a primitive is defined? | 2 Design (by delegation) | |
 | 2 | Conformance kit and gallery | Can every primitive and library be verified, and shown in every state, from data? | 0 Question | 1 |
 | 3 | Budgets as gates | Can bundle size, startup and update cost be limits a bet must meet? | 0 Question | |
 | 4 | Types that can name variants | Can MPRX express literal sets, optional values and defaults without general unions? | 0 Question | |
 | 5 | Typed template values | Can a template be a value passed, recursed and typed, instead of a slot? | 0 Question | 4 |
-| 6 | [Style contract](style-contract.md) | Can the core define what a theme may depend on, without becoming a style engine? | 1 Evidence, design drafted | 1, 4 |
+| 6 | [Style contract](style-contract.md) | Can the core define what a theme may depend on, without becoming a style engine? | 2 Design (by delegation) | 1, 4 |
 | 7 | Accessibility as types | Can the spec make an unnamed control a compile error and bind each role to its keyboard contract? | 0 Question | 1 |
 | 8 | Identity-keyed state units | Can a component hold interaction state without leaking it into the application or breaking purity? | 0 Question | 1 |
 | 9 | Interaction state, focus and layers | Can pressed, hover, focus scopes and overlays be primitives realized natively? | 0 Question | 1, 7, 8 |
@@ -46,4 +46,4 @@ Every brief answers the same questions, in this order, so they can be compared a
 
 ## Reading a stage honestly
 
-Stage 1 means the evidence is gathered and a design is drafted for review. It does not mean the design is accepted. A brief moves to stage 2 when a maintainer other than its author has read the rejected alternatives and the kill criteria and agreed they are the right ones.
+Stage 1 means the evidence is gathered and a design is drafted for review. It does not mean the design is accepted. A brief moves to stage 2 when a maintainer other than its author has read the rejected alternatives and the kill criteria and agreed they are the right ones. A maintainer may delegate that review; the delegation is recorded in [decisions](../decisions.md), and the text stays open to a veto.
