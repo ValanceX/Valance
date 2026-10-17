@@ -34,8 +34,8 @@ Both are real, and neither covers the framework's own footprint. The first lives
 
 and the measurement surfaced things nobody had decided:
 
-- **Effect is 83 percent of the JavaScript**, and the ecosystem's own packages about 10 percent (58,066 of 607,655 bytes). Where the bytes go is not where a team would look.
-- **About 46 KB of raw JavaScript (12.4 KB brotli) is `fast-check` and its dependency `pure-rand` (`fast-check` alone is 36.7 KB raw)**, a property-testing library pulled in through Effect's barrel import, which the subpath `effect/Schema` avoids.
+- **Effect is 83 percent of the JavaScript of the esbuild-bundled counter** (75 percent by source map in a real `vlx` build of `docs-app`; see "Answered by research"), and the ecosystem's own packages about 10 percent (58,066 of 607,655 bytes). Where the bytes go is not where a team would look.
+- **About 46 KB of raw JavaScript (12.4 KB brotli) is `fast-check` and its dependency `pure-rand` (`fast-check` alone is 36.7 KB raw) in the esbuild bundle**, a property-testing library pulled in through Effect's barrel import. **A Vite build, which `vlx` uses, does not include it** (see "Answered by research"), so this is a finding about hand-bundled applications.
 - **`wasm-opt -Oz` makes the transferred size worse** (brotli +9.9 percent) while making the raw file 22 percent smaller. A raw-size budget would have rewarded the wrong change.
 - **The Desktop protocol sends the whole tree on every update.** At 1,000 rows that is 185,924 bytes for a change the runtime already describes in 202.
 - **A plain install gets older packages than the newest published.** `valance` 0.13.0 accepts `port-web` `^0.6.1` and `mesh-runtime` `^0.11.0 || ^0.12.0`, so npm resolves 0.6.1 and 0.12.0 while 0.9.0 and 0.13.0 are the newest. Asking explicitly for the newest `port-web` next to `valance` 0.13.0 fails (ERESOLVE).
@@ -104,7 +104,7 @@ Ceilings are the 2026-10-17 baseline plus 5 percent, rounded up. Wall-clock rows
 
 | Metric | Baseline | Ceiling | Target and notes |
 |---|---:|---:|---|
-| Counter app JavaScript, brotli | 162,138 B | 170,300 B (baseline plus 5 percent, rounded up to the next 100 bytes) | 149,700 B: the measured saving from not bundling `fast-check` |
+| Counter app JavaScript, brotli | 162,138 B | 170,300 B (baseline plus 5 percent, rounded up to the next 100 bytes) | Superseded: a Vite build of the same counter is 79,220 B brotli (see "Answered by research"); re-baseline from `vlx build` before any ceiling is set |
 | `mesh-runtime.wasm`, brotli | 170,828 B | 179,400 B | Hold. Do not apply `wasm-opt -Oz` (measured worse) |
 | Transferred, all files, brotli | 333,683 B | 350,400 B | |
 | First paint, no throttling | 211 ms | 2x the previous release | Report the trend |
@@ -113,7 +113,7 @@ Ceilings are the 2026-10-17 baseline plus 5 percent, rounded up. Wall-clock rows
 | Expressions evaluated, 10,000 items, one changed | 7 (the Mesh README's figure; to be re-measured and pinned) | exact | A counter; any increase fails |
 | Interactive at, 10-row server-rendered page, 4x CPU (from [Bet 14](resumable-start.md); to be added to the harness) | 1,090 ms (scratch measurement, not reproducible from the repository yet) | 2x the previous release | Report the dead zone (interactive minus first paint, about 1,020 ms) beside it |
 | Wire, 1,000 rows, one changed item | 185,924 B (whole tree) | none yet | Target 2,048 B once the protocol carries patches. **Known red** |
-| Newest `@valancex` set installs together | No (`mesh-runtime`, `port-web` behind) | must pass at release | **Known red** (with wire bytes; `fast-check` is the third, a target) |
+| Newest `@valancex` set installs together | No (`mesh-runtime`, `port-web` behind) | must pass at release | **Known red** (with wire bytes; the `fast-check` target applies only to esbuild bundles) |
 
 ### 4. How it is measured, and kept honest
 
@@ -236,10 +236,34 @@ Reading it: parallelism and streaming compile always help, and most where latenc
 
 None to the language or the formats. The fixes for the known reds change import statements and peer ranges, which are internal to the packages.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) W15 to W19. Builds ran in copies of the repositories; Chromium 141, one machine.
+
+**Correction to the baseline: it measures a hand-bundled counter, not what `vlx` produces.** The harness bundles the counter with esbuild (`--bundle --minify`). `vlx build` uses Vite, which tree-shakes Effect's barrel import. Building **the same counter entry with Vite 7** gives 279,535 B of JavaScript (79,220 B brotli) against esbuild's 607,671 B (161,977 B brotli), and **no `fast-check` or `pure-rand` in the output**; the WebAssembly file is identical (765,371 B). The `docs-app` example, built with the real `vlx build` (7.7 s), has a client entry of 410,264 B (92,576 B brotli) and no `fast-check` either (checked in the source map and by search), although the workspace imports the `"effect"` barrel in 27 places. So the 46 KB `fast-check` finding, the "known red" for it and the 149,700 B target are artifacts of the harness's bundler; they apply only to applications bundled with esbuild or similar. **The harness must build with `vlx build` (Vite) before any ceiling is set**; the esbuild numbers become a labelled "hand-bundled" row. A counter built the Vite way transfers about 250 KB brotli (JavaScript 79 KB, WebAssembly 171 KB) instead of 334 KB. Effect is still the largest part: by source map in `docs-app` it is 75.2 percent of the bytes the map attributes (305,595 of 410,295 bytes are mapped), against the esbuild counter's 82.9 percent by metafile; the two methods are not strictly comparable.
+
+**A second reference application: `docs-app`.** It builds in the sandbox after `pnpm install --frozen-lockfile` and building the workspace packages (the README says only `pnpm install` then `pnpm build`, which fails with `ERR_MODULE_NOT_FOUND` for `packages/cli/dist/cli.js` until the packages are built: a documentation gap). Its production build: one real entry chunk (410,264 B raw, 92,576 B brotli), a 288 B chunk, the WebAssembly runtime (764,239 B raw, 170,959 B brotli), 1,781 B of CSS and about 2,300 B of HTML per page; no route splitting and no `modulepreload`. **Page content is compiled into the client bundle**: 50 generated pages (29.7 KB of Markdown) took the build from 3 to 53 pages and the entry from 410,264 to 500,775 B raw (about 1.8 KB per page, 190 B brotli per page), and each page's text is shipped twice, in its HTML and in the script. (Fifty identical copies added only 645 B brotli, so gates must use distinct content.) That answers the open question in section 8 and is the strongest argument for route splitting. Add a "bytes per added page" metric. First paint and 4x CPU for `docs-app` were not run.
+
+**Memory: gate on the WebAssembly memory and the JavaScript heap, report the resident size.** Three fresh browsers per cell:
+
+| | JS heap used | WebAssembly memory | Renderer RSS | Renderer peak |
+|---|---:|---:|---:|---:|
+| counter | 4.2 MB | 1.1 MB | 131 MB | 134 MB |
+| list, 1,000 rows | 5.1 MB | 4.8 MB | 141 to 142 MB | 148 to 149 MB |
+| list, 10,000 rows | 11.9 MB | 37.8 MB | 204 to 205 MB | 246 to 247 MB |
+
+The heap and WebAssembly bytes were identical every run; resident size varied under 1 percent; a blank page's renderer is about 63 MB, so the application's own share is smaller than the totals. **Memory grows with updates:** at 10,000 rows the WebAssembly memory went from 37.8 MB at start to 56.4 MB after 25 updates and 68.1 MB after 50, and stayed at 68.1 MB through 150 updates (it never shrinks; it plateaus near 1.8 times the start value). A gate must measure after updates, not only after start. **The "79 MB" Desktop note** is `NATIVE-PARITY.md:32` ("engine memory about 79 MB"); the "engine" is the Node single-executable bundle from `vlx package`, not the egui window, and no method, workload or metric is recorded. Bare Node is 41.6 MB here and 48.8 MB after importing the runtime and compiler, so 79 MB is plausible for the engine alone; treat it as unreproducible. The Desktop window's own memory (egui, GPU) was not measured.
+
+**History: dated files in the repository for exact numbers, an artifact for wall-clock trends.** `size-limit` keeps no history and checks every commit against limits (its action comments pull-request deltas); `bundlewatch` compares each file with the target branch; `rustc-perf` keeps history in a database on dedicated collector machines (Hetzner AX-42 servers, per its deployment guide). Nobody read keeps wall-clock history in committed files, which supports committing only exact, machine-independent numbers (bytes) and keeping wall-clock trends out of git. Angular's golden size files could not be reached. A release gate compares with the previous tagged dated file.
+
+**Late admission: it works only as a fresh `render` with the full templates list, and node keys change when the set changes.** `render()` takes the whole templates list every call; `update(previous, snapshot)` takes two arguments, and a third `{ program }` argument is silently ignored (it returned a patch for the old program only). Rendering `[A]` and then `[A, B]` with root A both succeed, but the same root and snapshot give different node keys (`kGw7...` against `k874...`): keys are stable only for the same program, which is consistent with keys being derived from the program (the derivation was not located). A late-admitted render therefore re-keys the DOM, which breaks adopted-node identity, focus restoration and the replay of [Bet 14](resumable-start.md). Errors return as diagnostic values (`assembly-malformed-template` at the template index, `assembly-missing-root`). The minimal change is to define admission in the Valance client as "re-render with the larger list and re-key" and leave `update` alone; a key-preserving admission would need a MESH change.
+
+**Real networks** and **real devices** cannot be measured here. A proposal for the protocol, from Lighthouse's own configuration: mobile form factor, simulated throttling with the `mobileSlow4G` preset, a Moto G Power (2022) profile, 5 runs per URL with the median, and `benchmarkIndex` recorded beside every number (Lighthouse's documentation says CPU throttling is relative to the host and must be calibrated with it); plus a small pass on a mid-tier Android phone for "interactive at" and the tap-in-the-dead-zone metric, comparing only against the same device.
+
 ## Open questions for stage 3
 
-- **Which application is the reference.** The counter is the floor. A second reference, the `docs-app` example, would show how cost grows with a real application.
-- **Late admission** of a program loaded after `start` (see section 8). It is a prerequisite for route splitting.
-- **Where history is stored**: dated files in the repository, or build artifacts.
-- **Memory** is not measured. The Desktop engine's 79 MB comes from an earlier note, and units (Bet 8) will add per-instance memory.
-- **Real networks.** All timings are localhost. A throttled-network profile is worth adding when first paint becomes a gate.
+- **First paint and 4x CPU for `docs-app`**, which the sandbox could measure but did not.
+- **Whether keys can be made program-independent**, which would let late admission keep identity (a MESH change).
+- **The Desktop window's memory** (egui, GPU), and per-unit memory once Bet 8 exists.
+- **Real networks and real devices**, which need hardware.
+- **Angular's golden size files**, unreachable as a history precedent.

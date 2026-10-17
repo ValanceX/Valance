@@ -18,7 +18,7 @@ Can every primitive and every library be verified against its specification, and
 | Where | What | Notes |
 |---|---|---|
 | MESH `examples/conformance/` | Language-neutral cases for MESH's semantics at the render tree: `values/` (20 cases), `events/` (14), `identity/` (22: C1 to C10, and C11 to C22 under `repeat/`). `values/` and `events/` are real programs (`program.json`, `.mprx` sources, `snapshot.json`, `expected.tree.json`, `cases.json`), checked by `crates/mesh-runtime/tests/conformance.rs` in Rust and `packages/mesh-runtime/test/conformance.test.mjs` through the WebAssembly package | The best thing in the ecosystem's testing. It needs "no target, no browser and none of MESH's code" |
-| Web PORT | About 236 test cases in `packages/port-web/test` (a text count), including `conformance.test.ts`, which runs MESH's vectors through a real DOM | Strong, and specific to one PORT |
+| Web PORT | 349 tests in 18 files in `packages/port-web/test` (re-counted in the consistency pass; an earlier text count gave about 236) (a text count), including `conformance.test.ts`, which runs MESH's vectors through a real DOM | Strong, and specific to one PORT |
 | Desktop PORT | `tests/contract.rs` and ten other test files, driven by fixtures captured from the to-do application (`todo-list.json`, `reader-index.json`) and by `inspect::readable` and `inspect::buttons` | Real MESH output, but not MESH's vectors |
 | Valance | The `tracer-web` contract suite and, in the `docs-verifier` example, visual regression that keeps its photographs outside the repository because "photographs depend on the machine's fonts" | Per example and per machine |
 | A gallery | None | |
@@ -187,11 +187,21 @@ The gallery is an application, generated and checked like any other (the ecosyst
 - The PORT repositories change how they get the vectors and gain a conformance run.
 - `inspect` in each PORT becomes a stated interface instead of a private one.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) Q10 to Q13. Suites were run in copies.
+
+**Forced states: a `force(key, state)` operation in the adapter**, with `state` one of hover, pressed, focus, focus-visible, implemented by each PORT with its own mechanism. On the web, the DevTools protocol's `CSS.forcePseudoState` "ensures that the given node will have specified pseudo-classes whenever its style is computed by the browser"; Storybook's pseudo-states addon instead rewrites stylesheets to add class selectors, so it "won't render any of the default user agent styles" and offers no JavaScript API to toggle real pseudo-states. In egui 0.31.1 `egui_kittest` maps simulated events to egui events (`CursorMoved` to `PointerMoved`; `MouseInput` pressed or released to `PointerButton`; key input to `Key` with tracked modifiers; AccessKit action requests through), so there is no "force hover": the harness moves the cursor over the node and steps one frame, and a press without a release is a held "pressed". For the terminal target a forced state is the skeleton's state flag.
+
+**Interaction kinds: `activate`, `type` (text), `key` (name and modifiers), `focus` and `pointer-hover`**, derived from the keyboard tables in [Bet 7](accessibility.md), which use Space, Enter, Escape and the arrow keys. Add `scroll` only when the `scroller` primitive lands: `egui_kittest` has no scroll event among its simulated ones, so a scroll test there would use the AccessKit scroll action, which was not tried.
+
+**Runtime and sharding: unsharded and in-process.** Measured: `cargo test -p mesh-runtime --test conformance` passed 6 tests (33 s cold compile, 0.03 to 0.05 s to run); the Web PORT's suite is **349 tests in 18 files** (not about 236), all passing, 6.6 to 7.6 s in three runs, about 14.5 ms per test. If the generated primitive vectors give about 7 primitives times 30 cases, about 210 cases per target, that is about 3 s per target in process (an assumption). A child-process adapter adds process start time per process (not measured), so keep one persistent process and shard only if the protocol runs one process per case. The MESH JavaScript conformance test needs `dist` for the runtime and compiler, which are not in a checkout; with the published 0.13.0 `dist` copied in, 3 conformance tests passed in 0.37 s, and the full JavaScript suite ran 90 tests in 16 s with 16 failures I did not investigate (likely the substitution).
+
+**Desktop snapshots: not with `wgpu` for the gate now.** Add `egui_kittest` with no features (structure and AccessKit only) as a development dependency: 3 more packages and about 12.6 s to build in a scratch crate. With `snapshot` and `wgpu` it brings 313 resolved packages against the PORT's current 269 (+44, including wgpu 24, naga, ash, egui-wgpu, dify and pollster) and about 35.5 s to build (cold, 4 cores, debug, including downloads). The PORT uses `eframe` with `glow`, so a `wgpu` snapshot is of a different pipeline than users see. Whether a GPU or software Vulkan adapter exists in CI was not tested and could block a gate.
+
 ## Open questions for stage 3
 
-- **The observation vocabulary** beyond text, value, enabled, checked and order: when roles, names and relationships join ([Bet 7](accessibility.md) specifies them).
-- **Forced states** on the Desktop and the terminal, where there is no stylesheet.
-- **Interaction kinds** the adapter must support: activate, type, key, scroll (for [Bet 10](collections.md)).
-- **How units and replay fit**: a unit's behavior is a script of interactions with expected observations, which is also what [Bet 15](replay.md) wants for replay.
-- **Sharding and runtime** of the full kit in CI.
-- **Whether the Desktop adopts `wgpu` snapshots** or stays on structure snapshots only.
+- **How units and replay fit**: a unit's behavior is a script of interactions with expected observations, which is the same artifact [Bet 15](replay.md) derives from a log (decided in R1; the script format is the log's `event` lines).
+- **Whether a GPU or software Vulkan adapter exists in CI**, which decides whether `wgpu` snapshots could ever gate.
+- **The AccessKit scroll action** in `egui_kittest`.
+- **The 16 failing MESH JavaScript tests** seen with the substituted `dist` (likely the substitution).

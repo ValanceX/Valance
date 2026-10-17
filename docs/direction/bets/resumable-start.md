@@ -161,10 +161,20 @@ The original idea: the server embeds what the client would compute, and the clie
 
 None to the language or the formats. `vlx build`'s documents gain the inline shell and a `data-vlx` attribute, and the shipped stylesheet gains the busy styling.
 
+## Answered by research (2026-10-17)
+
+Sources and decision ids: [decisions](../decisions.md) H9 to H12. Measured in Chromium 141.
+
+**Non-idempotent controls: a per-control declaration `replay: "safe" | "never"`**, default `"safe"` for `button`, `checkbox` and `textfield`, set by an author prop. A tap on a `replay: "never"` control in the dead zone is dropped and the control shows the busy state. It cannot be per primitive only, because "Pay" and "Like" are both buttons. Precedent: Phoenix LiveView disables a submit button and adds `phx-submit-loading` while a submit is pending, and "LiveView ignores clicks on elements that are currently awaiting an acknowledgement": block while pending, declared per element. Stripe's idempotency keys were not retrieved and Qwik's docs were only listed, so those precedents are unverified. The web vocabulary has `disabled` only on `button` and no declaration of replay safety today.
+
+**Preserve every field whose value differs from its server default, not only the focused one.** Measured over 30 repetitions: capturing and restoring cost at most 0.1 ms for 200 inputs (below the timer's resolution for 1 and 20; the same at 4x CPU), and per-keystroke tracking 0.002 to 0.01 ms per event, so the "only the focused field" shortcut saves nothing. Loss modes found: writing a different value into a focused input moves the caret to the end (selection [1,3] became [5,5]); writing the same value keeps the selection; focus survives value writes; and a `setAttribute("value")` after the user has edited does not change the displayed value (the dirty flag). Restore by writing a value only when it differs, then restore the caret of the focused field with `setSelectionRange`. Not tested: file inputs (cannot be restored by script), input-method composition, autofill, and select, radio and checkbox state.
+
+**Keyboard shortcuts: the shell covers none for now.** The vocabularies declare no shortcuts: a search of the common, valance, port-web and port-desktop sources finds only the text field's `submit` (Enter) and `cancel` (Escape), the per-event `key` field, and the Desktop's Enter, Escape and back/forward mapping. The event types needed are click, input, change and the Enter and Escape keys, matching the brief's kill threshold. Revisit when the primitive specification adds a shortcut field.
+
+**Real devices** cannot be measured here; the proposed protocol is in [Bet 3](budgets.md).
+
 ## Open questions for stage 3
 
-- **Non-idempotent controls.** How a primitive declares that replaying it is unsafe.
-- **Focus and selection** at the moment of replay.
-- **Forms with many fields:** whether to preserve every field or only the focused one.
-- **Whether the shell should also cover keyboard shortcuts** the page declares.
-- **Measured on real devices.** All numbers are from emulated throttling.
+- **Which real controls are non-idempotent** needs real applications.
+- **Input-method composition, autofill, file inputs and select/radio/checkbox state** at replay were not tested.
+- **Real-device numbers** need devices.
