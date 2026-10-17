@@ -115,5 +115,14 @@ export const primitives: Web.WebPrimitives = {
    * `label` is the same shape (docs/application-model/CHOICE-GROUP.md, WA-14).
    */
   label: { element: "label", props: { class: klass } },
+  // A static table (docs/application-model/TABLE.md): the native elements, so no ARIA beyond what a prop says. `tablehead` and `tablebody` are required around the rows: the browser inserts a `<tbody>` into
+  // server-rendered HTML that has none, and a tree with rows straight in the table would not hydrate against what it parsed. `scope` is a constant attribute of the header primitives; `sort` is `aria-sort`.
+  table: { element: "table", props: { class: klass, label } },
+  tablehead: { element: "thead" },
+  tablebody: { element: "tbody" },
+  tablerow: { element: "tr", props: { class: klass } },
+  columnheader: { element: "th", attributes: { scope: "col" }, props: { sort: Web.attribute("aria-sort") } },
+  rowheader: { element: "th", attributes: { scope: "row" } },
+  cell: { element: "td" },
   button: { element: "button", props: { class: klass, label, pressed: Web.attribute("aria-pressed"), disabled: Web.booleanAttribute("disabled") }, events: { click: { type: "click" } } },
 };

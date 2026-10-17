@@ -65,6 +65,9 @@ export const webVocabulary: WebVocabulary = {
     // styling and accessibility hooks are the web's, and a template for both targets does not write them
     button: ["class", "label", "pressed"],
     label: ["class"],
+    table: ["class", "label"],
+    tablerow: ["class"],
+    columnheader: ["sort"],
     checkbox: ["label", "invalid", "describedby"],
     textfield: ["label", "placeholder", "kind", "invalid", "describedby"],
     text: ["id"],

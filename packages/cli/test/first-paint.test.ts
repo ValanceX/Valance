@@ -74,8 +74,18 @@ const measure = async (page: Page, url: string): Promise<Measured> => {
 
   const started = Date.now();
 
+  const seen: Array<string> = [];
+
+  page.on("console", (message) => seen.push(`console.${message.type()}: ${message.text()}`));
+  page.on("pageerror", (error) => seen.push(`pageerror: ${error.message}`));
+  page.on("requestfailed", (request) => seen.push(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
+  page.on("response", (response) => (response.status() >= 400 ? seen.push(`${response.status()}: ${response.url()}`) : undefined));
+
   await page.goto(url, { waitUntil: "commit" });
-  await page.waitForSelector('#app[data-valance="running"]', { timeout: 90_000 });
+  // what the page said is the failure's message: a page that never starts says why
+  await page.waitForSelector('#app[data-valance="running"]', { timeout: 90_000 }).catch((error: unknown) => {
+    throw new Error(`the page never started (${error instanceof Error ? error.message.split("\n")[0] : String(error)}):\n${seen.join("\n") || "(nothing logged)"}`);
+  });
 
   const running = Date.now() - started;
 

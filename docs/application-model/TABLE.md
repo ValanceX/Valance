@@ -1,0 +1,43 @@
+# A portable static table (WP-24, RF-12)
+
+Written 2026-10-17, before the implementation. Finding RF-12: the orders screen wants rows and columns with header meaning, and today draws a list of rows with spans, so assistive technology gets no row or column. This note decides the shape from the written literature (below) instead of waiting for a second application, and uses the second application to test where the decision stops.
+
+## What the literature agrees on
+
+- **A table and a grid are different things.** The [WAI-ARIA Authoring Practices table pattern](https://w3.org/WAI/ARIA/apg/patterns/table) calls a table static (not an interactive widget) and strongly encourages the native `<table>`; the grid pattern is the interactive one, with two-dimensional arrow-key navigation and the obligations that come with it. [Adrian Roselli](https://adrianroselli.com/2020/07/aria-grid-as-an-anti-pattern.html) and the [W3C list](https://lists.w3.org/Archives/Public/public-aria/2016Feb/0150.html) agree: `role="grid"` on static data changes the keyboard paradigm and confuses assistive-technology users. A table whose only focusable cells are sort controls is a table.
+- **Sorting and selection belong to the application.** [React Aria's table](https://react-aria.adobe.com/Table/useTable) raises the sort change and the application sorts the data and passes the descriptor back; the table does not own the rows.
+- **A table does not fit every width.** SwiftUI's `Table` is reported to show only its first column in a compact size class ([a third-party write-up](https://useyourloaf.com/blog/swiftui-tables-quick-guide/); Apple's own guidance was not retrieved): the platform's answer is one table-shaped default, and applications work around it.
+- **Our own stack.** AccessKit 0.17 has the `Table`, `Row`, `Cell`, `ColumnHeader` and `RowHeader` roles, row and column counts and indices and a sort direction; `egui_extras` 0.31's table sets none of them, so the Desktop PORT must set them itself, as it did for `RadioGroup`.
+
+## Statements
+
+- **T-1 Scope: a static table.** Rows and columns with header meaning, whose cells hold text and inline content. It is not a grid: no selection, no editing, no arrow-key navigation inside it (DP2, and the APG's own split). A table of controls is a separate decision, made when an application needs one.
+- **T-2 Seven tags**, named after the ARIA roles (`row` is a layout tag on both targets, so a table row is `tablerow`): `table`, `tablehead`, `tablebody`, `tablerow`, `columnheader`, `rowheader`, `cell`. `tablehead` and `tablebody` are the header rows and the data rows. They are required in a table, for two reasons: the header rows are meaning, and the browser inserts a `<tbody>` into server-rendered HTML that has none, so a tree with rows directly in the table would not hydrate against what the browser parsed.
+- **T-3 Props.** `table`: `label` (the table's accessible name, optional), web-only `class`. `tablerow`: web-only `class`. `columnheader`: `sort` (optional string, `ascending`, `descending`, `none` or `other`: the state of this column's sort, for assistive technology). `rowheader`, `cell`: none. No events: a table raises none.
+- **T-4 What a cell holds.** Text and inline content (`strong`, `emphasis`, `code`, `link`) and a `button` (a sortable header holds one). Other controls in a cell are the grid and are not supported; the template is not refused, but the desktop draws them as it would anywhere and the keyboard model is Tab order, not arrows.
+- **T-5 Headers.** `columnheader` names a column and `rowheader` a row. The web realization carries `scope="col"` and `scope="row"` (constant attributes of the primitive); the desktop's accessibility tree gives them `ColumnHeader` and `RowHeader`.
+- **T-6 Sorting is the application's.** A sortable column's header holds a `button` that runs a command; the sorted rows are state; `sort` on the header says which column is sorted and how. The table does not sort, and has no sort event.
+- **T-7 Narrow windows are the application's.** A table does not collapse into a list on its own. The layout reads `viewport` and chooses a table or a list, as it already can.
+- **T-8 Web realization.** The native elements, no ARIA beyond what the props say: `table` is `<table aria-label>`, `tablehead` `<thead>`, `tablebody` `<tbody>`, `tablerow` `<tr>`, `columnheader` `<th scope="col" aria-sort>`, `rowheader` `<th scope="row">`, `cell` `<td>`. Presentation is the application's stylesheet.
+- **T-9 Desktop realization (the Desktop PORT, a separate repository and release).** One grid for the whole table: columns sized to their content, the rows of `tablehead` drawn strong. In the accessibility tree: `Table` (with its name and the row and column counts), `Row` (with its index), `Cell`, `ColumnHeader` and `RowHeader` (with their column and row indices; `sort` becomes the sort direction). A short row is padded; a long one widens the grid.
+- **T-10 Not decided here, and why.** `colspan` and `rowspan` (no application needs them and they complicate the grid), column widths, resizing, sticky headers (CSS on the web), pagination and virtualization (the application's list, not the table's), selection and editing (the grid, T-1).
+- **T-11 The two targets agree** on the tags, `label`, `sort` and the structure; `class` is web-only and optional, like the other tags'.
+- **T-12 Tests.** Web: the built HTML has the structure, the `scope` and `aria-sort` attributes and the `aria-label`. Desktop: the headless accessibility tree has the roles, the counts and indices and the sort direction, and the grid draws every cell. Parity: a desktop prop or event that a table tag has is the web's, checked against a Port checkout until the Port release carries the tags, then against the installed vocabulary.
+- **T-13 The second application is a test of T-1.** The orders list moves to a table (a read-only list with links and a status, which is what T-1 says). A comparison table in content and a table with a control per cell are the cases that would tell us whether T-1 holds; the second would be the signal to design the grid.
+- **T-14 Release.** The Port release (`@valancex/port-desktop-vocabulary` and the crate) carries the tags; Valance depends on it after that. Until then a desktop project that uses a table is refused by `vlx check` as an unknown component, which is the right message.
+
+## Implementation status (2026-10-17)
+
+| Statement | Status | Evidence |
+|---|---|---|
+| T-1, T-4 | Matches: static; text, inline content and a button in a cell; no grid behavior | `common/src/primitives.ts`; Port `view.rs` |
+| T-2 | Matches: seven tags, `tablehead`/`tablebody` around the rows. The structure is a documented rule, not a checked one: a table with rows straight in it draws on the desktop and would not hydrate on the web (a `check` diagnostic for it is the obvious next step, not built) | `primitives.ts`; Port `vocabulary.json` |
+| T-3 | Matches: `label`, `sort`, web-only `class`; no events | `vocabulary.ts` (`optional`), Port `vocabulary.json` |
+| T-5, T-8 | Matches: `scope` is a constant attribute of the header primitives; `sort` is `aria-sort`; the label is `aria-label` | `cli/test/table.test.ts` (the built HTML) |
+| T-6, T-7 | Matches by omission: no sort or narrow-window behavior in the table; `orders-app` has no sorting yet, so the sortable header (a button) is untested end to end | |
+| T-9 | Matches: one grid, header rows strong, `Table`/`Row`/`Cell`/`ColumnHeader`/`RowHeader` with counts, indices and sort direction, parented table to row to cell. **Driven in a headless context only**; no real window yet | Port `tests/table.rs` |
+| T-10 | Not built, as written | |
+| T-11 | Matches, checked against a Port checkout (the installed vocabulary has no table yet); a second test says when that stops being true | `cli/test/table.test.ts` |
+| T-12 | Matches | the three test files above, `orders-app/test/orders.test.ts` (roles by name, the count of rows) |
+| T-13 | The orders list is a table now (the customer a link, the status and total in their cells); it needed no change to the table. The second case, a table with controls in cells, has **not** been built | `examples/orders-app` |
+| T-14 | Pending: the Port release | |

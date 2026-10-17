@@ -111,18 +111,24 @@ const open = async (address: string): Promise<Backend> => {
   return backend;
 };
 
-const rows = (page: Page) => page.locator(".rows li .row").allTextContents();
+const rows = (page: Page) => page.locator(".rows tbody tr .row").allTextContents();
 
 describe("the orders screen", () => {
   it("loads the list when the page opens, and the filter is the address", async () => {
     const { page, calls, errors } = await open("/orders");
 
-    await page.waitForSelector(".rows li");
-    expect(await rows(page)).toEqual(["#1 Ada", "#2 Grace", "#3 Linus"]);
+    await page.waitForSelector(".rows tbody tr");
+    expect(await rows(page)).toEqual(["Ada", "Grace", "Linus"]);
+    // rows and columns mean something to assistive technology (docs/application-model/TABLE.md)
+    const table = page.getByRole("table", { name: "Orders" });
+
+    expect(await table.getByRole("columnheader").allTextContents()).toEqual(["Order", "Customer", "Status", "Total"]);
+    expect(await table.getByRole("row").count()).toBe(4); // the header row and three orders
+    expect(await table.getByRole("cell").first().textContent()).toBe("#1");
     expect(await page.textContent(".hint")).toBe("Pick an order from the list.");
     await page.click('a.filter[href="/orders?status=paid"]');
-    await page.waitForFunction(() => document.querySelectorAll(".rows li").length === 1);
-    expect(await rows(page)).toEqual(["#2 Grace"]);
+    await page.waitForFunction(() => document.querySelectorAll(".rows tbody tr").length === 1);
+    expect(await rows(page)).toEqual(["Grace"]);
     expect(new URL(page.url()).search).toBe("?status=paid");
     expect(await page.getAttribute('a.filter[href="/orders?status=paid"]', "aria-current")).toBe("page");
     expect(calls).toEqual(["GET /api/orders", "GET /api/orders?status=paid"]);
@@ -133,19 +139,19 @@ describe("the orders screen", () => {
   it("opens an order beside the list, and the list is neither fetched again nor drawn again (the shell and its rows stay)", async () => {
     const { page, calls } = await open("/orders");
 
-    await page.waitForSelector(".rows li");
+    await page.waitForSelector(".rows tbody tr");
     await page.evaluate(() => {
       const w = window as unknown as { __list: Element | null; __row: Element | null };
 
       w.__list = document.querySelector(".orders-shell .list");
-      w.__row = document.querySelector(".rows li");
+      w.__row = document.querySelector(".rows tbody tr");
     });
     await page.click('a.row[href="/orders/2"]');
     await page.waitForSelector(".order-detail h2");
     expect(await page.textContent(".order-detail h2")).toBe("Order 2: Grace");
     expect(calls).toEqual(["GET /api/orders", "GET /api/orders/2"]); // the list was not asked for again
     expect(await page.evaluate(() => (window as unknown as { __list: Element | null }).__list === document.querySelector(".orders-shell .list"))).toBe(true);
-    expect(await page.evaluate(() => (window as unknown as { __row: Element | null }).__row === document.querySelector(".rows li"))).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as { __row: Element | null }).__row === document.querySelector(".rows tbody tr"))).toBe(true);
     expect(await page.locator(".list .state").count()).toBe(0); // no "Loading orders…" came back
     await page.close();
   });
@@ -155,7 +161,7 @@ describe("the orders screen", () => {
 
     await page.waitForSelector(".order-detail h2");
     expect(await page.textContent(".order-detail h2")).toBe("Order 3: Linus");
-    expect(await rows(page)).toEqual(["#1 Ada", "#2 Grace", "#3 Linus"]);
+    expect(await rows(page)).toEqual(["Ada", "Grace", "Linus"]);
     expect([...calls].sort()).toEqual(["GET /api/orders", "GET /api/orders/3"]);
     expect(await page.title()).toBe("Order 3 · Orders");
     await page.close();
@@ -171,7 +177,7 @@ describe("the orders screen", () => {
     await page.click("button.save");
     await page.waitForFunction(() => document.querySelector(".order-detail .now")?.textContent === "paid");
     expect(await page.isDisabled("button.save")).toBe(true);
-    expect(await page.locator(".rows li .status").first().textContent()).toBe("paid");
+    expect(await page.locator(".rows tbody tr .status").first().textContent()).toBe("paid");
     await page.close();
   });
 

@@ -11,11 +11,26 @@
       {#if listPhase == "loading"}<para class="state">Loading orders…</para>{/if}
       {#if listPhase == "failed"}<para class="state failure">The orders could not be loaded.</para>{/if}
       {#if empty}<para class="state">No orders with this status.</para>{/if}
-      <list class="rows">
-        {#each rows as r (r.id)}
-          <item><link class="row" href={r.href} current="false">#{r.id} {r.customer}</link> <span class="status">{r.status}</span> <span class="total">{r.total}</span></item>
-        {/each}
-      </list>
+      <table class="rows" label="Orders">
+        <tablehead>
+          <tablerow>
+            <columnheader>Order</columnheader>
+            <columnheader>Customer</columnheader>
+            <columnheader>Status</columnheader>
+            <columnheader>Total</columnheader>
+          </tablerow>
+        </tablehead>
+        <tablebody>
+          {#each rows as r (r.id)}
+            <tablerow>
+              <cell>#{r.id}</cell>
+              <cell><link class="row" href={r.href} current="false">{r.customer}</link></cell>
+              <cell><span class="status">{r.status}</span></cell>
+              <cell><span class="total">{r.total}</span></cell>
+            </tablerow>
+          {/each}
+        </tablebody>
+      </table>
     </div>
     <div class="detail">
       <mesh-slot />

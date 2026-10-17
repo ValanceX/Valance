@@ -69,7 +69,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |
 | RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
 | RF-10 | Can a success navigate from `settle`? | ? **Accepted**: not needed in two applications; no change (COMMAND-SURFACE.md C-8) |
-| RF-12 | No table (rows and columns with their meaning) | 2 / FW | Open → WP-24 |
+| RF-12 | No table (rows and columns with their meaning) | 2 / FW | **Built**: a static `table` (web; the desktop in the Port repository, unreleased); the grid case is deferred → WP-24, TABLE.md |
 | RF-13 | The space between two interpolations in a template is dropped (`{a} {b}` reads `ab`) | 1 / Eng | **Fixed** (MESH 0.13.0; Valance depends on it) → WP-26 |
 
 WA-5 (form building blocks) is answered by this: no helper; RF-1 to RF-3, RF-5 and RF-6 first.
