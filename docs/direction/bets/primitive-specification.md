@@ -128,7 +128,7 @@ Reserved fields are filled by other bets and are shown here so the shape is visi
 | Documentation tables (`desktop-vocabulary.md` and its web counterpart) | Hand-written | Generated |
 | Editor hover and completion | From the manifest | From the specification, adding role, name rule and keys |
 | Conformance vectors | Per feature, hand-written | One generated set per primitive, plus hand-written edge cases |
-| Gallery | Does not exist | Every primitive in every state, from data ([Bet 2](README.md)) |
+| Gallery | Does not exist | Every primitive in every state, from data ([Bet 2](conformance-kit.md)) |
 
 ### Alternatives considered
 
