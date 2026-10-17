@@ -5,7 +5,7 @@
 | **Stage** | 2 Design, accepted by delegation. The open questions are decided in [decisions](../decisions.md) (P1 to P7); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
-| **Depends on** | Nothing. Bets 2, 6, 7, 9, 10, 11, 12 and 13 depend on this one |
+| **Depends on** | Nothing. Bets 2, 6, 7, 9, 10, 12 and 13 depend on this one |
 
 ## Question
 
@@ -15,7 +15,7 @@ Can one declarative record per primitive be the only place a primitive is define
 
 ### A primitive is defined in many places today
 
-MESH has no primitive set of its own: "each application's manifest declares its own" ([MESH architecture](https://github.com/ValanceX/Mesh/blob/main/docs/ARCHITECTURE.md), and F6 of the [PORT integration audit](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-09-27-port-integration-audit.md)). That was the right call for MESH. The consequence is that the facts about one primitive are spread out and kept by hand:
+MESH has no primitive set of its own: "MESH has no built-in primitive catalog" (§9.1 of the [MPRX specification](https://github.com/ValanceX/Mesh/blob/main/docs/MPRX-SPEC.md)), "each application's manifest declares its own" ([Web PORT README](https://github.com/ValanceX/Port/blob/main/packages/port-web/README.md)), and F6 of the [PORT integration audit](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-09-27-port-integration-audit.md) ("There is no Valance-wide set of primitives"). That was the right call for MESH. The consequence is that the facts about one primitive are spread out and kept by hand:
 
 | Fact about a primitive | Where it lives today |
 |---|---|
@@ -30,7 +30,7 @@ MESH has no primitive set of its own: "each application's manifest declares its 
 
 ### The copies have already drifted
 
-The web file says its first seven entries are "the portable core (the same names, props, events and payloads as the Desktop PORT's vocabulary: a component written with only these runs on both targets)". Comparing that file with `vocabulary.json`:
+The web file's comment (`primitives.ts:15`) calls its opening entries "the portable core (the same names, props, events and payloads as the Desktop PORT's vocabulary: a component written with only these runs on both targets)". With `checkbox`, `textfield` and `button` further down the file, those make the seven names the two targets share. Comparing that file with `vocabulary.json`:
 
 | Name | Web props and events | Desktop props and events | Differs |
 |---|---|---|---|
@@ -61,10 +61,10 @@ Reliability: **P** is a primary source, read through a fetch agent; **S** is a s
 
 | Who | What they decided and why | Architecture or patch | Lesson here |
 |---|---|---|---|
-| React Spectrum (**P**, [v3 architecture RFC](https://raw.githubusercontent.com/adobe/react-spectrum/main/rfcs/2019-v3-architecture.md)) | Split each component into "platform agnostic state management, theme agnostic behavior, and themed components", with "the underlying implementation... swappable per platform" | Architecture, in use since 2019 | The meaning of a component (state and behavior) is separable from how a platform draws it. A specification of meaning is the same cut |
-| Radix (**P**, [philosophy](https://raw.githubusercontent.com/radix-ui/primitives/main/philosophy.md)) | "A single component only renders a single DOM element"; "composition is preferred over configuration"; "zero presentational styles applied by default" | Architecture | One primitive, one node, no styling baked in. A specification can state this as a rule |
+| React Spectrum (**P**, [v3 architecture RFC](https://raw.githubusercontent.com/adobe/react-spectrum/main/rfcs/2019-v3-architecture.md)) | Split each component into "platform agnostic state management, theme agnostic behavior, and themed components", with "the underlying implementation... swappable per platform" | Architecture (proposed in a 2019 RFC; whether it shipped as written was not checked) | The meaning of a component (state and behavior) is separable from how a platform draws it. A specification of meaning is the same cut |
+| Radix (**P**, [philosophy](https://raw.githubusercontent.com/radix-ui/primitives/main/philosophy.md)) | "a single component only renders a single DOM element (if a DOM node is rendered at all)"; "composition is preferred over configuration"; "zero presentational styles applied by default" | Architecture | One primitive, one node, no styling baked in. A specification can state this as a rule |
 | WAI-ARIA Authoring Practices (**P**, [read me first](https://raw.githubusercontent.com/w3c/aria-practices/main/content/practices/read-me-first/read-me-first-practice.html)) | "A role is a promise" that the author also supplies the keyboard behavior; "ARIA roles do not cause browsers to provide keyboard behaviors" | Guidance | A role and its keyboard contract must be recorded together, or the role is an unkept promise |
-| TC39 (**P**, [process](https://tc39.es/process-document/)) | A feature is final only with "two compatible implementations which pass the Test262 acceptance tests" | Process | Conformance tests are what make a specification real. Ours are the [identity and event vectors](https://github.com/ValanceX/Mesh/blob/main/examples/conformance/README.md) MESH already ships |
+| TC39 (**P**, [process](https://tc39.es/process-document/); the quote could not be re-checked because the host was unreachable in the consistency pass) | A feature is final only with "two compatible implementations which pass the Test262 acceptance tests" | Process | Conformance tests are what make a specification real. Ours are the [identity and event vectors](https://github.com/ValanceX/Mesh/blob/main/examples/conformance/README.md) MESH already ships |
 | Angular Material MDC migration (**S**) | Reported to have changed DOM and CSS class structure, with "style-related issues" for many consumers | A rewrite that broke consumers tied to internals | When structure is not a stated contract, everything built on it breaks when it moves |
 | This repository | NATIVE-VOCABULARY chose names from eight toolkits' own sources and corrected three of its own first recommendations | Architecture-grade method | Method is not the gap. What is missing is a place where the result lives as data |
 
@@ -101,7 +101,7 @@ Reserved fields are filled by other bets and are shown here so the shape is visi
   "summary": "A box that is ticked or not. The application owns the value.",
   "props": {
     "checked": { "type": { "kind": "boolean" }, "required": true, "controlled": true },
-    "label": { "type": { "kind": "string" }, "required": false, "a11y": "name" },
+    "label": { "type": { "kind": "string" }, "required": true, "a11y": "name" },
     "invalid": { "type": { "kind": "boolean" }, "required": false, "a11y": "state" },
     "describedby": { "type": { "kind": "string" }, "required": false, "a11y": "relationship" }
   },
@@ -110,13 +110,13 @@ Reserved fields are filled by other bets and are shown here so the shape is visi
   },
   "content": "none",
   "keyboard": [{ "key": "Space", "raises": "change" }],
-  "nameRule": "label",
-  "states": ["focus-visible", "hovered", "pressed", "disabled", "checked", "invalid"],
-  "parts": ["root", "indicator"]
+  "name": { "from": "prop", "prop": "label" },
+  "states": { "checked": "checked", "invalid": "invalid" },
+  "parts": ["root"]
 }
 ```
 
-`keyboard` and `nameRule` belong to [Bet 7](accessibility.md), `states` and `parts` to [Bet 6](style-contract.md), and `describedby` as a string is a placeholder until Bet 7 decides how relationships are expressed. `controlled` states the contract the Web PORT already enforces (the slot holds exactly what the application last rendered) in the specification, where today it is only in a realization.
+`keyboard`, `name` and `states` (the semantic ones) belong to [Bet 7](accessibility.md), which also makes `label` required here; `parts` and the interaction states (`hovered`, `pressed`, `focus-visible`) belong to [Bet 6](style-contract.md), so the sketch lists `root` only (P3). `describedby` as a string is a placeholder: [Bet 7](accessibility.md) replaces it with a node reference. `controlled` states the contract the Web PORT already enforces (the slot holds exactly what the application last rendered) in the specification, where today it is only in a realization.
 
 ### What gets generated or checked
 
@@ -136,7 +136,7 @@ Reserved fields are filled by other bets and are shown here so the shape is visi
 |---|---|
 | Make the Desktop `vocabulary.json` the shared format and have the web consume it | It is a MESH manifest: types and events, but no role, keyboard, state or part. It would need the same extensions this sketch adds, and it would leave realization-only facts (controlled slots) with nowhere to live |
 | Put realization inside the specification | Breaks fixed point 4: a PORT decides how a target realizes meaning, and a specification that names a DOM element is a web specification |
-| One shared TypeScript package of primitives | The PORT roadmap already rejected a shared package: a TypeScript package every PORT depends on would force a TypeScript shape on a Rust PORT. Data does not |
+| One shared TypeScript package of primitives | The PORT README and architecture note already rejected a shared package (see Gate 3 of the integration audit): a TypeScript package every PORT depends on would force a TypeScript shape on a Rust PORT. Data does not |
 | Keep hand-kept tables and add a test that compares them | It finds drift but leaves four places to edit. It is a good first step (see the experiment) and a poor end state |
 
 ## Experiment

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Stage** | 3 Prototype for the harness and the baseline (both exist); 2 Design, accepted by delegation, for the gates. The decisions are in [decisions](../decisions.md) (W1 to W8); the maintainer has not reviewed the text |
+| **Stage** | 3 Prototype for the harness and the baseline (both exist); 2 Design, accepted by delegation, for the gates. The decisions are in [decisions](../decisions.md) (W1 to W14); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
 | **Depends on** | Nothing. Every other bet's success criteria that mention cost depend on this one |
@@ -15,7 +15,7 @@ Can the cost of shipping, starting and updating a Valance application be a set o
 
 ### The ecosystem already believes in this, in two places
 
-- The reactivity design says it outright: "**Benchmark first.** ... The sharing and changes-form work must show a measured improvement to ship; otherwise it is dropped." It also uses a deterministic counter, not a stopwatch: "7 expressions evaluated, not 60,001".
+- The reactivity design says it outright: "**Benchmark first.** ... The sharing and changes-form work must show a measured improvement to ship; otherwise it is dropped from M1 and stays as designed." It also uses a deterministic counter, not a stopwatch: "7 expressions evaluated, not 60,001".
 - The `docs-verifier` example has a budget test for a generated 500-page site ("what a document costs a reader, what a build costs its author, and that neither grows with the pages that are not the one asked for"), and its roadmap makes "payload and render budgets hold" an exit criterion.
 
 Both are real, and neither covers the framework's own footprint. The first lives in a design note, the second in an example that has its own package root and is not among the commands CI runs (`pnpm test`, `test:browser`, `test:examples`).
@@ -34,11 +34,11 @@ Both are real, and neither covers the framework's own footprint. The first lives
 
 and the measurement surfaced things nobody had decided:
 
-- **Effect is 83 percent of the JavaScript**, and the ecosystem's own packages about 9 percent. Where the bytes go is not where a team would look.
-- **About 45 KB of raw JavaScript (12.4 KB brotli) is `fast-check`**, a property-testing library pulled in through Effect's barrel import, which the subpath `effect/Schema` avoids.
+- **Effect is 83 percent of the JavaScript**, and the ecosystem's own packages about 10 percent (58,066 of 607,655 bytes). Where the bytes go is not where a team would look.
+- **About 46 KB of raw JavaScript (12.4 KB brotli) is `fast-check` and its dependency `pure-rand` (`fast-check` alone is 36.7 KB raw)**, a property-testing library pulled in through Effect's barrel import, which the subpath `effect/Schema` avoids.
 - **`wasm-opt -Oz` makes the transferred size worse** (brotli +9.9 percent) while making the raw file 22 percent smaller. A raw-size budget would have rewarded the wrong change.
 - **The Desktop protocol sends the whole tree on every update.** At 1,000 rows that is 185,924 bytes for a change the runtime already describes in 202.
-- **The newest published versions do not install together.** `valance` 0.13.0 accepts `port-web` `^0.6.1` and `mesh-runtime` `^0.11.0 || ^0.12.0`, while 0.9.0 and 0.13.0 are the newest.
+- **A plain install gets older packages than the newest published.** `valance` 0.13.0 accepts `port-web` `^0.6.1` and `mesh-runtime` `^0.11.0 || ^0.12.0`, so npm resolves 0.6.1 and 0.12.0 while 0.9.0 and 0.13.0 are the newest. Asking explicitly for the newest `port-web` next to `valance` 0.13.0 fails (ERESOLVE).
 
 The harness itself caught two of its own mistakes: a 3.5-second "start-up" that was really the test server compressing at maximum quality on every request, and an installability claim that was wrong because npm backtracks. Both are in the baseline under "What this measurement got wrong first".
 
@@ -54,16 +54,16 @@ Reliability: **P** primary source read through a fetch agent; **S** secondary; *
 
 | Who | What happened | Lesson here |
 |---|---|---|
-| React Native (**P**, [architecture docs](https://raw.githubusercontent.com/facebook/react-native-website/main/website/architecture/landing-page.md)) | "Serializing function calls over the bridge quickly became a bottleneck, especially for frequent updates or large objects." The redesign has run "since 2018". Also: "enabling the New Architecture for your app or library may not immediately improve performance or user experience" | A serialization boundary is a cost to budget from the start, and an optimization has to be shown, not assumed. The Desktop protocol is that boundary here |
-| TC39 Signals (**P\***, [proposal](https://github.com/tc39/proposal-signals)) | Possible performance gain is "a constant factor", which the authors call "not... very large" | Even the authors of a performance-motivated design do not claim more than they measured |
-| Angular signal inputs (**P\***, [discussion 49685](https://github.com/angular/angular/discussions/49685)) | "Dependency tracking has overhead" | A mechanism that saves work also costs work. The budget has to include the cost side |
+| React Native (**P**, [architecture docs](https://raw.githubusercontent.com/facebook/react-native-website/main/website/architecture/landing-page.md) and [2024 announcement](https://raw.githubusercontent.com/facebook/react-native-website/main/website/blog/2024-10-23-the-new-architecture-is-here.mdx)) | From the announcement: "in the old architecture, serializing function calls over the bridge quickly became a bottleneck, especially for frequent updates or large objects"; the redesign has run "since 2018". From the landing page: enabling the New Architecture "may not immediately improve the performance or user experience" | A serialization boundary is a cost to budget from the start, and an optimization has to be shown, not assumed. The Desktop protocol is that boundary here |
+| TC39 Signals (**P\***, [proposal](https://github.com/tc39/proposal-signals)) | The authors expect native signals to be faster only "by a small constant factor", which "remains to be proven in code" (FAQ), and do not expect the bundle-size effect "to be very large" | Even the authors of a performance-motivated design do not claim more than they measured |
+| Angular signal inputs (**P\***, [discussion 49685](https://github.com/angular/angular/discussions/49685)) | "Dependency tracking has overhead" (quote **unverified**: the discussion page could not be read in full) | A mechanism that saves work also costs work. The budget has to include the cost side |
 | Flutter on the web (**S**) | Accessibility semantics are off by default because the team cites "noticeable performance costs" | A cost that is not budgeted early becomes a feature that ships switched off |
 | Runtime CSS-in-JS (**S**, one team's comparison) | Render time nearly doubled with Emotion against Sass modules (27.7 ms against 54 ms) in one codebase | Measure the effect of a design choice in your own application, not someone else's |
 | This ecosystem, the reactivity design (**Repo**) | Gates a design on a measured improvement, counts evaluations instead of milliseconds | The method already exists. This bet generalizes it |
 | This ecosystem, `bench-update.mjs` (**Repo**) | Reports "the least of several runs ... since a machine's noise only adds time" | The right way to take a wall-clock number |
 | webpack (**P**, [performance](https://raw.githubusercontent.com/webpack/webpack.js.org/main/src/content/configuration/performance.mdx)) | `performance.hints` defaults to `'warning'` in production and `false` in development; `maxEntrypointSize` is "all assets that would be utilized during initial load time" | Size warnings belong to production builds, and the thing budgeted is the initial load |
 | Vite (**P**, [build options](https://raw.githubusercontent.com/vitejs/vite/main/docs/config/build-options.md)) | `chunkSizeWarningLimit` defaults to 500 kB, "compared against the uncompressed chunk size"; "Unless noted, the options in this section are only applied to build" | The same split. The uncompressed comparison is the metric W2 rejects |
-| Angular budgets (**P**, [builder schema](https://raw.githubusercontent.com/angular/angular-cli/main/packages/angular/build/src/builders/application/schema.json), [CLI docs](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/cli/build.md)) | Configurable budgets by type (`initial`, `bundle`, `anyComponentStyle`, ...), with warning and error thresholds in bytes or percent. `initial` is "the size of JavaScript and CSS needed for bootstrapping the application", defaulting to warn at 500 kB and error at 1 MB. The docs' example puts them under the production configuration | A model for author-facing budgets. The docs do not say budgets are production-only; the example is |
+| Angular budgets (**P**, [builder schema](https://raw.githubusercontent.com/angular/angular-cli/main/packages/angular/build/src/builders/application/schema.json), [CLI docs](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/cli/build.md)) | Configurable budgets by type (`initial`, `bundle`, `anyComponentStyle`, ...), with warning and error thresholds in bytes or percent. `initial` is "the size of JavaScript and CSS needed for bootstrapping the application", defaulting, per the CLI docs, to warn at 500 kB and error at 1 MB (the schema names the types and carries no defaults). The docs' example puts them under the production configuration | A model for author-facing budgets. The docs do not say budgets are production-only; the example is |
 | Angular deferrable views (**P**, [defer](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/templates/defer.md)) | `@defer` "reduce[s] the initial bundle size ... by deferring the loading of code that is not strictly necessary for the initial rendering of a page". Triggers: idle (the default), viewport, interaction, hover, immediate, timer; `prefetch` is separate from rendering. Caveats: avoid deferring above-the-fold content (layout shift); under HMR "all `@defer` block chunks are fetched eagerly"; on the server a deferred block renders its placeholder | The closest precedent for the start-up and after-start sets, including that development may load eagerly |
 | MDN (**P**, [modulepreload](https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/html/reference/attributes/rel/modulepreload/index.md), [compileStreaming](https://raw.githubusercontent.com/mdn/content/main/files/en-us/webassembly/reference/javascript_interface/compilestreaming_static/index.md), [requestIdleCallback](https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/api/window/requestidlecallback/index.md)) | `modulepreload` fetches, parses and compiles a module early, with the warning "you can't just preload everything!". `compileStreaming` compiles from a stream, and a wrong MIME type rejects with a `TypeError`. `requestIdleCallback`: "A `timeout` option is strongly recommended for required work" | The tools for the start-up set. Browser support statements were not in the fetched text; check Baseline |
 
@@ -85,9 +85,9 @@ Bounded by [fixed points](../README.md#what-we-hold-fixed) 3 and 7, and by the m
 |---|---|---|
 | **Footprint** | Brotli bytes of the reference application's JavaScript, the WebAssembly runtime, and everything the browser transfers | Compressed bytes are what travels. Raw bytes reward the wrong changes |
 | **Start-up** | Time to first paint and to one working click, in Chromium, with and without CPU throttling | What a person waits for |
-| **Update** | The runtime's own counter of expressions evaluated for one changed item in 10,000, and the least-of-N time for render, `update` and update-from-changes at 1,000 and 10,000 items | A counter is exact and does not drift between machines; time is what people feel |
+| **Update** | The runtime's own counter of expressions evaluated for one changed item in 10,000 (**not yet in the harness**; the figure 7 is from the Mesh README and manual), and the least-of-N time for render, `update` and update-from-changes at 1,000 and 10,000 items | A counter is exact and does not drift between machines; time is what people feel |
 | **Wire** | Bytes sent to a PORT for one changed item at 1,000 rows, whole tree against patches | Exact, and the one place the cost grows with the wrong thing today |
-| **Installability** | Whether the newest published version of every `@valancex` package installs together | A user following the documentation hits this first |
+| **Installability** | Whether the newest published version of each of the five runtime packages the harness tracks (`mesh-runtime`, `mesh-compiler`, `nexus`, `valance`, `port-web`) installs together | A user following the documentation hits this first |
 | **Authoring cost** | The cognitive-load log (severity 0 to 3 per friction) | Real and already kept. It is logged and reviewed, not gated by a number |
 
 ### 2. Ceilings, targets and allowances
@@ -104,16 +104,16 @@ Ceilings are the 2026-10-17 baseline plus 5 percent, rounded up. Wall-clock rows
 
 | Metric | Baseline | Ceiling | Target and notes |
 |---|---:|---:|---|
-| Counter app JavaScript, brotli | 162,138 B | 170,300 B | 149,700 B: the measured saving from not bundling `fast-check` |
+| Counter app JavaScript, brotli | 162,138 B | 170,300 B (baseline plus 5 percent, rounded up to the next 100 bytes) | 149,700 B: the measured saving from not bundling `fast-check` |
 | `mesh-runtime.wasm`, brotli | 170,828 B | 179,400 B | Hold. Do not apply `wasm-opt -Oz` (measured worse) |
 | Transferred, all files, brotli | 333,683 B | 350,400 B | |
 | First paint, no throttling | 211 ms | 2x the previous release | Report the trend |
 | First paint, 4x CPU | 847 ms | 2x the previous release | |
 | `update`, 10,000 items, one changed | 79 to 85 ms | 1.5x the previous release | Noise on this machine was up to 16 percent, so the gate sits well above it |
 | Expressions evaluated, 10,000 items, one changed | 7 (the Mesh README's figure; to be re-measured and pinned) | exact | A counter; any increase fails |
-| Interactive at, 10-row server-rendered page, 4x CPU (from [Bet 14](resumable-start.md); to be added to the harness) | 1,090 ms | 2x the previous release | Report the dead zone (interactive minus first paint, about 1,020 ms) beside it |
+| Interactive at, 10-row server-rendered page, 4x CPU (from [Bet 14](resumable-start.md); to be added to the harness) | 1,090 ms (scratch measurement, not reproducible from the repository yet) | 2x the previous release | Report the dead zone (interactive minus first paint, about 1,020 ms) beside it |
 | Wire, 1,000 rows, one changed item | 185,924 B (whole tree) | none yet | Target 2,048 B once the protocol carries patches. **Known red** |
-| Newest `@valancex` set installs together | No (`mesh-runtime`, `port-web` behind) | must pass at release | **Known red** |
+| Newest `@valancex` set installs together | No (`mesh-runtime`, `port-web` behind) | must pass at release | **Known red** (with wire bytes; `fast-check` is the third, a target) |
 
 ### 4. How it is measured, and kept honest
 
@@ -202,7 +202,7 @@ Reading it: parallelism and streaming compile always help, and most where latenc
 **Planned work** (nothing here is built):
 
 - **Document head:** `modulepreload` for the entry and an early streaming compile of the WebAssembly, written by `vlx build`.
-- **Bundle:** split by route, cut from the component tree declared in `main.ts` (the CLI notes already say "the tree is the thing a split would be cut from"); import Effect through subpaths and leave out `fast-check` (the measured 12.4 KB brotli); minify the Desktop engine unless a measurement shows no start-up benefit; remove the raised warning limits.
+- **Bundle:** split by route, cut from the component tree declared in `main.ts` (the CLI notes already say "the tree is the thing a split would be cut from"); import Effect through subpaths and leave out `fast-check` (the measured 12.4 KB brotli, which includes `pure-rand`); minify the Desktop engine unless a measurement shows no start-up benefit; remove the raised warning limits.
 - **After start:** a prefetch step that begins when `start` resolves. A program loaded after `start` needs a late-admission step, which does not exist: the lazy-loading tracer (`examples/tracer-web/test/lazy-loading.test.ts`) records forcing a loaded program into `views` after `start` as "unsupported, out-of-contract behavior". Its design splits the work in three: loading is an ordinary application command, admission checks the program's declared events against the command table (`declaredEvents`, the existing start-time D ⊆ B check), and use is the render. Route splitting has to build admission.
 - **Authoring:** zero configuration by default (a component the first route does not use is after-start). An author may mark a component to load on interaction or visibility; progressive disclosure keeps the common path free of it.
 - **Measured, and not worth it:** [Bet 14](resumable-start.md) checked whether hydrating from the render tree could take the WebAssembly out of the start-up set. With the module compiled in parallel, `init` takes 1 to 10 ms, so the WebAssembly stays in the start-up set. The cost that matters is the script arriving and the application starting, and Bet 14 adds the metrics to track it.
@@ -220,7 +220,7 @@ Reading it: parallelism and streaming compile always help, and most where latenc
 
 - Every release dry run produces the table in section 3 and fails if a ceiling is crossed.
 - A deliberate regression (a new dependency, a changed `wasm-opt` flag, an extra evaluation) fails the right gate in a test of the gate.
-- The three known reds are fixed or each has an owner and a date to be re-examined.
+- The known reds (wire bytes, installability) and the `fast-check` target are fixed or each has an owner and a date to be re-examined.
 - `vlx dev` prints nothing about size, and `vlx build` prints a size report split into start-up and after-start sets.
 - The start-up set is smaller than today's single entry, and a deliberate regression in it fails the build when a project budget is set.
 - Every bet brief has an allowance, and the next bets to advance are measured against it.

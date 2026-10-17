@@ -21,14 +21,14 @@ A composite can take **children** and **named slots** (`mesh-slot`, `mesh-fill`)
 |---|---|---|
 | **A slot cannot receive data from the component that places it.** The content can only read the caller's scope | templates manual, "The children are the caller's" | A list, table, menu or select where the caller decides how one row, cell or option looks. Today the only way to vary the part is a separate composite per variation, and the component cannot be generic |
 | **A composite cannot contain itself**, directly or through others | assembly rule 5, `assembly-cycle` | Anything recursive: a tree, a nested menu, a threaded comment list |
-| **A slot sits only at component boundaries.** It is not the template root and not directly under a conditional or a repeat | templates manual, "Where it may be" | Reuse inside one template needs a file of its own |
+| **A slot must be inside an element of the composite's template.** It is not the template root and not directly under a conditional or a repeat | templates manual, "Where it may be" | Reuse inside one template needs a file of its own |
 | **Reuse needs a file and a public name** | the CLI's built-in views | See the next table |
 
 The language specification lists "function types" among the non-goals, and that is the right default. This bet reverses it in a narrow, second-class way (design, section 4), and says exactly how narrow.
 
 ### Evidence that the status quo costs files and names
 
-`packages/cli/views/` renders Markdown content. Four of its templates exist only so one can be reused or repeated:
+`packages/cli/views/` renders Markdown content. Of the 8 templates in that directory, four exist only so one can be reused or repeated (`block`, `blocks` and `heading-block` are similar and are not counted):
 
 | File | What it is for |
 |---|---|
@@ -37,7 +37,7 @@ The language specification lists "function types" among the non-goals, and that 
 | `list-items.mprx` | repeats an item over a list |
 | `list-block.mprx` | chooses ordered or unordered, then calls `list-items` |
 
-Each is a separate file, a separate public name, and a separate contract to infer and check, for what would be a local helper in most template languages. They are also documented override points ("`override: [component(runs, ...)]` replaces a built-in (`runs`, `heading-block`, ...)"), so the cost is not only the files: the granularity of reuse and the granularity of replacement are the same thing today, and they should not be.
+Each is a separate file, a separate public name, and a separate contract to infer and check, for what would be a local helper in most template languages. `runs` is a documented override point (`packages/cli/README.md:189`) and any built-in view can be replaced (`packages/cli/src/compile.ts:64`), so the cost is not only the files: the granularity of reuse and the granularity of replacement are the same thing today, and they should not be.
 
 ### Who is hurt
 
@@ -53,8 +53,8 @@ Reliability: **P** primary source read through a fetch agent; **Repo** this ecos
 |---|---|---|---|
 | Svelte 5 (**P**, [migration guide](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/07-misc/07-v5-migration-guide.md), [snippet docs](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/03-template-syntax/06-snippet.md)) | Slots became "more involved and confusing" as use cases grew; `let:` "creates a variable whereas all other `:` directives receive a variable". Snippets "allow you to define sections of UI that you can render anywhere, not just passing them as props to a component"; they are visible in the lexical scope, can be passed as ordinary props, are recursive, and are typed `Snippet<[T]>`. Caveat from the docs: a prop named `children` conflicts with inline content | Architecture: a generalization that replaced a special syntax | The right cut is a value with parameters, not more slot syntax. Slots keep working beside it for compatibility |
 | React Spectrum (**P**, [v3 RFC](https://raw.githubusercontent.com/adobe/react-spectrum/main/rfcs/2019-v3-architecture.md)) | Higher-order components and render props "generally cause a lot of boilerplate code" | Rejected alternative | Passing a function is the heavy way. A pure template value is the same capability without arbitrary code |
-| Radix (**P**, [philosophy](https://raw.githubusercontent.com/radix-ui/primitives/main/philosophy.md)) | "Composition is preferred over configuration" | Principle | A component that takes the part it does not own as content is the pattern libraries converge on |
-| This ecosystem, slot build notes (**Repo**, the "Built" note under B1 in the [reactivity and composition design](https://github.com/ValanceX/Mesh/blob/main/docs/superpowers/specs/2026-10-06-mesh-fine-grained-reactivity-and-composition.md)) | Found by building slots: "a node that places a slot is never reused as it was, because its memo records the names it reads in its own scope and not the caller's content. A first version without that rule returned stale content in a random update test" | Hard-won detail | The same hazard applies to snippets and needs the same kind of test written first |
+| Radix (**P**, [philosophy](https://raw.githubusercontent.com/radix-ui/primitives/main/philosophy.md)) | "Composition is preferred over configuration" | Principle | A component that takes the part it does not own as content is the pattern Radix states as a principle |
+| This ecosystem, slot build notes (**Repo**, the "Built" note under B1 in the [reactivity and composition design](https://github.com/ValanceX/Mesh/blob/main/docs/superpowers/specs/2026-10-06-mesh-fine-grained-reactivity-and-composition.md)) | Found by building slots: "a node that places a slot is never reused as it was, because its memo records the names it reads in its own scope and not the caller's content [...]. A first version without that rule returned stale content in a random update test" | Hard-won detail | The same hazard applies to snippets and needs the same kind of test written first |
 | Vue scoped slots, Angular `ng-template`, React render props | Other answers to the same problem | | **Not researched in this session.** The design does not rely on them |
 
 ## Constraints
@@ -179,7 +179,7 @@ The update path (memoization of unchanged inputs, `reads` derived by the runtime
 
 1. **Vectors and the desugaring law first.** Identity vectors (section 6), the contravariance table, and a property test that `{@render s(a)}` equals the declared body with the parameters bound to the evaluated arguments, in the declaring scope.
 2. **Grammar, parser, semantic model, analysis.** Tree-sitter nodes for the two constructs, then the checks in sections 2 to 4 with stable diagnostic codes.
-3. **Template format.** The templates carry a new node form. `template-v1` is "additive: optional properties only", and a new child kind is more than that, so either a format `version` bump or an agreed extension rule is needed. This is the first open question below.
+3. **Template format.** The templates carry a new node form. `template-v1` and `render-v1` "gain optional properties only", and a new child kind is more than that, so either a format `version` bump or an agreed extension rule is needed. This is the first open question below.
 4. **Runtime, identity and patches** in Rust, then the WebAssembly packages. Run the update equivalence law over random snippet programs and the keyed-list benchmark.
 5. **Valance and editor.**
 6. **Acceptance examples.** A generic `data-list` (rows supplied by the caller), a recursive tree menu, and a copy of the Markdown content views rewritten with local snippets. Do **not** replace the public override points in the real `packages/cli/views/`: fold the private helpers only, or keep the composites as thin wrappers, so `override` still works.

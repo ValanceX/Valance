@@ -32,7 +32,7 @@ A server-rendered list page, hydrated in Chromium (median of 5 fresh contexts, b
 | 5,000 | 1x | 140 ms | 257 ms | 4 ms | 511 ms | 746 ms |
 | 5,000 | 4x | 236 ms | 1,222 ms | 21 ms | 2,347 ms | 3,580 ms |
 
-"Before the script runs" is the time from navigation until the module starts executing: download, parse and top-level evaluation of the 608 KB bundle. "Interactive at" is when hydration finished and the page responds. Run-to-run spread was large (one 1,000-row figure was 139 ms in one run and 202 ms in another), so read these as shapes, not decimals.
+"Before the script runs" is the time from navigation until the module starts executing: download, parse and top-level evaluation of the bundle (the counter application's is 608 KB; the list page's size was not recorded). "Interactive at" is when hydration finished and the page responds. Run-to-run spread was large (one 1,000-row figure was 139 ms in one run and 202 ms in another), so read these as shapes, not decimals.
 
 What the table says:
 
@@ -48,7 +48,7 @@ What the table says:
 
 Between first paint and "interactive" is about a second at 4x CPU, in which the page looks ready and is not. The PORT contract says so: "Nothing is reported before hydration, and interactions before it are not replayed" ([PORT contract](https://github.com/ValanceX/Port/blob/main/docs/CONTRACT.md)). What that means in practice, measured on a server-rendered counter at 4x CPU, with the tap made 100 ms after the button appears:
 
-| | Taps before the app was ready | Median tap, ready | Count after everything settled |
+| | Taps before the app was ready (n = 9) | Median ms of the tap that landed before ready, then ms to ready (two values) | Count after everything settled |
 |---|---:|---|---|
 | Today | 7 of 9 | 197 ms, 965 ms | **0 in all 7**: the taps were lost |
 | With the prototype shell | 6 of 9 | 182 ms, 959 ms | **1 in all 6**: each was replayed once |
@@ -70,7 +70,7 @@ Reliability: **P** primary source read through a fetch agent; **S** secondary; *
 | Qwik (**S**, the author's own articles) | Hydration "repeats work the server already did"; a resumable framework serializes boundaries, listeners and the reactivity graph so execution continues where the server left off. The performance figures are the vendor's | The idea is sound in kind. Whether it pays here depends on the cost structure, and the measurement above says per-row work is the minority for ordinary pages |
 | Angular deferrable views on the server (**P**, [defer](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/templates/defer.md)) | On the server a deferred block renders its placeholder and its triggers are not invoked | A related but different tradeoff. This ecosystem renders the whole page on the server |
 | This ecosystem, hydration (**Repo**, [PORT contract](https://github.com/ValanceX/Port/blob/main/docs/CONTRACT.md#web-server-html-and-hydrate)) | `hydrate` "verifies the whole DOM against the tree without changing it, then adopts it, keeping every server node", and a mismatch draws afresh. Verification is atomic and mutation-free | The safety property is real and worth keeping. Skipping verification is what a resumable design would trade away |
-| This ecosystem, controlled fields (**Repo**) | "Text the user typed before `hydrate` is replaced by the rendered text, which is the application's" | Typed text is also lost in the dead zone. The shell can keep it |
+| This ecosystem, controlled fields (**Repo**) | "Text typed before `hydrate` is replaced by the rendered text: the application's value is authoritative." | Typed text is also lost in the dead zone. The shell can keep it |
 | React's replay of discrete events during hydration, Astro islands | Other answers to the same dead zone | **Not researched in this session.** The design does not rely on them |
 
 ## Constraints
@@ -112,7 +112,7 @@ Most of "interactive at" is the script arriving and the application starting. Th
 | Interactive at, 10-row server-rendered page, 4x CPU | 1,090 ms |
 | Dead zone (interactive at minus first paint), same page | about 1,020 ms |
 
-The work: profile the start sequence (the module's top-level evaluation, the Effect layers, the application start, the first render, the PORT's verify and adopt) to find what the roughly 400 ms at 4x consists of, then cut bytes (the 45 KB of `fast-check`, Effect through subpaths) and the work in start itself. Targets are set after the profile, not before.
+The work: profile the start sequence (the module's top-level evaluation, the Effect layers, the application start, the first render, the PORT's verify and adopt) to find what the roughly 400 ms at 4x consists of, then cut bytes (the 46 KB of `fast-check` and `pure-rand`, Effect through subpaths) and the work in start itself. Targets are set after the profile, not before.
 
 ### C. Resuming from the tree (parked)
 

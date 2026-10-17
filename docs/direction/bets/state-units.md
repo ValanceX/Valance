@@ -5,7 +5,7 @@
 | **Stage** | 2 Design, accepted by delegation. The design questions are decided in [decisions](../decisions.md) (V1 to V10); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
-| **Depends on** | [Bet 4](variant-types.md) (defaults for unit state). [Bet 5](template-values.md) is needed for the second example (tabs), not the first (disclosure). Bets 9 and 11 depend on this one |
+| **Depends on** | [Bet 4](variant-types.md) (defaults for unit state). [Bet 5](template-values.md) is needed for the second example (tabs), not the first (disclosure). Bets 9, 10, 11, 12 and 15 depend on this one |
 
 ## Question
 
@@ -19,8 +19,8 @@ Valance's principle is that state lives in one place and the screen is a functio
 
 | Evidence | Source |
 |---|---|
-| A to-do application keeps `navigation` (whether the desktop layout's side panel is open) beside `items` in the application state, though only one target reads it | `examples/todo-multi/src/main.ts`; decision D3 in the [multi-target plan](../../application-model/MULTI-TARGET-PLAN.md) kept it there: "smallest model; do not add a concept without a consumer that needs it" |
-| That decision was explicitly conditional: "add `targets.<id>.state` only if a persisting `Store` makes the shared state visible to the person" | the same row |
+| A to-do application keeps `navigation` (whether the desktop layout's side panel is open) beside `items` in the application state, though only one target reads it | `examples/todo-multi/src/main.ts`; decision D3 in the [multi-target plan](../../application-model/MULTI-TARGET-PLAN.md) kept it there, for the reason "smallest model; do not add a concept without a consumer that needs it" (plan line 143) |
+| The plan's condition was about persistence: "add `targets.<id>.state` only if a persisting `Store` makes the shared state visible to the person" (plan line 100). It was settled by not persisting `navigation` (plan line 18). A component library is a new consumer, not one D3 named | the same plan |
 | NEXUS says what it will not hold: "never UI state, which belongs to the component/UI runtime, not NEXUS" | [`docs/primitives/state.md`](https://github.com/ValanceX/Nexus/blob/main/docs/primitives/state.md) |
 | No component/UI runtime owns such state today. Every scope name of a composite must be bound by a prop of the same name | assembly rule 4a in the [templates manual](https://github.com/ValanceX/Mesh/blob/main/docs/manual/templates.md#the-assembly-rules) |
 
@@ -36,7 +36,7 @@ The consumer that D3 asked for is therefore a component library. This bet is how
 
 ## Prior art
 
-Reliability: **P** primary source read through a fetch agent; **Repo** this ecosystem's own record. See [prior art](../prior-art.md).
+Reliability: **P** primary source read through a fetch agent; **P\*** primary source, read only in part; **Repo** this ecosystem's own record. See [prior art](../prior-art.md).
 
 | Who | What they decided and why | Architecture or patch | Lesson here |
 |---|---|---|---|
@@ -44,7 +44,7 @@ Reliability: **P** primary source read through a fetch agent; **Repo** this ecos
 | React Spectrum (**P**, [v3 RFC](https://raw.githubusercontent.com/adobe/react-spectrum/main/rfcs/2019-v3-architecture.md)) | State management that is "platform agnostic", separate from behavior and from the themed component | Architecture | Interaction state is a layer of its own that can be tested without a screen |
 | Svelte 5 (**P**, [migration guide](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/07-misc/07-v5-migration-guide.md)) | State that could not leave a component's top level pushed people to stores | Retrofit | Plan the home for local state before libraries exist |
 | TC39 Signals (**P\***, [proposal](https://github.com/tc39/proposal-signals)) | "fully decouple the reactive model from the rendering view" | Design goal | Units keep state out of templates. The view stays a function of data |
-| React `useId` (**P**, [discussion 111](https://github.com/reactwg/react-18/discussions/111)) | Counters broke under streaming, so ids need a stable source | Retrofit forced by streaming | Per-instance state needs a stable identity from the start. MESH has one (§9.10) |
+| React `useId` (**P**, [discussion 111](https://github.com/reactwg/react-18/discussions/111)) | Counters do not work with out-of-order streaming, so ids need a stable source | Design guidance | Per-instance state needs a stable identity from the start. MESH has one (§9.10) |
 | This ecosystem, node lifetime (**Repo**, [spec §9.10.6](https://github.com/ValanceX/Mesh/blob/main/docs/MPRX-SPEC.md)) | A node that leaves a render has ended; the same identity later is "a new occurrence ... created, not kept", and MESH "requires it to inherit nothing from the earlier one" | Architecture | The lifetime of a unit is already defined. No new concept is needed |
 | This ecosystem, controlled values (**Repo**, [NATIVE-VOCABULARY](../../application-model/NATIVE-VOCABULARY.md)) | "The control reports its value and the app owns it", the rule React Native and Compose state for controlled components | Architecture | Where the application wants to own a unit's value, it must be able to |
 | This ecosystem, session replay (**Repo**, the reactivity design, part C) | State changes only through commands and render is pure, so "a session is fully described by an ordered log" | Architecture | Unit transitions must be dispatches in that log, or replay breaks |
@@ -131,7 +131,7 @@ The host looks up the instance's state, runs the unit's transition, stores the r
 Instance lifecycle is a component lifecycle, which the NEXUS adapter explicitly does not have ("It adds no reactive model, render registry, component lifecycle or command runtime"). So:
 
 - **Valance** keeps the registry. For each instance in a render it creates a NEXUS `State` inside a `Scope` of that instance, and closes the scope when the instance is absent from a later render. NEXUS's existing `State.create` and `Scope` are exactly the machinery needed.
-- **The NEXUS adapter** gains one optional pass-through, `units`, that hands the current unit map to the runtime. It has no logic. This amends decision X1, which said NEXUS is unchanged.
+- **The NEXUS adapter** gains one optional pass-through, `units`, that hands the current unit map to the runtime. It has no logic. This is the pass-through that decision X1 already anticipates (V7).
 
 ### 5. Lifetime
 

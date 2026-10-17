@@ -20,14 +20,14 @@ A `{#each}` renders every item. From the [2026-10-17 baseline](../baselines/2026
 | Rows | Full render | `update` | Render tree | Desktop protocol, one update |
 |---:|---:|---:|---:|---:|
 | 1,000 | 44 ms | 6 ms | 186 KB | 186 KB |
-| 10,000 | 443 to 492 ms | 68 to 85 ms | 1.88 MB | 1.88 MB |
+| 10,000 | 452 to 493 ms | 68 to 85 ms | 1.88 MB | 1.88 MB |
 
-The cost is in the engine (60,001 expressions for 10,000 rows), in the tree that crosses to the PORT, and in the DOM or the window that has to hold every row. There is no way to say "only these". The other places in the repository that meet scale avoid the problem rather than solving it: the `docs-verifier` example keeps a page's content in its own file, so no list is long.
+The cost is in the engine (60,001 expressions for 10,000 rows), in the tree that crosses to the PORT, and in the DOM or the window that has to hold every row. There is no way to say "only these". No example in the repository was found that renders a list of more than about 100 rows (searched `examples/`; not measured), so nothing else in the repository meets this scale.
 
 Two records say this was seen and set aside:
 
 - [NATIVE-VOCABULARY](../../application-model/NATIVE-VOCABULARY.md) puts "a list with many rows (virtualized), tables, menus, dialogs, drag and drop" in tier 3, "not planned".
-- The Desktop table is "a static table ... not a grid", drawn as one grid with every row.
+- The Desktop table is "A static table: rows and columns with header meaning, not a grid" ([Desktop PORT README](https://github.com/ValanceX/Port/blob/main/packages/port-desktop/README.md), `table` row), drawn as one grid with every row.
 
 ### The measurement that shapes the design
 
@@ -35,12 +35,12 @@ If only a window of the list is evaluated but the whole list is still in the sna
 
 | | Today (whole list rendered) | Window of 50 rendered, whole list still in the snapshot |
 |---|---:|---:|
-| Full render | 443 ms | **30 ms** |
+| Full render | 458 to 479 ms | **31 ms** (31.1 to 31.6) |
 | Render tree | 1,877,926 B | **9,326 B** |
-| A scroll step as a full-snapshot `update` | | 29.7 ms |
-| A scroll-like edit from the changes form (the list is not re-sent) | | **0.65 ms** |
+| A scroll step as a full-snapshot `update` | | 30 to 33 ms |
+| A scroll-like edit from the changes form (the list is not re-sent) | | **0.6 to 1.1 ms** |
 
-So evaluating only the window removes about 93 percent of the time and 99.5 percent of the tree. The 30 ms that remains is the cost of encoding and validating the 10,000 rows in the snapshot, which the changes form removes. It also grows with the list, about 3 ms per 1,000 rows, so past tens of thousands of rows the data itself has to be sliced or paged by the application. Windowing the view is not paging the data, and the design says where one ends and the other begins.
+So evaluating only the window removes about 93 percent of the time and 99.5 percent of the tree. (Three runs of the same script on 2026-10-17 with the published `@valancex/mesh-runtime` 0.13.0, one machine, least of 10 renders; the script is `floor.mjs` in the session scratch and is not committed.) The 31 ms that remains is the cost of encoding and validating the 10,000 rows in the snapshot, which the changes form removes. It also grows with the list, about 3 ms per 1,000 rows, so past tens of thousands of rows the data itself has to be sliced or paged by the application. Windowing the view is not paging the data, and the design says where one ends and the other begins.
 
 ### Who is hurt
 
@@ -55,8 +55,8 @@ Reliability: **P** primary source read through a fetch agent; **Repo** this ecos
 | Who | What they decided and why | Lesson here |
 |---|---|---|
 | Angular CDK virtual scroll (**P**, [scrolling](https://raw.githubusercontent.com/angular/components/main/src/cdk/scrolling/scrolling.md)) | Fixed item size: "the `itemSize` property on the viewport must be set", because "items do not need to be measured as they are rendered". A variable-size strategy is "currently being developed ... not ready for production use yet". Caveat: the parent must not add space (margin or padding) | Variable row heights are hard even for a mature framework. Require a declared size in the first version |
-| egui `ScrollArea::show_rows` (**P**, [source](https://raw.githubusercontent.com/emilk/egui/main/crates/egui/src/containers/scroll_area.rs)) | "Efficiently show only the visible part of a large number of rows", with a single row height for all rows | The Desktop PORT's toolkit assumes uniform rows too, so a declared size maps directly to it |
-| CSS `content-visibility` (**P**, [MDN](https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/css/reference/properties/content-visibility/index.md)) | `auto` applies layout, style and paint containment so off-screen content is not rendered | Helps the browser's rendering cost for moderate lists without any script. It does not remove nodes from the engine, the tree or the wire. Baseline status was not in the fetched text; check it |
+| egui `ScrollArea::show_rows` (**P**, [source](https://raw.githubusercontent.com/emilk/egui/main/crates/egui/src/containers/scroll_area.rs)) | "Efficiently show only the visible part of a large number of rows", whose signature takes one row height (`row_height_sans_spacing`); the other scroll modes were not read | The Desktop PORT's toolkit offers a uniform-row mode, so a declared size maps directly to it |
+| CSS `content-visibility` (**P**, [MDN](https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/css/reference/properties/content-visibility/index.md)) | `auto` turns on layout, style and paint containment and skips the contents of an element that is not relevant to the user; skipped contents stay in the DOM and the accessibility tree and remain findable | Helps the browser's rendering cost for moderate lists without any script. It does not remove nodes from the engine, the tree or the wire. Baseline status (web-features data): newly available since 2025-09-15, with Safari 26; not yet widely available |
 | This ecosystem, the reactivity design (**Repo**) | An update costs "one visit per item of the changed repeat" | A window cuts those visits |
 | This ecosystem, node identity (**Repo**, spec §9.10) | An identity is a site and a declared key; a node that leaves a render has ended | Windowing needs no new identity concept, and it has a consequence for unit state (below) |
 | React Window, TanStack Virtual, Compose `LazyColumn`, SwiftUI `LazyVStack`, Flutter `ListView.builder` | Lazy lists are standard in other toolkits | **Not researched in this session.** The pitfalls named below (find in page, focus, accessibility counts) are hypotheses from general knowledge, not findings |
@@ -114,7 +114,7 @@ The unit's `setWindow` stores the PORT-reported range widened by an overscan of 
 
 ### 5. Key uniqueness
 
-Declared keys must be unique within a repeat. Checking that over the whole list costs one key evaluation per item (an estimated 70 ms for 10,000 items, from the 443 ms and 60,001 expressions measured for a whole render) and would give back most of the saving. So:
+Declared keys must be unique within a repeat. Checking that over the whole list costs one key evaluation per item (an estimated 75 ms for 10,000 items: about 466 ms times 10,000/60,001, which assumes every expression costs the same and is to be measured) and would give back most of the saving. So:
 
 - In **development, tests and verify mode**, uniqueness is checked over the whole list.
 - In **production**, it is checked within the rendered window.
@@ -123,7 +123,7 @@ This mirrors the existing choice for the changes form: verification is on in tes
 
 ### 6. Sizes
 
-The first version requires a **uniform declared `itemSize`**, as Angular's fixed-size strategy and egui's `show_rows` do. A list whose rows differ in height declares an estimate; the cost is that the scrollbar length is approximate and the position can drift. Measured variable sizes wait until a real need appears, given that even a mature framework has not shipped them.
+The first version requires a **uniform declared `itemSize`**, as Angular's fixed-size strategy and egui's `show_rows` do. A list whose rows differ in height declares an estimate; the cost is that the scrollbar length is approximate and the position can drift. Measured variable sizes wait until a real need appears, given that Angular's own documentation still calls its variable-size strategy experimental.
 
 ### 7. What leaving the window means
 
@@ -136,7 +136,7 @@ A row outside the window does not exist, so its occurrence has ended (spec §9.1
 
 ### 8. Tiers, server rendering and tables
 
-- **Tier 1, the platform.** For lists up to a few thousand rows, the web realization may set `content-visibility: auto` on rows. It is a web-only option and does not reduce the engine, tree or wire cost.
+- **Tier 1, the platform.** For lists up to a few thousand rows (**unmeasured**; to be benchmarked in a browser), the web realization may set `content-visibility: auto` on rows. It is a web-only option and does not reduce the engine, tree or wire cost.
 - **Tier 2, windowing.** Beyond that.
 - **Server rendering and hydration.** Both render the initial window from the unit's defaults (a start of 0 and a default count), so hydration sees identical trees. A deep link supplies `start` from application state.
 - **Tables.** The table family gains a windowed body by the same clause. Columns are not windowed.
@@ -149,7 +149,7 @@ The snapshot still carries the whole list, at about 3 ms per 1,000 rows. For lis
 
 | Alternative | Why not |
 |---|---|
-| The PORT drops off-screen nodes (renderer-only virtualization) | It leaves the engine evaluating every row (443 ms) and the protocol sending every row (1.88 MB). The measurement above is the case against it |
+| The PORT drops off-screen nodes (renderer-only virtualization) | It leaves the engine evaluating every row (about 460 ms) and the protocol sending every row (1.88 MB). The measurement above is the case against it |
 | Slice in the application's scope function | Works today, and stays supported for huge data. But the application must own the window state, so a library cannot package a list that works without wiring |
 | `content-visibility: auto` alone | Cheap and good for moderate lists. It does nothing for the engine, the tree, the wire or the memory of nodes |
 | Pagination controls | A product choice, not a rendering one, and it moves a view concern into the application |
@@ -165,8 +165,8 @@ The snapshot still carries the whole list, at about 3 ms per 1,000 rows. For lis
 
 ## Success
 
-- A 10,000-row list windowed to 50 renders in at most 35 ms with the whole list in the snapshot (30 ms measured), with a tree of at most 12 KB (9.3 KB measured).
-- A scroll step from the changes form takes at most 2 ms (0.65 ms measured) and sends at most 2 KB to the Desktop window.
+- A 10,000-row list windowed to 50 renders in at most 35 ms with the whole list in the snapshot (31 ms measured), with a tree of at most 12 KB (9.3 KB measured).
+- A scroll step from the changes form takes at most 2 ms (0.6 to 1.1 ms measured) and sends at most 2 KB to the Desktop window.
 - Rows are in place before the person reaches them during a continuous scroll in Chromium at 4x CPU, with no frame over 50 ms.
 - Every existing identity, update and event conformance vector passes unchanged.
 - The same `virtual-list` works on the web and the Desktop with no application wiring.

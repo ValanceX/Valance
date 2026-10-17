@@ -21,7 +21,7 @@ The question is about a **contract**: the small set of things a theme can rely o
 |---|---|
 | The render tree carries no style. "Accessibility semantics and styling (render-v1 carries none)" is listed under "Not in version 1" | [PORT contract](https://github.com/ValanceX/Port/blob/main/docs/CONTRACT.md) |
 | PORT adds no style mechanism: "Do not invent a universal styling abstraction unless the Web implementation demonstrates that one is actually required" | [PORT roadmap, V0.4](https://github.com/ValanceX/Port/blob/main/docs/ROADMAP.md) |
-| MESH records the direction but builds nothing: portable style semantics (`padding`, `display: flex`) belong in MESH, and target-specific behavior is explicit, "as a rule condition like `@target linux { … }` alongside `@media (width < 600px) { … }`, never by pretending every target styles alike". "None of this is implemented yet" | [MESH architecture](https://github.com/ValanceX/Mesh/blob/main/docs/ARCHITECTURE.md#direction-semantics-not-implementations) |
+| MESH records the direction but builds nothing: portable style semantics (`padding`, `display: flex`) belong in MESH, and target-specific behavior is explicit, "as a rule condition like `@target linux { … }` alongside `@media (width < 600px) { … }`, never by pretending every target styles alike". "None of this is implemented yet beyond templates and render trees" | [MESH architecture](https://github.com/ValanceX/Mesh/blob/main/docs/ARCHITECTURE.md#direction-semantics-not-implementations) |
 | On the web, `class` is a prop on 15 of the 32 tags (`shell`, `div`, `header`, `footer`, `nav`, `aside`, `para`, `quote`, `list`, `olist`, `pre`, `span`, `image`, `link`, `button`). Of the seven portable names, only `button` has it. `theme` (`data-theme`) exists on `shell` only | `packages/common/src/primitives.ts` |
 | `column` and `row` are custom elements with a generated `core.css` | `packages/cli/src/emit.ts` |
 | A target's stylesheets are the ones under its own directory. The Desktop target loads none | [`MULTI-TARGET-PLAN.md`](../../application-model/MULTI-TARGET-PLAN.md), row 8 |
@@ -29,7 +29,7 @@ The question is about a **contract**: the small set of things a theme can rely o
 | The Desktop does receive an `appearance` (light, dark, system) and reports its `scheme`, and the web has `viewport` classes (`compact`, `medium`, `expanded`) fed by `resize` | [Desktop PORT architecture](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md), `NATIVE-PARITY.md` row 9 |
 | An `intent` (`primary`, `danger`) for buttons was proposed from SwiftUI's `ButtonRole`, as tier 2 | D7 in [`NATIVE-VOCABULARY.md`](../../application-model/NATIVE-VOCABULARY.md) |
 
-One claim did not hold up: the PORT roadmap says "VALANCE scopes component CSS for the web". The CLI, common and valance sources contain per-target stylesheet loading and no scoping mechanism. The contract does not assume scoping (decision S6), and the roadmap sentence should be corrected.
+One claim did not hold up: the PORT roadmap said "VALANCE scopes component CSS for the web". The CLI, common and valance sources contain per-target stylesheet loading and no scoping mechanism. The roadmap was corrected on 2026-10-17 (Port `ROADMAP.md`, V0.4 status). The contract does not assume scoping (decision S6).
 
 ### The condition in the PORT roadmap has been met
 
@@ -53,7 +53,7 @@ Reliability: **P** is a primary source read through a fetch agent; **S** is a se
 |---|---|---|---|
 | React (**P**, [WG discussion 110](https://github.com/reactwg/react-18/discussions/110)) | Inserting style rules during render "effectively causes a recalculation of all CSS rules against all DOM nodes every frame while React is rendering. This is VERY slow." React added `useInsertionEffect`, "not really meant to be used by anything else other than these CSS libraries", and said "we don't have plans for adding any solutions upstream to handle this in React" | A patch, plus a decision to stay silent on styling | When the core is silent, style libraries bind to internals (render-time insertion) and are exposed when the rendering model changes |
 | Stitches (**S**, its repository) | Marked no longer actively maintained. A maintainer comment said it is a runtime library, "not currently a lib that the React team would recommend" and not compatible with React 18 streaming; a static version had been explored, not shipped | A casualty of the rendering model changing under it | A runtime style engine is coupled to the renderer. Static style data is not |
-| Runtime CSS-in-JS cost (**S**, a single-codebase comparison) | One team reported render time nearly doubling with Emotion versus Sass modules (27.7 ms versus 54 ms) in their application | Anecdote | Measure our own; do not rely on this figure |
+| Runtime CSS-in-JS cost (**S**, a single-codebase comparison) | One team reported render time nearly doubling with Emotion versus Sass modules (27.7 ms versus 54 ms) in their application (**unverified**: no source was recorded for this figure) | Anecdote | Measure our own; do not rely on this figure |
 | Angular Material MDC migration (**S**) | DOM and CSS class names changed, with "style-related issues" for many consumers | A rewrite that broke styles tied to internals | Do not let themes depend on structure. Expose parts and states |
 | Radix (**P**, [philosophy](https://raw.githubusercontent.com/radix-ui/primitives/main/philosophy.md)) and Base UI (**P**, [README](https://github.com/mui/base-ui)) | "Zero presentational styles applied by default"; Base UI describes itself as "an unstyled UI component library" | Architecture | Behavior and appearance can be separate packages. A contract is what lets them stay separate |
 | React Spectrum (**P**, [v3 RFC](https://raw.githubusercontent.com/adobe/react-spectrum/main/rfcs/2019-v3-architecture.md)) | "Theme agnostic behavior" and "themed components" as separate layers | Architecture | Same cut, between behavior and theme |
@@ -77,8 +77,8 @@ Bounded by [fixed points](../README.md#what-we-hold-fixed) 1, 3, 4, 7 and 8, and
 | Thing | Meaning | Declared by |
 |---|---|---|
 | **Token** | A named design decision: a color role, a space step, a type role, a radius | The theme, in the Design Tokens format |
-| **Part** | A named region of a primitive: `root`, `label`, `indicator` | The primitive specification |
-| **State** | A condition a primitive can be in: `focus-visible`, `hovered`, `pressed`, `disabled`, `checked`, `invalid`, `busy` | The primitive specification |
+| **Part** | A named region of a primitive. Only `root` exists for now (P3); others are added one at a time | The style contract names the part; the primitive specification lists which a primitive offers |
+| **State** | A condition a primitive can be in. Semantic states (`checked`, `invalid`, `disabled`, `busy`) are declared by the primitive specification; interaction states (`focus-visible`, `hovered`, `pressed`) are defined once by this contract (P3) | Both, as stated |
 | **Variant** | A semantic choice an author makes in a template: `intent`, `size` | The primitive specification, as typed props |
 | **Condition** | A circumstance a rule applies in: viewport class, color scheme, contrast preference, reduced motion, target | The style system |
 
@@ -90,7 +90,7 @@ Themes are Design Tokens documents with named modes (light, dark, high contrast)
 
 ### Parts and states
 
-A primitive's specification lists its parts and states. A realization says how each is reachable: on the web, a part is an element or a documented pseudo-element, and a state is an attribute the PORT keeps current (the PORT already keeps controlled values current; this is the same kind of work). A realization may leave a part unrealized, and a theme that styles one gets a warning. Decided (S1, P3): a primitive has one part, `root`, until a realization shows it needs another.
+A primitive's specification lists its semantic states; the interaction states and the single `root` part come from this contract (P3). A realization says how each is reachable: on the web, a part is an element or a documented pseudo-element, and a state is an attribute the PORT keeps current (the PORT already keeps controlled values current; this is the same kind of work). A realization may leave a part unrealized, and a theme that styles one gets a warning. Decided (S1, P3): a primitive has one part, `root`, until a realization shows it needs another.
 
 ### Variants
 
@@ -135,7 +135,7 @@ The portable property set is closed and small: spacing, size, color roles, type 
 
 ### How each target realizes it
 
-- **Web.** Recipes compile at build time to a static stylesheet. The stylesheet is the same on the server and in the browser, so there is no runtime insertion and no hydration difference. It is emitted into named cascade layers so that a library's styles lose to a theme's, and a theme's to the application's own, without `!important`. Check cascade-layer support on MDN/Baseline before relying on it; I have not verified it in this session.
+- **Web.** Recipes compile at build time to a static stylesheet. The stylesheet is the same on the server and in the browser, so there is no runtime insertion and no hydration difference. It is emitted into named cascade layers so that a library's styles lose to a theme's, and a theme's to the application's own, without `!important`. Cascade-layer support has **not been verified** against MDN/Baseline (expected to be widely available; unchecked).
 - **Desktop.** Tokens become a typed map applied to the immediate-mode style. The Desktop will express less than the web. A theme's coverage report says exactly what is not applied on a target, instead of silently ignoring it.
 
 ### What the tools check
