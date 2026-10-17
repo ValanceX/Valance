@@ -72,12 +72,12 @@ describe("the caption that names a control (WA-14, WA-15)", () => {
 });
 
 describe("the two targets agree on the controls (CG-7)", () => {
-  // The Desktop PORT's vocabulary is the installed `@valancex/port-desktop-vocabulary` (0.8 carries the choice group and `label`): every prop and event it names for a shared control must be the web's.
+  // The Desktop PORT's vocabulary is the installed `@valancex/port-desktop-vocabulary` (0.8 carries the choice group and `label`, 0.9 the table): every prop and event it names for a shared control must be the web's.
   it("a desktop prop or event that a shared control has is the web's, of the same type", () => {
     const desktop = tagsOf(TARGETS.find((each) => each.id === "desktop")!.vocabulary);
     const web = tagsOf(TARGETS.find((each) => each.id === "web")!.vocabulary);
 
-    for (const name of ["checkbox", "textfield", "radiogroup", "radio", "button", "label"]) {
+    for (const name of ["checkbox", "textfield", "radiogroup", "radio", "button", "label", "table", "tablehead", "tablebody", "tablerow", "columnheader", "rowheader", "cell"]) {
       const there = desktop.find((tag) => tag.name === name);
       const here = web.find((tag) => tag.name === name);
 

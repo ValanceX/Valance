@@ -54,6 +54,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | WA-13 | A route guard sees the state's fields and not the derived values, so a rule used by both is written twice | 1 / FW **Fixed** (guards see derived values) | `2026-10-16-orders-app.md` |
 | WA-14 | No `label` element: a control's visible name cannot be tied to it (a radio's or checkbox's `label` is only the accessible name; the reference apps draw it with CSS) | 2 / FW, PORT | Done: web and desktop (Port 0.8.0) → WP-27 | CHOICE-GROUP.md |
 | WA-15 | The Desktop PORT's `button` has a `label` (its accessible name) and the web's does not, so a portable template cannot name a button without text; found by the parity check against a Port checkout | 1 / FW, PORT | Done: the web `button` takes `label` → WP-27 | CHOICE-GROUP.md |
+| WA-16 | `vlx dev` on a cold bundler cache could leave the page unstarted: Vite optimized `effect` while the first page was loading and answered the page's request for the old bundle with 504 "Outdated Optimize Dep" (found as an intermittent failure of the first-paint test, made visible by having the test print what the page logged) | 2 / FW | **Fixed**: `effect` is bundled before the first request (`cli/src/dev.ts`) | `cli/test/first-paint.test.ts` |
 
 ### 3.1b From the reference form (this folder)
 
@@ -69,7 +70,7 @@ Every open or deferred gap known from the documents above, with a pointer to whe
 | RF-7 | Content cannot link to a declared route | 2 / FW | **Fixed** (slice 6c) |
 | RF-8, RF-9 | Long screen contract; a Schema message ignored by some combinators | 1 | Document / no change |
 | RF-10 | Can a success navigate from `settle`? | ? **Accepted**: not needed in two applications; no change (COMMAND-SURFACE.md C-8) |
-| RF-12 | No table (rows and columns with their meaning) | 2 / FW | **Built**: a static `table` (web; the desktop in the Port repository, unreleased); the grid case is deferred → WP-24, TABLE.md |
+| RF-12 | No table (rows and columns with their meaning) | 2 / FW | **Built**: a static `table` on both targets (Port 0.9.0 / desktop 0.3.0; driven in a real window); the grid case is deferred → WP-24, TABLE.md |
 | RF-13 | The space between two interpolations in a template is dropped (`{a} {b}` reads `ab`) | 1 / Eng | **Fixed** (MESH 0.13.0; Valance depends on it) → WP-26 |
 
 WA-5 (form building blocks) is answered by this: no helper; RF-1 to RF-3, RF-5 and RF-6 first.

@@ -35,9 +35,9 @@ Written 2026-10-17, before the implementation. Finding RF-12: the orders screen 
 | T-3 | Matches: `label`, `sort`, web-only `class`; no events | `vocabulary.ts` (`optional`), Port `vocabulary.json` |
 | T-5, T-8 | Matches: `scope` is a constant attribute of the header primitives; `sort` is `aria-sort`; the label is `aria-label` | `cli/test/table.test.ts` (the built HTML) |
 | T-6, T-7 | Matches by omission: no sort or narrow-window behavior in the table; `orders-app` has no sorting yet, so the sortable header (a button) is untested end to end | |
-| T-9 | Matches: one grid, header rows strong, `Table`/`Row`/`Cell`/`ColumnHeader`/`RowHeader` with counts, indices and sort direction, parented table to row to cell. **Driven in a headless context only**; no real window yet | Port `tests/table.rs` |
+| T-9 | Matches: one grid, header rows strong, `Table`/`Row`/`Cell`/`ColumnHeader`/`RowHeader` with counts, indices and sort direction, parented table to row to cell. **Driven in a real window (2026-10-17)**, which found one defect the headless tests could not see: a header word wrapped in two ("Orde" / "r") because cells used a wrapping layout inside the grid; fixed in the Port repository (unreleased: a patch, 0.3.1). The sortable header, a `button` in a `columnheader`, was driven end to end: a click flipped the application's sort state and the rows reordered | Port `tests/table.rs`, `view.rs`; NATIVE-PARITY.md |
 | T-10 | Not built, as written | |
-| T-11 | Matches, checked against a Port checkout (the installed vocabulary has no table yet); a second test says when that stops being true | `cli/test/table.test.ts` |
+| T-11 | Matches, checked against the installed `@valancex/port-desktop-vocabulary` 0.9.0 | `cli/test/choice-group.test.ts` |
 | T-12 | Matches | the three test files above, `orders-app/test/orders.test.ts` (roles by name, the count of rows) |
 | T-13 | The orders list is a table now (the customer a link, the status and total in their cells); it needed no change to the table. The second case, a table with controls in cells, has **not** been built | `examples/orders-app` |
-| T-14 | Pending: the Port release | |
+| T-14 | Done: Port 0.9.0 (`@valancex/port-desktop-vocabulary`, `@valancex/port-web`) and `valancex-port-desktop` 0.3.0 are published; Valance depends on `^0.9.0` | |

@@ -126,6 +126,9 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   const base = baseConfig(root, config);
   const server = await createServer({
     ...base,
+    // Dependencies the page needs are bundled before the first request, not discovered during it: Vite otherwise optimizes `effect` while the first page is loading, answers the page's request for the old
+    // bundle with 504 "Outdated Optimize Dep", and the page can stay unstarted (seen on a cold cache, in `first-paint.test.ts`).
+    optimizeDeps: { ...base.optimizeDeps, include: [...(base.optimizeDeps?.include ?? []), "effect"] },
     server: {
       port: options.port ?? 5173,
       host: options.host ?? "127.0.0.1",
