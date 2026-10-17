@@ -45,7 +45,7 @@ We follow one rule on this page: **dates appear only on things already shipped.*
 
 ## What we hold fixed
 
-The first eight are already written down in the repositories; the ninth is new direction. They are the reason to build here, and a bet may not trade them away.
+The first eight are already written down in the repositories; the ninth and tenth are new direction. They are the reason to build here, and a bet may not trade them away.
 
 1. **A view is data, not code.** MPRX has no arbitrary code, no side effects and no business logic ([MESH architecture rules](https://github.com/ValanceX/Mesh/blob/main/docs/ARCHITECTURE.md)).
 2. **Checked before it runs.** Mistakes are diagnostics with stable codes and a suggestion, never a surprise in front of a user.
@@ -56,6 +56,7 @@ The first eight are already written down in the repositories; the ninth is new d
 7. **Evidence before abstraction.** A primitive enters the portable layer only after two targets have realized it, and a design records the alternatives it rejected.
 8. **Data only on every wire format.** No executable references in render trees, patches or the host protocol.
 9. **Start-up carries only what start-up needs.** A production build ships the smallest output it can, the rest loads in parallel as soon as the application has started, and a development build says nothing about size ([budgets](bets/budgets.md#7-production-and-development-builds)).
+10. **We compile to the target's equivalent and verify our output against the official specifications.** How a browser, a bundler, a screen reader, an operating system or another framework treats that output is that technology's concern. A check is ours only if it compares what we emit with a specification (or a suite derived from one), never if it depends on how third-party software behaves.
 
 ## The free window
 
