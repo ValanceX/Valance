@@ -13,7 +13,7 @@ import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "@valancex/common";
 import type { Node, Place } from "./tree.js";
-import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
+import { declarationsOf, declaredOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
@@ -106,10 +106,33 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
     const name = nameOf(each.template.mprx);
 
     if (!builtInNames.has(name) && name !== ROOT) {
+      problem(at(each.template.mprx), "override-unknown", `<${name}> is not a built-in component, so there is nothing to override; register it in \`components\` instead`);
+    }
+  }
+
+  // A name is one component. Two files of one name, from anywhere in the definition (two libraries', or a library's and the application's), are an error: the first listed must not win silently
+  // (decision K14). A component that is not listed in `override` and is named like a built-in is the same collision, with the built-in.
+  // TODO(K14): qualified ids (`acme-ui/disclosure`) will let a library's component be named and overridden without renaming a file; until then the way out of a collision is to rename one.
+  const listed = declaredOf(layout, overrides, author?.components ?? []);
+  const firstOf = new Map<string, string>();
+
+  for (const each of listed) {
+    const first = firstOf.get(each.name);
+
+    if (first === undefined) {
+      firstOf.set(each.name, each.file);
+      if (each.role === "component" && builtInNames.has(each.name) && !listed.some((other) => other.role !== "component" && other.name === each.name)) {
+        problem(
+          at(each.file),
+          "template-builtin",
+          `${each.file} is <${each.name}>, which is also a built-in component: list it in \`override\` to replace the built-in, or rename the file so both can be used`,
+        );
+      }
+    } else if (first !== each.file) {
       problem(
-        at(each.template.mprx),
-        "override-unknown",
-        `<${name}> is not a built-in component, so there is nothing to override; list it in the \`uses\` of the component that uses it`,
+        at(each.file),
+        "template-duplicate",
+        `${each.file} is also <${each.name}>, like ${first}: a component is named by its file, so the name must be unique; rename one of the files`,
       );
     }
   }
@@ -119,10 +142,6 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   for (const node of declared) {
     const place = at(node.file);
 
-    if (files.has(node.name) && files.get(node.name) !== node.file) {
-      problem(place, "template-duplicate", `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`);
-      continue;
-    }
     if (namesOf(vocabulary).includes(node.name)) {
       problem(place, "template-primitive", `<${node.name}> is already a tag the framework draws as an element; name the file something else`);
       continue;
@@ -146,7 +165,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   const whole = ((author as unknown as Record<symbol, DefinedApp | undefined> | undefined)?.[WHOLE] ?? author) as DefinedApp | undefined;
 
   for (const parts of [whole, ...Object.values(whole?.targets ?? {})]) {
-    for (const node of treeOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
+    for (const node of declaredOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
       claimed.add(node.file);
     }
   }
