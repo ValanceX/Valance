@@ -42,7 +42,7 @@ Reliability: **P** primary source read through a fetch agent; **P\*** primary so
 |---|---|---|---|
 | Phoenix LiveView (**P**, [LiveComponent](https://raw.githubusercontent.com/phoenixframework/phoenix_live_view/main/lib/phoenix_live_component.ex)) | A stateful component is for when you "encapsulate both event handling and additional state". "Prefer function components over live components." "Avoid using LiveComponents merely for code organization purposes." Avoid "both the parent LiveView and the LiveComponent working on two different copies of the state". Costs: state kept in memory per component; a single root tag | Architecture, with explicit advice to use it rarely | Stateless by default, stateful by exception, one copy of any value. Plan for the memory cost |
 | React Spectrum (**P**, [v3 RFC](https://raw.githubusercontent.com/adobe/react-spectrum/main/rfcs/2019-v3-architecture.md)) | State management that is "platform agnostic", separate from behavior and from the themed component | Architecture | Interaction state is a layer of its own that can be tested without a screen |
-| Svelte 5 (**P**, [migration guide](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/07-misc/07-v5-migration-guide.md)) | State that could not leave a component's top level pushed people to stores | Retrofit | Plan the home for local state before libraries exist |
+| Svelte 5 (**P**, [migration guide](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/07-misc/07-v5-migration-guide.md)) | State that could not leave a component's top level pushed people to stores | Redesign | Plan the home for local state before libraries exist |
 | TC39 Signals (**P\***, [proposal](https://github.com/tc39/proposal-signals)) | "fully decouple the reactive model from the rendering view" | Design goal | Units keep state out of templates. The view stays a function of data |
 | React `useId` (**P**, [discussion 111](https://github.com/reactwg/react-18/discussions/111)) | Counters do not work with out-of-order streaming, so ids need a stable source | Design guidance | Per-instance state needs a stable identity from the start. MESH has one (§9.10) |
 | This ecosystem, node lifetime (**Repo**, [spec §9.10.6](https://github.com/ValanceX/Mesh/blob/main/docs/MPRX-SPEC.md)) | A node that leaves a render has ended; the same identity later is "a new occurrence ... created, not kept", and MESH "requires it to inherit nothing from the earlier one" | Architecture | The lifetime of a unit is already defined. No new concept is needed |
@@ -191,7 +191,7 @@ State lives in memory per visible instance, as in LiveView. It is bounded by the
 
 | Alternative | Why not |
 |---|---|
-| Everything in application state (the status quo) | The evidence above. Leaks internals, and D3 made the status quo conditional on a consumer arriving |
+| Everything in application state (the status quo) | The evidence above. Leaks internals, and D3 kept the status quo for lack of a consumer, which a component library now is |
 | The runtime holds the state | Render stops being a function of its inputs; replay and the update equivalence law break |
 | State inside templates (mutable locals) | Impure; against fixed point 1 |
 | Hide units in the snapshot under a reserved name | Instances are dynamic and records are exact, so it needs a special case in the type system anyway. An explicit input is simpler and honest |
