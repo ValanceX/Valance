@@ -198,6 +198,51 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | G9 | Who stops `javascript:` in a link? | **The primitive's specification types the value, and the PORT refuses what it does not allow.** The checker only knows strings | Measured: a string prop accepts it, correctly. Meaning belongs to the primitive | Medium |
 | G10 | Where does it live? | **MESH: session, limits, incremental check. Valance: profile, prompt text, loop helper.** Nothing in a PORT. It loads only when a page uses generation | The build-mode rule and fixed point 9 | Low |
 
+## Accessibility as types ([Bet 7](bets/accessibility.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| A1 | Who sets a role? | **The primitive, never the author.** The specification carries `role` from a closed set, the intersection of what the web and AccessKit support. Templates have no `role` or `aria-*` | "No ARIA is better than Bad ARIA" (APG). A target that is not the web cannot interpret ARIA | Medium |
+| A2 | How is a name required? | **A `name` field on each primitive**: `content`, `prop`, `either` or `none`. A use with no source of a name is the error `unnamed-control` | Measured: an unnamed checkbox, textfield, button, link and image all compile on both targets and reach a screen reader as `""` | Low |
+| A3 | Is `label` still optional on `checkbox` and `textfield`? | **No: required on both targets.** `placeholder` is not a name | Both vocabularies list `label` as optional today. Chromium uses a placeholder as a name, which is not a label | Low |
+| A4 | What about names known only at run time? | **A development-build diagnostic naming the node** when a name is empty. Production builds carry no check | The compiler cannot know a value. The build-mode rule | Low |
+| A5 | How does a name pass through a library component? | **A component's contract declares which prop supplies its name**, with the same field. The check follows the contract, not the body | A library is right or wrong for everyone who uses it | Medium |
+| A6 | How are two nodes related? | **By node reference, resolved at compile time**, not by an id the author writes. A reference to nothing is `unknown-ref`. The PORT derives an id from the node key | Counter and fixed ids break in lists and under streaming (React `useId`) | Medium |
+| A7 | How are keys bound to roles? | **A `keyboard` table in the specification**, written from the APG patterns, and generated vectors in the kit that send each key and check the result | "A role is a promise" that the keys work. A PORT that draws the role without them fails | Low |
+| A8 | What does `observe` gain? | **Role, name, description and states.** On the web it reads the browser's accessibility tree (through its debugging protocol), on the Desktop the AccessKit update | Measured: a test library's own computation of the heading level disagreed with the browser's | Low |
+| A9 | Contrast? | **Themes declare token pairs; `vlx theme check` computes the contrast ratio.** It gates the reference themes and advises elsewhere | The one visual rule that is checkable from data | Low |
+| A10 | What does "accessible" mean here? | **Only what is checked.** The brief lists what compiling does not check. The Reference Gate adds one screen-reader run on the web and one on the Desktop per release candidate, and two outside reviewers who use one daily | Static checks have a ceiling (jsx-a11y says so) | Low |
+
+## Interaction state, focus and layers ([Bet 9](bets/interaction-state.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| D1 | Are hover, pressed and focus-visible in the tree? | **No.** They are the target's presentation, exposed to themes as the state hooks. A target that cannot tell the input modality treats focus as visible | The tree would change on every pointer move. Measured: `:focus-visible` is false after a click and true after Tab | Low |
+| D2 | What happens to focus when the tree changes? | **Focus follows node identity.** After patching, the PORT restores focus and selection by key; if the node is gone, focus goes to the next sibling, else the previous, else the nearest focus scope | Measured: a keyed row that moves loses focus on the web (`insertBefore`), and the removed case lands on the body | Low |
+| D3 | How are rows moved? | **With `moveBefore` where it exists, and by restoring otherwise** | Present in Chromium 141 and kept focus (but reset the selection in that build) | Low |
+| D4 | What are the layer primitives? | **`dialog` (modal) and `popover` (non-modal, anchored)**, both with a controlled `open` and a `dismiss` event with a reason. Tooltips, menus, selects and comboboxes are not in version 1 | APG and the platform treat them separately. The rest need the keyboard tables first | Medium |
+| D5 | Is a modal ever "not inert"? | **No.** A `dialog` is always inert behind it and always draws a backdrop | APG: modal only when both conditions hold | Low |
+| D6 | Can the application refuse a dismissal? | **Yes, but the browser may close the native dialog anyway.** The PORT reports `dismiss`, then draws the dialog again if `open` is still true | Measured: a second Escape in a row closes a dialog whose `cancel` was prevented | Medium |
+| D7 | Server-rendered overlays? | **Written open and non-modal so they paint, then upgraded at hydration** (close, then show as modal). `dialog[open]` is not modal and `popover[open]` is not open | Measured. One focus move at hydration is the cost | Medium |
+| D8 | Who restores focus on close? | **The PORT, by key, to the node that had focus before the layer opened.** Not the browser | With the invoker removed the browser's result was unreliable in the test | Low |
+| D9 | Who holds `open`? | **The application (NEXUS state) or a state unit**, through the same controlled prop and event | A library's disclosure and popover need units; an application's confirm dialog needs state | Low |
+| D10 | The Desktop? | **A layer drawn above the content in the same window that consumes other input, cycles Tab inside and returns focus.** Whether egui's own support does the cycling is unknown and is the first experiment | X2. The egui documentation was unreachable, so its overlay behavior is unverified | Medium |
+
+## Forms from the schema ([Bet 11](bets/forms.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| F1 | What is the source of validity? | **The command's input schema.** The form reads it; the command validates again; UI validation is never trusted | One description of valid cannot drift from itself | Low |
+| F2 | Do constraints go into MESH types? | **No.** The host reads them from the schema annotations; the template does not need them. The `enum` kind (Bet 4) recovers the closed sets | `web-manifest.ts` drops refinements; measured: `minLength`, `pattern`, `minimum`, `maximum` survive as annotations | Low |
+| F3 | What does a field hold? | **The encoded value** (text), with `touched`, `dirty` and one `errors` message. `pending` is reserved | `NumberFromString` shows the text and the number differ | Low |
+| F4 | Where does the draft live? | **In a state unit keyed by the form's identity**, or in an application `State` handle that is passed in | Rows keep their own drafts when a list re-sorts | Medium |
+| F5 | When do errors show? | **When invalid and (touched or a submit was tried); then they update as the person types.** A failed submit marks every field touched and focuses the first invalid one | Angular's dirty-or-touched rule and Phoenix's `used_input?` | Low |
+| F6 | One message per field? | **Yes: decode with `errors: "all"`, fold by path, prefer the author's `message` annotation.** A field with only a default message gets a development diagnostic | Measured: the default reports the first issue only; literal unions give two issues per field; default text is for developers | Low |
+| F7 | Does a form need a `title` on each field? | **Yes.** A missing `title` is a startup error in development builds that names the field | Feeds the name rule ([Bet 7](bets/accessibility.md)) | Low |
+| F8 | Server-side and async checks? | **The command may fail with `FieldErrors` (path to message), shown as if validated.** Client-side async validators are not in version 1 | Covers "already taken" without a second mechanism; Angular's async rule comes later | Medium |
+| F9 | Is there a `form` primitive? | **No.** A host model plus ordinary primitives; the library ships `labeled-field`. A scaffold can generate a template once | Nothing about a form is target-specific | Low |
+| F10 | Standard Schema? | **Adopt when Effect provides it.** `standardSchemaV1` is absent in Effect 3.10.19 | Same issue shape, so little changes | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -238,3 +283,10 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 24. **G2, repairing the prefix.** If the repair hides real errors (a mistake reported late or not at all in over 5 percent of random cases), report fewer prefixes as acceptable.
 25. **G3, never drawing an unknown component.** If assistants need a placeholder to feel responsive, draw a labeled placeholder that is not the component, never the component.
 26. **G8, no new path for commands.** If consent for data-changing commands needs its own protocol, it becomes a separate bet.
+27. **A2 and A3, a required name.** If real templates need unnamed controls (a decorative checkbox), add a `decorative` form as for images rather than relaxing the rule.
+28. **A6, references instead of ids.** If a relation must reach into another component, references need to cross a component boundary, and the fallback is a key path scoped to the component.
+29. **D2, focus by key.** If the restore step is visible (a flicker, a scroll jump) on slow devices, restrict it to moves of the focused subtree.
+30. **D6, redrawing a refused dialog.** If the flicker is noticeable, accept the platform's close and report it, and make the application state follow.
+31. **D10, the Desktop layer.** Not measured. If egui cannot hold an inert layer cheaply, the Desktop ships `dialog` and `popover` later than the web and the Reference Gate waits.
+32. **F4, drafts in units.** If a draft must survive a remount or a reload, it moves to NEXUS state and units keep `touched` only.
+33. **F5, the timing rule.** Taken from two frameworks' guidance, not from a study. If testers miss errors, show them on blur only for fields that were changed.

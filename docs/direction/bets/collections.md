@@ -132,7 +132,7 @@ A row outside the window does not exist, so its occurrence has ended (spec §9.1
 - **Unit state resets** for a row that scrolls out and back ([Bet 8](state-units.md)). State a row must keep is application state, which is the rule that bet already gives.
 - **Browser find-in-page will not find rows outside the window.** An application with a long list offers its own search.
 - **Focus** on a row that scrolls out is lost. A contiguous window cannot hold a distant pinned row. Pinning is an open question.
-- Accessibility counts (`total` and `start` as set size and position) are available as props for [Bet 7](README.md) when it resumes. Nothing here blocks it.
+- Accessibility counts (`total` and `start` as set size and position) are available as props for [Bet 7](accessibility.md), which realizes them as set size and position. Nothing here blocks it.
 
 ### 8. Tiers, server rendering and tables
 

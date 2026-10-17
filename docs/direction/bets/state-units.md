@@ -229,7 +229,7 @@ State lives in memory per visible instance, as in LiveView. It is bounded by the
 
 ## Deferred on purpose
 
-Accessibility work ([Bet 7](README.md)) is deferred by direction. Nothing here blocks it, and one choice keeps it cheap: a unit instance has a stable identity, which is also what generated ids for relationships between parts would derive from.
+Accessibility ([Bet 7](accessibility.md)) resumed after this brief. Nothing here blocks it, and one choice keeps it cheap: a unit instance has a stable identity, which is also what generated ids for relationships between parts would derive from.
 
 ## Open questions for stage 3
 

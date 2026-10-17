@@ -72,7 +72,7 @@ Bounded by [fixed points](../README.md#what-we-hold-fixed) 3, 4, 6 and 7:
 - **The kit knows no target.** The target-specific part is the adapter.
 - **Nothing is dropped silently.** A PORT that cannot realize something must say so in its own data. Silence is a failure.
 - **No copies.** A file is consumed from a published, versioned package, never copied.
-- Accessibility is deferred by direction, so the first observations use no roles or names.
+- Accessibility has resumed ([Bet 7](accessibility.md)), so `observe` gains roles, names and descriptions as soon as that bet's specification fields exist; the first version still needs none.
 
 ## Design
 
@@ -102,7 +102,7 @@ A PORT passes the kit by implementing a five-operation adapter and running as a 
 
 `observe` is what each PORT already has under another name: `inspect::readable` and `inspect::buttons` in the Desktop PORT, and `inspect` in the Web PORT. The kit names it, so the two stop being private. It asks about meaning and not structure, for the reason Angular's harnesses give: a test then survives a change to the internals.
 
-Roles and accessible names are added to `observe` when accessibility work resumes ([Bet 7](README.md)). The first version needs neither.
+Roles, accessible names and descriptions are added to `observe` by [Bet 7](accessibility.md). The first version needs none of them.
 
 ### 4. Primitive vectors, generated
 
@@ -189,7 +189,7 @@ The gallery is an application, generated and checked like any other (the ecosyst
 
 ## Open questions for stage 3
 
-- **The observation vocabulary** beyond text, value, enabled, checked and order: when roles, names and relationships join (Bet 7).
+- **The observation vocabulary** beyond text, value, enabled, checked and order: when roles, names and relationships join ([Bet 7](accessibility.md) specifies them).
 - **Forced states** on the Desktop and the terminal, where there is no stylesheet.
 - **Interaction kinds** the adapter must support: activate, type, key, scroll (for [Bet 10](collections.md)).
 - **How units and replay fit**: a unit's behavior is a script of interactions with expected observations, which is also what [Bet 15](replay.md) wants for replay.

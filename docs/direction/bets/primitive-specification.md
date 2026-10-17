@@ -116,7 +116,7 @@ Reserved fields are filled by other bets and are shown here so the shape is visi
 }
 ```
 
-`keyboard` and `nameRule` belong to [Bet 7](README.md), `states` and `parts` to [Bet 6](style-contract.md), and `describedby` as a string is a placeholder until Bet 7 decides how relationships are expressed. `controlled` states the contract the Web PORT already enforces (the slot holds exactly what the application last rendered) in the specification, where today it is only in a realization.
+`keyboard` and `nameRule` belong to [Bet 7](accessibility.md), `states` and `parts` to [Bet 6](style-contract.md), and `describedby` as a string is a placeholder until Bet 7 decides how relationships are expressed. `controlled` states the contract the Web PORT already enforces (the slot holds exactly what the application last rendered) in the specification, where today it is only in a realization.
 
 ### What gets generated or checked
 

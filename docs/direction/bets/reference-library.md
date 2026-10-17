@@ -63,7 +63,7 @@ Bounded by [fixed points](../README.md#what-we-hold-fixed) 4, 5 and 7, and by tw
 
 - **Public seams only.** The reference build may use what a stranger can install and read, and nothing else.
 - **No edits to the core to make the library work.** A needed change is filed as a friction report first and made in an ordinary change, so the log of what outsiders will hit is complete.
-- Accessibility work is deferred by direction. Nothing here claims it, and nothing blocks it.
+- Accessibility was deferred when this brief was written and has since resumed ([Bet 7](accessibility.md)). Names, `invalid` and `describedby` apply to the six components, and `labeled-field` is the pilot for names that follow a component's contract.
 
 ## Design
 
@@ -142,7 +142,7 @@ The gate passes when all of these hold:
 5. At least **two outsiders** have published a working component or theme using only the documentation, and every severity-3 friction they logged is fixed or recorded as a decision.
 6. Each design the kit exercises (Bets 1, 4, 5, 6, 8, 10 and 14) has reached stage 4 or has an explicit decision to defer.
 
-A screen-reader run is part of the gate once accessibility work resumes. It is deferred by direction.
+A screen-reader run on the web and one on the Desktop are part of the gate ([Bet 7](accessibility.md)).
 
 ### 9. Order
 

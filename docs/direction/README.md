@@ -20,8 +20,10 @@ An honest map. Tiers are the ones in [API stability](../stability.md); stages ar
 | Verification | The language vectors are copied by hand into the Web PORT, whose copy is at v0.6 and lacks the identity vectors. The Desktop PORT does not run them. There is no gallery ([Bet 2](bets/conformance-kit.md)) | A PORT or library can drift without anything failing |
 | Replay and bug reports | The design for a session log was written on 2026-10-06 and never built. A short session replays to identical trees by three routes ([Bet 15](bets/replay.md)) | A bug cannot yet be sent as a file that reproduces it |
 | Generated UI | A finished file is checked and repaired by diagnostics. A half-written file gets only a syntax error, and there is no input limit: 20,000 sibling elements gave no answer in 40 seconds ([Bet 13](bets/safe-generated-ui.md)) | Fine for small generated screens from a trusted source. Do not point it at unbounded input yet |
+| Focus and overlays | A keyed row that moves loses the keyboard focus on the web (measured in Chromium 141); there is no dialog or popover primitive, and the Desktop has no layers ([Bet 9](bets/interaction-state.md)) | Keep forms and lists that re-sort simple |
+| Forms | There is no form model. The schema already holds the constraints, but the manifest drops them, so each application writes validation by hand ([Bet 11](bets/forms.md)) | Validate in the command, as today |
 | Styling and themes | **No contract.** The web uses plain CSS hooks on some tags; the Desktop has no styling ([Bet 6](bets/style-contract.md)) | You cannot publish a style library yet |
-| Accessibility | Roles, names and states are mapped per primitive on both targets. There is no shared model, and no check that a control has a name | Do not assume a primitive is accessible because it compiles |
+| Accessibility | Roles, names and states are mapped per primitive on both targets, by hand. There is no shared model. A checkbox, text field, button, link or image with no name compiles on both targets and reaches a screen reader unnamed ([Bet 7](bets/accessibility.md)) | Do not assume a primitive is accessible because it compiles |
 | Behavior that needs its own state (tabs, menus, dialogs) | **Not designed.** State is application-level only | Such components would leak state into your application |
 | Overlays, virtual lists, forms from a schema | Not built | |
 
@@ -88,7 +90,7 @@ A bet can also be **killed**. A killed bet stays in the index with the reason, b
 |---|---|---|
 | **Spec Gate** | Today's tables regenerate from the primitive specifications with no test changes, and the web/Desktop parity report is green or waived per primitive with a reason | New primitives are written only as specifications |
 | **Language Gate** | Variant-capable types and typed template values are at stage 4, with conformance vectors in Rust and JavaScript | Component libraries can be typed |
-| **Reference Gate** | A component library and a theme, built outside these repositories using only public seams, work on both targets, and a third, minimal target accepts the portable part; budgets are met. (A screen-reader run joins this list when accessibility work resumes; it is deferred by direction) | We invite outside authors and freeze edition 1 |
+| **Reference Gate** | A component library and a theme, built outside these repositories using only public seams, work on both targets, and a third, minimal target accepts the portable part; budgets are met. (One screen-reader run on the web and one on the Desktop join this list, as [Bet 7](bets/accessibility.md) states) | We invite outside authors and freeze edition 1 |
 | **Edition Gate** | The edition field, the evolution policy and deprecation diagnostics exist | The first stable promise |
 
 ## What we will not do
@@ -107,7 +109,7 @@ Written down because a small foundation stays small by refusing things.
 ## How to take part
 
 - **Try it and tell us what hurt.** Open an [issue](https://github.com/ValanceX/Valance/issues) with what you tried, what you expected, and what happened. The repositories have none yet, so yours will be the first. A friction report is more useful to us than a feature request.
-- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first twelve briefs, with the reason for each and what it would cost to undo.
+- **See what was decided.** [Decisions](decisions.md) answers the open questions in the fifteen briefs, with the reason for each and what it would cost to undo.
 - **Read the evidence.** [Prior art](prior-art.md) lists what other frameworks decided and why, with the quality of each source. If we have a source wrong, say so.
 - **Build a library before the gate.** If you want to be one of the first outside authors, say so in an issue. The Reference Gate needs people who will build against a surface that is known to be unstable, and their friction becomes our evidence.
 
