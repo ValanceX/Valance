@@ -35,7 +35,7 @@ Closing what is open (cut back to the last complete tag or block, then append th
 | Clean | 233 of 271 (86 percent) |
 | Still a syntax problem | 38 (a naive repair; cut inside an open start tag) |
 
-And on a page with three planted mistakes (an unknown prop, an unknown reference, an unknown component), each was reported at the first prefix that ended **8 to 13 bytes after** the mistake: `unknown-prop` at byte 77 was reported at prefix 90, `unknown-reference` at 114 at prefix 126, `unknown-component` at 139 at prefix 147. The batch check on the whole file reported the same three. The checker is fast on small input: 0.37 ms on average over the 276 prefixes, 3.7 ms at the worst.
+And on a page with three planted mistakes (an unknown prop, an unknown reference, an unknown component), each was reported at the first prefix that ended **8 to 13 bytes after** the mistake: `unknown-prop` at byte 77 was reported at prefix 90, `unknown-reference` at 114 at prefix 126, `unknown-component` at 139 at prefix 147. The batch check on the whole file reported the same three. The checker is fast on small input: about 0.3 ms on average over the 276 prefixes and under 4 ms at the worst (0.37 and 3.7 ms in one run, 0.27 and 1.5 ms in another). The same run also produced two transient false `unterminated-tag` diagnostics (at prefixes 27 and 125) from the naive repair that the final check does not report; the real repair must not emit them.
 
 So **a streaming check is feasible by repairing the prefix**, and an error can reach the model within a few tokens of where it was made.
 
@@ -43,16 +43,16 @@ So **a streaming check is feasible by repairing the prefix**, and an error can r
 
 | Input | Result |
 |---|---|
-| 500 nested elements | `nesting-too-deep`, 26 ms (a cap exists; its value is not documented) |
-| 1,000 siblings (14 KB) | 131 ms |
-| 2,000 / 4,000 / 8,000 siblings | 466 ms / 1.8 s / 7.0 s: **quadratic** |
-| 20,000 siblings (280 KB) | **No answer in 40 seconds** |
-| 1,000 / 2,000 attributes on one element | 199 ms / 550 ms |
+| 500 nested elements | `nesting-too-deep`, 26 ms (the cap is 128 levels, and a block counts as 3; documented in the diagnostics manual and spec §9) |
+| 1,000 siblings (14 KB) | about 0.15 s (131 and 146 ms in two runs) |
+| 2,000 / 4,000 / 8,000 siblings | about 0.45 s / 2 s / 7 to 8 s (two runs each): **quadratic** |
+| 20,000 siblings (280 KB) | **46 seconds** (the first run was stopped at 40 s) |
+| 1,000 / 2,000 attributes on one element | about 0.15 to 0.2 s / 0.5 to 0.8 s |
 | 10,000 attributes on one element | **15 seconds** |
 | 5 MB of text in one element | 332 ms, accepted |
 | 1 MB unterminated string | 56 ms, `missing-closing-tag` |
 
-There is no input limit and the sibling cost is quadratic. A model that runs away, or an attacker who controls the prompt, can hold a checker for minutes with a few hundred kilobytes. A streaming check that re-checks the whole prefix on every chunk would also make the **total** cost of a stream cubic in its length.
+There is no input limit and the sibling cost is quadratic. A model that runs away, or an attacker who controls the prompt, held the checker for 46 seconds at 280 KB (re-run without a cutoff), and the quadratic growth puts about 560 KB at minutes (extrapolated). Timings varied by 30 to 50 percent between runs. A streaming check that re-checks the whole prefix on every chunk would make the **total** cost of a stream cubic in its length for sibling-heavy input (the sum of k squared over the chunks); ordinary pages cost about 0.3 ms.
 
 ### What the language already refuses (measured)
 
@@ -80,7 +80,7 @@ Reliability: **P** primary source read through a fetch agent; **S** from general
 |---|---|---|
 | A2UI (**P**, [README](https://raw.githubusercontent.com/google/A2UI/main/README.md), [catalogs](https://raw.githubusercontent.com/google/A2UI/main/docs/public/concepts/catalogs.md), [protocol](https://raw.githubusercontent.com/google/A2UI/main/specification/v0_9_1/docs/a2ui_protocol.md)). Self-described "early stage public preview" at v0.9.1 | A stream of JSON messages. "A2UI is a declarative data format, not executable code": the client holds a "catalog" of approved components, and "all A2UI JSON sent from the agent is validated against the chosen catalog". Components may name children that have not arrived; clients render placeholders and begin once the `root` is defined. Failures go back to the agent as an `error` with `code`, `surfaceId`, `path` and `message`. Unknown components should degrade gracefully, not fail the surface | The same family and the same answers on the catalog and on the error loop. We differ on two points: the unit is a checked template, not loose JSON components, and we fail closed on unknown components even while previewing, because our pitch is that nothing unchecked is drawn |
 | Airbnb server-driven UI (**S**, listed in [leads](../prior-art.md)) | Sections, screens and actions as data | Not read; no claim taken from it |
-| Incremental parsers (**S**), such as tree-sitter's | Reuse the old tree after an edit | Supports the incremental design below. Not read |
+| tree-sitter (**P**, [README](https://github.com/tree-sitter/tree-sitter)) | An incremental parsing library that can "efficiently update the syntax tree as the source file is edited" | Supports the incremental design below |
 | This ecosystem (**Repo**) | Diagnostics are data: stable `code`, `span`, `suggestions`, one diagnostic per mistake; the runtime refuses invalid programs and returns diagnostics, never an exception | The loop's wire format already exists |
 
 ## Constraints
@@ -116,7 +116,7 @@ const done = session.close();       // same result as a batch check of the whole
 | Limit | Default | On exceeding |
 |---|---|---|
 | Source size | 64 KB | `input-too-large`, nothing else is parsed |
-| Nesting depth | The existing cap, documented | `nesting-too-deep` (exists) |
+| Nesting depth | The existing cap (128 levels; a block counts as 3) | `nesting-too-deep` (exists) |
 | Elements | 5,000 | `too-many-elements` |
 | Attributes on an element | 64 | `too-many-attributes` |
 | Time per `push` | 50 ms of checker time | `check-budget-exceeded`, session ends |
@@ -166,7 +166,7 @@ The session, the limits and the incremental check are in MESH (a `mesh-compiler`
 ## Success
 
 - `close()` equals the batch result on every tested input.
-- A planted mistake is reported within 20 bytes of its end on the test set, as it was in the measurement above.
+- A planted mistake is reported within 20 bytes of its start on the test set, as it was in the measurement above.
 - No input within the limits takes over 100 ms per kilobyte; an input over a limit is refused in under 5 ms.
 - A model reaches a clean file in no more rounds with streaming diagnostics than without, and in fewer tokens on at least half the tasks.
 - No test input draws an unchecked node in a preview.
@@ -185,7 +185,6 @@ The session, the limits and the incremental check are in MESH (a `mesh-compiler`
 
 ## Open questions for stage 3
 
-- **The documented nesting cap.** Its current value lies between a depth that is accepted and 500; the brief needs the number.
 - **Streaming inside text and strings.** Whether a half-written text run shows as it grows, or only when its element closes.
 - **Which block constructs a preview may show early** (an `{#each}` with one row written).
 - **Consent for commands** that change data, and who owns the prompt that asks.

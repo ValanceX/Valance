@@ -64,7 +64,7 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 |---|---|---|---|---|
 | MESH design, [Part C](https://github.com/ValanceX/Mesh/blob/main/docs/superpowers/specs/2026-10-06-mesh-fine-grained-reactivity-and-composition.md) | Repo | Render is pure and state changes only through commands, so a session is a log | The premise; the format was never built | 15 |
 | `parity.test.mjs` and `number-text-differences.json` in MESH | Repo | The WebAssembly and native runtimes give byte-identical results; number text has a reviewed table | Byte equality is already the standard | 15 |
-| Nexus reference platform (`tests/platform/reference.ts`) | Repo | A platform may supply a clock (`Layer.setClock`) | Time is injectable at the host | 15 |
+| Nexus reference platform (`tests/platform/reference.ts`) | Repo | The test reference platform (not exported) accepts a clock via `Layer.setClock`; platforms are Layers | A plausible seam for time at the host; not a public option today | 15 |
 | Elm debugger, Redux DevTools, rr and Replay.io | S | Replay pure updates; record at the nondeterminism boundary | Not read in this session. Verify before quoting | 15 |
 
 ## Generated UI

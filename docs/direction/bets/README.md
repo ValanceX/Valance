@@ -20,7 +20,7 @@ Every bet in the table has a brief. Briefs 7, 9 and 11 were written last, after 
 | 10 | [Collections](collections.md) | Can windowing be a property of `{#each}` without changing meaning? | 2 Design (by delegation) | 1, 4, 5, 8 |
 | 11 | [Forms from the schema](forms.md) | Can field state and validation derive from the schema NEXUS already validates with? | 2 Design (by delegation); schema measured (stage 3) | 4, 7, 8, 9 |
 | 12 | [The reference library, themes and a third target](reference-library.md) | Can outside authors build against public seams only? | 2 Design (by delegation); seam measured (stage 3) | 1, 3, 4, 5, 6, 8, 10, 14 |
-| 13 | [Safe generated UI](safe-generated-ui.md) | Can a model's partial MPRX be validated and repaired against a manifest as it streams? | 2 Design (by delegation); checker measured (stage 3) | 1, 3 (15 optional) |
+| 13 | [Safe generated UI](safe-generated-ui.md) | Can a model's partial MPRX be validated and repaired against a manifest as it streams? | 2 Design (by delegation); checker measured (stage 3) | 1, 3 (uses 15's format) |
 | 14 | [Starting from what the server did](resumable-start.md) | Can a page start from the render tree without re-evaluating it, and what happens to a tap before the app is ready? | 3 Prototype (early-input shell); 2 Design (by delegation) | 3 (10 soft) |
 | 15 | [Replay as a contract](replay.md) | Can a recorded session reproduce every tree byte for byte, as a conformance requirement? | 2 Design (by delegation); determinism measured (stage 3) | 2, 8 |
 

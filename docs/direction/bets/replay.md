@@ -29,15 +29,15 @@ A session of five trees (the initial render, then four steps that set, insert, r
 
 So the equivalence law ([spec §9.10](https://github.com/ValanceX/Mesh/blob/main/docs/MPRX-SPEC.md)) already holds at the scale of a session on this sample. Three more facts bear on the format:
 
-- **Render versions are process-local.** The same session gave versions 2 to 5 in one run and 22 to 25 in another, with identical trees. A log must not record `base`; the player supplies its own.
+- **Render versions are process-local.** Within one process, the first recording of the session gave versions 2 to 5 and a second recording of the same session gave 22 to 25, with identical trees (separate processes both give 2 to 5). A log must not record `base`; the player supplies its own.
 - **Handler identifiers are stable across processes.** The same event's identifier was `hN0luu77litY.vcIRWPVjk9jj0Um_5TX9iw` in two separate runs, and `dispatch` gave an equal intent twice. A log may record handlers by identifier.
-- **The runtime is already pinned to the native one.** The package's parity test (`parity.test.mjs`) requires the WebAssembly module and the native runtime to give byte-identical results for the same requests. Number text is the one place a JavaScript engine may differ, and MESH keeps its own table for that (`number-text-differences.json`, reviewed like code).
+- **The runtime is already pinned to the native one.** The package's parity test (`parity.test.mjs`) requires the WebAssembly module and the native runtime to give byte-identical results for the same requests. Number text is the one place a JavaScript engine may differ: MESH computes its own number text in the runtime and compares it against V8's `String(x)` for 1,000,000 values, and the list of intentional differences (`number-text-differences.json`) is empty.
 
 The sample is small (one program, one list). It does not cover windows, snippets or units, which do not exist yet.
 
 ### What is not deterministic is outside the runtime
 
-Everything that varies between runs enters at the host: the snapshot the application builds, the payload a PORT reports, and the result of a command. Nexus runs commands as Effects, so a command may read the time or draw a random number. Nexus already takes an injectable clock (`Layer.setClock` in the reference platform), which shows the seam exists. A log therefore records command results as data and does not re-run commands.
+Everything that varies between runs enters at the host: the snapshot the application builds, the payload a PORT reports, and the result of a command. Nexus runs commands as Effects, so a command may read the time or draw a random number. Nexus's test reference platform (not exported from the package) accepts a `Clock` and applies it with `Layer.setClock`; a platform is a Layer, so a real platform can supply one. That is a plausible seam, not a public option today. A log therefore records command results as data and does not re-run commands.
 
 ### Who is hurt
 
@@ -57,7 +57,7 @@ Reliability: **P** primary source read through a fetch agent; **S** from general
 | Nexus reference platform (**Repo**) | A platform may supply a clock | Time is injectable at the host |
 | Elm's time-travelling debugger (**S**) | Replays messages through a pure update | Same idea, and the reason purity matters. Recording only messages is enough when update is pure |
 | Redux DevTools (**S**) | Records actions and states, jumps between them | A log of actions plus states is useful to people, not only to machines |
-| Record-and-replay debuggers such as rr and Replay.io (**S**) | Capture nondeterministic inputs at a boundary and replay them | Record the boundary, not the inside. Ours is the host, which is small |
+| Record-and-replay debuggers such as rr and Replay.io (**P** for the generic claim: rr is "a lightweight tool for recording, replaying and debugging execution of applications"; Replay.io is "a new debugger for recording and replaying software"; **unverified** that they record at a nondeterminism boundary) | Record and replay executions | Record the boundary, not the inside. Ours is the host, which is small |
 
 ## Constraints
 
