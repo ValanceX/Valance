@@ -39,6 +39,14 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 | Angular Material MDC migration | S | DOM and CSS class structure changed, with "style-related issues" for many consumers | A rewrite | Themes must not depend on structure | 6 |
 | Design Tokens Community Group, [2025.10](https://www.w3.org/community/design-tokens/2025/10/28/design-tokens-specification-reaches-first-stable-version/) | S | First stable format, published 2025-10-28 as a Final Community Group Report; "not a W3C Standard" | Interchange format | Adopt it for tokens; do not call it a standard | 6 |
 
+## Shipping libraries
+
+| Source | Mark | The authors' reasoning | Lesson | Feeds |
+|---|---|---|---|---|
+| Svelte, [packaging](https://raw.githubusercontent.com/sveltejs/kit/main/documentation/docs/30-advanced/70-packaging.md) | P | "Svelte components will be preprocessed, TypeScript files will be transpiled to JavaScript." The `svelte` export condition tells tooling "this is a Svelte component library". Declare `"sideEffects": ["**/*.css"]`. Types are generated and disabling them is discouraged. Removing an export is "a breaking change" | Ship templates as source, mark the package, generate types, treat removals as breaking | 12 |
+| Angular, [package format](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/libraries/angular-package-format.md) and [creating libraries](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/libraries/creating-libraries.md) | P | Libraries are published in "partial compilation" mode, "not tied to a specific Angular runtime version", and "converted to fully compiled code during the application build". The application's Angular version must be "the same or greater" than its libraries'. Packages should set `sideEffects` to `false` | The other route: half-compile and link in the consumer. It needs a linker and a version rule | 12 |
+| Vite, [SSR externals](https://raw.githubusercontent.com/vitejs/vite/main/docs/guide/ssr.md) | P | Dependencies are externalized by default; one that "needs to be transformed by Vite's pipeline" goes in `ssr.noExternal`; linked dependencies are not externalized | Explains why a compiled Valance library fails to load and a symlinked one cannot find its peers | 12 |
+
 ## Cross-process and wire formats
 
 | Source | Mark | The authors' reasoning | Lesson | Feeds |

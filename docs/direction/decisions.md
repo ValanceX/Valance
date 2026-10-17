@@ -139,6 +139,21 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | H7 | Does the WebAssembly leave the start-up set? | **No.** Compiled in parallel it costs 1 to 10 ms in `init`. This corrects the note in Bet 3 | Measured | Low |
 | H8 | What is the next lever? | **Bytes and the fixed start cost.** Profile the start sequence, and add "interactive at" and "dead zone" to the Bet 3 metrics | About 60 percent of "interactive at" at 4x is the script arriving, and the start work is about 400 ms of the rest | Low |
 
+## The reference build ([Bet 12](bets/reference-library.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| K1 | Where is the reference build, and how is it kept honest? | **A separate repository, built as an outsider.** A boundary test fails on any import outside the published entry points, any `internal` subpath and any path into another repository. CI installs published or prerelease packages only. A needed core change is filed as a friction report first | The point is to show public seams suffice. The repository already uses boundary tripwire tests | Low |
+| K2 | What is built? | **Six components, each needing one seam** (`labeled-field`, `badge`, `disclosure`, `tabs`, `data-list`, `virtual-list`), **two themes** (`plain`, `contrast`) and **a minimal terminal PORT** | The smallest set that touches every bet. A third target is the cheapest test that the contract is not shaped like the web and the Desktop | Low |
+| K3 | Do libraries ship compiled templates? | **No: templates ship as source and the consumer compiles them**, as Svelte does. Not Angular's partial compilation | MESH's known limitation: every template must be recompiled after a model change. The consumer already has the compiler, so no linker is needed | Medium |
+| K4 | How does a library declare itself? | **An export condition `valance`** in `package.json` and a **`valance` field** with `targets`. The build processes marked packages instead of loading them in Node | The measured failure (`Unknown file extension ".mprx"`) is Vite externalizing dependencies. Svelte's `svelte` condition is the precedent | Medium |
+| K5 | What if a library does not support a target? | **One diagnostic at the use site** that says so, not several inside `node_modules` | Measured: four errors in the library's file, where the consumer cannot act | Low |
+| K6 | How does a library ship CSS? | **It declares its stylesheets.** The build collects them into the library layer, below the theme and the application. `"sideEffects": ["**/*.css"]` is the guidance | Today CSS arrives only through a side-effect import, and nothing can order or replace it | Medium |
+| K7 | What is the author's tooling and loop? | **`vlx init library`** (a workspace with a playground), **`vlx library build`** (JavaScript, declarations and contract types), **`vlx library check`**. Symlinked `file:` installs are documented as unsupported | Measured: a symlinked library cannot find its peers; a compiled one has no types | Low |
+| K8 | What counts as breaking for a library? | **Removing an export, a component, a prop or an event.** A library declares `@valancex/common` as a peer | Svelte's rule, for the same reason | Low |
+| K9 | Can libraries add primitives in version 1? | **No.** They compose existing primitives. A new primitive goes through the specification process | `defineApp` has no plugin field, and a primitive is a decision for every target | Medium |
+| K10 | Who tries it, and what proves it? | **The maintainers' own build is the pilot, then three to five design partners** with a friction-log protocol. **The Reference Gate needs at least two outsiders to publish a working component or theme from the documentation alone**, and the pilot must need zero private seams | Insiders cannot test the docs. The pilot goes first because its friction is cheap to collect | Medium |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -168,4 +183,7 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 13. **H3, the caps and the one-at-a-time replay.** Real applications will show whether 20 events and 10 seconds are right, and whether waiting for each command to settle makes replay feel slow.
 14. **H2, replaying trusted events only.** It is the right safety rule, and it means the shell can never be tested with synthetic clicks, so the conformance harness must drive real input.
 15. **L6, checking keys only in the window in production.** If duplicate-key bugs reach production, check the whole list there too.
-16. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.
+16. **K4, the marker.** A condition and a field may both be needed, as Svelte keeps a legacy field beside its condition. If tools disagree about reading the condition, use the field.
+17. **K9, no new primitives from libraries.** If the first partners all want one, the specification process is too slow and a plugin seam is needed.
+18. **K10, recruiting outsiders.** The gate depends on people who are not on the team. If none can be found, the gate cannot pass, and that is itself a finding about adoption.
+19. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.

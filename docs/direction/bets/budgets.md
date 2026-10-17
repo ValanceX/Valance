@@ -203,7 +203,7 @@ Reading it: parallelism and streaming compile always help, and most where latenc
 
 - **Document head:** `modulepreload` for the entry and an early streaming compile of the WebAssembly, written by `vlx build`.
 - **Bundle:** split by route, cut from the component tree declared in `main.ts` (the CLI notes already say "the tree is the thing a split would be cut from"); import Effect through subpaths and leave out `fast-check` (the measured 12.4 KB brotli); minify the Desktop engine unless a measurement shows no start-up benefit; remove the raised warning limits.
-- **After start:** a prefetch step that begins when `start` resolves.
+- **After start:** a prefetch step that begins when `start` resolves. A program loaded after `start` needs a late-admission step, which does not exist: the lazy-loading tracer (`examples/tracer-web/test/lazy-loading.test.ts`) records forcing a loaded program into `views` after `start` as "unsupported, out-of-contract behavior". Its design splits the work in three: loading is an ordinary application command, admission checks the program's declared events against the command table (`declaredEvents`, the existing start-time D ⊆ B check), and use is the render. Route splitting has to build admission.
 - **Authoring:** zero configuration by default (a component the first route does not use is after-start). An author may mark a component to load on interaction or visibility; progressive disclosure keeps the common path free of it.
 - **Measured, and not worth it:** [Bet 14](resumable-start.md) checked whether hydrating from the render tree could take the WebAssembly out of the start-up set. With the module compiled in parallel, `init` takes 1 to 10 ms, so the WebAssembly stays in the start-up set. The cost that matters is the script arriving and the application starting, and Bet 14 adds the metrics to track it.
 
@@ -239,6 +239,7 @@ None to the language or the formats. The fixes for the known reds change import 
 ## Open questions for stage 3
 
 - **Which application is the reference.** The counter is the floor. A second reference, the `docs-app` example, would show how cost grows with a real application.
+- **Late admission** of a program loaded after `start` (see section 8). It is a prerequisite for route splitting.
 - **Where history is stored**: dated files in the repository, or build artifacts.
 - **Memory** is not measured. The Desktop engine's 79 MB comes from an earlier note, and units (Bet 8) will add per-instance memory.
 - **Real networks.** All timings are localhost. A throttled-network profile is worth adding when first paint becomes a gate.

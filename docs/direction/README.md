@@ -16,7 +16,7 @@ An honest map. Tiers are the ones in [API stability](../stability.md); stages ar
 | Size, speed and installing | Measured on 2026-10-17 ([baseline](baselines/2026-10-17.md)): a counter application transfers about 334 KB (brotli) and shows in about 0.2 s locally, and 83 percent of its JavaScript is Effect. The newest published versions of `mesh-runtime` and `port-web` are not accepted by `valance` 0.13.0, so a plain install gets older ones | Fine for an application. Worth knowing before choosing it for a very small page |
 | Loading | One entry chunk, and the WebAssembly runtime is fetched after the JavaScript has run. No code splitting, no preloading. The build raises the bundler's chunk-size warning limit to 1,500 kB instead of reporting size ([Bet 3](bets/budgets.md#8-the-start-up-path-and-the-deferred-set)) | Works, and starts slower and heavier than it needs to |
 | Input during start-up | A tap or click made after the page paints and before the application is ready is lost. Measured on a server-rendered counter at 4x CPU: 7 of 9 early taps did nothing, in a window of about a second ([Bet 14](bets/resumable-start.md)) | Matters on slow devices. A fix is designed and prototyped |
-| Components you can share as a package | **Not built.** A package cannot yet contribute templates or tags | You cannot publish a component library yet |
+| Components you can share as a package | **Partly works** (tested 2026-10-17, [Bet 12](bets/reference-library.md)). A package that ships its templates as TypeScript source and a `component()` contract is found, type-checked and built for both targets. A package shipped as compiled JavaScript, the normal way, fails to load; there is no way to declare which targets a library supports, and CSS arrives only by a side-effect import. A package still cannot add new primitives | You can try a library as source today. You cannot publish one the usual way yet |
 | Styling and themes | **No contract.** The web uses plain CSS hooks on some tags; the Desktop has no styling ([Bet 6](bets/style-contract.md)) | You cannot publish a style library yet |
 | Accessibility | Roles, names and states are mapped per primitive on both targets. There is no shared model, and no check that a control has a name | Do not assume a primitive is accessible because it compiles |
 | Behavior that needs its own state (tabs, menus, dialogs) | **Not designed.** State is application-level only | Such components would leak state into your application |
@@ -85,7 +85,7 @@ A bet can also be **killed**. A killed bet stays in the index with the reason, b
 |---|---|---|
 | **Spec Gate** | Today's tables regenerate from the primitive specifications with no test changes, and the web/Desktop parity report is green or waived per primitive with a reason | New primitives are written only as specifications |
 | **Language Gate** | Variant-capable types and typed template values are at stage 4, with conformance vectors in Rust and JavaScript | Component libraries can be typed |
-| **Reference Gate** | A component library and a theme, built outside these repositories using only public seams, work on both targets; budgets are met; a screen-reader run is recorded | We invite outside authors and freeze edition 1 |
+| **Reference Gate** | A component library and a theme, built outside these repositories using only public seams, work on both targets, and a third, minimal target accepts the portable part; budgets are met. (A screen-reader run joins this list when accessibility work resumes; it is deferred by direction) | We invite outside authors and freeze edition 1 |
 | **Edition Gate** | The edition field, the evolution policy and deprecation diagnostics exist | The first stable promise |
 
 ## What we will not do
@@ -104,7 +104,7 @@ Written down because a small foundation stays small by refusing things.
 ## How to take part
 
 - **Try it and tell us what hurt.** Open an [issue](https://github.com/ValanceX/Valance/issues) with what you tried, what you expected, and what happened. The repositories have none yet, so yours will be the first. A friction report is more useful to us than a feature request.
-- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first eight briefs, with the reason for each and what it would cost to undo.
+- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first nine briefs, with the reason for each and what it would cost to undo.
 - **Read the evidence.** [Prior art](prior-art.md) lists what other frameworks decided and why, with the quality of each source. If we have a source wrong, say so.
 - **Build a library before the gate.** If you want to be one of the first outside authors, say so in an issue. The Reference Gate needs people who will build against a surface that is known to be unstable, and their friction becomes our evidence.
 
