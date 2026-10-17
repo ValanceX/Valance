@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Stage** | 2 Design, accepted by delegation. The web behavior under "Why" was measured in Chromium 141 on 2026-10-17. The Desktop side is **not** measured: the egui documentation could not be fetched, so every claim about egui's overlays is marked and left to the experiment. The decisions are in [decisions](../decisions.md) (I1 to I10); the maintainer has not reviewed the text |
+| **Stage** | 2 Design, accepted by delegation. The web behavior under "Why" was measured in Chromium 141 on 2026-10-17. The Desktop side was not run; egui 0.31.1's `Modal` was read from its source (see "The Desktop has no layers"). The decisions are in [decisions](../decisions.md) (I1 to I10); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
 | **Depends on** | [Bet 7](accessibility.md) (names, roles and the keyboard tables). [Bet 8](state-units.md) (who holds an overlay's open state). [Bet 1](primitive-specification.md) (the controlled-slot kinds). [Bet 6](style-contract.md) (states as hooks) |
@@ -30,19 +30,19 @@ The Web PORT keeps the keyed DOM in the new order by touching only nodes that ar
 | Operation | After two animation frames |
 |---|---|
 | `insertBefore` of the row holding the focused input (what the PORT does) | Focus lost: the active element is the page body, one `blur` fired. The typed value stays; the selection range stays |
-| `moveBefore` (present in this build) | Focus kept, no `blur`. The selection range was reset to 0 to 0 in this build |
+| `moveBefore` (present in this build) | `activeElement` stays on the input and no `blur` fires, **but the selection resets to 0,0 and typing inserts nothing** (no `beforeinput` or `input` event) until the selection is set again or the field is re-focused. Re-run twice with the same result (Chromium 141) |
 | The focused row is removed | The active element is the page body |
 
-The PORT already preserves a focused field's selection when it writes a controlled value (`port.ts`, a comment saying so), so someone has met this class of bug. The reorder case is not covered. A person typing in a row of a list that re-sorts loses their place.
+The PORT already preserves a focused field's selection when it writes a controlled value (`port.ts`, a comment saying so), so someone has met this class of bug. The reorder case is not covered. A person typing in a row that the PORT has to move loses their place (the PORT moves only out-of-place rows, `port.ts:538-545`; this was confirmed on raw DOM with `insertBefore`, and the real PORT was not driven).
 
 ### Layers: what the web gives for free, and where it stops (measured)
 
 | Behavior | Result in Chromium 141 |
 |---|---|
-| `dialog.showModal()` | Focus moves inside; Tab cycles within the dialog; the background cannot take focus; Escape closes it and **focus returns to the opener** |
+| `dialog.showModal()` | Focus moves inside; Tab wraps within the dialog but passes through the browser's own UI once per cycle (the active element was the page body between the last and first controls), so a PORT needs its own trap to meet the APG text; the background cannot take focus; Escape closes it and **focus returns to the opener** |
 | A `dialog` with the `open` attribute (what a server would write) | **Not modal**: `:modal` does not match and the background is focusable |
 | `close()` then `showModal()` on that server-rendered dialog (an upgrade) | Modal, focus moves inside |
-| `cancel` event with `preventDefault()` (a controlled dialog refusing Escape) | The first Escape is refused. **A second Escape in a row closes it anyway**; the second `cancel` is not cancelable |
+| `cancel` event with `preventDefault()` (a controlled dialog refusing Escape) | The first Escape is refused. **A second close request with no user activation between them closes it anyway**; that `cancel` is not cancelable. A click or typing in between re-arms the refusal; waiting a second does not. (The platform's close-watcher rule against trapping the user; reproduced twice.) |
 | Two nested modal dialogs, one Escape | Only the inner closes; focus returns to the outer dialog's control |
 | `popover` (auto state) | Opens from its invoker; an outside click closes it (light dismiss) |
 | `popover` with an `open` attribute | **Not open**: it has no initial open state in markup |
@@ -50,11 +50,11 @@ The PORT already preserves a focused field's selection when it writes a controll
 | `:focus-visible` | False after a mouse click; true after Tab |
 | CSS anchor positioning | Supported in this build |
 
-Three consequences. A server-rendered open overlay cannot be expressed as an attribute and needs a method call after hydration. A "controlled" modal cannot be forced to stay open: the browser decides the second Escape. And focus handling that the platform does for free on the web must be written by hand on the Desktop.
+Three consequences. A server-rendered open overlay cannot be expressed as an attribute and needs a method call after hydration. A "controlled" modal cannot be forced to stay open: the browser decides a repeated Escape. And focus handling that the platform does for free on the web must be written by hand on the Desktop.
 
 ### The Desktop has no layers
 
-`port-desktop` draws one window with egui 0.31 (`Cargo.lock`). A search of its source finds no popup, modal or area code, and `request_focus` appears only for text fields. [X2](../decisions.md) already says overlays on the Desktop are in-window layers only. What egui offers for modal behavior (I recall `Modal`, `Popup` and `Area`) I could not confirm: the documentation host was unreachable from this environment, so that is unverified. Focus trapping and restoration in egui is therefore unknown, and the experiment decides.
+`port-desktop` draws one window with egui 0.31 (`Cargo.lock`). A search of its source finds no popup, modal or area code, and `request_focus` appears only for text fields. [X2](../decisions.md) already says overlays on the Desktop are in-window layers only. What egui 0.31.1 offers, read from its source in the consistency pass: `Modal` exists (`containers/mod.rs` re-exports it); its backdrop blocks input behind it, focus is limited to the modal layer and above (`memory/mod.rs`), and `ModalResponse::should_close` is true on a backdrop click or on Escape for the topmost modal, with stacked modals supported. It has no code that restores focus on close, and no `Popup` type (that exists only on the main branch; 0.31.1 has `popup_below_widget`). So the PORT supplies the return of focus and the invoker. Whether Tab wraps inside a modal is not verified.
 
 ### Who is hurt
 
@@ -94,7 +94,7 @@ After applying patches, the PORT does this:
 1. Before the patch, remember the focused node's key (and, for a text field, its selection).
 2. After the patch, if that key still exists and the platform no longer has focus on it, focus it again and restore the selection.
 3. If the key is gone, focus goes to the **next sibling by key**, else the previous, else the nearest ancestor that is a focus scope (a dialog, a `main`, or the root). The default exists because a list row that deletes itself is the commonest case.
-4. Where the platform can move a node without losing focus (`moveBefore`, present in Chromium 141), the PORT uses it; elsewhere it restores by step 2.
+4. Where `moveBefore` exists the PORT may use it to avoid the `blur`, but it must always re-assert focus and selection afterwards: in Chromium 141 a moved field keeps `activeElement` yet stops accepting typing until its selection is set. It is never a way to skip step 2.
 
 This is a conformance requirement in the kit ([Bet 2](conformance-kit.md)): a program that reorders a list with the focus in a row must observe focus on the same row.
 
@@ -103,7 +103,7 @@ This is a conformance requirement in the kit ([Bet 2](conformance-kit.md)): a pr
 | Primitive | Meaning | Key props and events |
 |---|---|---|
 | `dialog` | A modal layer: inert behind it, focus inside, closed by Escape | `open` (controlled), `label` (required, [Bet 7](accessibility.md)), `initial` (a node reference to take focus; default the first focusable), event `dismiss` with a reason (`escape`, `outside`) |
-| `popover` | A non-modal layer anchored to a node, dismissed by an outside click or Escape | `open` (controlled), `anchor` (a node reference), `placement` (a closed set: `top`, `bottom`, `start`, `end`), `kind` (`auto` or `manual`), event `dismiss` |
+| `popover` | A non-modal layer anchored to a node. For `kind` `auto`, an outside click or Escape closes it and the platform reports it; a `manual` popover is never closed by the platform and only the application closes it (measured) | `open` (controlled), `anchor` (a node reference), `placement` (a closed set: `top`, `bottom`, `start`, `end`), `kind` (`auto` or `manual`), event `dismiss` |
 
 Both are **controlled**: the application (or a unit) holds `open`; the layer asks to close with `dismiss`; if the application does not set `open` to false, the layer stays open. This is the rule for fields, applied to layers.
 
@@ -113,13 +113,13 @@ Not in version 1: tooltips (hover content has accessibility problems of its own)
 
 - **Modal is declared only when both conditions hold** (APG): a `dialog` is always inert behind it and always draws a backdrop. There is no "modal without inert" setting.
 - **The browser may close a modal despite the application.** If a second Escape closes the native dialog, the PORT reports `dismiss` and then, if the application's `open` is still true, draws it again as modal. The person sees a flicker at worst and the contract holds.
-- **Server rendering.** An overlay open at server time is written as an open, non-modal `dialog`/`popover` so it paints; hydration upgrades it by closing and showing it as modal, which moves focus inside. A page with an overlay open at first paint therefore has one focus move at hydration. ([Bet 14](resumable-start.md)'s early-input shell does not capture input inside an overlay.)
-- **Return of focus.** When a layer closes, focus returns to the node that had it before the layer opened, by key. If that node is gone, the rule in section 2 applies; the browser's own behavior is not relied on, because with the invoker removed it was unreliable in the test.
+- **Server rendering.** An overlay open at server time is written as an open, non-modal `dialog`/`popover` so it paints; hydration upgrades it by closing and showing it as modal, which moves focus inside. A page with an overlay open at first paint therefore has one focus move at hydration. ([Bet 14](resumable-start.md) does not yet say how its early-input shell treats an overlay that is open at first paint.)
+- **Return of focus.** When a layer closes, focus returns to the node that had it before the layer opened, by key. If that node is gone, the rule in section 2 applies; the browser's own behavior is not relied on, because with the invoker removed the browser restores nothing: focus ends on the body after the browser's focus fix-up, and a read taken immediately can still show a control inside the closed dialog.
 - **Stacking** is tree order: later layers are on top, and Escape closes the top one only.
 
 ### 5. The Desktop
 
-The Desktop PORT draws a layer above the content in the same window, consumes pointer and key input that is not for the layer (the inert rule), cycles Tab inside it, and returns focus on close. It reports the same events. If egui's own modal support does the cycling, the PORT uses it; if not, the PORT keeps its own list of focusable controls per layer, which it needs anyway for the `observe` of [Bet 2](conformance-kit.md). The open question is how much egui gives.
+The Desktop PORT draws a layer above the content in the same window, consumes pointer and key input that is not for the layer (the inert rule), keeps Tab inside it, and returns focus on close. It reports the same events. If egui's own modal support does the cycling, the PORT uses it; if not, the PORT keeps its own list of focusable controls per layer, which it needs anyway for the `observe` of [Bet 2](conformance-kit.md). The open question is how much egui gives.
 
 ### 6. Who holds `open`
 
@@ -146,14 +146,14 @@ An application that cares about the layer (a confirm dialog) holds it in NEXUS s
 ## Success
 
 - A keyed reorder with focus in a moved row keeps focus on the web and the Desktop; the kit checks it.
-- The APG modal dialog behavior passes as generated vectors on both targets: cycle, Escape, focus in and focus return.
-- A controlled dialog whose application ignores `dismiss` stays open on both targets, including after a second Escape on the web.
+- The APG modal dialog behavior passes as generated vectors on both targets: Tab wrapping (with the PORT's trap on the web), Escape, focus in and focus return.
+- A controlled dialog whose application ignores `dismiss` stays open on both targets, including after a repeated Escape on the web.
 - The reference library builds a disclosure, a dialog and a popover-based menu with no private seam ([Bet 12](reference-library.md)).
 - The focus step adds under 1 ms to a 1,000-row patch.
 
 ## Kill
 
-- If `moveBefore` loses the selection in released browsers, restore it by step 2 and treat `moveBefore` as an optimization only.
+- If `moveBefore` keeps breaking typing in released browsers, drop it and use `insertBefore` plus step 2.
 - If egui cannot support an inert layer without large code, draw the layer as a second `egui` area over a full-window input blocker and document the limits.
 - If server-rendered overlays cause visible focus jumps, require overlays to start closed in server output.
 - If the platform's native top layer is unsupported where we ship, fall back to a positioned element with `inert` on the rest of the page.
@@ -167,8 +167,9 @@ An application that cares about the layer (a confirm dialog) holds it in NEXUS s
 ## Open questions for stage 3
 
 - **Anchor positioning and fallback.** CSS anchor positioning is supported in the one build measured; the browsers we promise are not yet named. The Desktop positions by its own rules.
-- **Selection after `moveBefore`.** Whether the reset to 0 is a build quirk.
+- **Typing after `moveBefore`.** Whether the dead input after a move is a Chromium 141 bug or intended; other engines were not tried.
 - **Scroll locking** behind a modal.
 - **Touch**: pressed and hover on devices that report both.
 - **Live regions** for announcements ([Bet 7](accessibility.md)).
+- **A host request to focus a node by key** (needed by [Bet 11](forms.md) to focus the first invalid field). Section 2 restores focus after a patch but gives the application no way to ask for it; the likely shape is a call on the PORT, not a command.
 - **Tooltips and menus** after the keyboard tables exist.

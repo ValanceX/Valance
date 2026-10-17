@@ -5,7 +5,7 @@
 | **Stage** | 2 Design, accepted by delegation. What the schema carries, and what the manifest drops, was measured on 2026-10-17 with Effect 3.10.19 (the repositories declare `^3.10.0`) and read in `web-manifest.ts`. The decisions are in [decisions](../decisions.md) (F1 to F10); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
-| **Depends on** | [Bet 7](accessibility.md) (names, `invalid`, `describedby` as references). [Bet 8](state-units.md) (draft state). [Bet 9](interaction-state.md) (focus on the first invalid field). [Bet 4](variant-types.md) (the closed `enum` kind) |
+| **Depends on** | [Bet 7](accessibility.md) (names, `invalid`, `describedby` as references). [Bet 8](state-units.md) (draft state). [Bet 9](interaction-state.md) (focus on the first invalid field, which needs a host request to focus a node by key that Bet 9 does not yet design). [Bet 4](variant-types.md) (the closed `enum` kind) |
 
 ## Question
 
@@ -34,11 +34,11 @@ One decode with `errors: "all"` returns one issue per failing field, with a path
 
 ### What the manifest drops (read in the source)
 
-`typeOf` in `web-manifest.ts` maps a `Refinement` to its underlying type (`return typeOf(ast.from)`), so **every constraint is lost** on the way to the MESH type. A union of string literals becomes plain `string`: the closed set is lost too ([Bet 4](variant-types.md)'s `enum` kind recovers it). A template can therefore not see that a field has a maximum, and does not need to: the host holds the schema.
+`typeOf` in `web-manifest.ts` maps a `Refinement` to its underlying type (`return typeOf(ast.from, path)`), so **every constraint is lost** on the way to the MESH type. A union of string literals becomes plain `string`: the closed set is lost too ([Bet 4](variant-types.md)'s `enum` kind recovers it). A template can therefore not see that a field has a maximum, and does not need to: the host holds the schema.
 
 ### What the standards offer
 
-[Standard Schema](https://raw.githubusercontent.com/standard-schema/standard-schema/main/packages/spec/README.md) is "a set of interfaces that standardize the provision and consumption of shared functionality in the TypeScript ecosystem": a `"~standard"` property whose `validate` returns either a value or `issues` with a message and a path, and may be asynchronous. Effect 3.10.19 has no `standardSchemaV1` (the function is absent in this version; I did not check later ones), so for now Effect's own `ParseResult` is the source.
+[Standard Schema](https://raw.githubusercontent.com/standard-schema/standard-schema/main/packages/spec/README.md) is "a set of interfaces that standardize the provision and consumption of shared functionality in the TypeScript ecosystem": a `"~standard"` property whose `validate` returns either a value or `issues` with a message and a path, and may be asynchronous. `Schema.standardSchemaV1` exists from Effect 3.13.0 (absent in 3.12.12); the repositories' lockfile resolves 3.22.2, so it is available there today. Effect 4.0.5 (npm `latest`) renames it `toStandardSchemaV1`. The measurements below were taken on 3.10.19; on 3.22.2 the issue counts match, and an issue's tag reads `Refinement` where 3.10.19 printed `Type`.
 
 ### Who is hurt
 
@@ -52,10 +52,10 @@ Reliability: **P** primary source read through a fetch agent; **M** measured in 
 
 | Who | What they do and why | Lesson here |
 |---|---|---|
-| Angular forms (**P**, [validation](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/forms/form-validation.md), [reactive](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/forms/reactive-forms.md)) | Each control has `touched` or `untouched`, `dirty` or `pristine`, `valid`, `invalid` or `pending`, and the form has `submitted`. The guide's templates show errors only if the control is invalid and "either `dirty` or `touched`". `markAllAsTouched()` before submit. Async validators run "only if the synchronous validation is successful", and put the control in `pending`. `updateOn: 'blur'` or `'submit'` delays validation | The set of per-field states, and the rule: show an error only after the person has interacted |
-| Phoenix LiveView (**P**, [`phoenix_component.ex`](https://raw.githubusercontent.com/phoenixframework/phoenix_live_view/main/lib/phoenix_component.ex); the file was truncated and the relevant text came from a summary, so verify before quoting) | `used_input?`: "Used inputs are only those inputs that have been focused, interacted with, or submitted by the client." Changeset errors are shown only when the changeset's action is set | The same rule from a server-first framework, and errors that come back from the server are keyed to fields |
+| Angular forms (**P**, [validation](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/forms/form-validation.md), [reactive](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/forms/reactive-forms.md)) | Each control has `touched` or `untouched`, `dirty` or `pristine`, `valid`, `invalid` or `pending`, and the form has `submitted`. The guide's templates show errors only if the control is invalid and "either `dirty` or `touched`". `markAllAsTouched()` shows errors across the whole form. Async validators run "only if the synchronous validation is successful", and put the control in `pending`. `updateOn: 'blur'` or `'submit'` delays validation | The set of per-field states, and the rule: show an error only after the person has interacted |
+| Phoenix LiveView (**P**, [`phoenix_component.ex`](https://raw.githubusercontent.com/phoenixframework/phoenix_live_view/main/lib/phoenix_component.ex), read in full in the consistency pass) | `used_input?`: "Used inputs are only those inputs that have been focused, interacted with, or submitted by the client." Changeset errors are shown only when the changeset's action is set | The same rule from a server-first framework, and errors that come back from the server are keyed to fields |
 | Standard Schema (**P**, link above) | One interface for validators; issues with message and path; sync or async | The shape of our error model; do not invent a third |
-| HTML constraint validation (**S**) | Attributes such as `required`, `minlength`, `pattern`; browsers show their own messages | Not read: the MDN page was not found. Native constraints are a possible web realization of the same facts, not the source of them |
+| HTML constraint validation (**P**, MDN's `constraint_validation` guide, from its GitHub source) | Attributes such as `required`, `minlength`, `pattern`; browsers show their own messages. `minlength` and `maxlength` are checked only for user input, not for values set by script; `:user-invalid` is the browser's "after interaction" state | Native constraints skip values the PORT writes programmatically. Native constraints are a possible web realization of the same facts, not the source of them |
 | Effect Schema (**M**) | Table above | The source already exists |
 | React Hook Form, Formik, Zod resolvers (**S**) | Form libraries that take a schema as the validator | Not read. The schema-as-source idea is common; our difference is that the same schema is the command's boundary |
 
@@ -92,11 +92,11 @@ Each field holds, per instance:
 | `errors` | One message, folded from the issues for its path |
 | `pending` | Reserved for asynchronous checks (not in version 1) |
 
-The form adds `submitting`, `submitted` and the first invalid field. This state is held in a state unit keyed by the form's identity ([Bet 8](state-units.md)), so a form inside a list row has its own draft and a form that moves keeps it. An application that wants the draft in NEXUS state, for instance to survive navigation, passes its own `State` handle; the interface is the same.
+The form adds `submitting`, `submitted` and the first invalid field. **The draft lives in the application's `State` by default** (the form is given a handle), because the submit command has to read every draft, and Bet 8 sends "a command needs to read it" to application state. A state unit ([Bet 8](state-units.md)) holds the ephemeral part (`touched`, `pending`) so a form inside a list row keeps its own flags when the row moves.
 
 ### 3. When errors show
 
-The rule, taken from Angular's guide and Phoenix's `used_input?`:
+The rule is adapted from Angular's guide and Phoenix's `used_input?`, and is **stricter than both**: Angular shows an error once a control is dirty or touched (so after the first keystroke), and Phoenix once an input has been focused or interacted with. We show one only after blur or a submit attempt, to avoid an error on the first keystroke. This is our choice, not a copy:
 
 1. Validation runs on every change, on the field alone (its encoded side) and on the whole schema for rules across fields.
 2. An error is **shown** for a field when it is invalid **and** the field is touched (blurred once) or a submit was attempted.
@@ -118,7 +118,7 @@ The submit command may fail with a typed `FieldErrors` (a map from path to messa
 | Text | `textfield` (with `kind` where the target has it) |
 | Number | `textfield` holding text, decoded on submit |
 | Boolean | `checkbox` |
-| One of a closed set | `radiogroup` (the web gains it in [Bet 7](accessibility.md)) |
+| One of a closed set | `radiogroup` of `radio`s (the web gains both in [Bet 7](accessibility.md)) |
 
 `Form.fields(form)` returns the descriptors in schema order. A scaffold (`vlx add form`) may generate a template from them, once. The library ([Bet 12](reference-library.md)) ships a `labeled-field` that takes a descriptor and renders the label, the control, the hint and the error with `invalid` and `describedby` ([Bet 7](accessibility.md)); the core ships no layout.
 
@@ -131,10 +131,10 @@ The submit command may fail with a typed `FieldErrors` (a map from path to messa
 | Option | Why not |
 |---|---|
 | Copy the constraints into the MESH type system | Doubles the rules and drifts. The template does not need to see them |
-| Native constraint attributes as the validator | Web only, English messages from the browser, and the Desktop has none. They can be a realization of the same facts later |
+| Native constraint attributes as the validator | Web only; messages come from the browser and cannot be translated except through `setCustomValidity`; the Desktop has none. They can be a realization of the same facts later |
 | A `form` primitive | Nothing about a form is target-specific. It is a model plus ordinary primitives |
-| Show errors on every change | The first keystroke is an error. Both frameworks above avoid it |
-| Standard Schema as the interface now | Effect 3.10.19 does not provide it. Adopt when Effect does; the folded issue shape is the same |
+| Show errors on every change | The first keystroke is an error. Angular's guide shows one once a control is dirty or touched, and Phoenix once an input has been interacted with, so neither is as strict as ours |
+| Standard Schema as the interface now | Available from Effect 3.13.0 and in the lockfile's 3.22.2, but it adds an indirection for no gain over `ParseResult`, which the form needs for annotations anyway. Adopt for interop; the folded issue shape is the same |
 | Validate only on submit | A person learns of the mistake after finishing; the first invalid field is far away |
 
 ## Experiment
@@ -172,5 +172,6 @@ The submit command may fail with a typed `FieldErrors` (a map from path to messa
 - **Cross-field rules** (password confirmation): where the error is shown, and on which field.
 - **Files and other inputs** that the primitives lack.
 - **Autosave and drafts** that survive a reload.
+- **Two mechanisms no bet designs yet:** a host request to focus a node by key (for the first invalid field), and a live-region primitive or command for the form-level message. Both are open questions in Bets 7 and 9; the success line on focus and announcement holds only once they exist.
 - **Translation** of messages and labels.
-- **Standard Schema** adoption when Effect provides it.
+- **Standard Schema** adoption for interop, with the version floor (`effect >= 3.13`).

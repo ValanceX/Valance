@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Stage** | 2 Design, accepted by delegation. Resumed on the maintainer's direction after being deferred. The gaps under "Why" were measured on 2026-10-17 on the checkouts and in Chromium. The decisions are in [decisions](../decisions.md) (A1 to A10); the maintainer has not reviewed the text |
+| **Stage** | 2 Design, accepted by delegation. Resumed on the maintainer's direction after being deferred. The gaps under "Why" were measured on 2026-10-17 on the checkouts and in Chromium, and re-checked in the consistency pass. The decisions are in [decisions](../decisions.md) (A1 to A10); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
 | **Depends on** | [Bet 1](primitive-specification.md) (the specification carries role, name rule and keyboard table). [Bet 4](variant-types.md) (a new `ref` kind). [Bet 2](conformance-kit.md) (`observe` gains roles and names) |
@@ -21,10 +21,10 @@ Both targets map accessibility per primitive, by hand, with no shared model.
 |---|---|---|
 | How a name is supplied | `label` becomes `aria-label` | `label` goes to AccessKit's label |
 | Is the name required? | **No.** `checkbox` and `textfield` list `label` as optional | **No.** `required: false` in `vocabulary.json` |
-| `invalid` and `describedby` | **Not in the vocabulary** | Present on `checkbox`, `textfield`, `radiogroup`, and tested |
+| `invalid` and `describedby` | **Not in the vocabulary** | Present on `checkbox`, `textfield` and `radiogroup`; tested on `textfield` and `checkbox` |
 | Radio group, table | Not in the vocabulary | Present |
-| Roles | Implied by the element (`input`, `button`, `h2`) | Chosen per widget in `view.rs` |
-| Keyboard | The browser's own | egui's, with a `keyboard.rs` test |
+| Roles | Implied by the element (`input`, `button`, `h2`) | Mostly egui's own per-widget roles; `view.rs` sets them itself only for `radiogroup` and the table family |
+| Keyboard | The browser's own | egui's. `keyboard.rs` tests only text-field submit and cancel and back/forward navigation |
 
 Chromium's accessibility tree for the elements the web table produces (read through the browser's debugging protocol, not a test library's own computation):
 
@@ -40,7 +40,7 @@ Chromium's accessibility tree for the elements the web table produces (read thro
 | `image` with `alt=""` | not exposed (decorative, correctly) |
 | Field with `aria-invalid` and `aria-describedby` | `textbox "Name"`, description "Enter your name" |
 
-So **an unnamed checkbox, textfield, button, link or image compiles on both targets and reaches a screen reader as an unlabeled control.** The mechanism for the right result (an invalid field described by its error text) exists on the Desktop and works in the browser, but the web vocabulary cannot express it.
+So **an unnamed checkbox, textfield, button or link compiles on both targets and reaches a screen reader as an unlabeled control.** An `image` must write `alt` (web) or `label` (Desktop) but may write it empty, and an empty `alt` is a decorative image, so the gap there is a missing choice, not a missing prop. The mechanism for the right result (an invalid field described by its error text) exists on the Desktop and works in the browser, but the web vocabulary cannot express it.
 
 One thing I checked and found *not* to be a bug: Playwright's role-and-level lookup reported the `heading` primitive's `level` as ignored on a native `h2`, but the browser's own tree gives the `aria-level` value. The library's computation differs from the browser's; the browser is the authority.
 
@@ -65,8 +65,8 @@ Reliability: **P** primary source read through a fetch agent; **S** from general
 |---|---|---|
 | WAI-ARIA Authoring Practices (**P**, [read-me-first](https://raw.githubusercontent.com/w3c/aria-practices/main/content/practices/read-me-first/read-me-first-practice.html)) | "No ARIA is better than Bad ARIA." "A role is a promise" that the author provides the keyboard behavior. "ARIA roles do not cause browsers to provide keyboard behaviors or styling" | Authors never write roles. The primitive owns the role and its keys |
 | APG patterns (**P**, [radio group](https://raw.githubusercontent.com/w3c/aria-practices/main/content/patterns/radio/radio-group-pattern.html), [tabs](https://raw.githubusercontent.com/w3c/aria-practices/main/content/patterns/tabs/tabs-pattern.html), [disclosure](https://raw.githubusercontent.com/w3c/aria-practices/main/content/patterns/disclosure/disclosure-pattern.html)) | Each pattern lists keys, roles and states and how the name is supplied. Radio: arrow keys move and check, wrapping; the checked button takes focus on entry. Tabs: Left and Right move, Home and End optional, `aria-selected`, `aria-controls`, the panel named by its tab. Disclosure: Enter and Space toggle, `aria-expanded` | The keyboard table can be data. The three patterns are the first three tables |
-| Svelte compiler (**P**, [warnings list](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/98-reference/.generated/compile-warnings.md)) | 42 `a11y_*` entries, including `a11y_missing_attribute` (`<img>` alt and others), `a11y_consider_explicit_label` ("Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute"), `a11y_label_has_associated_control`, `a11y_click_events_have_key_events`. The page does not state whether they are warnings or errors | A framework has checked names in templates for years. Ours can go further because the manifest says which props are names, so it is not a list of tag rules |
-| eslint-plugin-jsx-a11y (**P**, [README](https://raw.githubusercontent.com/jsx-eslint/eslint-plugin-jsx-a11y/main/README.md)) | 39 rules, `recommended` and `strict` presets. "Because it only catches errors in static code, use it in combination with @axe-core/react"; "always test your apps with assistive technology" | Static checks have a ceiling. Say what ours cannot check |
+| Svelte compiler (**P**, [warnings list](https://raw.githubusercontent.com/sveltejs/svelte/main/documentation/docs/98-reference/.generated/compile-warnings.md)) | 42 `a11y_*` compile warnings (suppressed per block with a `svelte-ignore` comment, per the Svelte syntax docs), including `a11y_missing_attribute` (`<img>` alt and others), `a11y_consider_explicit_label` ("Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute"), `a11y_label_has_associated_control`, `a11y_click_events_have_key_events`. Severity: warnings | A framework has checked names in templates for years. Ours can go further because the manifest says which props are names, so it is not a list of tag rules |
+| eslint-plugin-jsx-a11y (**P**, [README](https://raw.githubusercontent.com/jsx-eslint/eslint-plugin-jsx-a11y/main/README.md)) | 39 listed (36 not deprecated), `recommended` and `strict` presets. "Because it only catches errors in static code, use it in combination with @axe-core/react"; "always test your apps with assistive technology" | Static checks have a ceiling. Say what ours cannot check |
 | AccessKit (**P**, [README](https://raw.githubusercontent.com/AccessKit/accesskit/main/README.md)) | A toolkit supplies a tree: each node has an integer ID, a role and optional attributes; adapters for Windows, macOS, Linux, Android and iOS; web "Planned". No stage label; adapters "don't yet support all types of UI elements or all of the properties in the schema" | The Desktop already feeds it. The role set we specify must stay inside what it supports |
 | Flutter on the web (**S**) | Semantics are off by default because of "noticeable performance costs" | Keep semantics always on and budget the cost ([Bet 3](budgets.md)) |
 | React `useId` (**P**, listed in [prior art](../prior-art.md)) | A counter cannot give stable ids under streaming | Do not make authors write ids to relate nodes |
@@ -161,7 +161,7 @@ Said once, here, so nobody reads "compiles" as "accessible": reading order, focu
 
 - No template in the four repositories or the reference library can produce a nameless control, by the compiler.
 - The `unnamed-control` check has no false positive on the true examples, and every false negative is a run-time case that the development check catches.
-- Both targets pass the generated keyboard vectors for the six patterns.
+- Both targets pass the generated keyboard vectors for the four patterns in the experiment (button, checkbox, textfield, radiogroup); tabs and disclosure follow when their primitives land.
 - `observe` reports the same role and name for the same tree on both targets for all portable-core primitives.
 - The screen-reader runs find no blocker in the reference build.
 
@@ -175,7 +175,7 @@ Said once, here, so nobody reads "compiles" as "accessible": reading order, focu
 ## Breaks (allowed in the free window)
 
 - `label` is required on `checkbox`, `textfield` and anything with `name.from: prop`; existing templates that omit it stop compiling.
-- The web vocabulary gains `invalid`, `describedby` and `radiogroup`.
+- The web vocabulary gains `invalid`, `describedby`, `radiogroup` and `radio` (the Desktop's `radiogroup` has no value or events of its own; its `radio` children carry them).
 - MESH gains a `ref` kind and two diagnostic codes (`unnamed-control`, `unknown-ref`).
 - `placeholder` stops counting as a name in documentation; the web PORT does not rely on it.
 
