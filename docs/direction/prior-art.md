@@ -13,7 +13,7 @@ What other projects decided, in their own words where we could read them, and wh
 | **S** | A secondary source: a search-result summary or article about the project. Treat the claim as a lead, not a fact |
 | **Repo** | This ecosystem's own record |
 
-Not read at all, because the hosts did not resolve from the sandbox: the Svelte blog, the Elm guide, Airbnb's own post, the React Native site (its docs source on GitHub was read instead), A2UI's site, MDN and web.dev, and w3.org (the authoring-practices source on GitHub was read instead). Nothing below relies on Elm's position on components. The exact current status of platform features such as cascade layers, popovers and anchor positioning should be checked on MDN and Baseline.
+Not read at all, because the hosts did not resolve from the sandbox: the Svelte blog, the Elm guide, Airbnb's own post, the React Native site (its docs source on GitHub was read instead), A2UI's site (its GitHub source was read instead), the MDN and web.dev sites (MDN's content was read from its GitHub source instead, which does not carry browser-support tables), and w3.org (the authoring-practices source on GitHub was read instead). docs.rs, tc39.es and the Elm, rr and Redux DevTools sites were also unreachable in the consistency pass. Nothing below relies on Elm's position on components. The exact current status of platform features such as cascade layers, popovers and anchor positioning should be checked on MDN and Baseline.
 
 ## Reactivity, identity and composition
 
@@ -88,6 +88,18 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 | Phoenix LiveView, [`phoenix_component.ex`](https://raw.githubusercontent.com/phoenixframework/phoenix_live_view/main/lib/phoenix_component.ex) | P | `used_input?`; changeset errors shown only when an action is set. The file was truncated and the relevant text came from a summary | The same rule; verify wording before quoting | 11 |
 | [Standard Schema](https://raw.githubusercontent.com/standard-schema/standard-schema/main/packages/spec/README.md) | P | One validate interface; issues with message and path; sync or async | The issue shape | 11 |
 | Effect Schema 3.10.19 | M | Constraints survive as annotations; `errors: "all"` gives one issue per failing field; no `standardSchemaV1` | The schema already holds what a form needs | 11 |
+
+## Budgets and loading
+
+| Source | Mark | The authors' reasoning | Lesson | Feeds |
+|---|---|---|---|---|
+| React Native, [architecture](https://raw.githubusercontent.com/facebook/react-native-website/main/website/architecture/landing-page.md) and [2024 announcement](https://raw.githubusercontent.com/facebook/react-native-website/main/website/blog/2024-10-23-the-new-architecture-is-here.mdx) | P | "in the old architecture, serializing function calls over the bridge quickly became a bottleneck, especially for frequent updates or large objects"; the redesign has run "since 2018"; the new architecture "may not immediately improve the performance or user experience" | A serialization boundary is a cost to budget | 3 |
+| TC39 Signals, [proposal](https://github.com/tc39/proposal-signals) | P* | Native signals faster only "by a small constant factor", "remains to be proven in code"; bundle-size effect not expected "to be very large" | Do not claim more than was measured | 3 |
+| webpack, [performance](https://raw.githubusercontent.com/webpack/webpack.js.org/main/src/content/configuration/performance.mdx) | P | `performance.hints` is `'warning'` in production and `false` in development | Size warnings belong to production builds | 3 |
+| Vite, [build options](https://raw.githubusercontent.com/vitejs/vite/main/docs/config/build-options.md) | P | `chunkSizeWarningLimit` 500 kB against the uncompressed size; build options "only applied to build" | The same split | 3 |
+| Angular, [build CLI docs](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/cli/build.md) and [builder schema](https://raw.githubusercontent.com/angular/angular-cli/main/packages/angular/build/src/builders/application/schema.json) | P | Budgets by type, with defaults of warn at 500 kB and error at 1 MB for `initial` (CLI docs; the schema carries types only) | A model for author-facing budgets | 3 |
+| Angular, [deferrable views](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/templates/defer.md) | P | `@defer` reduces the initial bundle by deferring code not needed for the first render | Deferral is a template-level decision | 3 |
+| MDN, from its GitHub source: modulepreload, `compileStreaming`, `requestIdleCallback` | P | "you can't just preload everything!"; `compileStreaming` needs the right MIME type; idle callbacks take a `timeout` | Load in parallel, with care | 3, 14 |
 
 ## Cross-process and wire formats
 
