@@ -47,3 +47,5 @@ Every brief answers the same questions, in this order, so they can be compared a
 ## Reading a stage honestly
 
 Stage 1 means the evidence is gathered and a design is drafted for review. It does not mean the design is accepted. A brief moves to stage 2 when a maintainer other than its author has read the rejected alternatives and the kill criteria and agreed they are the right ones. A maintainer may delegate that review; the delegation is recorded in [decisions](../decisions.md), and the text stays open to a veto.
+
+The order to build them in is the [implementation plan](../implementation.md).

@@ -1,0 +1,12 @@
+@layer reset, tokens, base, components, overrides;
+@layer tokens {
+  :root { --vlx-color-accent: oklch(62% 0.19 255); --vlx-space-2: 0.5rem; --vlx-radius: 4px; color-scheme: light dark; }
+}
+@layer components {
+  .btn { padding: var(--vlx-space-2) calc(var(--vlx-space-2) * 2); border-radius: var(--vlx-radius); background: var(--vlx-color-accent); }
+  .btn:focus-visible { outline: 2px solid currentcolor; outline-offset: 2px; }
+  .field:has(input:invalid) { border-color: red; }
+  @media (any-hover: hover) { .btn:hover { filter: brightness(1.1); } }
+  dialog::backdrop { overscroll-behavior: contain; }
+  vlx-column { display: flex; flex-direction: column; gap: var(--vlx-space-2); }
+}

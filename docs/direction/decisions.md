@@ -2,17 +2,22 @@
 
 The open questions in the [bet briefs](bets/README.md), decided. Each decision gives the choice, the reason from this ecosystem's own code and records, and what it costs to undo.
 
-*Decided 2026-10-17 under authority delegated by the maintainer, who sets direction and gives permission and leaves design and analysis to the author of these documents. The maintainer has not reviewed the text, so every decision here can be vetoed or changed. Briefs move to stage 2 (Design) on that basis, and the delegation is recorded here so the stage means what it says.*
+*Decided 2026-10-17 under authority delegated by the maintainer, who sets direction and gives permission and leaves design and analysis to the author of these documents. The maintainer has not reviewed the text in full, so every decision here can be vetoed or changed; one has been ruled on directly (K15, the name `ValanceX/Components`, on 2026-10-17). Briefs move to stage 2 (Design) on that basis, and the delegation is recorded here so the stage means what it says. The work to start from these decisions is in the [implementation plan](implementation.md); research added after the briefs was folded in on the same day, and the tenth fixed point (verify output against the specifications) overrides any earlier row that depended on third-party behavior.*
 
 ## In one minute
 
-Five decisions reach beyond these documents. If you read nothing else, read these.
+Ten decisions reach beyond these documents. If you read nothing else, read these.
 
 1. **The primitive specifications live in Valance**, as a data package. The Desktop PORT keeps owning what it can draw. (P1)
 2. **Web tags get ARIA's names** (`para` becomes `paragraph`, and so on), and the old names become diagnostics that name the replacement. (P7)
 3. **Interaction state (tabs, menus, dialogs) is a Valance concern, not NEXUS's**, and is built only when the reference library needs it. (X1)
 4. **Overlays are in-window layers.** The portable vocabulary has no OS windows. (X2)
 5. **`class` leaves the portable core.** It stays on the web as a marked escape hatch, and styling goes through a contract of tokens, states and variants. (S8)
+6. **We verify our output against the specifications, not third-party software.** Gates are spec verifiers (`vnu`, accessible-name and role computation, `stylelint`, the official token schema, an AccessKit invariant checker); screen readers and browsers gate nothing. (Fixed point 10, A15, Q14 to Q16)
+7. **Previews of generated UI are fresh renders**, not `update`s, and previews withhold an open `{#each}`. (G11)
+8. **The size baseline must come from `vlx build`.** The same counter is 79 KB of JavaScript (brotli) built with Vite, against 162 KB with esbuild, and has no `fast-check`. (W15, W16)
+9. **Libraries are marked by the `valance` export condition,** and overriding a library component uses a qualified id. (K11, K14)
+10. **`ValanceX/Components` is the reference build and pilot, not a CDK;** the behavior layer lives in the core. (K2, K15)
 
 ## Primitive specification ([Bet 1](bets/primitive-specification.md))
 
@@ -183,7 +188,7 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | K12 | How does a theme package declare itself? | **The same marker with `"kind": "theme"`, shipping tokens (DTCG) and recipes as source, and optionally a precompiled `styles.css`** | Radix Themes, Open Props and Shoelace precedents; compiled CSS alone would be web-only | Medium |
 | K13 | What does a library ship for editor support? | **Its `.mprx` source and an explicit `component()` contract; a compiled library also ships `.d.ts`.** `vlx init library` generates the author's `.valance/editor.json` | Measured: the real language server gave hover, completion and diagnostics at the use site from the consumer's generated files | Low |
 | K14 | How are library components overridden? | **Built-ins by bare name; library components by a qualified id (`acme-ui/disclosure`); a collision between libraries or with a built-in is a compile error unless the application resolves it** | Measured: collisions are silent and the first listed wins; MUI and Angular key by prefix or identity | Medium |
-| K15 | Where does the reference library live? | **`ValanceX/Components`, a multi-package repository.** Proposal: the maintainer decides the name | Svelte, Angular and Radix keep their official libraries in the framework's organization | Low |
+| K15 | Where does the reference library live? | **`ValanceX/Components`, a multi-package repository.** **Decided by the maintainer on 2026-10-17: the name stays.** It is the reference build and pilot, not a CDK | Svelte, Angular and Radix keep their official libraries in the framework's organization | Low |
 | K16 | How are outside authors involved? | **`ValanceX/ecosystem-ci`: one `suites/<name>.json` per library, a scheduled and on-demand workflow that installs the `next` prerelease and runs `vlx` build and tests; enrolment is a pull request by the library's author; broken suites are disabled with a reason.** Seeded with `Components` and `acme-ui`. Unstable surfaces carry a "Developer Preview" label | Vite, Vue and Svelte all do this (32, about 16 and 17 suites); Rust's crater needs no enrolment; React and Angular ask for opt-in testing against prereleases | Low |
 | K17 | How is "two outsiders" worded? | **At least two independent parties (neither employed by nor commit-listed in the four repositories), each publishing a working component or theme built from the public documentation, with every severity-3 friction fixed or recorded as a decision;** plus three enrolled ecosystem-CI suites passing for four consecutive weeks (our proposal, no precedent) | TC39's stage 4 asks for "two compatible implementations" (not stage 3, as I first wrote): two is the smallest number that separates "works for anyone" from "works for one person". No other project uses a number | Low |
 
@@ -359,7 +364,7 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 34. **U10, the template format.** Unverified that no outside consumers exist (npm's download API was blocked). Reading both v1 and v2 limits the cost.
 35. **A11 and A13, the role set and live regions.** The Desktop must set Heading, Paragraph, List and ListItem itself, and the role rules in the invariant checker are our own contract, not AccessKit's.
 36. **I11 and I12, features and the focus recipe.** The specification readings are mine; the web-platform-tests subset has not been run against the PORT's real usage.
-37. **K11, K14 and K15.** The marker and the override rule are measured; the repository name and the qualified-id syntax are proposals for the maintainer.
+37. **K11 and K14.** The marker and the override rule are measured; the qualified-id syntax is a proposal.
 38. **G11 and G12, previews.** Tested on one page and one repair algorithm; bodies of three or more elements and composites were not run.
 39. **W15, the Vite baseline.** The re-baselined numbers come from a single Vite build of a counter and one `docs-app`; every ceiling in W3 must be recomputed before it gates.
 40. **H9, the `replay` declaration.** Which real controls are non-idempotent needs real applications; if authors forget to set `"never"` on a destructive control, a destructive early tap replays.

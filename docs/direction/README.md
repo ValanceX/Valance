@@ -110,6 +110,7 @@ Written down because a small foundation stays small by refusing things.
 ## How to take part
 
 - **Try it and tell us what hurt.** Open an [issue](https://github.com/ValanceX/Valance/issues) with what you tried, what you expected, and what happened. The repositories have none yet, so yours will be the first. A friction report is more useful to us than a feature request.
+- **Start building.** The [implementation plan](implementation.md) turns the briefs into work packages with an acceptance check each, and [evidence](evidence/README.md) holds the scripts behind the measurements.
 - **See what was decided.** [Decisions](decisions.md) answers the open questions in the fifteen briefs, with the reason for each and what it would cost to undo.
 - **Read the evidence.** [Prior art](prior-art.md) lists what other frameworks decided and why, with the quality of each source. If we have a source wrong, say so.
 - **Build a library before the gate.** If you want to be one of the first outside authors, say so in an issue. The Reference Gate needs people who will build against a surface that is known to be unstable, and their friction becomes our evidence.

@@ -1,0 +1,5 @@
+import { compile } from "@valancex/mesh-compiler";
+const M = JSON.stringify({ version: 1, types: {}, components: { page: { props: {}, events: {}, commands: {}, scope: {} }, text: { props: {}, events: {}, commands: {}, scope: {} }, card: { props: {}, events: {}, commands: {}, scope: {} }, view: { props: {}, events: {}, commands: {}, scope: {} } } });
+const run = async (src) => { const t = performance.now(); const r = await compile({ source: src, path: "g.mprx", model: { manifest: M, path: "m.json", component: "view" } }); return [performance.now() - t, r.diagnostics.diagnostics.length]; };
+for (const n of [500, 1000, 2000, 4000, 8000]) { const [a] = await run("<page>" + "<text>x</text>".repeat(n) + "</page>"); const [b] = await run("<page>" + "<text>x</text>".repeat(n).replace(/<text>x<\/text>/g, "<card></card>") + "</page>"); console.log("siblings", n, a.toFixed(0), "ms", "bytes", n * 14); }
+for (const n of [250, 500, 1000, 2000]) { const [a] = await run("<card " + Array.from({ length: n }, (_, i) => `p${i}="x"`).join(" ") + "/>"); console.log("attributes", n, a.toFixed(0), "ms"); }

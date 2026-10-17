@@ -7,5 +7,5 @@
   "singleQuote": false,
   "trailingComma": "all",
   "endOfLine": "lf",
-  "ignorePatterns": ["**/dist/**", "**/dist-host/**", "**/.valance/**", "**/node_modules/**", "pnpm-lock.yaml", "**/*.mprx", "**/*.md", "**/*.json", "**/*.css", "examples/docs-verifier/**", "**/__screenshots__/**"]
+  "ignorePatterns": ["**/dist/**", "**/dist-host/**", "**/.valance/**", "**/node_modules/**", "pnpm-lock.yaml", "**/*.mprx", "**/*.md", "**/*.json", "**/*.css", "examples/docs-verifier/**", "docs/direction/evidence/**", "**/__screenshots__/**"]
 }

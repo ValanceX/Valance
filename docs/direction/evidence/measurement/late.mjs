@@ -1,0 +1,20 @@
+import * as rt from "@valancex/mesh-runtime"; import * as cp from "@valancex/mesh-compiler";
+const M=(c)=>JSON.stringify({version:1,types:{},components:{page:{props:{},events:{},commands:{},scope:{}},text:{props:{},events:{},commands:{},scope:{}},
+ A:{props:{},events:{},commands:{},scope:{n:{kind:"number"}}},B:{props:{},events:{},commands:{},scope:{n:{kind:"number"}}},...c}});
+const model=M({});
+const comp=async(name,src)=>(await cp.compile({source:src,path:name+".mprx",model:{manifest:model,path:"m.json",component:name}})).template;
+const A=JSON.stringify(await comp("A","<page><text>A {n}</text></page>")), B=JSON.stringify(await comp("B","<page><text>B {n}</text></page>"));
+const t=async(l,f)=>{try{const r=await f();console.log(l,"OK",JSON.stringify(r).slice(0,150))}catch(e){console.log(l,"ERR",e.code??e.name,String(e.message).slice(0,200))}};
+let r1; await t("render [A]",async()=>{r1=await rt.render({program:{root:"A",templates:[A]},model,snapshot:{n:1}});return r1.render.tree});
+await t("update same program",async()=>(await rt.update(r1.render,{n:2})).patches);
+await t("render [A,B] root A (fresh)",async()=>(await rt.render({program:{root:"A",templates:[A,B]},model,snapshot:{n:1}})).render.tree);
+let r2; await t("render [A,B] root B",async()=>{r2=await rt.render({program:{root:"B",templates:[A,B]},model,snapshot:{n:1}});return r2.render.tree});
+console.log("update signature keys:", Object.keys(rt));
+await t("update(prev[A], snapshot, program [A,B]) extra arg",async()=>{const r=await rt.update(r1.render,{n:3},{program:{root:"A",templates:[A,B]}});return r.patches});
+await t("update across programs (render of [A] given to a [A,B] render)",async()=>{ const r=await rt.update(r1.render,{n:3}); return r.render.tree});
+const k=(r)=>JSON.stringify(r.render.tree).match(/"key":"([^"]+)"/g).join(",");
+const a1=await rt.render({program:{root:"A",templates:[A]},model,snapshot:{n:1}}), a2=await rt.render({program:{root:"A",templates:[A]},model,snapshot:{n:1}}), a3=await rt.render({program:{root:"A",templates:[A,B]},model,snapshot:{n:1}});
+console.log("keys same program twice equal:",k(a1)===k(a2),"| [A] vs [A,B] equal:",k(a1)===k(a3));
+await t("declaredEvents [A,B]",()=>rt.declaredEvents({program:{root:"A",templates:[A,B]},model}));
+await t("render duplicate/garbage templates",()=>rt.render({program:{root:"A",templates:[A,"{}"]},model,snapshot:{n:1}}));
+await t("render root missing",()=>rt.render({program:{root:"Z",templates:[A,B]},model,snapshot:{n:1}}));

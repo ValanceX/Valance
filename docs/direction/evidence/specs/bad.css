@@ -1,0 +1,5 @@
+@layer components {
+  .btn { padding: 1x; colour: red; display: flexx; background: var(--a, ); margin: 0 auto auto auto auto; }
+  .b:focus-visble { color: red }
+  @media (any-hover hover) { a { color: blue } }
+}

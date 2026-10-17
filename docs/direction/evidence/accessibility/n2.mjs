@@ -1,0 +1,7 @@
+import { chromium } from "/opt/node-tools/node_modules/playwright-core/index.mjs";
+const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const p = await b.newPage(); const cdp = await p.context().newCDPSession(p); await cdp.send("Accessibility.enable");
+const g = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+const cases = { "checkbox label": `<input type=checkbox aria-label="Done">`, "checkbox none": `<input type=checkbox>`, "text placeholder": `<input placeholder="Your name">`, "text none": `<input>`, "button empty": `<button></button>`, "link empty": `<a href="/x"></a>`, "img no alt": `<img src="${g}">`, "img alt empty": `<img src="${g}" alt="">`, "invalid+described": `<input aria-label="Name" aria-invalid="true" aria-describedby="e"><span id=e>Enter your name</span>`, "vlx-column": `<vlx-column><span>a</span></vlx-column>` };
+for (const [k, h] of Object.entries(cases)) { await p.setContent(`<body>${h}</body>`); const { nodes } = await cdp.send("Accessibility.getFullAXTree"); const n = nodes.filter(x => !x.ignored && !["RootWebArea", "generic", "none"].includes(x.role?.value)); console.log(k.padEnd(20), n.map(x => `${x.role.value}:${JSON.stringify(x.name?.value ?? "")}${x.description?.value ? " desc=" + JSON.stringify(x.description.value) : ""}${(x.properties||[]).some(q=>q.name==="invalid")?" invalid":""}`).join(" ; ") || "(not exposed)"); }
+await b.close();
