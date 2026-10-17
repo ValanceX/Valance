@@ -23,7 +23,7 @@
 
 <hr>
 
-> Valance is pre-1.0. The API may change between minor releases; every change is listed in the [release notes](docs/releases/).
+> Valance is pre-1.0. The API may change between minor releases; every change is listed in the [release notes](docs/releases/). What is not built yet, and where it is going: [Direction](docs/direction/README.md).
 
 ## Start
 

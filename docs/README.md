@@ -28,6 +28,7 @@ The documentation has three levels. Start at the first and go down only when you
 | find the evidence behind a design decision | [Concept → evidence](understand/README.md#from-a-concept-to-its-evidence) |
 | install it, with the right package versions | [Installation](V1_CONTRACT.md#13-installation-and-package-surface) |
 | see what changed in a release | [`releases/`](releases/) |
+| know where VALANCE is heading, what is not built yet, and how to help | [Direction](direction/README.md) |
 
 ## Where the files are
 
@@ -37,5 +38,6 @@ The documentation has three levels. Start at the first and go down only when you
 | Use | `docs/use/README.md` (index) and `docs/V1_CONTRACT.md` (the reference itself) |
 | Understand | `docs/understand/README.md` (index), `docs/CONSTRAINTS.md`, `docs/FINDINGS.md` |
 | Releases | `docs/releases/*` |
+| Direction | `docs/direction/README.md` (the front page), `docs/direction/bets/*` (one open question each), `docs/direction/prior-art.md` (the evidence log). It describes where VALANCE is going, not what exists, so it sits beside the three levels |
 
 `V1_CONTRACT.md`, `CONSTRAINTS.md` and `FINDINGS.md` stay where they are: they are cited by name from the source, the tests and earlier releases.
