@@ -154,7 +154,7 @@ The portable property set is closed and small: spacing, size, color roles, type 
 | Alternative | Why not |
 |---|---|
 | Leave styling to the community, as React did | The evidence above. A silent core gets render-time insertion hacks and libraries tied to internals |
-| Ship a runtime style engine | Coupled to the renderer (Stitches), costly in render, and against fixed point 3 |
+| Ship a runtime style engine | Coupled to the renderer (Stitches), costly in render, and against fixed point 4 |
 | Utility classes as the core | Ties templates to class names, and does not carry to the Desktop |
 | Tokens only | A theme could not restyle structure or states, so it is not enough for a component library |
 

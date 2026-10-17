@@ -61,7 +61,7 @@ Reliability: **P** primary source read through a fetch agent; **S** from general
 
 ## Constraints
 
-- **Fixed point: the runtime has no state and no I/O.** The player must not need a clock or random source.
+- **The MESH runtime has no state and no I/O** (a runtime invariant in MESH's design, not one of the numbered fixed points). The player must not need a clock or random source.
 - **Fixed point 9, and the build-mode rule.** Recording costs bytes and time, so it exists in development builds only. A production build contains none of it.
 - **Logs hold user data.** A recorder that ships by default is a privacy risk.
 - **The PORT contract is unchanged.** Replay is a host feature; a PORT receives trees as ever.

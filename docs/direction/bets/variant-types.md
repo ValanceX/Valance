@@ -5,7 +5,7 @@
 | **Stage** | 2 Design, accepted by delegation. The design questions are decided in [decisions](../decisions.md) (T1 to T9); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
-| **Depends on** | Nothing. Bets 5, 6 and 12 depend on this one |
+| **Depends on** | Nothing. Bets 5, 6, 7, 8, 10, 11 and 12 depend on this one |
 
 ## Question
 

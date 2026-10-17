@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Stage** | 2 Design, accepted by delegation. The web behavior under "Why" was measured in Chromium 141 on 2026-10-17. The Desktop side is **not** measured: the egui documentation could not be fetched, so every claim about egui's overlays is marked and left to the experiment. The decisions are in [decisions](../decisions.md) (D1 to D10); the maintainer has not reviewed the text |
+| **Stage** | 2 Design, accepted by delegation. The web behavior under "Why" was measured in Chromium 141 on 2026-10-17. The Desktop side is **not** measured: the egui documentation could not be fetched, so every claim about egui's overlays is marked and left to the experiment. The decisions are in [decisions](../decisions.md) (I1 to I10); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
 | **Depends on** | [Bet 7](accessibility.md) (names, roles and the keyboard tables). [Bet 8](state-units.md) (who holds an overlay's open state). [Bet 1](primitive-specification.md) (the controlled-slot kinds). [Bet 6](style-contract.md) (states as hooks) |

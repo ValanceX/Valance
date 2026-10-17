@@ -73,7 +73,7 @@ Reliability: **P** primary source read through a fetch agent; **S** from general
 
 ## Constraints
 
-- **Fixed point 1: one declarative specification.** Roles, name rules and keys live in the primitive specification ([Bet 1](primitive-specification.md)); neither PORT keeps its own.
+- **Fixed points 4 and 5, and [Bet 1](primitive-specification.md).** Meaning belongs to the specification and realization to the PORT: roles, name rules and keys live in the primitive specification, and neither PORT keeps its own.
 - **The render tree carries no accessibility today** ("Accessibility semantics … (render-v1 carries none)"). The PORT derives them from the component name and its props. That stays true: the tree gets no `role` field.
 - **Fail closed** for what can be decided statically with no false positives; **advise** for the rest. Advice is not a build warning by default.
 - **Fixed point 9 and the build-mode rule.** Checks that need run-time values run in development builds only.

@@ -217,16 +217,16 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 
 | # | Question | Decision | Why | Undo |
 |---|---|---|---|---|
-| D1 | Are hover, pressed and focus-visible in the tree? | **No.** They are the target's presentation, exposed to themes as the state hooks. A target that cannot tell the input modality treats focus as visible | The tree would change on every pointer move. Measured: `:focus-visible` is false after a click and true after Tab | Low |
-| D2 | What happens to focus when the tree changes? | **Focus follows node identity.** After patching, the PORT restores focus and selection by key; if the node is gone, focus goes to the next sibling, else the previous, else the nearest focus scope | Measured: a keyed row that moves loses focus on the web (`insertBefore`), and the removed case lands on the body | Low |
-| D3 | How are rows moved? | **With `moveBefore` where it exists, and by restoring otherwise** | Present in Chromium 141 and kept focus (but reset the selection in that build) | Low |
-| D4 | What are the layer primitives? | **`dialog` (modal) and `popover` (non-modal, anchored)**, both with a controlled `open` and a `dismiss` event with a reason. Tooltips, menus, selects and comboboxes are not in version 1 | APG and the platform treat them separately. The rest need the keyboard tables first | Medium |
-| D5 | Is a modal ever "not inert"? | **No.** A `dialog` is always inert behind it and always draws a backdrop | APG: modal only when both conditions hold | Low |
-| D6 | Can the application refuse a dismissal? | **Yes, but the browser may close the native dialog anyway.** The PORT reports `dismiss`, then draws the dialog again if `open` is still true | Measured: a second Escape in a row closes a dialog whose `cancel` was prevented | Medium |
-| D7 | Server-rendered overlays? | **Written open and non-modal so they paint, then upgraded at hydration** (close, then show as modal). `dialog[open]` is not modal and `popover[open]` is not open | Measured. One focus move at hydration is the cost | Medium |
-| D8 | Who restores focus on close? | **The PORT, by key, to the node that had focus before the layer opened.** Not the browser | With the invoker removed the browser's result was unreliable in the test | Low |
-| D9 | Who holds `open`? | **The application (NEXUS state) or a state unit**, through the same controlled prop and event | A library's disclosure and popover need units; an application's confirm dialog needs state | Low |
-| D10 | The Desktop? | **A layer drawn above the content in the same window that consumes other input, cycles Tab inside and returns focus.** Whether egui's own support does the cycling is unknown and is the first experiment | X2. The egui documentation was unreachable, so its overlay behavior is unverified | Medium |
+| I1 | Are hover, pressed and focus-visible in the tree? | **No.** They are the target's presentation, exposed to themes as the state hooks. A target that cannot tell the input modality treats focus as visible | The tree would change on every pointer move. Measured: `:focus-visible` is false after a click and true after Tab | Low |
+| I2 | What happens to focus when the tree changes? | **Focus follows node identity.** After patching, the PORT restores focus and selection by key; if the node is gone, focus goes to the next sibling, else the previous, else the nearest focus scope | Measured: a keyed row that moves loses focus on the web (`insertBefore`), and the removed case lands on the body | Low |
+| I3 | How are rows moved? | **With `moveBefore` where it exists, and by restoring otherwise** | Present in Chromium 141 and kept focus (but reset the selection in that build) | Low |
+| I4 | What are the layer primitives? | **`dialog` (modal) and `popover` (non-modal, anchored)**, both with a controlled `open` and a `dismiss` event with a reason. Tooltips, menus, selects and comboboxes are not in version 1 | APG and the platform treat them separately. The rest need the keyboard tables first | Medium |
+| I5 | Is a modal ever "not inert"? | **No.** A `dialog` is always inert behind it and always draws a backdrop | APG: modal only when both conditions hold | Low |
+| I6 | Can the application refuse a dismissal? | **Yes, but the browser may close the native dialog anyway.** The PORT reports `dismiss`, then draws the dialog again if `open` is still true | Measured: a second Escape in a row closes a dialog whose `cancel` was prevented | Medium |
+| I7 | Server-rendered overlays? | **Written open and non-modal so they paint, then upgraded at hydration** (close, then show as modal). `dialog[open]` is not modal and `popover[open]` is not open | Measured. One focus move at hydration is the cost | Medium |
+| I8 | Who restores focus on close? | **The PORT, by key, to the node that had focus before the layer opened.** Not the browser | With the invoker removed the browser's result was unreliable in the test | Low |
+| I9 | Who holds `open`? | **The application (NEXUS state) or a state unit**, through the same controlled prop and event | A library's disclosure and popover need units; an application's confirm dialog needs state | Low |
+| I10 | The Desktop? | **A layer drawn above the content in the same window that consumes other input, cycles Tab inside and returns focus.** Whether egui's own support does the cycling is unknown and is the first experiment | X2. The egui documentation was unreachable, so its overlay behavior is unverified | Medium |
 
 ## Forms from the schema ([Bet 11](bets/forms.md))
 
@@ -285,8 +285,8 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 26. **G8, no new path for commands.** If consent for data-changing commands needs its own protocol, it becomes a separate bet.
 27. **A2 and A3, a required name.** If real templates need unnamed controls (a decorative checkbox), add a `decorative` form as for images rather than relaxing the rule.
 28. **A6, references instead of ids.** If a relation must reach into another component, references need to cross a component boundary, and the fallback is a key path scoped to the component.
-29. **D2, focus by key.** If the restore step is visible (a flicker, a scroll jump) on slow devices, restrict it to moves of the focused subtree.
-30. **D6, redrawing a refused dialog.** If the flicker is noticeable, accept the platform's close and report it, and make the application state follow.
-31. **D10, the Desktop layer.** Not measured. If egui cannot hold an inert layer cheaply, the Desktop ships `dialog` and `popover` later than the web and the Reference Gate waits.
+29. **I2, focus by key.** If the restore step is visible (a flicker, a scroll jump) on slow devices, restrict it to moves of the focused subtree.
+30. **I6, redrawing a refused dialog.** If the flicker is noticeable, accept the platform's close and report it, and make the application state follow.
+31. **I10, the Desktop layer.** Not measured. If egui cannot hold an inert layer cheaply, the Desktop ships `dialog` and `popover` later than the web and the Reference Gate waits.
 32. **F4, drafts in units.** If a draft must survive a remount or a reload, it moves to NEXUS state and units keep `touched` only.
 33. **F5, the timing rule.** Taken from two frameworks' guidance, not from a study. If testers miss errors, show them on blur only for fields that were changed.

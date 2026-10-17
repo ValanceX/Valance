@@ -62,7 +62,7 @@ Reliability: **P** primary source read through a fetch agent; **M** measured in 
 ## Constraints
 
 - **One source of validity.** The command's input schema decides. UI validation is a convenience and is never trusted; the command validates again.
-- **The runtime has no state** (fixed point). Field drafts are UI state, held in a unit ([Bet 8](state-units.md)) or the application's state.
+- **The MESH runtime has no state** (a runtime invariant in MESH's design). Field drafts are UI state, held in a unit ([Bet 8](state-units.md)) or the application's state.
 - **Controlled fields** ([Bet 1](primitive-specification.md)): the slot shows what the application last rendered.
 - **Accessibility** ([Bet 7](accessibility.md)): a field has a name, an invalid field says so, and its error is related by reference.
 - **No new tree concepts.** A form is composition of existing primitives and a host model, not a primitive.

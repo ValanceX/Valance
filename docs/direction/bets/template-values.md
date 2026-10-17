@@ -5,7 +5,7 @@
 | **Stage** | 2 Design, accepted by delegation. The design questions are decided in [decisions](../decisions.md) (U1 to U9); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
-| **Depends on** | [Bet 4](variant-types.md) (the type-kind mechanism, and defaults for optional parts). Bets 8 and 12 depend on this one |
+| **Depends on** | [Bet 4](variant-types.md) (the type-kind mechanism, and defaults for optional parts). Bets 10 and 12 depend on this one, and Bet 8 for its second example |
 
 ## Question
 

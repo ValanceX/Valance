@@ -5,7 +5,7 @@
 | **Stage** | 2 Design, accepted by delegation. The open questions are decided in [decisions](../decisions.md) (P1 to P7); the maintainer has not reviewed the text |
 | **Written** | 2026-10-17 |
 | **Owner** | Unassigned |
-| **Depends on** | Nothing. Bets 2, 6, 7, 8, 9, 10 and 11 depend on this one |
+| **Depends on** | Nothing. Bets 2, 6, 7, 9, 10, 11, 12 and 13 depend on this one |
 
 ## Question
 
