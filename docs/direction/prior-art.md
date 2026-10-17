@@ -101,6 +101,20 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 | Angular, [deferrable views](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/guide/templates/defer.md) | P | `@defer` reduces the initial bundle by deferring code not needed for the first render | Deferral is a template-level decision | 3 |
 | MDN, from its GitHub source: modulepreload, `compileStreaming`, `requestIdleCallback` | P | "you can't just preload everything!"; `compileStreaming` needs the right MIME type; idle callbacks take a `timeout` | Load in parallel, with care | 3, 14 |
 
+## Ecosystem process and governance
+
+| Source | Mark | What it says | Lesson | Feeds |
+|---|---|---|---|---|
+| [vite-ecosystem-ci](https://raw.githubusercontent.com/vitejs/vite-ecosystem-ci/main/README.md), [Vue ecosystem-ci](https://raw.githubusercontent.com/vuejs/ecosystem-ci/main/README.md), [svelte-ecosystem-ci](https://raw.githubusercontent.com/sveltejs/svelte-ecosystem-ci/main/README.md) | P | Downstream projects enrolled by pull request; scheduled, manual and comment-triggered runs against the latest prerelease; disabled suites carry a reason | The mechanism for involving outside authors | 12 |
+| [Rust crater](https://raw.githubusercontent.com/rust-lang/crater/master/README.md) | P | Builds and tests every crate on crates.io and GitHub against two toolchains; a `fix` mode for edition migration | Broad automated check, no enrolment | 12 |
+| [React Canaries](https://raw.githubusercontent.com/reactjs/react.dev/main/src/content/blog/2023/05/03/react-canaries.md) | P | Libraries asked to test against Stable and Canary, not every Canary | Opt-in prerelease testing | 12 |
+| [Angular releases](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/reference/releases.md) | P | "Developer Preview": polished but unstabilized "because we want to gather feedback from real applications" | A label for unstable surfaces | 12 |
+| [Deno std contributing](https://raw.githubusercontent.com/denoland/std/main/.github/CONTRIBUTING.md) | P | New features start `unstable_*.ts` until "sufficient feedback" | Same | 12 |
+| [Solid contributing](https://raw.githubusercontent.com/solidjs/solid/main/CONTRIBUTING.md) | P | Ecosystem org entry "selected by Core Members only. We do not accept applications" | The human route | 12 |
+| RFC processes: [Svelte](https://raw.githubusercontent.com/sveltejs/rfcs/master/README.md), [React](https://raw.githubusercontent.com/reactjs/rfcs/main/README.md), [Vue](https://raw.githubusercontent.com/vuejs/rfcs/master/README.md), [Rust](https://raw.githubusercontent.com/rust-lang/rfcs/master/README.md) | P | Final comment period of 3 calendar days (Svelte, React, Vue) or 10 (Rust); "Most changes don't need to go through the RFC process" | When to require an RFC | X6 |
+| [TC39 process](https://raw.githubusercontent.com/tc39/process-document/master/index.html) | P | Stage 4 needs "Two compatible implementations which pass the Test262 acceptance tests" | Independence is the point of "two" | 12 |
+| Accessibility statements: Radix (`radix-ui/website`, docs overview accessibility page), React Spectrum (`adobe/react-spectrum` README and CONTRIBUTING), Carbon (`carbon-design-system/carbon`, `docs/guides/accessibility.md`), GOV.UK (`alphagov/govuk-frontend`, `docs/contributing/testing.md`) | P | Radix follows WAI-ARIA authoring practices and says components are "tested in a wide selection of modern browsers and commonly used assistive technologies" (no owner or gate named); React Spectrum asks contributors to say what they tested; Carbon runs automated checks on every change and keeps the report per release, with manual screen-reader checks as a separate stage; GOV.UK asks contributors to test with recommended assistive technologies. No project publishes a per-release, named screen-reader report as a hard gate | Spec-based checks can be a gate; screen-reader runs are not used as one | 7 |
+
 ## Cross-process and wire formats
 
 | Source | Mark | The authors' reasoning | Lesson | Feeds |
