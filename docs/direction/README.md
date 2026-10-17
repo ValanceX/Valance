@@ -15,6 +15,7 @@ An honest map. Tiers are the ones in [API stability](../stability.md); stages ar
 | Application model and `vlx` | Provisional | Expect renames |
 | Size, speed and installing | Measured on 2026-10-17 ([baseline](baselines/2026-10-17.md)): a counter application transfers about 334 KB (brotli) and shows in about 0.2 s locally, and 83 percent of its JavaScript is Effect. The newest published versions of `mesh-runtime` and `port-web` are not accepted by `valance` 0.13.0, so a plain install gets older ones | Fine for an application. Worth knowing before choosing it for a very small page |
 | Loading | One entry chunk, and the WebAssembly runtime is fetched after the JavaScript has run. No code splitting, no preloading. The build raises the bundler's chunk-size warning limit to 1,500 kB instead of reporting size ([Bet 3](bets/budgets.md#8-the-start-up-path-and-the-deferred-set)) | Works, and starts slower and heavier than it needs to |
+| Input during start-up | A tap or click made after the page paints and before the application is ready is lost. Measured on a server-rendered counter at 4x CPU: 7 of 9 early taps did nothing, in a window of about a second ([Bet 14](bets/resumable-start.md)) | Matters on slow devices. A fix is designed and prototyped |
 | Components you can share as a package | **Not built.** A package cannot yet contribute templates or tags | You cannot publish a component library yet |
 | Styling and themes | **No contract.** The web uses plain CSS hooks on some tags; the Desktop has no styling ([Bet 6](bets/style-contract.md)) | You cannot publish a style library yet |
 | Accessibility | Roles, names and states are mapped per primitive on both targets. There is no shared model, and no check that a control has a name | Do not assume a primitive is accessible because it compiles |
@@ -103,7 +104,7 @@ Written down because a small foundation stays small by refusing things.
 ## How to take part
 
 - **Try it and tell us what hurt.** Open an [issue](https://github.com/ValanceX/Valance/issues) with what you tried, what you expected, and what happened. The repositories have none yet, so yours will be the first. A friction report is more useful to us than a feature request.
-- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first seven briefs, with the reason for each and what it would cost to undo.
+- **See what was decided.** [Decisions](decisions.md) answers the open questions in the first eight briefs, with the reason for each and what it would cost to undo.
 - **Read the evidence.** [Prior art](prior-art.md) lists what other frameworks decided and why, with the quality of each source. If we have a source wrong, say so.
 - **Build a library before the gate.** If you want to be one of the first outside authors, say so in an issue. The Reference Gate needs people who will build against a surface that is known to be unstable, and their friction becomes our evidence.
 

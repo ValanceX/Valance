@@ -111,6 +111,7 @@ Ceilings are the 2026-10-17 baseline plus 5 percent, rounded up. Wall-clock rows
 | First paint, 4x CPU | 847 ms | 2x the previous release | |
 | `update`, 10,000 items, one changed | 79 to 85 ms | 1.5x the previous release | Noise on this machine was up to 16 percent, so the gate sits well above it |
 | Expressions evaluated, 10,000 items, one changed | 7 (the Mesh README's figure; to be re-measured and pinned) | exact | A counter; any increase fails |
+| Interactive at, 10-row server-rendered page, 4x CPU (from [Bet 14](resumable-start.md); to be added to the harness) | 1,090 ms | 2x the previous release | Report the dead zone (interactive minus first paint, about 1,020 ms) beside it |
 | Wire, 1,000 rows, one changed item | 185,924 B (whole tree) | none yet | Target 2,048 B once the protocol carries patches. **Known red** |
 | Newest `@valancex` set installs together | No (`mesh-runtime`, `port-web` behind) | must pass at release | **Known red** |
 
@@ -204,7 +205,7 @@ Reading it: parallelism and streaming compile always help, and most where latenc
 - **Bundle:** split by route, cut from the component tree declared in `main.ts` (the CLI notes already say "the tree is the thing a split would be cut from"); import Effect through subpaths and leave out `fast-check` (the measured 12.4 KB brotli); minify the Desktop engine unless a measurement shows no start-up benefit; remove the raised warning limits.
 - **After start:** a prefetch step that begins when `start` resolves.
 - **Authoring:** zero configuration by default (a component the first route does not use is after-start). An author may mark a component to load on interaction or visibility; progressive disclosure keeps the common path free of it.
-- **Later:** [Bet 14](README.md) may move the WebAssembly out of the start-up set entirely, by hydrating from the render tree without evaluating it.
+- **Measured, and not worth it:** [Bet 14](resumable-start.md) checked whether hydrating from the render tree could take the WebAssembly out of the start-up set. With the module compiled in parallel, `init` takes 1 to 10 ms, so the WebAssembly stays in the start-up set. The cost that matters is the script arriving and the application starting, and Bet 14 adds the metrics to track it.
 
 ## Experiment
 

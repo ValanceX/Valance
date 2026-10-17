@@ -126,6 +126,19 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | L9 | Is this paging? | **No.** Windowing the view is for the range where the data fits. About 3 ms per 1,000 rows of snapshot remains, so past tens of thousands of rows the application slices in its scope function or pages its data, and that stays a supported pattern | The measured floor | Low |
 | L10 | What about moderate lists? | **`content-visibility: auto` on rows is an optional web realization** for lists up to a few thousand rows. It is web-only and does not reduce the engine, tree or wire cost | A cheap tier with no script. Its browser support must be checked on MDN and Baseline | Low |
 
+## Starting from what the server did ([Bet 14](bets/resumable-start.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| H1 | Do we start from the render tree without re-evaluating it? | **Parked for ordinary pages**, with a trigger: revisit if a page, after windowing bounds it, still spends over a third of "interactive at" on rows (about 1,000 rows at 4x CPU). Try verifying in idle slices before skipping verification | Rows are about 10 percent of "interactive at" at 100 rows and within noise at 4x. The fixed cost dominates. Skipping verification would give up the fail-closed hydration | Low |
+| H2 | What happens to an early tap? | **Build an early-input shell.** It records trusted discrete events only (click or tap on a control, submit, Enter and Escape in a text field), with the event types generated from the primitives table | Measured: 7 of 9 taps in the dead zone were lost. The prototype is 389 bytes (258 gzipped) and replayed all 6 | Low |
+| H3 | How is it replayed? | After hydration has verified and adopted the DOM, by dispatching a new event at the same adopted node, **in order, one at a time, waiting for each command to settle.** At most 20 events and none older than 10 seconds. Dropped if the node is gone, and entirely if hydration fell back to a fresh draw. **Links are never captured** | Hydration keeps every server node, so the target is live. Links already navigate natively | Medium |
+| H4 | What about typed text? | **The last value of each field is kept** and replayed as an input event after hydration | Hydration otherwise writes the application's value over what the person typed | Medium |
+| H5 | Does the person see that the page is not ready? | **Yes.** The root carries `data-vlx="starting"` until ready, and the shipped stylesheet gives controls a busy cursor and `aria-busy`. The shell is generated, with no configuration | Stops repeated taps, which replay would otherwise apply more than once | Low |
+| H6 | Does the PORT contract change? | **No.** "Interactions before hydration are not replayed" stays true of the PORT. Replay is the composer's feature (Valance's), done by dispatching ordinary events | Keeps PORTs simple and the contract stable | Low |
+| H7 | Does the WebAssembly leave the start-up set? | **No.** Compiled in parallel it costs 1 to 10 ms in `init`. This corrects the note in Bet 3 | Measured | Low |
+| H8 | What is the next lever? | **Bytes and the fixed start cost.** Profile the start sequence, and add "interactive at" and "dead zone" to the Bet 3 metrics | About 60 percent of "interactive at" at 4x is the script arriving, and the start work is about 400 ms of the rest | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -152,5 +165,7 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 10. **W12, loading at once after start.** If idle-time prefetch competes with the user's first interactions on slow devices, defer the prefetch until after the first interaction or a short delay.
 11. **W6, running only on release and weekly.** If regressions are found late, the deterministic subset moves into every push sooner.
 12. **L7, no pinning.** If a focused or selected row far from the window is common, a pin list becomes necessary and the window stops being contiguous.
-13. **L6, checking keys only in the window in production.** If duplicate-key bugs reach production, check the whole list there too.
-14. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.
+13. **H3, the caps and the one-at-a-time replay.** Real applications will show whether 20 events and 10 seconds are right, and whether waiting for each command to settle makes replay feel slow.
+14. **H2, replaying trusted events only.** It is the right safety rule, and it means the shell can never be tested with synthetic clicks, so the conformance harness must drive real input.
+15. **L6, checking keys only in the window in production.** If duplicate-key bugs reach production, check the whole list there too.
+16. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.

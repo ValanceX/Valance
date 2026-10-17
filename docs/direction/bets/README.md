@@ -4,7 +4,7 @@ A bet is one open question, written as a hypothesis we can test and a rule for w
 
 ## The index
 
-Briefs exist for the seven bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units and collections. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
+Briefs exist for the eight bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units, collections and start-up. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
 
 | # | Bet | Question | Stage | Depends on |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@ Briefs exist for the seven bets the rest depend on or that carry the most risk: 
 | 11 | Forms from the schema | Can field state and validation derive from the schema NEXUS already validates with? | 0 Question | 7, 8 |
 | 12 | The reference library, theme and a third PORT | Can outside authors build against public seams only? | 0 Question | 4, 5, 6, 8 |
 | 13 | Safe generated UI | Can a model's partial MPRX be validated and repaired against a manifest as it streams? | 0 Question | |
-| 14 | Resumable-style hydration | Can a page start from the render tree without re-evaluating it? | 0 Question | |
+| 14 | [Starting from what the server did](resumable-start.md) | Can a page start from the render tree without re-evaluating it, and what happens to a tap before the app is ready? | 3 Prototype (early-input shell); 2 Design (by delegation) | 3 |
 | 15 | Replay as a contract | Can a recorded session reproduce every tree byte for byte, as a conformance requirement? | 0 Question | |
 
 Killed bets are listed here with the reason. None yet.
