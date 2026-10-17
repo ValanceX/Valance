@@ -168,6 +168,21 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | Q8 | What gates? | **Vectors, primitive cases and structure snapshots gate. Pixel screenshots advise, per machine, and are never committed** | Playwright and `docs-verifier` both found rendering varies by host | Low |
 | Q9 | Where does it live? | **`@valancex/conformance` in Valance**, beside `@valancex/primitives`; `vlx library check` runs it | Same home as the specifications it generates from | Low |
 
+## Replay ([Bet 15](bets/replay.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| R1 | Is replay a requirement? | **Yes for every MESH runtime**: it must replay the published logs and give the recorded tree hashes. PORTs are not asked to replay trees; they pass the interaction script derived from a log | The runtimes already agree byte for byte. A PORT draws a screen, which observation checks | Low |
+| R2 | What is the format? | **Line-JSON**: header, `changes`, `event`, `result`, `tree`. Appendable, readable after a crash, the same shape as Bet 2's protocol | One tool reads both | Low |
+| R3 | What is recorded? | **Inputs and tree hashes**; whole trees only at every 50th line and at the end | Small logs, and a divergence still shows a tree | Low |
+| R4 | Are render versions recorded? | **No.** `base` is process-local (versions 2 to 5 in one run, 22 to 25 in another, with identical trees); the player supplies its own | Measured | Low |
+| R5 | Do commands re-run on replay? | **No.** A command's outcome is recorded as data. Time and randomness are therefore never needed by the player | Exact, and needs no fakes. Nexus's injectable clock stays for whole-application tests | Medium |
+| R6 | What counts as equal? | **SHA-256 of the runtime's compact JSON of the tree**, and the same hashes by three routes: an `updateChanges` chain, an `update` chain and a `render` of each snapshot | The equivalence law at session scale. Measured equal on a 5-tree sample | Low |
+| R7 | What is published? | **At least six logs in `@valancex/mesh-conformance/replay/`**, run by both runtimes | A requirement needs a check | Low |
+| R8 | Who records, and when? | **Valance, in development only** (`vlx dev --record`), to a local file, never uploaded. A production build contains none of it | The build-mode rule and fixed point 9. Logs hold user data | Low |
+| R9 | Sensitive data? | **A `sensitive` marker on manifest fields**; the recorder substitutes a typed placeholder, and hashes are taken over the redacted snapshot | Replay stays structural and the log is safe to share | Medium |
+| R10 | Versions? | **Exact within a runtime minor version.** Across versions the player reports the first divergent step as information. Goldens are regenerated on purpose, with a changelog note. A new format sits beside the old for one release | Deliberate changes must not look like failures | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -203,3 +218,5 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 19. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.
 20. **Q3, the adapter's size.** If a new PORT needs more than about 300 lines or a day to implement it, the interface is too wide.
 21. **Q4, `observe` without roles.** If libraries need role checks before accessibility work resumes, `observe` grows early and Q4 is revisited.
+22. **R5, never re-running commands.** A replay then cannot catch a bug in a command. If that is the bugs people report, add the second tier: re-run under a recorded clock and random source, advisory.
+23. **R9, redaction.** A value that decides control flow changes the tree when redacted. If that is common, redact by field and warn when the placeholder changes a branch.

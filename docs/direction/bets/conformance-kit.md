@@ -192,6 +192,6 @@ The gallery is an application, generated and checked like any other (the ecosyst
 - **The observation vocabulary** beyond text, value, enabled, checked and order: when roles, names and relationships join (Bet 7).
 - **Forced states** on the Desktop and the terminal, where there is no stylesheet.
 - **Interaction kinds** the adapter must support: activate, type, key, scroll (for [Bet 10](collections.md)).
-- **How units and replay fit**: a unit's behavior is a script of interactions with expected observations, which is also what [Bet 15](README.md) wants for replay.
+- **How units and replay fit**: a unit's behavior is a script of interactions with expected observations, which is also what [Bet 15](replay.md) wants for replay.
 - **Sharding and runtime** of the full kit in CI.
 - **Whether the Desktop adopts `wgpu` snapshots** or stays on structure snapshots only.

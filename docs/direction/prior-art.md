@@ -58,6 +58,15 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 | egui_kittest, [README](https://raw.githubusercontent.com/emilk/egui/main/crates/egui_kittest/README.md) | P | AccessKit-based UI tests; snapshots need `wgpu` | A Desktop route with a renderer caveat | 2 |
 | Playwright, [snapshots](https://raw.githubusercontent.com/microsoft/playwright/main/docs/src/test-snapshots-js.md) | P | Rendering varies by host; baselines belong to one environment | Pixels advise, never gate | 2 |
 
+## Replay and time travel
+
+| Source | Mark | The authors' reasoning | Lesson | Feeds |
+|---|---|---|---|---|
+| MESH design, [Part C](https://github.com/ValanceX/Mesh/blob/main/docs/superpowers/specs/2026-10-06-mesh-fine-grained-reactivity-and-composition.md) | Repo | Render is pure and state changes only through commands, so a session is a log | The premise; the format was never built | 15 |
+| `parity.test.mjs` and `number-text-differences.json` in MESH | Repo | The WebAssembly and native runtimes give byte-identical results; number text has a reviewed table | Byte equality is already the standard | 15 |
+| Nexus reference platform (`tests/platform/reference.ts`) | Repo | A platform may supply a clock (`Layer.setClock`) | Time is injectable at the host | 15 |
+| Elm debugger, Redux DevTools, rr and Replay.io | S | Replay pure updates; record at the nondeterminism boundary | Not read in this session. Verify before quoting | 15 |
+
 ## Cross-process and wire formats
 
 | Source | Mark | The authors' reasoning | Lesson | Feeds |
