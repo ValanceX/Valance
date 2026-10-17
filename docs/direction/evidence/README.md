@@ -21,7 +21,7 @@ The scripts that produced the measurements in the briefs, kept so an implementat
 | | `acc.mjs`, `roles.mjs` | Bet 7 | Accessible names with `dom-accessibility-api` and the web-platform-tests accname cases; element-to-role checks with `aria-query` |
 | | `axe.mjs`, `css.mjs`, `sample.css`, `bad.css` | Bet 7, [Bet 6](../bets/style-contract.md) | `axe-core` under jsdom; `css-tree` and `stylelint` against a valid and an invalid stylesheet |
 | | `dtcg.mjs` | Bet 6 | The official DTCG 2025.10 JSON Schema and test suite through Ajv |
-| | `spec_invariants.rs` | Bet 7 | An AccessKit `TreeUpdate` invariant checker over the Desktop PORT's own update (copy into `packages/port-desktop/tests/` with `accesskit` and `accesskit_consumer` 0.26 as dev-dependencies) |
+| | `spec_invariants.rs` | Bet 7 | An AccessKit `TreeUpdate` invariant checker over the Desktop PORT's own update. Now kept as `packages/port-desktop/tests/spec_invariants.rs` in `valancex/port`, as assertions, with `accesskit` 0.17 and `accesskit_consumer` 0.26 as dev-dependencies |
 | | `wptrun-browser.mjs` | Bet 9 | Runs a web-platform-tests file in a reference browser (needs a testdriver shim for input-driven tests) |
 | `measurement/` | `mem.mjs` | [Bet 3](../bets/budgets.md) | JavaScript heap, WebAssembly memory and resident size for the counter and lists of 1,000 and 10,000 rows, with updates |
 | | `late.mjs` | Bet 3 | Late admission: `render` with a growing templates list; node keys; `update` ignoring a program argument |

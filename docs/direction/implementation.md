@@ -44,6 +44,12 @@ WP0 defects and housekeeping ─┬─ WP1 shared vectors ─┐
 | The footprint harness builds with esbuild, not `vlx build` | Valance | W15, W16 | `scripts/measure-footprint.mjs` builds the counter and `docs-app` with `vlx build`, adds memory after updates (W18) and bytes per added page (W17), and writes a new dated baseline; W3's ceilings are recomputed from it |
 | Desktop `heading` exposes `Label` with no level; `list`, `listitem`, `blockquote` expose nothing | Port | A11 | The invariant checker (`evidence/specs/spec_invariants.rs`) sees `Heading` with a level |
 
+**WP0 status (2026-10-17, first implementation session).** All seven items are done except that qualified override ids (K14) are a marked TODO. Code is on the branch `claude/wp0-defects-housekeeping-k4q5kt` of `valancex/mesh`, `valancex/valance` and `valancex/port`; the baseline and the decision changes are on `claude/wp0-direction-docs` of `valancex/valance`. Findings that need a decision are recorded in [the new baseline](baselines/2026-10-17-vlx-build.md) (a second WebAssembly runtime in a plain install, and WebAssembly memory still growing after 1,000 updates) and below:
+
+- The limits of G5 apply to every MPRX source, not only generated UI: a file over 64 KB is `input-too-large`. A 64 KB source holds at most about 4,600 elements of 14 bytes, so the 5,000-element limit is reached only by short elements.
+- A11 names Heading, Paragraph, List and ListItem; `blockquote` (the web renders it as `blockquote`) is not in the 22-name role set and the Desktop still exposes nothing for it.
+- The render nesting cap of U12 counts steps of the path to a node (512). Native debug builds overflow a 2 MB thread stack well before that, so a native host needs a larger stack; WebAssembly is bounded by the cap.
+
 ## WP1. Shared conformance data
 
 [Bet 2](bets/conformance-kit.md), Q1 to Q3. Publish `@valancex/mesh-conformance` (data only) from MESH; make the Web PORT depend on it instead of its v0.6 copy; run the 22 identity vectors on the Web PORT and record what fails; have the Desktop PORT read the same data. **Acceptance:** a check fails if a copy of the vectors exists in a PORT tree or the installed version is older than the one claimed.
