@@ -154,6 +154,20 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | K9 | Can libraries add primitives in version 1? | **No.** They compose existing primitives. A new primitive goes through the specification process | `defineApp` has no plugin field, and a primitive is a decision for every target | Medium |
 | K10 | Who tries it, and what proves it? | **The maintainers' own build is the pilot, then three to five design partners** with a friction-log protocol. **The Reference Gate needs at least two outsiders to publish a working component or theme from the documentation alone**, and the pilot must need zero private seams | Insiders cannot test the docs. The pilot goes first because its friction is cheap to collect | Medium |
 
+## The conformance kit and the gallery ([Bet 2](bets/conformance-kit.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| Q1 | How many layers does verification have? | **Three: semantics, primitives, libraries.** Semantics are MESH's vectors; primitive cases are generated from the specifications; library checks come from fixtures and types | Each layer has a different owner and a different source of cases | Low |
+| Q2 | How do PORTs get the vectors? | **MESH publishes `@valancex/mesh-conformance` (data only); PORTs depend on it and never copy.** A check fails on a copy in tree or an installed version older than the one claimed | Measured: the Web PORT's copy is at v0.6 and lacks `identity/` | Low |
+| Q3 | How does a PORT plug in? | **A five-operation line-JSON adapter** (`load`, `update`, `observe`, `interact`, `unmount`), run as a child process | A Rust or any-language PORT needs no JavaScript; the Desktop host protocol already has this shape | Medium |
+| Q4 | What does `observe` return? | **Meaning, not structure:** text, value, enabled, checked, child order. Roles and names join when accessibility resumes | Angular's harness reasoning: tests survive internal change. Unifies each PORT's private `inspect` | Medium |
+| Q5 | How are primitive cases made? | **Generated from the specifications** (presence, each closed-set member, each event, controlled change, hostile value), plus hand-written edges | Adding a variant adds a case with no one writing it | Low |
+| Q6 | What does a PORT's report say? | **Data against a JSON schema.** `unsupported` counts only when declared in the PORT's own realization data; otherwise it is a `fail`. Reports generate the parity table | Keeps gaps visible and documentation true | Low |
+| Q7 | What is the gallery? | **A generated application.** Stories are data (props plus an optional script); closed sets are enumerated; every theme is a dimension | The ecosystem dogfoods its own build | Medium |
+| Q8 | What gates? | **Vectors, primitive cases and structure snapshots gate. Pixel screenshots advise, per machine, and are never committed** | Playwright and `docs-verifier` both found rendering varies by host | Low |
+| Q9 | Where does it live? | **`@valancex/conformance` in Valance**, beside `@valancex/primitives`; `vlx library check` runs it | Same home as the specifications it generates from | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -187,3 +201,5 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 17. **K9, no new primitives from libraries.** If the first partners all want one, the specification process is too slow and a plugin seam is needed.
 18. **K10, recruiting outsiders.** The gate depends on people who are not on the team. If none can be found, the gate cannot pass, and that is itself a finding about adoption.
 19. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.
+20. **Q3, the adapter's size.** If a new PORT needs more than about 300 lines or a day to implement it, the interface is too wide.
+21. **Q4, `observe` without roles.** If libraries need role checks before accessibility work resumes, `observe` grows early and Q4 is revisited.

@@ -4,12 +4,12 @@ A bet is one open question, written as a hypothesis we can test and a rule for w
 
 ## The index
 
-Briefs exist for the nine bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units, collections, start-up and the reference build. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
+Briefs exist for the ten bets the rest depend on or that carry the most risk: the primitive specification, budgets, the language's types, typed template values, the style contract, state units, collections, start-up, the reference build and the conformance kit. The others are named so the dependencies are visible; their briefs are written when they reach stage 1.
 
 | # | Bet | Question | Stage | Depends on |
 |---|---|---|---|---|
 | 1 | [Primitive specification](primitive-specification.md) | Can one declarative record be the only place a primitive is defined? | 2 Design (by delegation) | |
-| 2 | Conformance kit and gallery | Can every primitive and library be verified, and shown in every state, from data? | 0 Question | 1 |
+| 2 | [The conformance kit and the gallery](conformance-kit.md) | Can every primitive and library be verified, and shown in every state, from data? | 2 Design (by delegation) | 1 (12 pilot) |
 | 3 | [Budgets as gates](budgets.md) | Can bundle size, startup and update cost be limits a bet must meet? | 3 Prototype (harness and baseline); gates 2 Design (by delegation) | |
 | 4 | [Types that can name variants](variant-types.md) | Can MPRX express literal sets, optional values and defaults without general unions? | 2 Design (by delegation) | |
 | 5 | [Typed template values](template-values.md) | Can a template be a value passed, recursed and typed, instead of a slot? | 2 Design (by delegation) | 4 |

@@ -47,6 +47,17 @@ Not read at all, because the hosts did not resolve from the sandbox: the Svelte 
 | Angular, [package format](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/libraries/angular-package-format.md) and [creating libraries](https://raw.githubusercontent.com/angular/angular/main/adev/src/content/tools/libraries/creating-libraries.md) | P | Libraries are published in "partial compilation" mode, "not tied to a specific Angular runtime version", and "converted to fully compiled code during the application build". The application's Angular version must be "the same or greater" than its libraries'. Packages should set `sideEffects` to `false` | The other route: half-compile and link in the consumer. It needs a linker and a version rule | 12 |
 | Vite, [SSR externals](https://raw.githubusercontent.com/vitejs/vite/main/docs/guide/ssr.md) | P | Dependencies are externalized by default; one that "needs to be transformed by Vite's pipeline" goes in `ssr.noExternal`; linked dependencies are not externalized | Explains why a compiled Valance library fails to load and a symlinked one cannot find its peers | 12 |
 
+## Conformance and verification
+
+| Source | Mark | The authors' reasoning | Lesson | Feeds |
+|---|---|---|---|---|
+| Test262, [README](https://raw.githubusercontent.com/tc39/test262/main/README.md) | P | A suite of tests with metadata that each implementation runs through its own harness | Data plus a small per-implementation harness | 2 |
+| Web Platform Tests, [README](https://raw.githubusercontent.com/web-platform-tests/wpt/master/README.md) | P | The same tests in all browsers; results archived on wpt.fyi | One suite, results kept as data | 2 |
+| Storybook CSF, [docs](https://github.com/storybookjs/storybook/blob/next/docs/api/csf/index.mdx) | P | Stories as portable data with args and `play` functions | States as named data with scripts | 2 |
+| Angular, [component harnesses](https://github.com/angular/components/blob/main/guides/using-component-harnesses.md) | P | Tests insulate themselves from internal DOM changes | Ask about meaning, not structure | 2 |
+| egui_kittest, [README](https://raw.githubusercontent.com/emilk/egui/main/crates/egui_kittest/README.md) | P | AccessKit-based UI tests; snapshots need `wgpu` | A Desktop route with a renderer caveat | 2 |
+| Playwright, [snapshots](https://raw.githubusercontent.com/microsoft/playwright/main/docs/src/test-snapshots-js.md) | P | Rendering varies by host; baselines belong to one environment | Pixels advise, never gate | 2 |
+
 ## Cross-process and wire formats
 
 | Source | Mark | The authors' reasoning | Lesson | Feeds |
