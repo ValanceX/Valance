@@ -92,6 +92,19 @@ Five decisions reach beyond these documents. If you read nothing else, read thes
 | V9 | Is there a context mechanism? | **No.** Inside one composite the unit's scope is available to the whole template. Parts the caller supplies receive the unit's values as snippet parameters | Dependencies stay visible as props and parameters | Medium |
 | V10 | What about template edits? | Units **reset**, because keys are not stable across programs. Recorded as a known limit; revisit if state-preserving reload becomes a goal | Honest about a real cost, and avoids unkeyed-sibling collisions | Low |
 
+## Budgets ([Bet 3](bets/budgets.md))
+
+| # | Question | Decision | Why | Undo |
+|---|---|---|---|---|
+| W1 | What is budgeted? | **Six kinds: footprint, start-up, update, wire, installability, and authoring cost.** Authoring cost (the cognitive-load log) is logged and reviewed, not gated by a number | Each is a place the ecosystem already had a problem or a claim. A number for authoring cost would be false precision | Low |
+| W2 | Which metric? | **Compressed (brotli) bytes, not raw. Deterministic counters before clocks.** Allowances are measured as a paired comparison in one run | `wasm-opt -Oz` shrank the WebAssembly 22 percent raw and grew it 9.9 percent in brotli. Wall-clock moved up to 16 percent between runs on one machine. The reactivity design already counts evaluations | Low |
+| W3 | How are limits set? | **Ceiling = baseline plus 5 percent, rounded up, then ratcheted down.** Targets are separate and soft. **Raising a ceiling is a recorded decision** | A ceiling that moves silently is not a ceiling | Low |
+| W4 | How are wall-clock numbers gated? | As **ratios against the previous release on the same machine**: 2x for start-up, 1.5x for `update`. Everything else is reported | The absolute number depends on the machine, and the observed noise (up to 16 percent) must sit well inside the gate | Low |
+| W5 | Where does the measurement come from? | **`scripts/measure-footprint.mjs`**, which installs the published packages into a temporary directory. Baselines are **dated files** under `docs/direction/baselines/` and are never edited | Anyone can reproduce it, and it cannot measure the working tree by accident | Low |
+| W6 | Where does it run? | On the **release dry run** and **weekly**, not on every push. The deterministic parts join `pnpm test` later. **Decided, not yet wired** | It needs the network and a browser and takes minutes | Low |
+| W7 | How are other bets held to it? | **Every brief states an allowance**, and a bet cannot reach stage 4 over it without a recorded decision | The 10 percent (Bet 5) and 1.2x (Bet 8) figures already exist and need numbers to mean something | Low |
+| W8 | What if a budget is already failing? | **Accept three known reds at the start, each with an owner:** wire bytes (the Desktop protocol needs patches), installability (`mesh-runtime` and `port-web` are behind), and `fast-check` in the bundle (a target, not a ceiling) | A gate that is red on day one is honest, and it tells us what to fix first | Low |
+
 ## Cross-cutting
 
 | # | Question | Decision | Why | Undo |
@@ -114,4 +127,6 @@ These are the decisions most likely to be wrong, in order, and what would tell u
 6. **U5, recursion with a depth limit.** If the limit is hit in ordinary use, or hides a real mistake, a stricter rule (recursion only inside a repeat over the argument's own list) is the fallback.
 7. **V5, the `raise` operation.** If it forces an exception to "one interaction reaches at most one binding", ship uncontrolled units and treat notification as a separate bet.
 8. **V1, a separate `units` input.** If the NEXUS adapter or the changes form make it awkward, the fallback is a reserved snapshot entry with a special case in the runtime.
-9. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.
+9. **W4, the wall-clock thresholds (2x and 1.5x).** They come from one machine. If the CI machine is noisier, the gate widens or becomes a report.
+10. **W6, running only on release and weekly.** If regressions are found late, the deterministic subset moves into every push sooner.
+11. **U8, bumping the template format.** If an outside consumer appears before the Language Gate, the bump becomes a compatibility cost and the extension rule should be revisited.

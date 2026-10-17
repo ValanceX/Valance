@@ -1,0 +1,170 @@
+# Bet 3: Budgets as gates
+
+| | |
+|---|---|
+| **Stage** | 3 Prototype for the harness and the baseline (both exist); 2 Design, accepted by delegation, for the gates. The decisions are in [decisions](../decisions.md) (W1 to W8); the maintainer has not reviewed the text |
+| **Written** | 2026-10-17 |
+| **Owner** | Unassigned |
+| **Depends on** | Nothing. Every other bet's success criteria that mention cost depend on this one |
+
+## Question
+
+Can the cost of shipping, starting and updating a Valance application be a set of limits that every bet must meet before it advances, measured cheaply and repeatably, so that "it got slower" or "it got bigger" is a failed check and not an opinion?
+
+## Why, and who is hurt
+
+### The ecosystem already believes in this, in two places
+
+- The reactivity design says it outright: "**Benchmark first.** ... The sharing and changes-form work must show a measured improvement to ship; otherwise it is dropped." It also uses a deterministic counter, not a stopwatch: "7 expressions evaluated, not 60,001".
+- The `docs-verifier` example has a budget test for a generated 500-page site ("what a document costs a reader, what a build costs its author, and that neither grows with the pages that are not the one asked for"), and its roadmap makes "payload and render budgets hold" an exit criterion.
+
+Both are real, and neither covers the framework's own footprint. The first lives in a design note, the second in an example that has its own package root and is not among the commands CI runs (`pnpm test`, `test:browser`, `test:examples`).
+
+### What the first measurement found
+
+[The 2026-10-17 baseline](../baselines/2026-10-17.md) is the first time the footprint was measured. A counter application costs:
+
+| | |
+|---|---:|
+| JavaScript, brotli | 162,138 B |
+| WebAssembly runtime, brotli | 170,828 B |
+| Transferred by the browser, all files, brotli | 333,683 B |
+| First paint in Chromium, localhost, no throttling | 211 ms |
+| First paint at 4x CPU slowdown | 847 ms |
+
+and the measurement surfaced things nobody had decided:
+
+- **Effect is 83 percent of the JavaScript**, and the ecosystem's own packages about 9 percent. Where the bytes go is not where a team would look.
+- **About 45 KB of raw JavaScript (12.4 KB brotli) is `fast-check`**, a property-testing library pulled in through Effect's barrel import, which the subpath `effect/Schema` avoids.
+- **`wasm-opt -Oz` makes the transferred size worse** (brotli +9.9 percent) while making the raw file 22 percent smaller. A raw-size budget would have rewarded the wrong change.
+- **The Desktop protocol sends the whole tree on every update.** At 1,000 rows that is 185,924 bytes for a change the runtime already describes in 202.
+- **The newest published versions do not install together.** `valance` 0.13.0 accepts `port-web` `^0.6.1` and `mesh-runtime` `^0.11.0 || ^0.12.0`, while 0.9.0 and 0.13.0 are the newest.
+
+The harness itself caught two of its own mistakes: a 3.5-second "start-up" that was really the test server compressing at maximum quality on every request, and an installability claim that was wrong because npm backtracks. Both are in the baseline under "What this measurement got wrong first".
+
+### Who is hurt
+
+- A maintainer cannot tell whether a change made the thing heavier, until a user complains.
+- A bet's success criterion that says "no more than 10 percent" has no number to be 10 percent of.
+- A new user with a slow connection pays for dependencies they cannot see.
+
+## Prior art
+
+Reliability: **P** primary source read through a fetch agent; **S** secondary; **Repo** this ecosystem's own record. See [prior art](../prior-art.md).
+
+| Who | What happened | Lesson here |
+|---|---|---|
+| React Native (**P**, [architecture docs](https://raw.githubusercontent.com/facebook/react-native-website/main/website/architecture/landing-page.md)) | "Serializing function calls over the bridge quickly became a bottleneck, especially for frequent updates or large objects." The redesign has run "since 2018". Also: "enabling the New Architecture for your app or library may not immediately improve performance or user experience" | A serialization boundary is a cost to budget from the start, and an optimization has to be shown, not assumed. The Desktop protocol is that boundary here |
+| TC39 Signals (**P\***, [proposal](https://github.com/tc39/proposal-signals)) | Possible performance gain is "a constant factor", which the authors call "not... very large" | Even the authors of a performance-motivated design do not claim more than they measured |
+| Angular signal inputs (**P\***, [discussion 49685](https://github.com/angular/angular/discussions/49685)) | "Dependency tracking has overhead" | A mechanism that saves work also costs work. The budget has to include the cost side |
+| Flutter on the web (**S**) | Accessibility semantics are off by default because the team cites "noticeable performance costs" | A cost that is not budgeted early becomes a feature that ships switched off |
+| Runtime CSS-in-JS (**S**, one team's comparison) | Render time nearly doubled with Emotion against Sass modules (27.7 ms against 54 ms) in one codebase | Measure the effect of a design choice in your own application, not someone else's |
+| This ecosystem, the reactivity design (**Repo**) | Gates a design on a measured improvement, counts evaluations instead of milliseconds | The method already exists. This bet generalizes it |
+| This ecosystem, `bench-update.mjs` (**Repo**) | Reports "the least of several runs ... since a machine's noise only adds time" | The right way to take a wall-clock number |
+
+Not researched in this session: other frameworks' sizes. The baseline does not say whether 333 KB is large or small for a counter, and a comparison would use the same harness on a counter in other stacks.
+
+## Constraints
+
+Bounded by [fixed points](../README.md#what-we-hold-fixed) 3 and 7, and by the measurement rules below:
+
+- A budget is a number a script can produce, from published packages, by anyone.
+- A budget never lets a metric be gamed by changing what is measured (the `wasm-opt` example).
+- A gate that is wrong is worse than no gate. A new metric earns trust only after a sanity check.
+
+## Design
+
+### 1. Six kinds of budget
+
+| Kind | What is measured | Why this metric |
+|---|---|---|
+| **Footprint** | Brotli bytes of the reference application's JavaScript, the WebAssembly runtime, and everything the browser transfers | Compressed bytes are what travels. Raw bytes reward the wrong changes |
+| **Start-up** | Time to first paint and to one working click, in Chromium, with and without CPU throttling | What a person waits for |
+| **Update** | The runtime's own counter of expressions evaluated for one changed item in 10,000, and the least-of-N time for render, `update` and update-from-changes at 1,000 and 10,000 items | A counter is exact and does not drift between machines; time is what people feel |
+| **Wire** | Bytes sent to a PORT for one changed item at 1,000 rows, whole tree against patches | Exact, and the one place the cost grows with the wrong thing today |
+| **Installability** | Whether the newest published version of every `@valancex` package installs together | A user following the documentation hits this first |
+| **Authoring cost** | The cognitive-load log (severity 0 to 3 per friction) | Real and already kept. It is logged and reviewed, not gated by a number |
+
+### 2. Ceilings, targets and allowances
+
+| | Meaning |
+|---|---|
+| **Ceiling** (hard) | A limit the release check fails above. Set at the baseline plus 5 percent, then ratcheted down as improvements land. **Raising a ceiling is a recorded decision, not an edit** |
+| **Target** (soft) | Where we want to be. Informs priorities; fails nothing |
+| **Allowance** (per bet) | How much a bet may move a metric. Stated in its brief and measured as a **paired comparison**: both variants in the same run, on the same machine, interleaved. Never against a number stored from another machine |
+
+### 3. The first budgets
+
+Ceilings are the 2026-10-17 baseline plus 5 percent, rounded up. Wall-clock rows are **ratio gates against the previous release on the same machine**, because the absolute value depends on the machine.
+
+| Metric | Baseline | Ceiling | Target and notes |
+|---|---:|---:|---|
+| Counter app JavaScript, brotli | 162,138 B | 170,300 B | 149,700 B: the measured saving from not bundling `fast-check` |
+| `mesh-runtime.wasm`, brotli | 170,828 B | 179,400 B | Hold. Do not apply `wasm-opt -Oz` (measured worse) |
+| Transferred, all files, brotli | 333,683 B | 350,400 B | |
+| First paint, no throttling | 211 ms | 2x the previous release | Report the trend |
+| First paint, 4x CPU | 847 ms | 2x the previous release | |
+| `update`, 10,000 items, one changed | 79 to 85 ms | 1.5x the previous release | Noise on this machine was up to 16 percent, so the gate sits well above it |
+| Expressions evaluated, 10,000 items, one changed | 7 (the Mesh README's figure; to be re-measured and pinned) | exact | A counter; any increase fails |
+| Wire, 1,000 rows, one changed item | 185,924 B (whole tree) | none yet | Target 2,048 B once the protocol carries patches. **Known red** |
+| Newest `@valancex` set installs together | No (`mesh-runtime`, `port-web` behind) | must pass at release | **Known red** |
+
+### 4. How it is measured, and kept honest
+
+- The harness is [`scripts/measure-footprint.mjs`](../../../scripts/measure-footprint.mjs). It installs published packages into a temporary directory, so it never measures the working tree by accident and anyone can run it.
+- Wall-clock numbers take the least of several runs. Browser numbers take a median.
+- **Every metric has a known-answer check.** A page that never shows the count stalls the browser measurement instead of reporting a number. A gate is only added after a deliberate regression, such as adding a dependency, is shown to fail it.
+- A baseline is a dated file in `docs/direction/baselines/` and is never edited. A later measurement is a new file.
+
+### 5. Where it runs
+
+It needs the network, a browser and a minute or two, so it does not belong on every push. It runs:
+
+- on the **release dry run** (`release.yml` already has one), where a ceiling breach fails the release;
+- **weekly**, on a schedule, with results kept as a build artifact so a trend exists.
+
+Its deterministic parts (the wire bytes and the evaluation counter) are cheap and can join `pnpm test` once the benchmark fixtures live in the workspace.
+
+### 6. Other bets are held to it
+
+| Bet | Allowance | Already stated in its brief |
+|---|---|---|
+| 4: variant types | No change in render-tree or patch bytes; render at most 5 percent slower; WebAssembly at most 5 percent larger | Byte-identical output for existing programs |
+| 5: template values | A row as a snippet within 10 percent of the same row as a composite on the 10,000-item benchmark; WebAssembly at most 5 percent larger | The 10 percent figure |
+| 6: style contract | Zero added JavaScript bytes at runtime; stylesheet size gets its own budget when the gallery exists | "No runtime work" |
+| 8: state units | Toggling one of 1,000 instances at most 1.2x the same change in application state; JavaScript and WebAssembly each at most 5 percent larger | The 1.2x figure |
+| Any other | WebAssembly at most 5 percent larger and JavaScript at most 3 percent larger, unless the brief says otherwise | |
+
+A bet cannot reach stage 4 over its allowance. Going over needs a recorded decision with the reason.
+
+## Experiment
+
+1. **Harness and baseline.** Done in this change: the script and the dated record.
+2. **Wire it in.** Run it on the release dry run and weekly, keep the output, and fail the dry run above a ceiling. First, prove each gate fails on a deliberate regression.
+3. **Fix the known reds.** Each belongs to a place that can fix it: the barrel imports in NEXUS and Valance (the `fast-check` saving), the peer ranges in `valance` and `common` (installability), and patches in the Desktop protocol (wire, its own bet).
+4. **Move the deterministic parts into `pnpm test`.**
+5. **Optional: a comparison.** The same counter in a few other stacks through the same harness, to place the numbers in context. Budgets stay relative to our own history, not to anyone else's.
+
+## Success
+
+- Every release dry run produces the table in section 3 and fails if a ceiling is crossed.
+- A deliberate regression (a new dependency, a changed `wasm-opt` flag, an extra evaluation) fails the right gate in a test of the gate.
+- The three known reds are fixed or each has an owner and a date to be re-examined.
+- Every bet brief has an allowance, and the next bets to advance are measured against it.
+
+## Kill
+
+- If run-to-run noise on the CI machine exceeds 25 percent, wall-clock metrics stop being gates and become reports. The deterministic metrics stay.
+- If a full run takes more than ten minutes, move it to weekly only.
+- If maintaining the harness costs more attention than the regressions it catches, shrink it to the footprint and wire metrics, which are exact.
+
+## Breaks (allowed in the free window)
+
+None to the language or the formats. The fixes for the known reds change import statements and peer ranges, which are internal to the packages.
+
+## Open questions for stage 3
+
+- **Which application is the reference.** The counter is the floor. A second reference, the `docs-app` example, would show how cost grows with a real application.
+- **Where history is stored**: dated files in the repository, or build artifacts.
+- **Memory** is not measured. The Desktop engine's 79 MB comes from an earlier note, and units (Bet 8) will add per-instance memory.
+- **Real networks.** All timings are localhost. A throttled-network profile is worth adding when first paint becomes a gate.
