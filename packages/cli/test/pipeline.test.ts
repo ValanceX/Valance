@@ -402,7 +402,8 @@ describe("state declared field by field", () => {
 
     const content = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
-    expect(content).toContain("0light");
+    // `{count} {theme}`: MESH 0.13 keeps the space between two interpolations, 0.12 dropped it.
+    expect(content).toMatch(/0 ?light/);
   });
 
   it("checks a default against its field's type", async () => {
