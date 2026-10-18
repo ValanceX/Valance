@@ -68,6 +68,8 @@ WP0 defects and housekeeping ─┬─ WP1 shared vectors ─┐
 
 
 
+**WP1 review (2026-10-18).** Reviewed and merged (fast-forward, so the pin in the Port workspace to MESH commit `2f358a9` stays valid) into `claude/optimistic-gates-9xmvhs` of Mesh, Port, Valance and Nexus. Re-run after the merge: Mesh `mesh-conformance` pack test, Port `check-conformance.mjs` and port-web (379 tests), Nexus (513), Valance lint, format, build and `cli` (177). Notes: the Port's dependency on `@valancex/mesh-conformance` is a git dependency on a MESH commit and **must move to `^0.13.0` when the package is published** (Port README says how); `check-conformance.mjs` matches vector files by path suffix, so an unrelated `values/cases.json` elsewhere in the Port tree would be reported (acceptable now; narrow it if it ever fires wrongly). Two decisions came out of it: **W22** (bound the dispatch ledger, a Valance change that does not depend on WP2) and **Q17 and I16** (the Desktop declares identity unsupported until its widget ids derive from node keys; that work belongs to WP6).
+
 ## WP2. Language (MESH)
 
 In this order, each ending at stage 3 with vectors in Rust and JavaScript (the Language Gate needs stage 4).
