@@ -1,10 +1,10 @@
 <list class="posts">
   {#each b.posts as p (p.id)}
-    <listitem>
+    <item>
       <time class="post-date" datetime={p.iso}>{p.date}</time>
       <navLink class="post-title" href={p.href} current="false">{p.title}</navLink>
-      <paragraph class="post-summary">{p.summary}</paragraph>
-      {#if p.hasTags}<list class="tags">{#each p.tags as t (t.id)}<listitem><navLink class="tag" href={t.href} current="false">{t.label}</navLink></listitem>{/each}</list>{/if}
-    </listitem>
+      <para class="post-summary">{p.summary}</para>
+      {#if p.hasTags}<list class="tags">{#each p.tags as t (t.id)}<item><navLink class="tag" href={t.href} current="false">{t.label}</navLink></item>{/each}</list>{/if}
+    </item>
   {/each}
 </list>

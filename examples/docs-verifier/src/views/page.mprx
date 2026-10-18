@@ -1,23 +1,23 @@
 <layout site={site} home={home} theme={theme} menu={menu} query={query} layout={layout} lang={lang} ui={ui} showNav={showNav} hasHeader={hasHeader} header={header} footer={footer} hasLocales={hasLocales} locales={locales} hasVersions={hasVersions} versions={versions} on.toggleMenu={toggleMenu()} on.setTheme={setTheme($event)} on.search={search($event)}>
   <mesh-fill slot="search">{#if searching}<panel class="results" role="region" label={ui.search}>
     <live class="results-status" role="status" live="polite">{status}</live>
-    <list class="hits">{#each hits as h (h.id)}<listitem><navLink class="hit" href={h.href} current="false"><span class="hit-title">{h.title}</span><span class="hit-where">{h.where}</span><span class="hit-excerpt">{h.excerpt}</span></navLink></listitem>{/each}</list>
+    <list class="hits">{#each hits as h (h.id)}<item><navLink class="hit" href={h.href} current="false"><span class="hit-title">{h.title}</span><span class="hit-where">{h.where}</span><span class="hit-excerpt">{h.excerpt}</span></navLink></item>{/each}</list>
   </panel>{/if}</mesh-fill>
   <mesh-fill slot="nav">{#if showNav}<nav class="sidebar" label={ui.documentation}>
     {#each sections as s (s.id)}
       <section>
-        {#if s.title != ""}<paragraph class="nav-title">{s.title}</paragraph>{/if}
+        {#if s.title != ""}<para class="nav-title">{s.title}</para>{/if}
         <list class="nav-list">
           {#each s.items as n (n.id)}
-            <listitem><navLink class="nav-link" href={n.href} current={n.current}>{n.label}</navLink></listitem>
+            <item><navLink class="nav-link" href={n.href} current={n.current}>{n.label}</navLink></item>
           {/each}
         </list>
       </section>
     {/each}
   </nav>{/if}</mesh-fill>
   <mesh-fill slot="toc">{#if hasToc}<nav class="toc" label={ui.onThisPage}>
-    <paragraph class="toc-title">{ui.onThisPage}</paragraph>
-    <list class="toc-list">{#each toc as h (h.id)}<listitem><navLink class={h.cls} href={h.href} current={h.current}>{h.label}</navLink></listitem>{/each}</list>
+    <para class="toc-title">{ui.onThisPage}</para>
+    <list class="toc-list">{#each toc as h (h.id)}<item><navLink class={h.cls} href={h.href} current={h.current}>{h.label}</navLink></item>{/each}</list>
   </nav>{/if}</mesh-fill>
   <main id="content" tabindex="-1" busy={loading} status={contentStatus}>
     {#if post.show}<post-meta post={post} />{/if}

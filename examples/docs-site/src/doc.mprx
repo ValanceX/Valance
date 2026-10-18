@@ -7,25 +7,25 @@
     {#if search.empty}<text>No results</text>{/if}
     <list>
       {#each search.results as r (r.id)}
-        <listitem><link href={r.href}>{r.label}</link></listitem>
+        <item><link href={r.href}>{r.label}</link></item>
       {/each}
     </list>
   </header>
   <nav>
     <list>
       {#each nav as n (n.id)}
-        <listitem><text>{n.mark}</text><link href={n.href}>{n.label}</link></listitem>
+        <item><text>{n.mark}</text><link href={n.href}>{n.label}</link></item>
       {/each}
     </list>
   </nav>
   <main>
     <heading>{title}</heading>
-    {#each paragraphs as p (p.id)}<paragraph>{p.text}</paragraph>{/each}
+    {#each paragraphs as p (p.id)}<para>{p.text}</para>{/each}
     {#if code != ""}<code>{code}</code>{/if}
     <button on.click={toggle()}>{detailsLabel}</button>
     {#if detailsOpen}
       <shell>
-        <paragraph>{details}</paragraph>
+        <para>{details}</para>
         {#if code != ""}<text>This page has an example.</text>{/if}
       </shell>
     {/if}

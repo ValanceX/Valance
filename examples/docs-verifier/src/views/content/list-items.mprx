@@ -1,10 +1,10 @@
 <mesh-fragment>
   {#each items as i (i.id)}
-    <listitem>
+    <item>
       <runs spans={i.spans} />
       {#if i.nested}
-        <list class="sublist">{#each i.children as c (c.id)}<listitem><runs spans={c.spans} /></listitem>{/each}</list>
+        <list class="sublist">{#each i.children as c (c.id)}<item><runs spans={c.spans} /></item>{/each}</list>
       {/if}
-    </listitem>
+    </item>
   {/each}
 </mesh-fragment>
