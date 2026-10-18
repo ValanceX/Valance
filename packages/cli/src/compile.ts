@@ -231,8 +231,24 @@ export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabular
     return { ...derived, components: { ...vocabulary.components, ...derived.components } };
   }
 
-  // The props the vocabulary says a template may leave out.
+  // What the vocabulary declares of a tag's props and events (the specification's) settles what the table alone derived.
   const components = { ...derived.components } as Record<string, (typeof derived.components)[string]>;
+
+  for (const [tag, declared] of Object.entries(vocabulary.declared ?? {})) {
+    const entry = components[tag];
+
+    if (entry !== undefined) {
+      components[tag] = {
+        ...entry,
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, declared.props[name] === undefined ? prop : { ...prop, ...declared.props[name] }])),
+        events: Object.fromEntries(
+          Object.entries(entry.events).map(([name, event]) => [name, declared.events[name] === undefined ? event : { ...event, ...declared.events[name] }]),
+        ),
+      } as never;
+    }
+  }
+
+  // The props the vocabulary says a template may leave out.
 
   for (const [tag, names] of Object.entries(vocabulary.optional ?? {})) {
     const entry = components[tag];

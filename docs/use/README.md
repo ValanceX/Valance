@@ -97,4 +97,4 @@ The contract names NEXUS and MESH types where they appear in a signature (`Comma
 
 ## The desktop vocabulary
 
-What a template may write for a native window: [the desktop vocabulary](desktop-vocabulary.md).
+What a template may write: [the primitives](primitives.md) (role, name, states, props and events of each), and for a native window [the desktop vocabulary](desktop-vocabulary.md).

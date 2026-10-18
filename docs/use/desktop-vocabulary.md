@@ -4,15 +4,7 @@ What a template may write when the target is a window (the [Desktop PORT](https:
 
 ## The components
 
-| Component | Props (required unless marked) | Events | What it is |
-|---|---|---|---|
-| `column` | | | Its children, one under the next. |
-| `row` | | | Its children side by side, wrapping when the window is narrow. |
-| `heading` | | | A title for what follows. |
-| `text` | | | A run of text. Text is text: nothing in it is markup. |
-| `button` | `disabled` (yes or no; optional) | `click` | Something to press. What is inside it is its label. A disabled button does nothing. |
-| `checkbox` | `checked` (yes or no) | `change` (the new value, `true` or `false`) | A box that is ticked or not. The application decides whether it is: a click reports the value the box is going to, and the box shows what comes back. |
-| `textfield` | `value` (text), `placeholder` (text; optional) | `change` (the text) | A line of text the person edits. The person's typing wins until the application changes the value itself (a save, a clear). |
+The list is the [primitives reference](primitives.md), generated from the specifications: the **portable** primitives are the same on the window and the page, the **desktop-only** ones (the table and its parts) are the window's. Each has its role, how it is named, the states it carries, its props and events. The PORT's `vocabulary.json` and `content.json` are the same list as data, and the primitives' tests check them against the specifications.
 
 ## Not components
 

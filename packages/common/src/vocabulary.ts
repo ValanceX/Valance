@@ -6,7 +6,7 @@
 // second one is a value to pass, not code to change.
 import type { WebPrimitives } from "@valancex/port-web";
 
-import { primitives } from "./primitives.js";
+import { declared, primitives } from "./primitives.js";
 
 /**
  * A target's vocabulary has one of two forms. The web's is a table of PORT Web's realizations, from which the manifest is derived (`tags`). Any other target's is a MESH manifest, as data
@@ -22,6 +22,19 @@ export interface WebVocabulary {
    * one; this is the author-facing rule beside it. An absent prop is not in the render tree, and PORT Web realizes an absent prop as no attribute (or the element's own initial value).
    */
   readonly optional?: Readonly<Record<string, ReadonlyArray<string>>>;
+  /**
+   * What each tag's props and events are, as a specification states them: the type of a prop and whether a use must write it, which the table alone cannot say. Where present it settles the manifest
+   * entry's props and events (the table still says how they are realized); `optional` then applies to what it does not cover.
+   */
+  readonly declared?: Readonly<
+    Record<
+      string,
+      {
+        readonly props: Readonly<Record<string, { readonly type: Readonly<Record<string, unknown>>; readonly required: boolean }>>;
+        readonly events: Readonly<Record<string, { readonly payload?: Readonly<Record<string, unknown>> }>>;
+      }
+    >
+  >;
 }
 
 export interface ManifestVocabulary {
@@ -56,11 +69,5 @@ export const fromManifests = (target: string, ...manifests: ReadonlyArray<{ read
 export const webVocabulary: WebVocabulary = {
   target: "web",
   tags: primitives,
-  optional: {
-    // styling and accessibility hooks are the web's, and a template for both targets does not write them
-    button: ["class", "pressed"],
-    checkbox: ["label"],
-    textfield: ["label", "placeholder"],
-    heading: ["level"],
-  },
+  declared,
 };
