@@ -26,6 +26,9 @@ export default defineApp({
   // Worked out from the state, on every target: a layout reads `summary` as it reads a field.
   derived: (derive) => ({
     summary: derive(Schema.String, (state) => `${state.items.filter((item) => !item.done).length} of ${state.items.length} open`),
+    // The colors drawn: the person's choice, or the system's when they have not made one. A template cannot branch on `theme == "system"` and then know the other two (no flow typing), so
+    // the choice is resolved here, once, and the layout reads a value that is exactly "light" or "dark".
+    resolvedTheme: derive(Schema.Literal("light", "dark"), (state) => (state.theme === "system" ? state.colorScheme : state.theme)),
   }),
   commands: (command) => ({
     setEntry: command(Schema.Struct({ text: Schema.String }), ({ text }, state) => ({ ...state, entry: text.slice(0, 200) })),
