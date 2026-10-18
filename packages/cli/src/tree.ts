@@ -31,6 +31,21 @@ export const APPLICATION = "(application)";
 
 export const nameOf = (file: string): string => basename(file, ".mprx");
 
+/** A component as the definition lists it, before two with one name are told apart: how it was listed, and so whether it may replace a built-in. */
+export interface Declared {
+  readonly name: string;
+  readonly file: string;
+  readonly role: "layout" | "override" | "component";
+}
+
+/** Every component the definition lists, in order and with repeats, each with the role it was listed in. `treeOf` is these, once each by name. */
+export const declaredOf = (layout: Component | undefined, overrides: ReadonlyArray<Component>, components: ReadonlyArray<Component> = []): ReadonlyArray<Declared> =>
+  [
+    ...(layout === undefined ? [] : [{ component: layout, role: "layout" as const }]),
+    ...overrides.map((component) => ({ component, role: "override" as const })),
+    ...components.map((component) => ({ component, role: "component" as const })),
+  ].map(({ component, role }) => ({ name: nameOf(component.template.mprx), file: component.template.mprx, role }));
+
 /** Every component the definition declares, once each by name: `layout`, each `override`, then each of `components`. Who uses whom is read from the templates (`linked`). */
 export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<Component>, components: ReadonlyArray<Component> = []): ReadonlyArray<Node> => {
   const found = new Map<string, Node>();

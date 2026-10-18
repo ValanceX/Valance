@@ -65,6 +65,77 @@ describe("vlx check", () => {
     ).toContain("src/main.ts:3 template-primitive");
   });
 
+  describe("a name two templates share", () => {
+    const main = (imports: string, rest: string): string => `import { component, defineApp } from "@valancex/common";\n${imports}\nexport default defineApp({ ${rest} });\n`;
+
+    it("is an error between two components of different files (neither silently wins)", async () => {
+      const found = await codes({
+        ...BASIC,
+        "src/main.ts": main('import first from "./a/disclosure.mprx";\nimport second from "./b/disclosure.mprx";', "components: [component(first), component(second)]"),
+        "src/a/disclosure.mprx": "<para>a</para>",
+        "src/b/disclosure.mprx": "<para>b</para>",
+      });
+
+      expect(found).toEqual(["src/main.ts:4 template-duplicate"]);
+    });
+
+    it("names both files and says how to resolve it", async () => {
+      const result = await check(
+        project({
+          ...BASIC,
+          "src/main.ts": main('import first from "./a/disclosure.mprx";\nimport second from "./b/disclosure.mprx";', "components: [component(first), component(second)]"),
+          "src/a/disclosure.mprx": "<para>a</para>",
+          "src/b/disclosure.mprx": "<para>b</para>",
+        }),
+      );
+
+      expect(result.diagnostics[0]!.message).toMatch(/src\/a\/disclosure\.mprx.*src\/b\/disclosure\.mprx|src\/b\/disclosure\.mprx.*src\/a\/disclosure\.mprx/);
+      expect(result.diagnostics[0]!.message).toMatch(/rename/);
+    });
+
+    it("is not an error when one component is listed twice", async () => {
+      expect(
+        await codes({
+          ...BASIC,
+          "src/main.ts": main('import first from "./disclosure.mprx";', "components: [component(first), component(first)]"),
+          "src/disclosure.mprx": "<para>a</para>",
+        }),
+      ).not.toContain("src/main.ts:4 template-duplicate");
+    });
+
+    it("is an error between a component and a built-in, unless it is listed in override", async () => {
+      const files = { ...BASIC, "src/runs.mprx": "<mesh-fragment>{#each spans as s (s.id)}<em>{s.text}</em>{/each}</mesh-fragment>" };
+
+      expect(await codes({ ...files, "src/main.ts": main('import runs from "./runs.mprx";', "components: [component(runs)]") })).toEqual(["src/main.ts:3 template-builtin"]);
+      expect(await codes({ ...files, "src/main.ts": main('import runs from "./runs.mprx";', "override: [component(runs)]") })).toEqual([]);
+    });
+
+    it("is not hidden by a component also listed in override with another file", async () => {
+      const found = await codes({
+        ...BASIC,
+        "src/main.ts": main('import mine from "./runs.mprx";\nimport theirs from "./lib/runs.mprx";', "override: [component(mine)], components: [component(theirs)]"),
+        "src/runs.mprx": "<mesh-fragment>{#each spans as s (s.id)}<em>{s.text}</em>{/each}</mesh-fragment>",
+        "src/lib/runs.mprx": "<para />",
+      });
+
+      expect(found).toContain("src/main.ts:4 template-duplicate");
+    });
+  });
+
+  it("says where to register a component an override is not for", async () => {
+    const result = await check(
+      project({
+        ...BASIC,
+        "src/main.ts": 'import { component, defineApp } from "@valancex/common";\nimport mine from "./mine.mprx";\nexport default defineApp({ override: [component(mine)] });\n',
+        "src/mine.mprx": "<para />",
+      }),
+    );
+    const found = result.diagnostics.find((each) => each.code === "override-unknown");
+
+    expect(found?.message).toMatch(/components/);
+    expect(found?.message).not.toMatch(/uses/);
+  });
+
   it("reads src/main.ts: state fields become names a layout may read, and a clash is an error", async () => {
     const main = (fields: string, layout = false): string =>
       layout

@@ -4,10 +4,13 @@ A small documentation site, written the way a VALANCE application is written. It
 
 ```console
 $ pnpm install
+$ pnpm -w build   # from the repository root: builds the workspace packages this app runs on, once
 $ pnpm dev        # http://localhost:5173/ , updates as you edit
 $ pnpm build      # the site is in dist/
 $ pnpm check      # mistakes in your files, with file and line
 ```
+
+`vlx` and the packages it loads (`@valancex/common`, `@valancex/valance`, `@valancex/router`) are workspace packages that ship compiled JavaScript, and a fresh clone has none of it. Until the workspace is built, every command here stops with `ERR_MODULE_NOT_FOUND` for `packages/cli/dist/cli.js`. Build them again after you change anything under `packages/`. (`pnpm -w build` also builds this app and the other examples; to build only the packages, `pnpm --filter "./packages/*" build`.)
 
 ## What to read
 
