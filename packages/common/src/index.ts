@@ -118,8 +118,27 @@ export interface Component {
   readonly events?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
 }
 
-/** A prop is declared by its schema, or by `field(schema, default)` when an occurrence that leaves it out should get a value. */
-export type PropDeclaration = Schema.Schema<any, any, never> | Field<any>;
+export const SNIPPET = Symbol.for("valancex.common.snippet");
+
+/** A prop that is a piece of template: what an occurrence writes between its tags (`children`), or as a `{#snippet}` of that name among them. */
+export interface SnippetDeclaration {
+  readonly [SNIPPET]: true;
+  /** The types of the snippet's parameters, in order; `{@render name(a, b)}` passes exactly these. */
+  readonly params: ReadonlyArray<Schema.Schema<any, any, never>>;
+}
+
+/**
+ * Declares a prop whose value is a snippet, with the types of its parameters: `children: snippet()` is the content written between the component's tags; `row: snippet(Item, Schema.Number)` is a
+ * `{#snippet row(item, index)}` an occurrence passes and the template renders with `{@render row(item, index)}`. The prop named `children` is reserved for the content between the tags and takes no
+ * parameters. A snippet is not data: it has no default, is not a field of a record or an event's payload, and is declared on a component that has a template.
+ */
+export const snippet = (...params: ReadonlyArray<Schema.Schema<any, any, never>>): SnippetDeclaration => ({ [SNIPPET]: true, params });
+
+/** Whether a declaration is a snippet's. */
+export const isSnippet = (value: unknown): value is SnippetDeclaration => typeof value === "object" && value !== null && SNIPPET in value;
+
+/** A prop is declared by its schema, by `field(schema, default)` when an occurrence that leaves it out should get a value, or by `snippet(…)` when it is a piece of template. */
+export type PropDeclaration = Schema.Schema<any, any, never> | Field<any> | SnippetDeclaration;
 
 /** Whether a prop is declared with a default. */
 export const isField = (value: unknown): value is Field => typeof value === "object" && value !== null && FIELD in value;

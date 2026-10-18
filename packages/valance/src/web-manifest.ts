@@ -44,7 +44,9 @@ export type MeshType =
   | { readonly kind: "enum"; readonly values: ReadonlyArray<string> }
   | { readonly kind: "list"; readonly element: MeshType }
   | { readonly kind: "record"; readonly fields: Readonly<Record<string, { readonly type: MeshType; readonly required: boolean }>> }
-  | { readonly kind: "optional"; readonly type: MeshType };
+  | { readonly kind: "optional"; readonly type: MeshType }
+  /** A piece of template with these parameters (MESH 0.14): the type of a composite's prop or scope name, and nowhere else. */
+  | { readonly kind: "snippet"; readonly params: ReadonlyArray<MeshType> };
 
 export interface Manifest {
   readonly version: 1;

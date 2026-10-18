@@ -211,6 +211,30 @@ A component places the content its caller writes inside it with `<mesh-slot />`,
 
 The children are the caller's: `{x}` in them is the caller's `x`, never the card's. `vlx generate component` writes the single, unnamed slot for you. The rules (where a slot may be, what a fill is, the errors) are in MESH's [templates manual](https://github.com/ValanceX/Mesh/blob/main/docs/manual/templates.md#children-and-the-slot).
 
+### Snippets as props
+
+A prop can be a piece of template (MESH 0.14). Declare it with `snippet(…)`, the types of its parameters in order, and read it in the component's template with `{@render name(args)}`:
+
+```
+// src/panel.ts and src/item-list.ts
+component(panel, { props: { title: Schema.String, children: snippet() } });
+component(itemList, { props: { items: Schema.Array(Item), row: snippet(Item, Schema.String) } });
+```
+
+```
+<!-- src/panel.mprx -->
+<section><strong>{title}</strong>{@render children()}</section>
+
+<!-- where they are used: loose content is `children`; a {#snippet} that is a direct child is the prop of its name -->
+<panel title="Totals"><span class="count">{count}</span></panel>
+<item-list items={items} label="row">{#snippet row(item, tag)}<span class="row">{tag}:{item.name}</span>{/snippet}</item-list>
+```
+
+- `children` is reserved for the content between the tags: it must be `snippet()` (no parameters), and `children={…}` with content is `children-conflict`. A snippet is not data: it has no `field` default, is never optional, and is not a record field or an event's payload.
+- A snippet reads the scope of the template that **wrote** it (`count` above is the layout's, not the panel's), so a node that renders one is redrawn when that scope changes though its own props did not.
+- The arity and the types are checked: `snippet-arity-mismatch` in the composite's template when `{@render row(item)}` passes too few, and a member the parameter does not have is reported where the snippet is written. An older `@valancex/mesh-compiler` is told at the declaration (`component-schema`: "a snippet needs MESH 0.14 or later").
+- Slots (`mesh-slot`, `mesh-fill`) keep working for a component that does not declare `children`.
+
 ### Typed template imports
 
 `vlx sync` (and `check`, `dev` and `build`) write `.valance/types/<template>.d.mprx.ts`, so a component's declaration is checked against the names its template uses: `component(template, { props: { thme: … } })` is a compile-time error. This needs two options in your `tsconfig.json`:
