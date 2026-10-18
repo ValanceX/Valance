@@ -93,7 +93,7 @@ describe("vlx generate component", () => {
 
     expect(componentProblem("Callout")).toMatch(/cannot be a tag/);
     expect(componentProblem("layout")).toMatch(/page's shell/);
-    expect(componentProblem("para")).toMatch(/already a tag/);
+    expect(componentProblem("paragraph")).toMatch(/already a tag/);
     expect(componentProblem("blocks")).toMatch(/built-in/);
     expect(() => generateComponent(root, "layout")).toThrow();
     generateComponent(root, "callout");
