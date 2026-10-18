@@ -47,8 +47,16 @@ WP0 defects and housekeeping ─┬─ WP1 shared vectors ─┐
 **WP0 status (2026-10-17, first implementation session).** All seven items are done except that qualified override ids (K14) are a marked TODO. Code is on the branch `claude/wp0-defects-housekeeping-k4q5kt` of `valancex/mesh`, `valancex/valance` and `valancex/port`; the baseline and the decision changes are on `claude/wp0-direction-docs` of `valancex/valance`. Findings that need a decision are recorded in [the new baseline](baselines/2026-10-17-vlx-build.md) (a second WebAssembly runtime in a plain install, and WebAssembly memory still growing after 1,000 updates) and below:
 
 - The limits of G5 apply to every MPRX source, not only generated UI: a file over 64 KB is `input-too-large`. A 64 KB source holds at most about 4,600 elements of 14 bytes, so the 5,000-element limit is reached only by short elements.
-- A11 names Heading, Paragraph, List and ListItem; `blockquote` (the web renders it as `blockquote`) is not in the 22-name role set and the Desktop still exposes nothing for it.
+- A11 names Heading, Paragraph, List and ListItem; `blockquote` was added to the role set on 2026-10-18 (see below) and the Desktop still exposes nothing for it.
 - The render nesting cap of U12 counts steps of the path to a node (512). Native debug builds overflow a 2 MB thread stack well before that, so a native host needs a larger stack; WebAssembly is bounded by the cap.
+
+**WP0 review and consolidation (2026-10-18).** The three code branches and the docs branch were reviewed, merged into `claude/optimistic-gates-9xmvhs` of each repository (the `scripts/measure-footprint.mjs` conflict resolved in favor of the code branch's version) and the checks re-run. Review found the work sound; notes and follow-ups:
+
+- **The WebAssembly memory growth has a cause and a fix.** Valance never called `release()` on the render an `update` replaces, and the runtime keeps that render until it is released: 1,000 updates took a counter from 2.31 MB to 4.63 MB without it and left it at 2.31 MB with it. `connect` now releases the previous render, with a test that fails without the change (W21). **Follow-up (WP8):** re-run the harness's memory rows with the fix before the memory ceilings gate, and check the JavaScript heap row the same way.
+- **A second WebAssembly runtime ships in a plain install** (432 KB transferred against 261 KB). Decision W20: one `mesh-runtime` range across `common`, `valance` and `nexus`, and a production `vlx build` that fails naming both copies. **Follow-up (WP0b):** align the peer ranges and add the guard.
+- **`blockquote` joins the role set** (23 names, A11); the Desktop PORT still has to set `Role::Blockquote`. **Follow-up (WP0b).**
+- **Nits for WP0b:** in the Desktop list, the bullet or number is drawn as its own label inside each `ListItem`, so an assistive technology reads "bullet" before the text; mark the marker as decoration or give the item the text alone. The new `template-builtin` error is a break for any application that names a component like a built-in without `override`; it is documented in the CLI README and is inside the free window.
+- **The G5 limits apply to every MPRX source**, and the time budget per push is not built. **Qualified override ids** (K14) remain a TODO at the collision site.
 
 ## WP1. Shared conformance data
 

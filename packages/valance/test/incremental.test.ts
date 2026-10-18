@@ -4,7 +4,8 @@ import type * as Mesh from "@valancex/nexus";
 
 import { compileProgram } from "@valancex/mesh-compiler";
 import { Chunk, Effect, Exit, Schema, Scope, Stream } from "effect";
-import { describe, expect, it } from "vitest";
+import { Render } from "@valancex/mesh-runtime";
+import { describe, expect, it, vi } from "vitest";
 
 import * as Valance from "../src/index.js";
 import { runningOf } from "../src/internal.js";
@@ -167,5 +168,24 @@ describe("only what changed is drawn", () => {
     expect(seen.map((viewed) => viewed.patches !== undefined)).toEqual([false, true, true]);
     expect(treeOf(seen[2]!.render)).toBe(treeOf(fresh.render));
     await Effect.runPromise(Scope.close(scope, Exit.void));
+  });
+});
+
+describe("the render that is no longer drawn is released", () => {
+  it("each later render releases the one before it, so the runtime keeps one render and not a copy per update", async () => {
+    const release = vi.spyOn(Render.prototype, "release");
+
+    try {
+      await run(true, [
+        ["title", "U"],
+        ["title", "V"],
+        ["add", "c"],
+      ]);
+
+      // Three updates after the first draw: three previous renders released (the module keeps the render `update` makes until it is: ~2.3 KB of WebAssembly memory per update).
+      expect(release.mock.calls.length).toBeGreaterThanOrEqual(3);
+    } finally {
+      release.mockRestore();
+    }
   });
 });

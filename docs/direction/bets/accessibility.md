@@ -183,7 +183,7 @@ Said once, here, so nobody reads "compiles" as "accessible": reading order, focu
 
 These were the open questions. Sources and measurements are in [decisions](../decisions.md) A11 to A15 and in [prior art](../prior-art.md).
 
-**The version-1 role set (22 names).** Pinned to AccessKit 0.17.1, the version egui 0.31.1 and the Desktop PORT use (the enum has 186 roles in 0.17.1 and 182 in 0.25.1 and differs between them). The mapping from egui is in its `response.rs`: it emits Label, Link, TextInput, Button, Image, CheckBox, RadioButton, RadioGroup, ComboBox, Slider, SpinButton, ProgressIndicator and Window, and **never** Heading, List, ListItem, Paragraph, Table, Status, Alert or Dialog.
+**The version-1 role set (23 names: the 22 below and `blockquote`, added 2026-10-18).** Pinned to AccessKit 0.17.1, the version egui 0.31.1 and the Desktop PORT use (the enum has 186 roles in 0.17.1 and 182 in 0.25.1 and differs between them). The mapping from egui is in its `response.rs`: it emits Label, Link, TextInput, Button, Image, CheckBox, RadioButton, RadioGroup, ComboBox, Slider, SpinButton, ProgressIndicator and Window, and **never** Heading, List, ListItem, Paragraph, Table, Status, Alert or Dialog.
 
 | Role | Web | AccessKit `Role` | Desktop provider |
 |---|---|---|---|
@@ -191,6 +191,7 @@ These were the open questions. Sources and measurements are in [decisions](../de
 | generic (`text`) | `span`, which maps to `generic` | Label | egui (the text is in `value`, not `label`) |
 | heading | `h2` with `aria-level` | Heading with a level | **the PORT must set it**: today the Desktop `heading` is drawn as a styled horizontal label, so it exposes Label and drops `level` |
 | paragraph | `p` | Paragraph | the PORT |
+| blockquote | `blockquote` | Blockquote (in AccessKit 0.17.1) | the PORT (not yet set: the Desktop draws it as an indented block) |
 | list, listitem | `ul`/`ol`, `li` | List, ListItem | the PORT |
 | link | `a` | Link | egui |
 | img (`image`) | `img`, role `img` | Image | egui |
