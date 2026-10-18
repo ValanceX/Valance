@@ -73,17 +73,13 @@ export interface ManifestOptions {
   readonly commands: (state: Nexus.State.StateHandle<any>) => Readonly<Record<string, unknown>>;
   /** Plugins whose tags are part of the application's vocabulary: their `primitives` join `primitives`, composed as `compose` in `./web/plugin` says (a tag is declared once). */
   readonly plugins?: ReadonlyArray<Plugin<any>>;
-  /**
-   * Whether a string-literal union is written as the closed set it is (`{ kind: "enum", values }`, which a MESH from 0.14 reads) or, for an older MESH, widened to `string`. Default `true`.
-   */
-  readonly enums?: boolean;
 }
 
 // ---- Schema → MESH type -------------------------------------------------------------------------------------------------------------------------------------------
 
 type Field = { readonly type: MeshType; readonly required: boolean };
 
-const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
+const typeOf = (ast: AST.AST, path: string): MeshType => {
   switch (ast._tag) {
     case "StringKeyword":
       return { kind: "string" };
@@ -100,11 +96,11 @@ const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
       }
 
       // A string literal is a closed set of one (the model keeps what the schema says); a number or boolean literal is its primitive.
-      return typeof ast.literal === "string" && enums
+      return typeof ast.literal === "string"
         ? { kind: "enum", values: [ast.literal] }
         : { kind: typeof ast.literal === "number" ? "number" : typeof ast.literal === "boolean" ? "boolean" : "string" };
     case "Refinement":
-      return typeOf(ast.from, path, enums);
+      return typeOf(ast.from, path);
     case "Union": {
       const members = ast.types.filter((member) => member._tag !== "UndefinedKeyword");
       // A union made only of string literals (however nested) is a closed set, an `enum`; mixed with `string` it is just a string.
@@ -116,7 +112,7 @@ const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
               ? member.types.filter((each) => each._tag !== "UndefinedKeyword").flatMap((each) => literals(each)!)
               : undefined
             : undefined;
-      const closed = enums && members.length > 0 ? members.map(literals) : undefined;
+      const closed = members.length > 0 ? members.map(literals) : undefined;
 
       if (closed !== undefined && closed.every((each) => each !== undefined)) {
         const only: MeshType = { kind: "enum", values: [...new Set(closed.flat() as ReadonlyArray<string>)] };
@@ -124,7 +120,7 @@ const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
         return members.length === ast.types.length ? only : { kind: "optional", type: only };
       }
 
-      const kinds = new Set(members.map((member) => typeOf(member, path, enums)).map((type) => JSON.stringify(type)));
+      const kinds = new Set(members.map((member) => typeOf(member, path)).map((type) => JSON.stringify(type)));
 
       if (kinds.size !== 1) {
         throw new ManifestError(
@@ -133,13 +129,13 @@ const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
         );
       }
 
-      const only = typeOf(members[0]!, path, enums);
+      const only = typeOf(members[0]!, path);
 
       return members.length === ast.types.length ? only : { kind: "optional", type: only };
     }
     case "TupleType":
       if (ast.elements.length === 0 && ast.rest.length === 1) {
-        return { kind: "list", element: typeOf(ast.rest[0]!.type, `${path}[]`, enums) };
+        return { kind: "list", element: typeOf(ast.rest[0]!.type, `${path}[]`) };
       }
 
       throw new ManifestError(path, "a fixed-length tuple has no MESH type; use an array");
@@ -150,7 +146,7 @@ const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
 
       return {
         kind: "record",
-        fields: Object.fromEntries(ast.propertySignatures.map((property) => [String(property.name), fieldOf(property, `${path}.${String(property.name)}`, enums)])),
+        fields: Object.fromEntries(ast.propertySignatures.map((property) => [String(property.name), fieldOf(property, `${path}.${String(property.name)}`)])),
       };
     }
     default:
@@ -158,11 +154,11 @@ const typeOf = (ast: AST.AST, path: string, enums: boolean): MeshType => {
   }
 };
 
-const fieldOf = (property: AST.PropertySignature, path: string, enums: boolean): Field => {
+const fieldOf = (property: AST.PropertySignature, path: string): Field => {
   const withoutUndefined = property.type._tag === "Union" ? AST.Union.make(property.type.types.filter((member) => member._tag !== "UndefinedKeyword")) : property.type;
 
   // `p?: T` (and `p?: T | undefined`) may be left out; `p: T | undefined` must be written but may be absent.
-  return property.isOptional ? { type: typeOf(withoutUndefined, path, enums), required: false } : { type: typeOf(property.type, path, enums), required: true };
+  return property.isOptional ? { type: typeOf(withoutUndefined, path), required: false } : { type: typeOf(property.type, path), required: true };
 };
 
 const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.TypeLiteral => {
@@ -217,7 +213,7 @@ const tagOf = (tag: string, primitive: WebPrimitives[string]): Manifest["compone
   scope: {},
 });
 
-const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet<string>, enums: boolean): Manifest["components"][string]["commands"] => {
+const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet<string>): Manifest["components"][string]["commands"] => {
   const commands: Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }> = {};
 
   for (const [key, value] of Object.entries(table)) {
@@ -243,7 +239,7 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
       parameters:
         ast._tag === "TypeLiteral" && ast.indexSignatures.length === 0
           ? ast.propertySignatures.map((property) => {
-              const field = fieldOf(property, `${key}.${String(property.name)}`, enums);
+              const field = fieldOf(property, `${key}.${String(property.name)}`);
 
               if (!field.required) {
                 throw new ManifestError(
@@ -254,7 +250,7 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
 
               return { name: String(property.name), type: field.type };
             })
-          : [{ name: "value", type: typeOf(ast, key, enums) }],
+          : [{ name: "value", type: typeOf(ast, key) }],
     };
   }
 
@@ -280,8 +276,7 @@ const noState = new Proxy(
 export const manifest = (given: ManifestOptions): Manifest => {
   const options = { ...given, primitives: compose<unknown>({ primitives: given.primitives }, given.plugins ?? []).primitives };
   const views = new Set(Object.keys(options.scopes));
-  const enums = given.enums ?? true;
-  const commands = commandsOf(options.commands(noState), views, enums);
+  const commands = commandsOf(options.commands(noState), views);
 
   for (const name of [...Object.keys(options.primitives), ...views]) {
     if (RETIRED.has(name)) {
@@ -309,7 +304,7 @@ export const manifest = (given: ManifestOptions): Manifest => {
             commands, // a bare command is every view's, as `start` binds it to every declared `component/name`
             scope: Object.fromEntries(
               structOf(schema, view).propertySignatures.map((property) => {
-                const field = fieldOf(property, `${view}.${String(property.name)}`, enums);
+                const field = fieldOf(property, `${view}.${String(property.name)}`);
 
                 return [String(property.name), field.required ? field.type : { kind: "optional", type: field.type }];
               }),

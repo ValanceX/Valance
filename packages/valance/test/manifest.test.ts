@@ -113,8 +113,7 @@ describe("what is derived", () => {
 });
 
 describe("string literals are closed sets (T7)", () => {
-  const scopeOf = (fields: Schema.Struct.Fields, enums?: boolean) =>
-    manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) }, commands: () => ({}), ...(enums === undefined ? {} : { enums }) }).components["v"]!.scope;
+  const scopeOf = (fields: Schema.Struct.Fields) => manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) }, commands: () => ({}) }).components["v"]!.scope;
 
   it("a literal, or a union of string literals, is an enum; a number or boolean literal keeps its kind", () => {
     expect(
@@ -140,13 +139,6 @@ describe("string literals are closed sets (T7)", () => {
 
   it("a union with no MESH type is a ManifestError that names the field, not a crash", () => {
     expect(() => scopeOf({ mixed: Schema.Union(Schema.Literal("a"), Schema.Number) })).toThrow(/v\.mixed: a union of different kinds/);
-  });
-
-  it("widens to string for a MESH that does not read an enum", () => {
-    expect(scopeOf({ tone: Schema.Literal("info", "danger"), maybe: Schema.UndefinedOr(Schema.Literal("x", "y")) }, false)).toEqual({
-      tone: { kind: "string" },
-      maybe: { kind: "optional", type: { kind: "string" } },
-    });
   });
 });
 
