@@ -112,15 +112,13 @@ describe("the states a primitive carries", () => {
     }
   };
 
-  for (const specification of Object.values(specifications)) {
-    const tag = tagOf(specification.name);
+  const cases = Object.values(specifications).flatMap((specification) =>
+    Object.keys(specification.states ?? {})
+      .map((state) => ({ name: specification.name, state, tag: tagOf(specification.name), given: specification.example.props?.[specification.states![state]!] }))
+      .filter((each) => each.tag !== undefined && each.given !== undefined),
+  );
 
-    for (const state of Object.keys(specification.states ?? {})) {
-      if (tag !== undefined && specification.example.props?.[specification.states![state]!] !== undefined) {
-        it(`${specification.name} carries ${state} on the web`, () => realized(specification.name, state, tag));
-      }
-    }
-  }
+  it.each(cases)("$name carries $state on the web", ({ name, state, tag }) => realized(name, state, tag!));
 });
 
 describe("a described primitive", () => {

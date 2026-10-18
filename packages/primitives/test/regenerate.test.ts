@@ -1,9 +1,12 @@
 // "Today's tables regenerate with no test changes" (the Spec Gate): the table generated from the specifications and the web's realization is the table that was written by hand, tag for tag. The hand
 // table is frozen beside this test (legacy/primitives.ts, as it was before WP3). What the generated one has beyond it is listed, with the reason.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import * as Web from "@valancex/valance/web";
 import { describe, expect, it } from "vitest";
 
-import { loadWeb, webTable } from "../src/index.js";
+import { generateDocs, generatePrimitives, loadSpecifications, loadWeb, root, webTable } from "../src/index.js";
 import { primitives as legacy } from "./legacy/primitives.js";
 
 const generated = webTable(loadWeb(), Web as never) as unknown as Record<
@@ -71,4 +74,18 @@ describe("the generated web table", () => {
       }
     });
   }
+});
+
+describe("the committed table", () => {
+  it("is what the generator writes from the specifications and the realizations", () => {
+    const committed = readFileSync(join(root, "..", "common", "src", "primitives.ts"), "utf8");
+
+    expect(committed).toBe(generatePrimitives(loadSpecifications(), loadWeb()));
+  });
+});
+
+describe("the committed reference page", () => {
+  it("is what the generator writes from the specifications and the realizations", () => {
+    expect(readFileSync(join(root, "..", "..", "docs", "use", "primitives.md"), "utf8")).toBe(generateDocs(loadSpecifications(), loadWeb()));
+  });
 });

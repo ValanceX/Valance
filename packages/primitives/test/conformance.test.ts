@@ -78,24 +78,6 @@ describe.each(tags)("the web tag %s", (tag, realization: WebRealization) => {
     }
   });
 
-  const expected = specification.webRole ?? specification.role;
-
-  if (expected !== null && !["column", "row"].includes(realization.primitive) && realization.primitive !== "label") {
-    it(`has the role ${expected}`, () => {
-      const drawn = element();
-      const found = roleOfElement(drawn, { getRole, elementRoles });
-      const waived = toolDiffers[drawn.localName];
-
-      if (waived !== undefined && computeAccessibleName(drawn) === "") {
-        // the tool is wrong against the official text here: the case checks that it still is, so a corrected tool shows the waiver is no longer needed
-        expect(found, waived.reason).toBe(waived.tool);
-        expect(expected).toBe(waived.official);
-      } else {
-        expect(found).toBe(expected);
-      }
-    });
-  }
-
   it("has the accessible name its rule gives", () => {
     const drawn = element();
     const rule = specification.accessibleName;
@@ -110,24 +92,47 @@ describe.each(tags)("the web tag %s", (tag, realization: WebRealization) => {
       expect(computeAccessibleName(drawn)).toBe(text);
     }
   });
+});
 
-  if (specification.example.describedByText !== undefined) {
-    it("is described by what describedby points at", () => {
-      expect(computeAccessibleDescription(element())).toBe(specification.example.describedByText);
+const specificationOf = (realization: WebRealization): Specification => specifications[realization.primitive]!;
+const draws = (tag: string) => draw(tag, specificationOf(realizations.primitives[tag]!).example);
+
+describe.each(tags.filter(([, each]) => (specificationOf(each).webRole ?? specificationOf(each).role) !== null && !["column", "row", "label"].includes(each.primitive)))(
+  "the role of the web tag %s",
+  (tag, realization: WebRealization) => {
+    const expected = specificationOf(realization).webRole ?? specificationOf(realization).role;
+
+    it(`is ${expected}`, () => {
+      const drawn = draws(tag);
+      const found = roleOfElement(drawn, { getRole, elementRoles });
+      const waived = toolDiffers[drawn.localName];
+
+      if (waived !== undefined && computeAccessibleName(drawn) === "") {
+        // the tool is wrong against the official text here: the case checks that it still is, so a corrected tool shows the waiver is no longer needed
+        expect(found, waived.reason).toBe(waived.tool);
+        expect(expected).toBe(waived.official);
+      } else {
+        expect(found).toBe(expected);
+      }
     });
-  }
+  },
+);
 
-  if (specification.live !== undefined) {
-    it("is a live region with the settings the specification gives", () => {
-      const drawn = element();
-      const role = roles.get(drawn.getAttribute("role") as never);
+describe.each(tags.filter(([, each]) => specificationOf(each).example.describedByText !== undefined))("the description of the web tag %s", (tag, realization: WebRealization) => {
+  it("is what describedby points at", () => {
+    expect(computeAccessibleDescription(draws(tag))).toBe(specificationOf(realization).example.describedByText);
+  });
+});
 
-      // the role carries the implicit settings (ARIA 1.2: status is polite, alert is assertive, both atomic); an explicit attribute may only repeat them
-      const implicit = role?.props as Record<string, unknown> | undefined;
+describe.each(tags.filter(([, each]) => specificationOf(each).live !== undefined))("the live region of the web tag %s", (tag, realization: WebRealization) => {
+  it("has the settings the specification gives", () => {
+    const drawn = draws(tag);
+    const live = specificationOf(realization).live!;
+    // the role carries the implicit settings (ARIA 1.2: status is polite, alert is assertive, both atomic); an explicit attribute may only repeat them
+    const implicit = roles.get(drawn.getAttribute("role") as never)?.props as Record<string, unknown> | undefined;
 
-      expect(implicit?.["aria-live"]).toBe(specification.live!.politeness);
-      expect(implicit?.["aria-atomic"]).toBe(String(specification.live!.atomic));
-      expect(drawn.getAttribute("aria-live") ?? specification.live!.politeness).toBe(specification.live!.politeness);
-    });
-  }
+    expect(implicit?.["aria-live"]).toBe(live.politeness);
+    expect(implicit?.["aria-atomic"]).toBe(String(live.atomic));
+    expect(drawn.getAttribute("aria-live") ?? live.politeness).toBe(live.politeness);
+  });
 });
