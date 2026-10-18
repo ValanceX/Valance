@@ -73,7 +73,7 @@
                   "required": ["kind", "of"],
                   "properties": {
                     "kind": { "enum": ["string", "number", "boolean"] },
-                    "of": { "enum": ["checked", "value"] }
+                    "of": { "enum": ["checked", "value", "notPressed"] }
                   }
                 }
               }

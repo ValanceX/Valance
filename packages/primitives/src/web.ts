@@ -26,6 +26,8 @@ export interface WebHelpers {
 export const extractors = {
   checked: (_event: Event, element: Element) => (element as HTMLInputElement).checked,
   value: (_event: Event, element: Element) => (element as HTMLInputElement).value,
+  // the value a toggle is going to have: the opposite of what it shows
+  notPressed: (_event: Event, element: Element) => element.getAttribute("aria-pressed") !== "true",
 } as const;
 
 const propOf = (web: WebHelpers, realization: PropRealization): unknown => {

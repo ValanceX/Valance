@@ -49,6 +49,7 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 | [`tablerow`](#tablerow) | desktop-only | `row` | - | nothing of its own (a name comes from where it is used) |
 | [`text`](#text) | portable | `generic` | `<text>` | nothing of its own (a name comes from where it is used) |
 | [`textfield`](#textfield) | portable | `textbox` | `<textfield>` | its `label`, or a `label` around it |
+| [`toggle`](#toggle) | portable | `button` | `<toggle>` | its `label` when given, otherwise the text inside it |
 
 ## What `vlx` checks of a use
 
@@ -609,3 +610,25 @@ A line of text the person edits. The application owns the value.
 | `cancel` | none | Escape: the person backs out of what they typed. |
 | `focus` | none | The person came into the field. |
 | `blur` | none | The person left the field. |
+
+## toggle
+
+A button that stays pressed or not. The application owns the value; a press reports the value it is going to have.
+
+- **Status**: portable
+- **Role**: `button`
+- **Accessible name**: its `label` when given, otherwise the text inside it
+- **Content**: text
+- **States**: pressed (`pressed`), disabled (`disabled`)
+- **Keys**: Enter raises `change`; Space raises `change`
+
+| Prop | Type | Required | |
+| --- | --- | --- | --- |
+| `pressed` | boolean | yes | the application's value; state |
+| `label` | string | no | name |
+| `disabled` | boolean | no | state |
+| `class` | string | no | web only |
+
+| Event | Payload | |
+| --- | --- | --- |
+| `change` | boolean | The person pressed it; carries the new value. |

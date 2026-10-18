@@ -51,7 +51,7 @@ describe("the generated web table", () => {
       Object.keys(generated)
         .filter((tag) => !(tag in legacy))
         .sort(),
-    ).toEqual(["alert", "label", "radio", "radiogroup", "status"]);
+    ).toEqual(["alert", "label", "radio", "radiogroup", "status", "toggle"]);
   });
 
   for (const [tag, was] of Object.entries(legacy)) {

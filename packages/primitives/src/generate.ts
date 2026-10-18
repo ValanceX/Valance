@@ -6,7 +6,11 @@ import type { EventRealization, PropRealization, Specification, WebRealizations 
 
 const key = (name: string): string => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name));
 
-const extract = { checked: "(_event, element) => (element as HTMLInputElement).checked", value: "(_event, element) => (element as HTMLInputElement).value" } as const;
+const extract = {
+  checked: "(_event, element) => (element as HTMLInputElement).checked",
+  value: "(_event, element) => (element as HTMLInputElement).value",
+  notPressed: '(_event, element) => element.getAttribute("aria-pressed") !== "true"',
+} as const;
 
 const propSource = (realization: PropRealization): string => {
   switch (realization.kind) {

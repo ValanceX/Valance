@@ -407,6 +407,39 @@
         }
       }
     },
+    "toggle": {
+      "primitive": "toggle",
+      "element": "button",
+      "props": {
+        "pressed": {
+          "kind": "attribute",
+          "name": "aria-pressed"
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label",
+          "optional": true
+        },
+        "disabled": {
+          "kind": "boolean-attribute",
+          "name": "disabled"
+        },
+        "class": {
+          "kind": "attribute",
+          "name": "class",
+          "optional": true
+        }
+      },
+      "events": {
+        "change": {
+          "type": "click",
+          "payload": {
+            "kind": "boolean",
+            "of": "notPressed"
+          }
+        }
+      }
+    },
     "radiogroup": {
       "primitive": "radiogroup",
       "element": "div",

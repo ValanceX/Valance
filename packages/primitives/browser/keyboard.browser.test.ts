@@ -81,6 +81,20 @@ describe("the keys of a link", () => {
   });
 });
 
+describe("the keys of a toggle", () => {
+  it("Tab focuses it; Enter and Space raise change with the value it is going to have", async () => {
+    draw("toggle");
+    await userEvent.tab();
+    expect(focused()).toBe("button");
+    await userEvent.keyboard("{Enter}");
+    await userEvent.keyboard(" ");
+    expect(reports).toEqual([
+      ["toggle.change", false],
+      ["toggle.change", false],
+    ]);
+  });
+});
+
 describe("the keys of a checkbox", () => {
   it("Tab focuses it; Space raises change with the new value", async () => {
     draw("checkbox");

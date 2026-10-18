@@ -110,7 +110,7 @@ export type PropRealization =
 
 export interface EventRealization {
   readonly type: string;
-  /** The payload's kind and the extractor that builds it (`checked`: the element's `checked`; `value`: its `value`). */
+  /** The payload's kind and the extractor that builds it (`checked`: the element's `checked`; `value`: its `value`; `notPressed`: the opposite of its `aria-pressed`). */
   readonly payload?: {
     readonly kind: "string" | "number" | "boolean";
     readonly of: "checked" | "value";

@@ -107,6 +107,8 @@ describe("the states a primitive carries", () => {
       expect(element.hasAttribute("aria-checked"), `${name} must not repeat the native state`).toBe(false);
     } else if (state === "disabled") {
       expect(element.hasAttribute("disabled"), `${name} disabled`).toBe(true);
+    } else if (state === "pressed") {
+      expect(element.getAttribute("aria-pressed"), `${name} pressed`).toBe("true");
     } else if (state === "level") {
       expect(element.getAttribute("aria-level"), `${name} level`).not.toBeNull();
     }
