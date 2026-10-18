@@ -1,7 +1,10 @@
 // What Valance costs to ship, start, update and keep in memory, measured from the packages published on npm and built the way an application is built, with `vlx build` (Vite). Anyone can reproduce a number,
 // and numbers can be compared between releases.
 //
-//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome]
+//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree]
+//
+// By default the packages are the PUBLISHED ones, so a release is measured as a user gets it. With `--tree` the workspace's own packages (`@valancex/cli`, `common`, `valance`, `router`) are built and packed, and
+// their tarballs are installed instead, so a change that is not released yet (the release `connect` makes of the render it replaces, W21; the aligned MESH runtime range, W20) can be measured.
 //
 // It installs published packages into temporary directories (it never touches the repository, and never measures the working tree by accident), builds two applications with `vlx build --web`, and measures:
 //
@@ -33,9 +36,13 @@ const PAGES = Number(option("--pages", "20"));
 const DOCS_APP = resolve(option("--docs-app", join(here, "..", "examples", "docs-app")));
 const CHROMIUM = option("--chromium", process.env.CHROMIUM);
 const KEEP = args.includes("--keep");
+const TREE = args.includes("--tree");
 
 // What an application is built with: the published tooling, at versions whose peer ranges accept each other. Update it when the ranges move.
-const BUILD_WITH = ["@valancex/cli@0.13.0", "@valancex/common@0.13.0", "effect@3"];
+const PUBLISHED = { "@valancex/cli": "0.13.0", "@valancex/common": "0.13.0", effect: "3" };
+/** The workspace packages `--tree` packs: tarball paths by package name, filled in below. */
+const PACKED = {};
+const WORKSPACE_PACKAGES = ["cli", "common", "valance", "router"];
 const LATEST = ["effect@3", "@valancex/mesh-runtime", "@valancex/mesh-compiler", "@valancex/nexus", "@valancex/valance", "@valancex/port-web"];
 const made = [];
 
@@ -78,7 +85,39 @@ const write = (dir, tree) => {
   }
 };
 
-const results = { measuredAt: new Date().toISOString(), node: process.version, builtWith: BUILD_WITH, bundler: "vlx build (Vite)" };
+if (TREE) {
+  // The workspace's packages, built and packed the way they would be published (`pnpm pack` turns `workspace:` ranges into versions).
+  const root = resolve(here, "..");
+  const out = scratch("packs");
+
+  run("pnpm", ["--filter", "./packages/*", "build"], root);
+
+  for (const name of WORKSPACE_PACKAGES) {
+    const packed = run("pnpm", ["pack", "--pack-destination", out], join(root, "packages", name))
+      .trim()
+      .split("\n")
+      .at(-1);
+
+    PACKED[`@valancex/${name}`] = packed.startsWith("/") ? packed : join(out, packed);
+  }
+}
+
+/** What a project installs to build with, as `dependencies`: the published tooling, or the workspace's tarballs for `cli` and `common`, and `effect`. */
+const BUILD_WITH = TREE ? { "@valancex/cli": `file:${PACKED["@valancex/cli"]}`, "@valancex/common": `file:${PACKED["@valancex/common"]}`, effect: "3" } : PUBLISHED;
+/** `overrides` that make every other workspace package, wherever the tree asks for it, the tarball (the direct ones are not overridden: npm refuses a second spelling of a direct dependency). */
+const TREE_OVERRIDES = Object.fromEntries(
+  Object.entries(PACKED)
+    .filter(([name]) => !(name in BUILD_WITH))
+    .map(([name, path]) => [name, `file:${path}`]),
+);
+
+const results = {
+  measuredAt: new Date().toISOString(),
+  node: process.version,
+  source: TREE ? "workspace tarballs (--tree)" : "published packages",
+  builtWith: TREE ? Object.keys(PACKED) : PUBLISHED,
+  bundler: "vlx build (Vite)",
+};
 
 // 1. Can the newest version of every @valancex package be installed together? npm backtracks to older versions that satisfy the peer ranges instead of failing, so the question is whether what it picks is
 // the newest. (Effect is pinned to the major version the packages accept, so it is not compared.)
@@ -133,8 +172,13 @@ const DEDUPED = { "@valancex/mesh-runtime": "0.12.0" };
 const project = (name, tree, overrides) => {
   const dir = scratch(name);
 
-  writeFileSync(join(dir, "package.json"), JSON.stringify({ name, private: true, type: "module", ...(overrides ? { overrides } : {}) }));
-  run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...BUILD_WITH], dir);
+  const all = { ...TREE_OVERRIDES, ...overrides };
+
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({ name, private: true, type: "module", dependencies: BUILD_WITH, ...(Object.keys(all).length > 0 ? { overrides: all } : {}) }),
+  );
+  run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], dir);
   write(dir, tree);
 
   return dir;
@@ -220,6 +264,8 @@ const added = (count) =>
     ]),
   );
 
+let docsBuild;
+
 if (existsSync(DOCS_APP)) {
   const measure = (name, extra) => {
     const dir = project(name, { ...docsTree(), ...extra }, DEDUPED);
@@ -230,6 +276,7 @@ if (existsSync(DOCS_APP)) {
     return { dir, buildSeconds: (performance.now() - startedAt) / 1000, ...built(dir) };
   };
   const base = measure("docs-app", {});
+  docsBuild = base;
   const more = measure("docs-app-more", added(PAGES));
   const pagesOf = (dir) => files(join(dir, "dist", "web")).filter((name) => name.endsWith(".html") && name !== "404.html").length;
 
@@ -256,7 +303,10 @@ if (existsSync(DOCS_APP)) {
 }
 
 /** The counter in a real browser: first paint, until a click is handled, one click, bytes transferred, and the memory after UPDATES updates, with and without CPU throttling. */
-const measureBrowser = async (browser, root) => {
+// `probe` names what to click and what changes when the click is handled: the counter's `button.add` and its `.count`, or the docs-app's theme toggle, whose own text flips between Dark and Light.
+const COUNTER_PROBE = { button: "button.add", readout: ".count" };
+const DOCS_PROBE = { button: "button.theme-toggle", readout: "button.theme-toggle" };
+const measureBrowser = async (browser, root, probe) => {
   // Compress each file once, up front: compressing per request at maximum quality takes seconds and would be measured as the application's start-up.
   const served = new Map(files(root).map((name) => [`/${name}`, zlib.brotliCompressSync(readFileSync(join(root, name)))]));
   const types = { html: "text/html", js: "text/javascript", css: "text/css", wasm: "application/wasm", svg: "image/svg+xml" };
@@ -311,7 +361,7 @@ const measureBrowser = async (browser, root) => {
       session.on("Network.loadingFinished", (event) => {
         bytes += event.encodedDataLength;
       });
-      await page.addInitScript(() => {
+      await page.addInitScript((probe) => {
         // The memory the WebAssembly runtime owns, found as it is instantiated.
         window.__memories = [];
         const remember = (instance) => {
@@ -340,49 +390,57 @@ const measureBrowser = async (browser, root) => {
 
         // The page is server-rendered, so the count is there at first paint, and a click before the application has started does nothing (Bet 14). Click every 10 ms until one is handled.
         window.__interactive = undefined;
+        let initial;
         const timer = setInterval(() => {
-          const button = document.querySelector("button.add");
-          const text = document.querySelector(".count")?.textContent ?? "";
+          const button = document.querySelector(probe.button);
+          const text = document.querySelector(probe.readout)?.textContent;
 
-          if (text.includes("Count: 1")) {
+          if (button === null || text === undefined) return;
+
+          initial ??= text;
+
+          if (text !== initial) {
             window.__interactive = performance.now();
             clearInterval(timer);
-          } else if (button) {
+          } else {
             button.click();
           }
         }, 10);
-      });
+      }, probe);
       await page.goto(`http://localhost:${server.address().port}/`);
       // Known answer: a page that never counted would stall here instead of reporting a number.
       await page.waitForFunction(() => window.__interactive !== undefined, undefined, { timeout: 60000 });
       paint.push(await page.evaluate(() => performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? NaN));
       interactive.push(await page.evaluate(() => window.__interactive));
       click.push(
-        await page.evaluate(async () => {
-          const before = Number(document.querySelector(".count").textContent.replace("Count: ", ""));
+        await page.evaluate(async (probe) => {
+          const before = document.querySelector(probe.readout).textContent;
           const started = performance.now();
 
-          document.querySelector("button.add").click();
+          document.querySelector(probe.button).click();
 
-          while (document.querySelector(".count").textContent !== `Count: ${before + 1}`) await new Promise((resolve) => setTimeout(resolve, 0));
+          while (document.querySelector(probe.readout).textContent === before) await new Promise((resolve) => setTimeout(resolve, 0));
 
           return performance.now() - started;
-        }),
+        }, probe),
       );
       transferred.push(bytes);
 
       // W18: the memory when the application has just started, then after a fixed number of updates.
       startHeap.push(Object.fromEntries((await session.send("Performance.getMetrics")).metrics.map((metric) => [metric.name, metric.value])).JSHeapUsedSize);
       startWasm.push(await page.evaluate(() => window.__memories.reduce((sum, memory) => sum + memory.buffer.byteLength, 0)));
-      await page.evaluate(async (updates) => {
-        for (let n = 0; n < updates; n++) {
-          const before = document.querySelector(".count").textContent;
+      await page.evaluate(
+        async ({ probe, updates }) => {
+          for (let n = 0; n < updates; n++) {
+            const before = document.querySelector(probe.readout).textContent;
 
-          document.querySelector("button.add").click();
+            document.querySelector(probe.button).click();
 
-          while (document.querySelector(".count").textContent === before) await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      }, UPDATES);
+            while (document.querySelector(probe.readout).textContent === before) await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        },
+        { probe, updates: UPDATES },
+      );
       await session.send("HeapProfiler.enable");
       await session.send("HeapProfiler.collectGarbage");
 
@@ -439,7 +497,12 @@ if (!args.includes("--skip-browser")) {
     results.browser = { updates: UPDATES, chromium: browser.version() };
 
     for (const [build, { dir }] of Object.entries(counterBuilds)) {
-      results.browser[build] = await measureBrowser(browser, join(dir, "dist", "web"));
+      results.browser[build] = await measureBrowser(browser, join(dir, "dist", "web"), COUNTER_PROBE);
+    }
+
+    // The documentation site, whose updates are the theme toggle's: the same memory rows with a real page (W17, W18).
+    if (docsBuild !== undefined) {
+      results.browser.docsApp = await measureBrowser(browser, join(docsBuild.dir, "dist", "web"), DOCS_PROBE);
     }
 
     await browser.close();
