@@ -848,6 +848,10 @@ export const mount = <S, E>(
     (connected) => without(connected, "first"),
   );
 
+/**
+ * Takes over server output with the client's own render (never the server's), then keeps it current.
+ * What adoption or mismatch means is PORT's: `hydration` is its result, unchanged.
+ */
 export const hydrate = <S, E, H>(
   application: ApplicationHandle<S, E>,
   create: TargetFactory<HydratableTarget<H>>,
