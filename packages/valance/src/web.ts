@@ -419,6 +419,8 @@ export interface RunOptions<S> extends StartOptions<S> {
    * `"hydrate"` adopts server-rendered markup in the container with the client's own render, and reports whether it did in `Host.mounted.hydration`.
    */
   readonly present: "mount" | "hydrate";
+  /** How many of the most recent exits `mounted.dispatched` keeps: `MountOptions.ledger` (default 1,000; `Infinity` keeps every exit). */
+  readonly ledger?: number;
   /** The application's own URL policy, handed to `history` unread. Absent: the URL is not kept in step. */
   readonly history?: HistoryOptions<S>;
   /**
@@ -482,7 +484,8 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
   const startup = Effect.gen(function* () {
     const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
     const web = target({ container: options.container, primitives: composed.primitives });
-    const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web) : yield* mount(handle, web);
+    const mountOptions = options.ledger === undefined ? {} : { ledger: options.ledger };
+    const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web, mountOptions) : yield* mount(handle, web, mountOptions);
 
     if (policy !== undefined) {
       yield* history(handle, { container: options.container, ...policy });

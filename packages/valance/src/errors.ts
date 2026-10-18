@@ -17,7 +17,9 @@ export type ValanceErrorCode =
   /** Two parties declared the same thing that can be declared only once (a tag, the URL policy). A mistake in the composition. */
   | "plugin-conflict"
   /** A head tag carries a value the head refuses (a script-bearing URL). A mistake in the data. */
-  | "invalid-head";
+  | "invalid-head"
+  /** `MountOptions.ledger` is not a number of at least 0. A mistake in the call. */
+  | "invalid-ledger";
 
 /**
  * The defect VALANCE dies with for misuse and for work refused because the application is closing. It is a defect, never a typed
@@ -42,6 +44,7 @@ const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>([
   "target-not-drawn",
   "plugin-conflict",
   "invalid-head",
+  "invalid-ledger",
 ]);
 
 /** Whether `value` is a `ValanceError`, by its shape and not its class, so it works across two installed copies of the package. */

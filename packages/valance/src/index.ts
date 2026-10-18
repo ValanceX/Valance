@@ -627,13 +627,17 @@ export type TargetFactory<T extends Target> = (report: Report) => T;
  */
 export interface Mounted<E> {
   /**
-   * The exit of every dispatch this mount made for a reported event, appended as each one settles (settle order, never removed, never reordered).
-   * The only place the outcome of an event-triggered command is recorded: a failure or a defect appears nowhere else (not in state, values or the render).
+   * The exit of the most recent dispatches this mount made for a reported event, appended as each one settles (settle order, never reordered). It is
+   * BOUNDED: it keeps the most recent `MountOptions.ledger` exits (1,000 by default), and the oldest is dropped when one more arrives (`dispatchedDropped` counts them).
+   * The only place the outcome of an event-triggered command is recorded: a failure or a defect appears nowhere else (not in state, values or the render), so
+   * a dropped failure or defect is logged once, as it is dropped (`Effect.logError`, the failure's identity only). It is the same live array for the mount's life.
    * It belongs to the mount that dispatched, so exits keep arriving after that mount closed (a command is the application's once admitted, and ends with
    * the application at the latest). It is an observation facility for hosts and tests, not part of the application programming model: nothing in
    * Valance reads it, and `ApplicationHandle` does not expose it. It lives as long as the `Mounted` value is held.
    */
   readonly dispatched: ReadonlyArray<DispatchExit<E>>;
+  /** How many exits `dispatched` has dropped to stay within its bound: the oldest ones, in settle order. `dispatched.length + dispatchedDropped` is every exit so far. Live, like `dispatched`. */
+  readonly dispatchedDropped: number;
   /**
    * A barrier: succeeds once every dispatch this OPEN mount has made so far has settled (and those made while it waits). It does not read `dispatched`.
    * A closed mount holds no dispatches, so `settled` returns at once and does not wait for the exits that are still to arrive in `dispatched`.
@@ -643,17 +647,49 @@ export interface Mounted<E> {
   readonly followed: Effect.Effect<Exit.Exit<void, Nexus.Mesh.MeshDiagnostics>>;
 }
 
+/** `value` without `key`, keeping its other members as they are: a getter stays live (`{ ...value }` would read it once). */
+const without = <V extends object, K extends keyof V>(value: V, key: K): Omit<V, K> => {
+  const { [key as PropertyKey]: _, ...rest } = Object.getOwnPropertyDescriptors(value) as Record<PropertyKey, PropertyDescriptor>;
+
+  return Object.defineProperties({}, rest) as Omit<V, K>;
+};
+
+/** What `mount` and `hydrate` take beyond the application and the target. */
+export interface MountOptions {
+  /**
+   * How many of the most recent exits `Mounted.dispatched` keeps (default 1,000): a number of at least 0. `Infinity` keeps every exit (the ledger then grows with every event,
+   * for the life of the `Mounted` value); `0` records none (each exit counts as dropped, and a failure or defect is logged).
+   */
+  readonly ledger?: number;
+}
+
+/** The ledger's default bound: the most recent exits kept. */
+const DEFAULT_LEDGER = 1000;
+
+const ledgerBound = (ledger: number | undefined): number => {
+  const bound = ledger ?? DEFAULT_LEDGER;
+
+  if (Number.isNaN(bound) || bound < 0) {
+    throw new ValanceError("invalid-ledger", `the ledger bound must be a number of at least 0 (Infinity keeps every exit), found ${String(bound)}`);
+  }
+
+  return Math.floor(bound);
+};
+
 const connect = <S, E, T extends Target, A>(
   application: ApplicationHandle<S, E>,
   create: TargetFactory<T>,
   first: (target: T, tree: RenderTree) => A,
+  options: MountOptions | undefined,
 ): Effect.Effect<Mounted<E> & { readonly first: A }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.gen(function* () {
     const running = runningOf(application);
     const scope = yield* Effect.scope;
     // The render whose tree is drawn: the only render an event may be dispatched with (NEXUS M1, M2).
     const drawn: { current: Viewed | undefined } = { current: undefined };
+    const bound = ledgerBound(options?.ledger);
     const dispatched: Array<DispatchExit<E>> = [];
+    let dropped = 0;
     const pending: Array<Fiber.RuntimeFiber<unknown, never>> = [];
 
     const target = create((handler, payload) => {
@@ -666,11 +702,23 @@ const connect = <S, E, T extends Target, A>(
       // `dispatch` runs inside the application (its platform's FiberRefs apply) and nothing flows back (NEXUS I44).
       const fiber = Effect.runFork(
         Effect.exit(running.dispatch(render, handler, payload)).pipe(
-          Effect.tap((exit) =>
-            Effect.sync(() => {
-              dispatched.push(exit);
-            }),
-          ),
+          Effect.tap((exit) => {
+            // Kept: the most recent `bound`. The oldest is dropped as one more arrives, and a failure or defect that nothing else records is logged, once, now.
+            dispatched.push(exit);
+
+            const leaving = dispatched.length > bound ? dispatched.splice(0, dispatched.length - bound) : [];
+
+            dropped += leaving.length;
+
+            return Effect.forEach(
+              leaving,
+              (left) =>
+                Exit.isFailure(left) && !Cause.isInterruptedOnly(left.cause)
+                  ? Effect.logError("event command exit dropped from the ledger").pipe(Effect.annotateLogs({ failure: failureIdentity(left.cause) }))
+                  : Effect.void,
+              { discard: true },
+            );
+          }),
         ),
       );
 
@@ -770,6 +818,9 @@ const connect = <S, E, T extends Target, A>(
     return {
       first: result,
       dispatched,
+      get dispatchedDropped() {
+        return dropped;
+      },
       settled,
       followed: Fiber.await(follower),
     };
@@ -780,23 +831,29 @@ const connect = <S, E, T extends Target, A>(
  * whatever Scope it is. If the application ends first (its own Scope closed), the follower ends (`Mounted.followed` Success) but the target stays
  * drawn, inert, until this Scope closes.
  */
-export const mount = <S, E>(application: ApplicationHandle<S, E>, create: TargetFactory<Target>): Effect.Effect<Mounted<E>, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
+export const mount = <S, E>(
+  application: ApplicationHandle<S, E>,
+  create: TargetFactory<Target>,
+  options?: MountOptions,
+): Effect.Effect<Mounted<E>, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.map(
-    connect(application, create, (target, tree) => {
-      target.draw(tree);
-    }),
-    ({ first: _, ...mounted }) => mounted,
+    connect(
+      application,
+      create,
+      (target, tree) => {
+        target.draw(tree);
+      },
+      options,
+    ),
+    (connected) => without(connected, "first"),
   );
 
-/**
- * Takes over server output with the client's own render (never the server's), then keeps it current.
- * What adoption or mismatch means is PORT's: `hydration` is its result, unchanged.
- */
 export const hydrate = <S, E, H>(
   application: ApplicationHandle<S, E>,
   create: TargetFactory<HydratableTarget<H>>,
+  options?: MountOptions,
 ): Effect.Effect<Mounted<E> & { readonly hydration: H }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.map(
-    connect(application, create, (target, tree) => target.hydrate(tree)),
-    ({ first, ...mounted }) => ({ ...mounted, hydration: first }),
+    connect(application, create, (target, tree) => target.hydrate(tree), options),
+    (connected) => Object.defineProperties({ hydration: connected.first }, Object.getOwnPropertyDescriptors(without(connected, "first"))) as Mounted<E> & { readonly hydration: H },
   );
