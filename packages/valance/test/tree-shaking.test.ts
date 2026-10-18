@@ -69,9 +69,8 @@ describe("the substrate keeps the promise those tests rely on", () => {
     expect(sideEffects(name) === false || (Array.isArray(sideEffects(name)) && (sideEffects(name) as Array<unknown>).length === 0)).toBe(true);
   });
 
-  // NEXUS 0.12.0 and 0.12.1 do not; 0.12.2 (prepared) does. Until a release carries it, an entry that imports NEXUS keeps it in a consumer's bundle even when it uses none.
-  // Goes red when the installed NEXUS declares it: remove the marker then.
-  it.fails("@valancex/nexus declares that importing it does nothing", () => {
+  // NEXUS 0.12.0 and 0.12.1 did not declare it; 0.12.2 and later do. The workspace resolves 0.12.3 since the MESH runtime ranges were aligned (W20), so the marker this test carried is gone.
+  it("@valancex/nexus declares that importing it does nothing", () => {
     expect(sideEffects("@valancex/nexus")).toBe(false);
   });
 });

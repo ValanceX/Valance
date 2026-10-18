@@ -50,23 +50,23 @@ importers:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.11.0)(@valancex/port-web@0.6.1(@valancex/mesh-runtime@0.11.0))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@0.12.0)(@valancex/port-web@0.6.1(@valancex/mesh-runtime@0.12.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/nexus':
         specifier: ^0.10.3
-        version: 0.10.3(@valancex/mesh-runtime@0.11.0)
+        version: 0.10.3(@valancex/mesh-runtime@0.12.0)
       '@valancex/port-web':
         specifier: ^0.6.1
-        version: 0.6.1(@valancex/mesh-runtime@0.11.0)
+        version: 0.6.1(@valancex/mesh-runtime@0.12.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -102,17 +102,17 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@valancex/nexus':
         specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
+        version: 0.12.0
+      '@valancex/mesh-runtime':
+        specifier: ^0.12.0
+        version: 0.12.0
+      '@valancex/nexus':
+        specifier: ^0.12.3
+        version: 0.12.3(@valancex/mesh-runtime@0.12.0)
       '@valancex/port-web':
         specifier: ^0.6.1
-        version: 0.6.1(@valancex/mesh-runtime@0.11.0)
+        version: 0.6.1(@valancex/mesh-runtime@0.12.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -173,17 +173,17 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@valancex/nexus':
         specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
+        version: 0.12.0
+      '@valancex/mesh-runtime':
+        specifier: ^0.12.0
+        version: 0.12.0
+      '@valancex/nexus':
+        specifier: ^0.12.3
+        version: 0.12.3(@valancex/mesh-runtime@0.12.0)
       '@valancex/port-web':
         specifier: ^0.6.1
-        version: 0.6.1(@valancex/mesh-runtime@0.11.0)
+        version: 0.6.1(@valancex/mesh-runtime@0.12.0)
       '@vitest/browser':
         specifier: 3.2.7
         version: 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
@@ -212,8 +212,8 @@ importers:
         specifier: workspace:^
         version: link:../common
       '@valancex/mesh-compiler':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/port-desktop-vocabulary':
         specifier: ^0.6.0
         version: 0.6.0
@@ -243,8 +243,8 @@ importers:
         specifier: 19.2.18
         version: 19.2.18
       '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       ink-testing-library:
         specifier: 4.0.0
         version: 4.0.0(@types/react@19.2.18)
@@ -261,14 +261,14 @@ importers:
   packages/common:
     dependencies:
       '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@valancex/nexus':
         specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
+        version: 0.12.0
+      '@valancex/nexus':
+        specifier: ^0.12.3
+        version: 0.12.3(@valancex/mesh-runtime@0.12.0)
       '@valancex/port-web':
         specifier: ^0.6.1
-        version: 0.6.1(@valancex/mesh-runtime@0.11.0)
+        version: 0.6.1(@valancex/mesh-runtime@0.12.0)
       '@valancex/router':
         specifier: workspace:^
         version: link:../router
@@ -292,8 +292,8 @@ importers:
   packages/router:
     dependencies:
       '@valancex/nexus':
-        specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
+        specifier: ^0.12.3
+        version: 0.12.3(@valancex/mesh-runtime@0.12.0)
     devDependencies:
       '@types/jsdom':
         specifier: ^21.1.7
@@ -302,14 +302,14 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/port-web':
         specifier: ^0.6.1
-        version: 0.6.1(@valancex/mesh-runtime@0.11.0)
+        version: 0.6.1(@valancex/mesh-runtime@0.12.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -329,21 +329,21 @@ importers:
   packages/valance:
     dependencies:
       '@valancex/nexus':
-        specifier: ^0.12.0
-        version: 0.12.0(@valancex/mesh-runtime@0.11.0)
+        specifier: ^0.12.3
+        version: 0.12.3(@valancex/mesh-runtime@0.12.0)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@valancex/mesh-compiler':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/mesh-runtime':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^0.12.0
+        version: 0.12.0
       '@valancex/port-web':
         specifier: ^0.6.1
-        version: 0.6.1(@valancex/mesh-runtime@0.11.0)
+        version: 0.6.1(@valancex/mesh-runtime@0.12.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -964,8 +964,8 @@ packages:
   '@types/tough-cookie@4.0.5':
     resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
 
-  '@valancex/mesh-compiler@0.11.0':
-    resolution: {integrity: sha512-aHQJSeLd6euIDcZkgINjjxgSgvAGTr+mlb9pbWQs16cKm48DoPj3pl4diEziiQvkBOOaBPkg+3D2i57Bqn0cmw==}
+  '@valancex/mesh-compiler@0.12.0':
+    resolution: {integrity: sha512-McZMlVbgAfMb36JqGxxORqRW+JW0mSFdWTsULsno5dqZ/wkfkB2C92RI8edjSILeGaqcTA0M4SI4vOWOtBq60A==}
     engines: {node: '>=22'}
 
   '@valancex/mesh-lsp-darwin-arm64@0.11.0':
@@ -998,8 +998,8 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@valancex/mesh-runtime@0.11.0':
-    resolution: {integrity: sha512-CR/XekGa7vjXP+3axxPCga7Zl2rsAlGtmrv2GR4tgIQCdDG9pmuuGXu0eSgIWfNyl9SCTJrEUG6crvOWoS0NMQ==}
+  '@valancex/mesh-runtime@0.12.0':
+    resolution: {integrity: sha512-lvvugqojNNNbO2hb0YBj3qGoj2XoMJ1Cv9feBxT0LUmV0rHMBzU5X+5ZKjCb1uwHqQkWqSHcUyC+2B6/GTEVvQ==}
     engines: {node: '>=22'}
 
   '@valancex/nexus@0.10.3':
@@ -1008,11 +1008,11 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
 
-  '@valancex/nexus@0.12.0':
-    resolution: {integrity: sha512-5VLXPL5jP41MuENrodYQN9ekiK01DzzNJcxNgzr0AahTTbpprNwcbrQrgt3ieP6JSw/6mHKD7spv831WwT3NGw==}
+  '@valancex/nexus@0.12.3':
+    resolution: {integrity: sha512-jKZDs2AtAPQSkzLmj3Br3rzLj7UT5iToG9rBk3LVbRFsr1xnS5tCEq3u0tVCfw1u+WkBpzt3Q4Z7Mg4BLWw03Q==}
     engines: {node: '>=22'}
     peerDependencies:
-      '@valancex/mesh-runtime': ^0.10.0
+      '@valancex/mesh-runtime': ^0.10.0 || ^0.11.0 || ^0.12.0
 
   '@valancex/port-desktop-vocabulary@0.6.0':
     resolution: {integrity: sha512-BJj+a5hVitQM1E8RSXhNi72AtIgPS7RIVUTciEMjVJqVZu1Ev2z5m1d3PjVeVBnXuc2W3AgNzHS60E2SZKP19Q==}
@@ -2064,7 +2064,7 @@ snapshots:
 
   '@types/tough-cookie@4.0.5': {}
 
-  '@valancex/mesh-compiler@0.11.0': {}
+  '@valancex/mesh-compiler@0.12.0': {}
 
   '@valancex/mesh-lsp-darwin-arm64@0.11.0':
     optional: true
@@ -2089,31 +2089,31 @@ snapshots:
       '@valancex/mesh-lsp-linux-x64': 0.11.0
       '@valancex/mesh-lsp-win32-x64': 0.11.0
 
-  '@valancex/mesh-runtime@0.11.0': {}
+  '@valancex/mesh-runtime@0.12.0': {}
 
-  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.11.0)':
+  '@valancex/nexus@0.10.3(@valancex/mesh-runtime@0.12.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.11.0
+      '@valancex/mesh-runtime': 0.12.0
       effect: 3.22.2
 
-  '@valancex/nexus@0.12.0(@valancex/mesh-runtime@0.11.0)':
+  '@valancex/nexus@0.12.3(@valancex/mesh-runtime@0.12.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.11.0
+      '@valancex/mesh-runtime': 0.12.0
       effect: 3.22.2
 
   '@valancex/port-desktop-vocabulary@0.6.0': {}
 
-  '@valancex/port-web@0.6.1(@valancex/mesh-runtime@0.11.0)':
+  '@valancex/port-web@0.6.1(@valancex/mesh-runtime@0.12.0)':
     dependencies:
-      '@valancex/mesh-runtime': 0.11.0
+      '@valancex/mesh-runtime': 0.12.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.11.0)(@valancex/port-web@0.6.1(@valancex/mesh-runtime@0.11.0))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.12.0)(@valancex/port-web@0.6.1(@valancex/mesh-runtime@0.12.0))(effect@3.22.2)':
     dependencies:
-      '@valancex/mesh-runtime': 0.11.0
-      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.11.0)
+      '@valancex/mesh-runtime': 0.12.0
+      '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.12.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': 0.6.1(@valancex/mesh-runtime@0.11.0)
+      '@valancex/port-web': 0.6.1(@valancex/mesh-runtime@0.12.0)
 
   '@vitest/browser@3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)':
     dependencies:

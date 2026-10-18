@@ -14,6 +14,7 @@ import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
 import type { TargetId } from "./targets.js";
+import { assertOneRuntime } from "./runtime-guard.js";
 import { baseConfig, createLoader, SERVER_ENTRY, templates } from "./vite.js";
 import { GENERATED_DIR } from "./project.js";
 
@@ -181,6 +182,8 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
     ]);
   }
 
+  // Production only (`vlx dev` does not build through here): one copy of the MESH runtime, or the site ships its WebAssembly module more than once (W20).
+  assertOneRuntime(root);
   generateEntries(root, config);
 
   stage("content");

@@ -66,8 +66,8 @@
     "prepack": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@valancex/mesh-runtime": "^0.11.0",
-    "@valancex/nexus": "^0.12.0",
+    "@valancex/mesh-runtime": "^0.12.0",
+    "@valancex/nexus": "^0.12.3",
     "@valancex/port-web": "^0.6.1",
     "@valancex/router": "workspace:^",
     "@valancex/valance": "workspace:^"
