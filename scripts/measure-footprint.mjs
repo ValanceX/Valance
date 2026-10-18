@@ -1,7 +1,7 @@
 // What Valance costs to ship, start, update and keep in memory, measured from the packages published on npm and built the way an application is built, with `vlx build` (Vite). Anyone can reproduce a number,
 // and numbers can be compared between releases.
 //
-//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree] [--runs 7] [--only counter]
+//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--mesh-runtime 0.14.0|path.tgz] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree] [--runs 7] [--only counter]
 //
 // By default the packages are the PUBLISHED ones, so a release is measured as a user gets it. With `--tree` the workspace's own packages (`@valancex/cli`, `common`, `valance`, `router`) are built and packed, and
 // their tarballs are installed instead, so a change that is not released yet (the release `connect` makes of the render it replaces, W21; the aligned MESH runtime range, W20) can be measured.
@@ -168,8 +168,10 @@ export default defineApp({
 };
 
 // Installing the published set as it resolves puts two copies of `@valancex/mesh-runtime` in the tree (valance accepts 0.11 and 0.12, common brings 0.11), and a build ships both WebAssembly files and the browser
-// fetches both. `DEDUPED` forces one, the 0.12.0 that `@valancex/valance` accepts, which is what a careful author gets and what the ceilings are set from.
-const DEDUPED = { "@valancex/mesh-runtime": "0.12.0" };
+// fetches both. `DEDUPED` forces one, the one that `@valancex/valance` accepts (0.14.0), which is what a careful author gets and what the ceilings are set from.
+// `--mesh-runtime <version or tarball>` measures another runtime in its place (a tarball from `npm pack` of a MESH checkout measures a build that is not published).
+const MESH_RUNTIME = option("--mesh-runtime", "0.14.0");
+const DEDUPED = { "@valancex/mesh-runtime": MESH_RUNTIME.endsWith(".tgz") ? `file:${resolve(MESH_RUNTIME)}` : MESH_RUNTIME };
 
 /** A project directory with the build tooling installed, holding `tree`. */
 const project = (name, tree, overrides) => {
