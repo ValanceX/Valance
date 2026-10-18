@@ -155,7 +155,7 @@ describe.runIf(reads)("an optional snippet is checked (vlx check)", () => {
     expect(await codes(files)).toEqual(["src/card.mprx:1 possibly-absent-snippet", "src/card.mprx:1 possibly-absent-snippet"]);
   });
 
-  it("an optional snippet is accepted where a required one is not given at all, but a required one is still required", async () => {
+  it("a required snippet is still required beside the optional ones", async () => {
     expect(await codes(FILES('<panel title="x" />'))).toEqual(["src/layout.mprx:1 missing-required-prop"]);
   });
 });
