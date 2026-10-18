@@ -27,8 +27,8 @@ export interface Problem {
 }
 
 /** What a schema is in the model: put in a struct, so the rules are state's. A field that may be `undefined` comes back optional. */
-export const typeOf = (schema: SchemaOf, enums = true): MeshType => {
-  const derived: Manifest = manifest({ primitives: {}, scopes: { contract: Schema.Struct({ value: schema }) }, commands: () => ({}), enums });
+export const typeOf = (schema: SchemaOf): MeshType => {
+  const derived: Manifest = manifest({ primitives: {}, scopes: { contract: Schema.Struct({ value: schema }) }, commands: () => ({}) });
 
   return derived.components["contract"]!.scope["value"]!;
 };
@@ -43,7 +43,7 @@ const reasonOf = (error: unknown): string => {
 const isEmpty = (schema: SchemaOf): boolean => ["VoidKeyword", "UndefinedKeyword"].includes(schema.ast._tag);
 
 /** The entry a declared interface makes, and every schema in it that has no model type. */
-export const entryOf = (declared: NonNullable<Node["interface"]>, enums = true, snippets = enums): { readonly entry: Entry; readonly problems: ReadonlyArray<Problem> } => {
+export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly entry: Entry; readonly problems: ReadonlyArray<Problem> } => {
   const problems: Array<Problem> = [];
   const props: Record<string, Entry["props"][string]> = {};
   const scope: Record<string, MeshType> = {};
@@ -53,16 +53,12 @@ export const entryOf = (declared: NonNullable<Node["interface"]>, enums = true, 
     try {
       if (isSnippet(declaration)) {
         // A piece of template: a prop of the component and a name its template reads (`{@render name(…)}`). It is not data, so it has no default and is never absent.
-        if (!snippets) {
-          throw new Error("a snippet needs MESH 0.14 or later: the installed @valancex/mesh-compiler does not read one");
-        }
-
         if (name === "children" && declaration.params.length > 0) {
           throw new Error("`children` is the content between the component's tags, so it takes no parameters: write `snippet()`");
         }
 
         const params = declaration.params.map((schema) => {
-          const type = typeOf(schema, enums);
+          const type = typeOf(schema);
 
           return type.kind === "optional" ? type.type : type;
         });
@@ -79,15 +75,11 @@ export const entryOf = (declared: NonNullable<Node["interface"]>, enums = true, 
       }
 
       const schema = isField(declaration) ? declaration.schema : declaration;
-      const type = typeOf(schema, enums);
+      const type = typeOf(schema);
       const optional = type.kind === "optional";
 
       if (isField(declaration)) {
         // A default is for a component that has a template (the model applies it to those only) and is written as the schema encodes it. The prop may then be left out.
-        if (!enums) {
-          throw new Error("a default needs MESH 0.14 or later: the installed @valancex/mesh-compiler does not read one");
-        }
-
         if (!Schema.is(schema as SchemaOf)(declaration.initial)) {
           throw new Error("its default is not a value of its type");
         }
@@ -110,7 +102,7 @@ export const entryOf = (declared: NonNullable<Node["interface"]>, enums = true, 
         continue;
       }
 
-      const type = typeOf(schema, enums);
+      const type = typeOf(schema);
 
       events[name] = { payload: type.kind === "optional" ? type.type : type };
     } catch (error) {

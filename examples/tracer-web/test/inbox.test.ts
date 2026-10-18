@@ -33,13 +33,7 @@ describe("second application: inbox", () => {
       push(data, unused, target);
     };
 
-    // `{m.mark} {m.subject}`: MESH 0.13 keeps the space between two interpolations (0.12 dropped it), so a run of spaces is one and the mark touches its subject, as the test was written.
-    const texts = (): string =>
-      [...main.querySelectorAll("span")]
-        .map((span) => span.textContent)
-        .join("|")
-        .replace(/\* /g, "*")
-        .replace(/ {2,}/g, " ");
+    const texts = (): string => [...main.querySelectorAll("span")].map((span) => span.textContent).join("|");
     const press = (label: string, index = 0): void => {
       [...main.querySelectorAll("button")].filter((button) => button.textContent!.startsWith(label))[index]!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     };
@@ -72,10 +66,10 @@ describe("second application: inbox", () => {
     await host.stop();
 
     expect(seen.map(({ step, texts: t, url: u, sameRoot }) => [step, t, u, sameRoot])).toEqual([
-      ["list", "2 unread|*Welcome|*Invoice", "/inbox", true],
+      ["list", "2 unread|* Welcome|* Invoice", "/inbox", true],
       ["open m2", "Invoice|Due Friday.", "/inbox?open=m2", false],
       ["star", "Invoice|Due Friday.", "/inbox?open=m2", true],
-      ["Back", "1 unread|*Welcome| Invoice", "/inbox", false],
+      ["Back", "1 unread|* Welcome|  Invoice", "/inbox", false],
       ["Forward", "Invoice|Due Friday.", "/inbox?open=m2", false],
     ]);
     expect(writes).toEqual(["/inbox?open=m2"]); // one navigation by the application; Back and Forward wrote nothing

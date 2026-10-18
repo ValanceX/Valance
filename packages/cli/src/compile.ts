@@ -16,7 +16,6 @@ import type { Node, Place } from "./tree.js";
 import { declarationsOf, declaredOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
-import { meshReadsEnums } from "./mesh-support.js";
 import { locateKey } from "./wiring.js";
 import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
@@ -220,13 +219,12 @@ const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
   return all.filter((template) => seen.has(template.component));
 };
 
-export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, enums = true) => {
+export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary) => {
   const derived = manifest({
     // A web vocabulary is a table the manifest is derived from; any other is a manifest already, and its components are merged in as they are.
     primitives: "tags" in vocabulary ? vocabulary.tags : {},
     scopes: { [ROOT]: scopeSchema(author) },
     commands: commandTable(author) as never,
-    enums,
   });
 
   if (!("tags" in vocabulary)) {
@@ -258,13 +256,13 @@ const isManifestError = (error: unknown): error is Error & { readonly path: stri
  * uses. MESH checks every use against it (an undeclared prop, a missing one, a wrong type, an undeclared event in a handler), at the use or in the template. A schema with no model type is a
  * diagnostic at the declaration, not a crash.
  */
-const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArray<Node>, vocabulary: Vocabulary, enums: boolean): unknown => {
+const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArray<Node>, vocabulary: Vocabulary): unknown => {
   const problems: Array<Diagnostic> = [];
   const mainText = entryText(root);
   let derived: ReturnType<typeof manifestOf> | undefined;
 
   try {
-    derived = manifestOf(author, vocabulary, enums);
+    derived = manifestOf(author, vocabulary);
   } catch (error) {
     if (!isManifestError(error)) {
       throw error;
@@ -293,7 +291,7 @@ const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArr
       continue;
     }
 
-    const { entry, problems: bad } = entryOf(node.interface, enums);
+    const { entry, problems: bad } = entryOf(node.interface);
     const site = declarations.get(node.file);
 
     for (const each of bad) {
@@ -341,7 +339,7 @@ export interface Compiled {
 export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
   const { all, tree } = templatesOf(root, author, vocabulary, views);
   const used = reachable(all);
-  const model = modelOf(root, author, tree, vocabulary, await meshReadsEnums());
+  const model = modelOf(root, author, tree, vocabulary);
 
   if (!used.some((template) => template.component === ROOT)) {
     throw new AppError([diagnostic(`${SOURCE_DIR}/${ROOT}.mprx`, 0, "layout-missing", "there is no layout")]);

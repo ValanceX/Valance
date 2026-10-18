@@ -1,5 +1,5 @@
 // A prop that is a piece of template (Bet 5): `snippet(…)` in a component's contract, and `children`, the content between the tags. The model carries the kind (`snippet` with ordered
-// parameters); MESH checks the use. Needs a MESH that reads snippets (0.14); an older one is told at the declaration. The last describe builds a site and uses it in a browser.
+// parameters); MESH checks the use. Needs MESH 0.14. The last describe builds a site and uses it in a browser.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { rmSync, writeFileSync } from "node:fs";
@@ -11,7 +11,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { build } from "../src/build.js";
 import { check } from "../src/check.js";
 import { entryOf } from "../src/contract.js";
-import { meshReadsEnums } from "../src/mesh-support.js";
 import { cleanup, PAGE, project } from "./fixture.js";
 
 afterEach(cleanup);
@@ -63,13 +62,11 @@ const FILES = (layout: string, main = MAIN()): Record<string, string> => ({
 const codes = async (files: Record<string, string>): Promise<ReadonlyArray<string>> =>
   (await check(project(files))).diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
 
-const reads = await meshReadsEnums();
-
 describe("the model a contract makes", () => {
   it("writes a snippet as the kind with its parameters in order, a prop that is never absent and a name the template reads", async () => {
     const { Schema } = await import("effect");
     const { snippet } = await import("@valancex/common");
-    const { entry, problems } = entryOf({ props: { children: snippet(), row: snippet(Schema.String, Schema.UndefinedOr(Schema.Number)) }, events: {} }, true);
+    const { entry, problems } = entryOf({ props: { children: snippet(), row: snippet(Schema.String, Schema.UndefinedOr(Schema.Number)) }, events: {} });
 
     expect(problems).toEqual([]);
     expect(entry.props["children"]).toEqual({ type: { kind: "snippet", params: [] }, required: true });
@@ -80,25 +77,17 @@ describe("the model a contract makes", () => {
   it("reserves `children`: it is a snippet without parameters", async () => {
     const { Schema } = await import("effect");
     const { snippet } = await import("@valancex/common");
-    const { problems } = entryOf({ props: { children: Schema.String }, events: {} }, true);
-    const withParams = entryOf({ props: { children: snippet(Schema.String) }, events: {} }, true).problems;
+    const { problems } = entryOf({ props: { children: Schema.String }, events: {} });
+    const withParams = entryOf({ props: { children: snippet(Schema.String) }, events: {} }).problems;
 
     expect(problems).toHaveLength(1);
     expect(problems[0]!.reason).toContain("reserved");
     expect(withParams).toHaveLength(1);
     expect(withParams[0]!.reason).toContain("takes no parameters");
   });
-
-  it("without a snippet-reading MESH, says so at the declaration", async () => {
-    const { snippet } = await import("@valancex/common");
-    const { problems } = entryOf({ props: { children: snippet() }, events: {} }, false);
-
-    expect(problems).toHaveLength(1);
-    expect(problems[0]!.reason).toContain("needs MESH 0.14");
-  });
 });
 
-describe.runIf(reads)("the use site is checked (vlx check)", () => {
+describe("the use site is checked (vlx check)", () => {
   it("accepts a composite that renders its children and a snippet passed as the prop of its name", async () => {
     expect(await codes(FILES(USES))).toEqual([]);
   });
@@ -125,7 +114,7 @@ describe.runIf(reads)("the use site is checked (vlx check)", () => {
 describe("an optional snippet", () => {
   it("is optional in the model and in the scope, and is never required", async () => {
     const { snippet } = await import("@valancex/common");
-    const { entry, problems } = entryOf({ props: { header: snippet().optional(), children: snippet().optional(), row: snippet().optional() }, events: {} }, true);
+    const { entry, problems } = entryOf({ props: { header: snippet().optional(), children: snippet().optional(), row: snippet().optional() }, events: {} });
 
     expect(problems).toEqual([]);
     expect(entry.props["header"]).toEqual({ type: { kind: "optional", type: { kind: "snippet", params: [] } }, required: false });
@@ -142,7 +131,7 @@ describe("an optional snippet", () => {
   });
 });
 
-describe.runIf(reads)("an optional snippet is checked (vlx check)", () => {
+describe("an optional snippet is checked (vlx check)", () => {
   const USED = `<card title="a" /><card title="b"><span class="in">kid</span></card><card title="c">{#snippet header()}<span class="hd">head</span>{/snippet}</card>`;
 
   it("may be left out, given as content, or given by name, and the template that guards it passes", async () => {
@@ -199,7 +188,7 @@ const browserAvailable = await chromium
   })
   .catch(() => false);
 
-describe.runIf(reads && browserAvailable)("built and drawn in a browser", () => {
+describe.runIf(browserAvailable)("built and drawn in a browser", () => {
   it("draws children and the passed snippet, and keeps them right as the state changes (a node that renders a snippet is never kept on its own memo)", async () => {
     const root = project(FILES(USES));
 

@@ -14,7 +14,7 @@ import { manifest } from "@valancex/valance/web/build";   // build time: derives
 - **Install** (a strict package manager resolves only what you declare, so declare the application-level and build-time packages yourself):
 
   ```console
-  $ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.11.0 @valancex/port-web@^0.6.1 effect@^3.10.0
+  $ pnpm add @valancex/valance @valancex/nexus@^0.12.0 @valancex/mesh-runtime@^0.14.0 @valancex/port-web@^0.6.1 effect@^3.10.0
   $ pnpm add -D @valancex/mesh-compiler@^0.11.0
   ```
 
@@ -22,7 +22,7 @@ import { manifest } from "@valancex/valance/web/build";   // build time: derives
   |---|---|---|
   | `@valancex/valance` | the release you target | this package |
   | `@valancex/nexus` | `^0.12.0` | **application-level**: your commands, state handles and capabilities are written against it. Also this package's own dependency, so use the same range and one copy is shared |
-  | `@valancex/mesh-runtime` | `^0.11.0 \|\| ^0.12.0` | peer: renders and updates programs at run time (the one runtime: NEXUS 0.12 shares it) |
+  | `@valancex/mesh-runtime` | `^0.14.0` | peer: renders and updates programs at run time (the one runtime: NEXUS 0.12 shares it) |
   | `@valancex/port-web` | `^0.6.1` | optional peer: needed for `./web` and `./web/server` |
   | `effect` | `^3.10.0` | peer |
   | `@valancex/mesh-compiler` | `^0.11.0` | **build time only** (devDependency): compiles MPRX to the `program` each view takes (`compileProgram`) |
