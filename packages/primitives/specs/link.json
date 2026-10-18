@@ -11,13 +11,6 @@
       },
       "required": true
     },
-    "label": {
-      "type": {
-        "kind": "string"
-      },
-      "required": false,
-      "a11y": "name"
-    },
     "class": {
       "type": {
         "kind": "string"
@@ -36,8 +29,7 @@
   "events": {},
   "content": "text",
   "accessibleName": {
-    "from": "either",
-    "prop": "label"
+    "from": "content"
   },
   "keyboard": [
     {

@@ -29,7 +29,9 @@
   },
   "events": {},
   "content": {
-    "only": ["radio"]
+    "only": [
+      "radio"
+    ]
   },
   "accessibleName": {
     "from": "prop",
@@ -44,7 +46,8 @@
   },
   "example": {
     "props": {
-      "label": "Size"
+      "label": "Size",
+      "describedby": "hint"
     },
     "children": [
       {
@@ -55,6 +58,7 @@
           "label": "Small"
         }
       }
-    ]
+    ],
+    "describedByText": "Pick one"
   }
 }

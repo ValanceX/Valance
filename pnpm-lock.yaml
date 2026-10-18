@@ -291,6 +291,9 @@ importers:
 
   packages/primitives:
     devDependencies:
+      '@types/aria-query':
+        specifier: ^5.0.4
+        version: 5.0.4
       '@types/jsdom':
         specifier: ^21.1.7
         version: 21.1.7
@@ -330,6 +333,9 @@ importers:
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+      vnu-jar:
+        specifier: ^26.10.12
+        version: 26.10.12
 
   packages/router:
     dependencies:
@@ -1714,6 +1720,11 @@ packages:
       jsdom:
         optional: true
 
+  vnu-jar@26.10.12:
+    resolution: {integrity: sha512-Zg67G1zM28UGEVIOSn1ns6rFSZ6JVI/FNXhw+UJaXM02AQcDE84arp/b5c0OFrvzsgd/VcmpAd9B4hX38BeZvA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   w3c-xmlserializer@5.0.0:
     resolution: {integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==}
     engines: {node: '>=18'}
@@ -2840,6 +2851,8 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  vnu-jar@26.10.12: {}
 
   w3c-xmlserializer@5.0.0:
     dependencies:

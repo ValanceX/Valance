@@ -4,3 +4,5 @@ export { extractors, typeOfRealization, webTable } from "./web.js";
 export type { WebHelpers } from "./web.js";
 export { manifestEntry, portablePropOf, webManifest } from "./manifest.js";
 export type { ManifestEntry } from "./manifest.js";
+export { parity, settle } from "./parity.js";
+export type { Desktop, DesktopComponent, Finding, Waiver } from "./parity.js";

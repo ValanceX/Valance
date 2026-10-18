@@ -11,6 +11,13 @@
       },
       "required": false,
       "webOnly": true
+    },
+    "id": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "description-target"
     }
   },
   "events": {},

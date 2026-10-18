@@ -35,6 +35,7 @@ const additions: Record<string, ReadonlyArray<string>> = {
   checkbox: ["invalid", "describedby"],
   button: ["label"],
   text: ["id"],
+  para: ["id"],
 };
 
 describe("the generated web table", () => {
