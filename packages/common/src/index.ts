@@ -125,14 +125,25 @@ export interface SnippetDeclaration {
   readonly [SNIPPET]: true;
   /** The types of the snippet's parameters, in order; `{@render name(a, b)}` passes exactly these. */
   readonly params: ReadonlyArray<Schema.Schema<any, any, never>>;
+  /** Whether an occurrence may leave it out. Rendering it then needs `{#if has(name)}` around the render (`possibly-absent-snippet`). */
+  readonly isOptional: boolean;
+  /** The same snippet, which an occurrence may leave out: `snippet(Item).optional()`. */
+  optional(): SnippetDeclaration;
 }
 
 /**
  * Declares a prop whose value is a snippet, with the types of its parameters: `children: snippet()` is the content written between the component's tags; `row: snippet(Item, Schema.Number)` is a
  * `{#snippet row(item, index)}` an occurrence passes and the template renders with `{@render row(item, index)}`. The prop named `children` is reserved for the content between the tags and takes no
- * parameters. A snippet is not data: it has no default, is not a field of a record or an event's payload, and is declared on a component that has a template.
+ * parameters. A snippet is not data: it has no default, is not a field of a record or an event's payload, and is declared on a component that has a template. `snippet(...).optional()` is one an occurrence may leave out (an absent one draws nothing), and `children: snippet().optional()` is content an occurrence may leave out.
  */
-export const snippet = (...params: ReadonlyArray<Schema.Schema<any, any, never>>): SnippetDeclaration => ({ [SNIPPET]: true, params });
+export const snippet = (...params: ReadonlyArray<Schema.Schema<any, any, never>>): SnippetDeclaration => declare(params, false);
+
+const declare = (params: ReadonlyArray<Schema.Schema<any, any, never>>, isOptional: boolean): SnippetDeclaration => ({
+  [SNIPPET]: true,
+  params,
+  isOptional,
+  optional: () => declare(params, true),
+});
 
 /** Whether a declaration is a snippet's. */
 export const isSnippet = (value: unknown): value is SnippetDeclaration => typeof value === "object" && value !== null && SNIPPET in value;

@@ -22,6 +22,7 @@ import { Schema } from "effect";
 import layout from "./layout.mprx";
 import panel from "./panel.mprx";
 import itemList from "./item-list.mprx";
+import card from "./card.mprx";
 
 const Item = Schema.Struct({ id: Schema.String, name: Schema.String });
 
@@ -37,21 +38,26 @@ export default defineApp({
   layout: component(layout),
   components: [
     component(panel, { props: { title: Schema.String, children: snippet() } }),
+    component(card, { props: { title: Schema.String, header: snippet().optional(), children: snippet().optional() } }),
     component(itemList, { props: { items: Schema.Array(Item), label: Schema.String, row: snippet(Item, Schema.String)${extra} } }),
   ],
 });
 `;
 const PANEL = "<section><strong>{title}</strong>{@render children()}</section>";
+const CARD = "<section><strong>{title}</strong>{#if has(header)}{@render header()}{/if}{#if has(children)}{@render children()}{/if}</section>";
 const LIST = '<div class="rows">{#each items as item (item.id)}{@render row(item, label)}{/each}</div>';
 const LAYOUT = (inner: string): string => `<shell class="x" theme="light">${inner}</shell>`;
 const USES = `<panel title="Totals"><span class="count">{count}</span> <button on.click={bump()}>Bump</button></panel>
 <item-list items={items} label="row">{#snippet row(item, tag)}<span class="row">{tag}:{item.name}</span>{/snippet}</item-list>
-<button on.click={add()}>Add</button>`;
+<button on.click={add()}>Add</button>
+<card title="Full"><span class="in">kid</span>{#snippet header()}<span class="hd">head</span>{/snippet}</card>
+<card title="Bare" />`;
 const FILES = (layout: string, main = MAIN()): Record<string, string> => ({
   ...BASIC,
   "src/main.ts": main,
   "src/layout.mprx": LAYOUT(layout),
   "src/panel.mprx": PANEL,
+  "src/card.mprx": CARD,
   "src/item-list.mprx": LIST,
 });
 const codes = async (files: Record<string, string>): Promise<ReadonlyArray<string>> =>
@@ -113,6 +119,44 @@ describe.runIf(reads)("the use site is checked (vlx check)", () => {
     const layout = '<panel title="T" children={count}>x</panel>';
 
     expect((await codes(FILES(layout))).sort()).toContain("src/layout.mprx:1 children-conflict");
+  });
+});
+
+describe("an optional snippet", () => {
+  it("is optional in the model and in the scope, and is never required", async () => {
+    const { snippet } = await import("@valancex/common");
+    const { entry, problems } = entryOf({ props: { header: snippet().optional(), children: snippet().optional(), row: snippet().optional() }, events: {} }, true);
+
+    expect(problems).toEqual([]);
+    expect(entry.props["header"]).toEqual({ type: { kind: "optional", type: { kind: "snippet", params: [] } }, required: false });
+    expect(entry.props["children"]).toEqual(entry.props["header"]);
+    expect(entry.scope["header"]).toEqual({ kind: "optional", type: { kind: "snippet", params: [] } });
+  });
+
+  it("is declared on a snippet that stays the same snippet: optional() returns a new declaration", async () => {
+    const { isSnippet, snippet } = await import("@valancex/common");
+    const required = snippet();
+    const optional = required.optional();
+
+    expect([required.isOptional, optional.isOptional, isSnippet(optional)]).toEqual([false, true, true]);
+  });
+});
+
+describe.runIf(reads)("an optional snippet is checked (vlx check)", () => {
+  const USED = `<card title="a" /><card title="b"><span class="in">kid</span></card><card title="c">{#snippet header()}<span class="hd">head</span>{/snippet}</card>`;
+
+  it("may be left out, given as content, or given by name, and the template that guards it passes", async () => {
+    expect(await codes(FILES(USED))).toEqual([]);
+  });
+
+  it("is `possibly-absent-snippet` in the composite's template where its render is not guarded by has()", async () => {
+    const files = { ...FILES(USED), "src/card.mprx": "<section>{@render header()}{#if has(children)}{@render children()}{:else}{@render children()}{/if}</section>" };
+
+    expect(await codes(files)).toEqual(["src/card.mprx:1 possibly-absent-snippet", "src/card.mprx:1 possibly-absent-snippet"]);
+  });
+
+  it("an optional snippet is accepted where a required one is not given at all, but a required one is still required", async () => {
+    expect(await codes(FILES('<panel title="x" />'))).toEqual(["src/layout.mprx:1 missing-required-prop"]);
   });
 });
 
@@ -210,6 +254,12 @@ describe.runIf(reads && browserAvailable)("built and drawn in a browser", () => 
       await page.click('button:text-is("Add")');
       await page.waitForFunction(() => document.querySelectorAll(".row").length === 3);
       expect(await page.locator(".row").allTextContents()).toEqual(["row:Ann", "row:Bo", "row:Cy"]);
+
+      // An optional header and optional children, given and left out: what is given is drawn, what is not draws nothing.
+      expect(await page.locator("section strong").allTextContents()).toEqual(["Totals", "Full", "Bare"]);
+      expect(await page.locator(".hd").count()).toBe(1);
+      expect(await page.locator(".in").count()).toBe(1);
+      expect(await page.locator("section").nth(2).locator("span").count()).toBe(0);
       expect(errors).toEqual([]);
     } finally {
       await browser.close();

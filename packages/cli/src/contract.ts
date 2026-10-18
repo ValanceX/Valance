@@ -68,8 +68,9 @@ export const entryOf = (declared: NonNullable<Node["interface"]>, enums = true, 
         });
         const type: MeshType = { kind: "snippet", params };
 
-        props[name] = { type, required: true };
-        scope[name] = type;
+        // An optional one is `snippet<…>?` in the scope too: the template renders it only where `has(name)` says it is there.
+        props[name] = declaration.isOptional ? { type: { kind: "optional", type }, required: false } : { type, required: true };
+        scope[name] = declaration.isOptional ? { kind: "optional", type } : type;
         continue;
       }
 
