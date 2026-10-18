@@ -43,3 +43,58 @@ describe("list children", () => {
     expect(await codes("<column><item>a</item></column>")).toEqual(["src/layout.mprx:1:9 outside-container"]);
   });
 });
+
+// A component that takes its name from whoever uses it: the contract says which prop (`name`), the model holds every use to supplying it, and the template must read it.
+const withField = (contract: string, field: string, layout: string): Record<string, string> => ({
+  "content/index.md": PAGE(),
+  "src/main.ts": `import { component, defineApp, field as stateField } from "@valancex/common";\nimport { Schema } from "effect";\nimport layout from "./layout.mprx";\nimport field from "./field.mprx";\n\nexport default defineApp({\n  layout: component(layout),\n  components: [component(field, ${contract})],\n  state: { on: stateField(Schema.Boolean, false) },\n});\n`,
+  "src/field.mprx": field,
+  "src/layout.mprx": layout,
+});
+
+const found = async (files: Record<string, string>): Promise<ReadonlyArray<string>> =>
+  (await check(project(files))).diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
+
+const NAMED = "{ props: { label: Schema.String, checked: Schema.Boolean }, name: 'label' }";
+
+describe("a component that takes its name from its user (A3b)", () => {
+  it("passes a control with the name it is given, and the use that gives it", async () => {
+    expect(await found(withField(NAMED, "<checkbox checked={checked} label={label} />", '<column><field label="Done" checked={on} /></column>'))).toEqual([]);
+  });
+
+  it("reports the use that omits the name, where the use is written", async () => {
+    expect(await found(withField(NAMED, "<checkbox checked={checked} label={label} />", "<column><field checked={on} /></column>"))).toEqual([
+      "src/layout.mprx:1 missing-required-prop",
+    ]);
+  });
+
+  it("does not report a control in the component that has no name of its own: the name arrives from the use", async () => {
+    expect(await found(withField(NAMED, "<column><text>{label}</text><checkbox checked={checked} /></column>", '<column><field label="Done" checked={on} /></column>'))).toEqual(
+      [],
+    );
+  });
+
+  it("reports the same control when the component does not declare where its name comes from", async () => {
+    const plain = "{ props: { label: Schema.String, checked: Schema.Boolean } }";
+
+    expect(await found(withField(plain, "<column><text>{label}</text><checkbox checked={checked} /></column>", '<column><field label="Done" checked={on} /></column>'))).toEqual([
+      "src/field.mprx:1 unnamed-control",
+    ]);
+  });
+
+  it("reports a template that declares a name and never reads it", async () => {
+    expect(await found(withField(NAMED, '<checkbox checked={checked} label="x" />', '<column><field label="Done" checked={on} /></column>'))).toEqual([
+      "src/field.mprx:1 name-unused",
+    ]);
+  });
+
+  it("reports a name that is not a prop, or not a string every use writes", async () => {
+    const missing = "{ props: { checked: Schema.Boolean }, name: 'label' }";
+    const optional = "{ props: { label: Schema.UndefinedOr(Schema.String), checked: Schema.Boolean }, name: 'label' }";
+    const body = '<checkbox checked={checked} label="x" />';
+    const layout = "<column><field checked={on} /></column>";
+
+    expect(await found(withField(missing, body, layout))).toEqual(["src/main.ts:8 component-schema"]);
+    expect(await found(withField(optional, body, layout))).toContain("src/main.ts:8 component-schema");
+  });
+});

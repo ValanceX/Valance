@@ -116,6 +116,8 @@ export interface Component {
   /** Present when the component declares its props (an omitted side of a declared interface is none). Absent: the contract is inferred from the template and its uses. */
   readonly props?: Readonly<Record<string, PropDeclaration>>;
   readonly events?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+  /** The prop that is the component's accessible name, when its template passes the name of whoever uses it through to a control (see `Contract.name`). */
+  readonly name?: string;
 }
 
 export const SNIPPET = Symbol.for("valancex.common.snippet");
@@ -163,6 +165,12 @@ export interface Contract<P extends string, E extends string> {
   readonly props?: { readonly [K in P]: PropDeclaration };
   /** The events the template raises, each with its payload's schema; `Schema.Void` is no payload. */
   readonly events?: { readonly [K in E]: Schema.Schema<any, any, never> };
+  /**
+   * The prop that is the component's accessible name: a component whose template draws a control and takes its name from whoever uses it (a labelled checkbox of the design system) says which
+   * prop that is, and the toolchain holds both sides to it. The prop must be a string every use writes (the model reports a use that omits it, where it is written), and the template must read it;
+   * a control in the template that has no name of its own (no `label`, not inside a `<label>`) is then not reported by `unnamed-control`, because the name arrives from the use.
+   */
+  readonly name?: P;
 }
 
 /**
@@ -175,6 +183,7 @@ export function component<P extends string = string, E extends string = string>(
     template,
     ...(contract.props === undefined ? {} : { props: contract.props }),
     ...(contract.events === undefined ? {} : { events: contract.events }),
+    ...(contract.name === undefined ? {} : { name: contract.name }),
   };
 }
 

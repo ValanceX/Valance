@@ -20,7 +20,12 @@ export interface Node {
   /** The template, relative to the project. */
   readonly file: string;
   /** The interface the component declares: present when it declares one (an omitted side is none), absent when its contract is inferred from the template and where it is used. */
-  readonly interface?: { readonly props: Readonly<Record<string, PropDeclaration>>; readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>> };
+  readonly interface?: {
+    readonly props: Readonly<Record<string, PropDeclaration>>;
+    readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+    /** The prop that is the component's accessible name, if it declares one. */
+    readonly name?: string;
+  };
   /** The declared components its template writes. */
   readonly uses: ReadonlyArray<string>;
   /** Who uses it: the components whose templates write its tag; `"(application)"` for the layout and for an override. */
@@ -54,7 +59,10 @@ export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<C
     const name = nameOf(declared.template.mprx);
 
     if (!found.has(name)) {
-      const contract = declared.props === undefined && declared.events === undefined ? {} : { interface: { props: declared.props ?? {}, events: declared.events ?? {} } };
+      const contract =
+        declared.props === undefined && declared.events === undefined
+          ? {}
+          : { interface: { props: declared.props ?? {}, events: declared.events ?? {}, ...(declared.name === undefined ? {} : { name: declared.name }) } };
 
       found.set(name, { name, file: declared.template.mprx, ...contract, uses: [], parents: [] });
     }

@@ -320,7 +320,9 @@ const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArr
           place.file,
           place.line,
           "component-schema",
-          `${node.name}'s ${each.kind === "props" ? "prop" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`,
+          each.message === undefined
+            ? `${node.name}'s ${each.kind === "props" ? "prop" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`
+            : `${node.name}: ${each.message}`,
           place.column,
         ),
       );
@@ -409,7 +411,16 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
   if (rules !== undefined) {
     const texts = (program as unknown as { readonly templates: ReadonlyArray<string> }).templates;
     const known = new Set(namesOf(vocabulary));
-    const broken = used.flatMap((template, index) => checkTemplate(template.path, template.source, JSON.parse(texts[index] ?? "{}") as CompiledTemplate, rules, known));
+    const broken = used.flatMap((template, index) =>
+      checkTemplate(
+        template.path,
+        template.source,
+        JSON.parse(texts[index] ?? "{}") as CompiledTemplate,
+        rules,
+        known,
+        tree.find((node) => node.name === template.component)?.interface?.name,
+      ),
+    );
 
     if (broken.length > 0) {
       throw new AppError(broken.map((each) => relocate(each, root)));

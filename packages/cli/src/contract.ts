@@ -24,6 +24,8 @@ export interface Problem {
   readonly kind: "props" | "events";
   readonly name: string;
   readonly reason: string;
+  /** The whole message, for a problem that is not a missing type. */
+  readonly message?: string;
 }
 
 /** What a schema is in the model: put in a struct, so the rules are state's. A field that may be `undefined` comes back optional. */
@@ -107,6 +109,21 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
       events[name] = { payload: type.kind === "optional" ? type.type : type };
     } catch (error) {
       problems.push({ kind: "events", name, reason: reasonOf(error) });
+    }
+  }
+
+  if (declared.name !== undefined) {
+    const named = props[declared.name];
+
+    if (named === undefined && !problems.some((each) => each.name === declared.name)) {
+      problems.push({ kind: "props", name: declared.name, reason: "", message: `"${declared.name}" is declared as the component's name (\`name\`) but is not one of its props` });
+    } else if (named !== undefined && (named.type.kind !== "string" || !named.required)) {
+      problems.push({
+        kind: "props",
+        name: declared.name,
+        reason: "",
+        message: `the prop "${declared.name}" is the component's name (\`name\`), so it must be a string every use writes: \`Schema.String\`, with no default and not optional`,
+      });
     }
   }
 

@@ -48,6 +48,14 @@ export const generateDocs = (specifications: Readonly<Record<string, Specificati
     );
   }
 
+  lines.push(
+    "",
+    "## What `vlx` checks of a use",
+    "",
+    '- **`unnamed-control`**: a control whose name comes from a prop (`checkbox`, `radio`, `radiogroup`, `textfield`) has a `label`, or is inside a `<label>` that says what it is for. A reusable component that takes its name from whoever uses it says which prop that is in its contract, `component(template, { props: { label: Schema.String }, name: "label" })`: the prop must be a string every use writes (a use that omits it is reported where it is written), the template must read it (`name-unused` otherwise), and a control in it with no name of its own is not reported.',
+    "- **`list-child`**: a `list` holds only `item`s (also under `{#if}` and `{#each}`); text or another primitive in it is reported. **`outside-container`**: an `item` is inside a `list` or `olist`, a `radio` inside a `radiogroup`.",
+  );
+
   for (const specification of Object.values(specifications)) {
     lines.push("", `## ${specification.name}`, "", specification.summary, "");
     lines.push(`- **Status**: ${specification.status}${specification.within === undefined ? "" : `, inside ${specification.within.map((each) => `\`${each}\``).join(", ")}`}`);
