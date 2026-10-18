@@ -134,5 +134,7 @@ export interface WebRealization {
 export interface WebRealizations {
   readonly version: 1;
   readonly target: "web";
+  /** Tags that were renamed (decision P7): the old tag, and the tag it is now. A template that writes the old one is told the new one. */
+  readonly renamed?: Readonly<Record<string, string>>;
   readonly primitives: Readonly<Record<string, WebRealization>>;
 }

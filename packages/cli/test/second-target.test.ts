@@ -148,7 +148,7 @@ describe("a vocabulary without the web's styling and accessibility hooks", () =>
   it("rejects even a layout written without them, while the built-in views still use them: a built-in is part of the target's side", async () => {
     const root = project({
       "content/index.md": "---\ntitle: Home\n---\n\n# Home\n",
-      "src/layout.mprx": "<div><para>{site}</para><blocks items={blocks} /></div>",
+      "src/layout.mprx": "<div><paragraph>{site}</paragraph><blocks items={blocks} /></div>",
     });
     const files = readdirSync(join(root, "src")).map((name) => relative(root, join(root, "src", name)));
 

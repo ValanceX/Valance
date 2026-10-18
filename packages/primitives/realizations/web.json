@@ -151,7 +151,7 @@
         }
       }
     },
-    "para": {
+    "paragraph": {
       "primitive": "paragraph",
       "element": "p",
       "props": {
@@ -165,7 +165,7 @@
         }
       }
     },
-    "quote": {
+    "blockquote": {
       "primitive": "blockquote",
       "element": "blockquote",
       "props": {
@@ -198,7 +198,7 @@
         "ordered": true
       }
     },
-    "item": {
+    "listitem": {
       "primitive": "listitem",
       "element": "li"
     },
@@ -513,5 +513,10 @@
       "primitive": "label",
       "element": "label"
     }
+  },
+  "renamed": {
+    "para": "paragraph",
+    "item": "listitem",
+    "quote": "blockquote"
   }
 }

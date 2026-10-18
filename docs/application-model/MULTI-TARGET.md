@@ -27,7 +27,7 @@
 
 | # | Gap | Seen as | Filling to plan |
 |---|---|---|---|
-| 1 | **The two vocabularies share no names**, so no template is shared | both layouts restate the same to-do UI in different words (`<list>/<item>/<span>` against `<column>/<row>/<text>`) | converge the web table on the portable names (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`): the "web table renaming" already deferred. Then a component written once runs on both |
+| 1 | **The two vocabularies share no names**, so no template is shared | both layouts restate the same to-do UI in different words (`<list>/<listitem>/<span>` against `<column>/<row>/<text>`) | converge the web table on the portable names (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`): the "web table renaming" already deferred. Then a component written once runs on both |
 | 2 | **PORT Web cannot give an element a fixed attribute**, so `type="checkbox"` is a prop every web template writes | `<checkbox type="checkbox" label="Done" ...>` against the desktop's `<checkbox checked=...>` | element constants in PORT Web's table (already recorded in NATIVE-VOCABULARY.md) |
 | 3 | **A prop a web tag declares is required at every use** (MESH has no optional prop in a realization table) | `<button class="todo-button" pressed="false" ...>`: two props that mean nothing here, where the desktop's `button` has `disabled?` only | optional props in the realization table (MESH D1), then drop the boilerplate |
 | 4 | **One target's presentation state lives in the shared state** | `theme` (web only) and `navigation` (desktop only) sit beside `items` | either accept it (state is the application's), or a `targets.<id>.state` for fields only one target reads |

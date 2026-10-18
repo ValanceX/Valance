@@ -29,7 +29,7 @@ export default defineApp({
 const FILES = {
   "content/index.md": PAGE("Home"),
   "src/main.ts": MAIN,
-  "src/layout.mprx": '<shell class="x" theme="light">\n  <counter n={count} label="clicks" on.bump={bump()} />\n  <para class="p">{site}</para>\n</shell>\n',
+  "src/layout.mprx": '<shell class="x" theme="light">\n  <counter n={count} label="clicks" on.bump={bump()} />\n  <paragraph class="p">{site}</paragraph>\n</shell>\n',
   "src/counter.mprx": '<button class="c" pressed="false" on.click={bump()}>{label}: {n}</button>\n',
 };
 

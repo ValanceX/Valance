@@ -123,7 +123,7 @@ A list of items and a part that shows only sometimes are written in the view des
 
 ```
 {#each nav as n (n.id)}                         repeat the body for each item; (n.id) is the item's identity
-  <item><link href={n.href}>{n.label}</link></item>
+  <listitem><link href={n.href}>{n.label}</link></listitem>
 {/each}
 
 {#if search.status == "failed"}                 shown when the condition is true

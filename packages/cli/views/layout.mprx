@@ -6,10 +6,10 @@
     <nav class="sidebar" label="Pages">
       {#each sections as s (s.id)}
         <section>
-          {#if s.title != ""}<para class="nav-title">{s.title}</para>{/if}
+          {#if s.title != ""}<paragraph class="nav-title">{s.title}</paragraph>{/if}
           <list class="nav-list">
             {#each s.items as n (n.id)}
-              <item><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></item>
+              <listitem><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></listitem>
             {/each}
           </list>
         </section>

@@ -32,15 +32,15 @@ describe("unnamed-control", () => {
 describe("list children", () => {
   it("reports text and other primitives inside a list", async () => {
     expect(await codes('<column><list class="l">words</list></column>')).toEqual(["src/layout.mprx:1:9 list-child"]);
-    expect(await codes('<column><list class="l"><para class="p">x</para></list></column>')).toEqual(["src/layout.mprx:1:25 list-child"]);
+    expect(await codes('<column><list class="l"><paragraph class="p">x</paragraph></list></column>')).toEqual(["src/layout.mprx:1:25 list-child"]);
   });
 
   it("accepts items, also under a condition or a repeat", async () => {
-    expect(await codes('<column><list class="l"><item>a</item>{#if on}<item>b</item>{/if}</list></column>')).toEqual([]);
+    expect(await codes('<column><list class="l"><listitem>a</listitem>{#if on}<listitem>b</listitem>{/if}</list></column>')).toEqual([]);
   });
 
   it("reports an item outside a list", async () => {
-    expect(await codes("<column><item>a</item></column>")).toEqual(["src/layout.mprx:1:9 outside-container"]);
+    expect(await codes("<column><listitem>a</listitem></column>")).toEqual(["src/layout.mprx:1:9 outside-container"]);
   });
 });
 

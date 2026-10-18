@@ -160,7 +160,7 @@ export default defineApp({
 `,
   "src/layout.mprx": `<shell class="layout" theme="light">
   <main id="content" tabindex="-1">
-    <para class="count">Count: {count}</para>
+    <paragraph class="count">Count: {count}</paragraph>
     <button class="add" on.click={increment()}>Add one</button>
   </main>
 </shell>

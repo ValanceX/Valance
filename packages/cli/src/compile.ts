@@ -355,6 +355,24 @@ export interface Compiled {
   readonly templates: ReadonlyArray<{ readonly component: string; readonly file: string; readonly source: string; readonly builtIn: boolean }>;
 }
 
+/** A tag the web renamed (decision P7: `para` is `paragraph`): said where a template still writes the old one. */
+const renamedHint = (
+  vocabulary: Vocabulary,
+  used: ReadonlyArray<{ readonly path: string; readonly source: string }>,
+  at: { readonly path: string; readonly span: { readonly start: { readonly line: number; readonly column: number } } },
+): string => {
+  const renamed = "tags" in vocabulary ? vocabulary.renamed : undefined;
+  const line = used.find((template) => template.path === at.path)?.source.split("\n")[at.span.start.line - 1];
+
+  if (renamed === undefined || line === undefined) {
+    return "";
+  }
+
+  const tag = /<\/?([A-Za-z][\w-]*)/.exec(line.slice(Math.max(0, at.span.start.column - 2)))?.[1];
+
+  return tag !== undefined && Object.hasOwn(renamed, tag) ? ` (\`${tag}\` is now \`${renamed[tag]}\`)` : "";
+};
+
 /** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
 export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
   const { all, tree } = templatesOf(root, author, vocabulary, views);
@@ -381,7 +399,9 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
               each.path,
               each.span.start.line,
               each.code,
-              each.message + (each.suggestions.length > 0 ? ` (did you mean ${each.suggestions.map((suggestion) => `"${suggestion.replacement}"`).join(" or ")}?)` : ""),
+              each.message +
+                (each.suggestions.length > 0 ? ` (did you mean ${each.suggestions.map((suggestion) => `"${suggestion.replacement}"`).join(" or ")}?)` : "") +
+                renamedHint(vocabulary, used, each),
               each.span.start.column,
             ),
           ),

@@ -153,7 +153,7 @@ Templates are MPRX. Conditional and repeated parts are blocks: `{#if cond}…{:e
 | `prev`, `next` | `{ href, label }`, empty `href` when there is none |
 | `viewport` | How much room the page has: `"compact"` (under 600 px), `"medium"` (600 to 839) or `"expanded"` (840 and up), kept current as the window changes. `{#if viewport == "compact"}` chooses markup for a phone. The server renders `expanded`; the browser corrects it as soon as it starts. |
 
-Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `para`, `quote`, `list`, `olist`, `item`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
+Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `paragraph`, `blockquote`, `list`, `olist`, `listitem`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), `toggle`, `checkbox`, `textfield`, `radiogroup`, `radio`, `label`, `status`, `alert` (the full list, with roles and names, is [the primitives](../../docs/use/primitives.md)), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). The tags `para`, `item` and `quote` are now `paragraph`, `listitem` and `blockquote` (the ARIA names, which the Desktop already used); a template that writes the old one is told the new one. A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
 
 ## The components
 
@@ -204,8 +204,8 @@ A component places the content its caller writes inside it with `<mesh-slot />`,
 
 <!-- where it is used -->
 <card>
-  <mesh-fill slot="head"><para class="title">Title</para></mesh-fill>
-  <para class="body">The body goes to the unnamed slot.</para>
+  <mesh-fill slot="head"><paragraph class="title">Title</paragraph></mesh-fill>
+  <paragraph class="body">The body goes to the unnamed slot.</paragraph>
 </card>
 ```
 

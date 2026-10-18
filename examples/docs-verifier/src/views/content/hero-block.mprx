@@ -1,5 +1,5 @@
 <div class="hero">
   <h1 id="top"><runs spans={b.spans} /></h1>
-  <para class="lead"><runs spans={b.lead} /></para>
+  <paragraph class="lead"><runs spans={b.lead} /></paragraph>
   <div class="actions">{#each b.actions as a (a.id)}<navLink class={a.cls} href={a.href} current="false">{a.label}</navLink>{/each}</div>
 </div>

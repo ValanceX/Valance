@@ -38,7 +38,7 @@ const additions: Record<string, ReadonlyArray<string>> = {
   checkbox: ["invalid", "describedby"],
   button: ["label"],
   text: ["id"],
-  para: ["id"],
+  paragraph: ["id"],
 };
 
 /** Events the generated table has that the hand table did not: the textfield's focus and blur (the Desktop has them; Chromium raises them as the specification says). */
@@ -56,7 +56,7 @@ describe("the generated web table", () => {
 
   for (const [tag, was] of Object.entries(legacy)) {
     it(`${tag} is what it was`, () => {
-      const now = generated[tag]!;
+      const now = generated[renamed[tag] ?? tag]!;
 
       expect(now.element).toBe(was.element);
       expect(plain(now.attributes ?? {})).toEqual(plain(was.attributes ?? {}));
@@ -73,7 +73,7 @@ describe("the generated web table", () => {
           .filter((name) => !(name in was_))
           .sort();
 
-        expect(extra, `${tag} ${kind} beyond the hand table`).toEqual((kind === "props" ? (additions[tag] ?? []) : (eventAdditions[tag] ?? [])).slice().sort());
+        expect(extra, `${tag} ${kind} beyond the hand table`).toEqual((kind === "props" ? (additions[renamed[tag] ?? tag] ?? []) : (eventAdditions[tag] ?? [])).slice().sort());
       }
     });
   }

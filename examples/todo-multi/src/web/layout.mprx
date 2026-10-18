@@ -7,10 +7,10 @@
     <nav class="sidebar" label="Pages">
       {#each sections as s (s.id)}
         <section>
-          {#if s.title != ""}<para class="nav-title">{s.title}</para>{/if}
+          {#if s.title != ""}<paragraph class="nav-title">{s.title}</paragraph>{/if}
           <list class="nav-list">
             {#each s.items as n (n.id)}
-              <item><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></item>
+              <listitem><link class="nav-link" href={n.href} current={n.current}>{n.label}</link></listitem>
             {/each}
           </list>
         </section>
@@ -19,12 +19,12 @@
     <main id="content" tabindex="-1">
       <blocks items={blocks} />
       <section>
-        <para class="todo-title">To do</para>
-        <para class="todo-summary">{summary}</para>
+        <paragraph class="todo-title">To do</paragraph>
+        <paragraph class="todo-summary">{summary}</paragraph>
         <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} on.cancel={clearEntry()} />
         <list class="todo-list">
           {#each items as it (it.id)}
-            <item><todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} /></item>
+            <listitem><todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} /></listitem>
           {/each}
         </list>
         <button class="todo-button" pressed="false" on.click={clearDone()}>Clear done</button>

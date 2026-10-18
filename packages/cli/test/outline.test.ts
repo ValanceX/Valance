@@ -4,7 +4,7 @@ import { outline, tagsOf } from "../src/outline.js";
 
 describe("the outline of a template", () => {
   it("lists the elements written, with where, repeats included, closing tags and text not counted", () => {
-    const source = '<shell>\n  <theme-toggle theme={theme} />\n  <para>a < b</para>\n  <theme-toggle theme="x" />\n</shell>\n';
+    const source = '<shell>\n  <theme-toggle theme={theme} />\n  <paragraph>a < b</paragraph>\n  <theme-toggle theme="x" />\n</shell>\n';
     const found = outline(source);
 
     expect(found.tags.map((tag) => tag.name)).toEqual(["shell", "theme-toggle", "para", "theme-toggle"]);

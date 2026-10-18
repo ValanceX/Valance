@@ -10,7 +10,7 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 | [`alert`](#alert) | portable | `alert` | `<alert>` | nothing of its own (a name comes from where it is used) |
 | [`article`](#article) | web-only | `article` | `<article>` | nothing of its own (a name comes from where it is used) |
 | [`aside`](#aside) | web-only | `complementary` | `<aside>` | nothing of its own (a name comes from where it is used) |
-| [`blockquote`](#blockquote) | portable | `blockquote` | `<quote>` | nothing of its own (a name comes from where it is used) |
+| [`blockquote`](#blockquote) | portable | `blockquote` | `<blockquote>` | nothing of its own (a name comes from where it is used) |
 | [`button`](#button) | portable | `button` | `<button>` | its `label` when given, otherwise the text inside it |
 | [`cell`](#cell) | desktop-only | `cell` | - | nothing of its own (a name comes from where it is used) |
 | [`checkbox`](#checkbox) | portable | `checkbox` | `<checkbox>` | its `label`, or a `label` around it |
@@ -29,10 +29,10 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 | [`label`](#label) | portable | none | `<label>` | nothing of its own (a name comes from where it is used) |
 | [`link`](#link) | portable | `link` | `<link>` | the text inside it |
 | [`list`](#list) | portable | `list` | `<list>`, `<olist>` | nothing of its own (a name comes from where it is used) |
-| [`listitem`](#listitem) | portable | `listitem` | `<item>` | nothing of its own (a name comes from where it is used) |
+| [`listitem`](#listitem) | portable | `listitem` | `<listitem>` | nothing of its own (a name comes from where it is used) |
 | [`main`](#main) | web-only | `main` | `<main>` | nothing of its own (a name comes from where it is used) |
 | [`nav`](#nav) | web-only | `navigation` | `<nav>` | its `label` |
-| [`paragraph`](#paragraph) | portable | `paragraph` | `<para>` | nothing of its own (a name comes from where it is used) |
+| [`paragraph`](#paragraph) | portable | `paragraph` | `<paragraph>` | nothing of its own (a name comes from where it is used) |
 | [`pre`](#pre) | web-only | `generic` | `<pre>` | nothing of its own (a name comes from where it is used) |
 | [`radio`](#radio) | portable | `radio` | `<radio>` | its `label`, or a `label` around it |
 | [`radiogroup`](#radiogroup) | portable | `radiogroup` | `<radiogroup>` | its `label` |
@@ -54,7 +54,7 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 ## What `vlx` checks of a use
 
 - **`unnamed-control`**: a control whose name comes from a prop (`checkbox`, `radio`, `radiogroup`, `textfield`) has a `label`, or is inside a `<label>` that says what it is for. A reusable component that takes its name from whoever uses it says which prop that is in its contract, `component(template, { props: { label: Schema.String }, name: "label" })`: the prop must be a string every use writes (a use that omits it is reported where it is written), the template must read it (`name-unused` otherwise), and a control in it with no name of its own is not reported.
-- **`list-child`**: a `list` holds only `item`s (also under `{#if}` and `{#each}`); text or another primitive in it is reported. **`outside-container`**: an `item` is inside a `list` or `olist`, a `radio` inside a `radiogroup`.
+- **`list-child`**: a `list` holds only `listitem`s (also under `{#if}` and `{#each}`); text or another primitive in it is reported. **`outside-container`**: a `listitem` is inside a `list` or `olist`, a `radio` inside a `radiogroup`.
 
 ## a
 

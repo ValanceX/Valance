@@ -6,7 +6,7 @@
 // second one is a value to pass, not code to change.
 import type { WebPrimitives } from "@valancex/port-web";
 
-import { declared, primitives, rules } from "./primitives.js";
+import { declared, primitives, renamed, rules } from "./primitives.js";
 
 /**
  * A target's vocabulary has one of two forms. The web's is a table of PORT Web's realizations, from which the manifest is derived (`tags`). Any other target's is a MESH manifest, as data
@@ -26,6 +26,8 @@ export interface WebVocabulary {
    * What each tag's props and events are, as a specification states them: the type of a prop and whether a use must write it, which the table alone cannot say. Where present it settles the manifest
    * entry's props and events (the table still says how they are realized); `optional` then applies to what it does not cover.
    */
+  /** Tags that were renamed, old to new: a template that writes the old one is told the new one. */
+  readonly renamed?: Readonly<Record<string, string>>;
   readonly rules?: {
     readonly named: ReadonlyArray<string>;
     readonly only: Readonly<Record<string, ReadonlyArray<string>>>;
@@ -76,4 +78,5 @@ export const webVocabulary: WebVocabulary = {
   tags: primitives,
   declared,
   rules,
+  renamed,
 };

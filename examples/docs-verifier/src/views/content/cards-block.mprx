@@ -1,5 +1,5 @@
 <list class="cards">
   {#each b.cards as c (c.id)}
-    <item><navLink class="card-title" href={c.href} current="false">{c.title}</navLink><para class="card-text"><runs spans={c.spans} /></para></item>
+    <listitem><navLink class="card-title" href={c.href} current="false">{c.title}</navLink><paragraph class="card-text"><runs spans={c.spans} /></paragraph></listitem>
   {/each}
 </list>
