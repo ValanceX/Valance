@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "blockquote",
+  "status": "portable",
+  "role": "blockquote",
+  "summary": "A quotation set apart from the text around it.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "Quoted."
+  }
+}

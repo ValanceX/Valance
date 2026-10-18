@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "name": "shell",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "The outermost box of a page; `theme` selects a variant of the style.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    },
+    "theme": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "class": "x",
+      "theme": "light"
+    },
+    "text": "x"
+  }
+}

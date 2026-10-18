@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "radiogroup",
+  "status": "portable",
+  "role": "radiogroup",
+  "summary": "A group of radios: choose one of a few. It has no events; its radios raise them.",
+  "props": {
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "invalid": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false,
+      "a11y": "state"
+    },
+    "describedby": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "relationship"
+    }
+  },
+  "events": {},
+  "content": {
+    "only": ["radio"]
+  },
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label"
+  },
+  "keyboard": [],
+  "states": {
+    "invalid": "invalid"
+  },
+  "relations": {
+    "describedby": "ref"
+  },
+  "example": {
+    "props": {
+      "label": "Size"
+    },
+    "children": [
+      {
+        "name": "radio",
+        "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+        }
+      }
+    ]
+  }
+}

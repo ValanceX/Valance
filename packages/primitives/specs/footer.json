@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "footer",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "The closing content of a page or section (a contentinfo landmark for the page's footer).",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "class": "x"
+    },
+    "text": "x"
+  },
+  "webRole": "contentinfo"
+}

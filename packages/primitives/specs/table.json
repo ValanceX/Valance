@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "name": "table",
+  "status": "desktop-only",
+  "role": "table",
+  "summary": "A static table: rows and columns with header meaning.",
+  "props": {
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    }
+  },
+  "events": {},
+  "content": {
+    "only": ["tablehead", "tablebody"]
+  },
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "label": "Sizes"
+    }
+  }
+}

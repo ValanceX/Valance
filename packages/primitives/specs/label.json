@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "label",
+  "status": "portable",
+  "role": null,
+  "summary": "A caption and the control it names, by containment: the text written directly inside is the control's name. It has no role of its own.",
+  "props": {},
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "Done",
+    "children": [
+      {
+        "name": "checkbox",
+        "props": {
+          "checked": false
+        }
+      }
+    ]
+  }
+}

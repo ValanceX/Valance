@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "alert",
+  "status": "portable",
+  "role": "alert",
+  "summary": "A live region for a message that cannot wait. Assertive and atomic. It exists before its text does.",
+  "props": {},
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "live": {
+    "politeness": "assertive",
+    "atomic": true
+  },
+  "example": {
+    "text": "Could not save."
+  }
+}

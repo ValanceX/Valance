@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "listitem",
+  "status": "portable",
+  "role": "listitem",
+  "summary": "One item of a list.",
+  "props": {},
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "within": ["list"],
+  "example": {
+    "text": "One"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "emphasis",
+  "status": "portable",
+  "role": "emphasis",
+  "summary": "Text with stress emphasis.",
+  "props": {},
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "really"
+  }
+}

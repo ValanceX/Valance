@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "image",
+  "status": "portable",
+  "role": "img",
+  "summary": "A picture. `label` describes it for people who cannot see it; the web realizes it as `alt`.",
+  "props": {
+    "src": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "a11y": "name"
+    },
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    },
+    "loading": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "none",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "src": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
+      "label": "A dot"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "h1",
+  "status": "web-only",
+  "role": "heading",
+  "summary": "A heading of level 1, whose `id` is a link target.",
+  "props": {
+    "id": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "content"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "id": "t"
+    },
+    "text": "Title"
+  }
+}

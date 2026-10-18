@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "tablehead",
+  "status": "desktop-only",
+  "role": "rowgroup",
+  "summary": "The header rows of a table.",
+  "props": {},
+  "events": {},
+  "content": {
+    "only": ["tablerow"]
+  },
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "within": ["table"],
+  "example": {}
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "div",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "A box with no meaning of its own.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "class": "x"
+    },
+    "text": "x"
+  }
+}

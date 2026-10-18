@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "name": "checkbox",
+  "status": "portable",
+  "role": "checkbox",
+  "summary": "A box that is ticked or not. The application owns the value.",
+  "props": {
+    "checked": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": true,
+      "controlled": true,
+      "a11y": "state"
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "invalid": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false,
+      "a11y": "state"
+    },
+    "describedby": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "relationship"
+    }
+  },
+  "events": {
+    "change": {
+      "payload": {
+        "kind": "boolean"
+      },
+      "meaning": "The person changed the value; carries the new value."
+    }
+  },
+  "content": "none",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label",
+    "orContainedIn": "label"
+  },
+  "keyboard": [
+    {
+      "key": "Space",
+      "raises": "change"
+    }
+  ],
+  "states": {
+    "checked": "checked",
+    "invalid": "invalid"
+  },
+  "relations": {
+    "describedby": "ref"
+  },
+  "example": {
+    "props": {
+      "checked": true,
+      "label": "Done",
+      "invalid": true,
+      "describedby": "hint"
+    },
+    "describedByText": "Say something"
+  }
+}

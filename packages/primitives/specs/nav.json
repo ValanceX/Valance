@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "name": "nav",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "A set of navigation links (a navigation landmark), named by `label`.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "a11y": "name"
+    }
+  },
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "class": "x",
+      "label": "Pages"
+    },
+    "text": "x"
+  },
+  "webRole": "navigation"
+}

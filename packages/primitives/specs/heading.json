@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "name": "heading",
+  "status": "portable",
+  "role": "heading",
+  "summary": "A title for the content that follows. `level` is 1 to 6; a heading without one is level 2 on the web and level 1 on the Desktop (a difference the parity report lists).",
+  "props": {
+    "level": {
+      "type": {
+        "kind": "number"
+      },
+      "required": false,
+      "a11y": "level"
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "content"
+  },
+  "keyboard": [],
+  "states": {
+    "level": "level"
+  },
+  "example": {
+    "props": {
+      "level": 3
+    },
+    "text": "Title"
+  }
+}

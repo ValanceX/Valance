@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "name": "link",
+  "status": "portable",
+  "role": "link",
+  "summary": "A link to an address. Its name is its content, or `label` for a link that is an icon.",
+  "props": {
+    "href": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    },
+    "current": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "either",
+    "prop": "label"
+  },
+  "keyboard": [
+    {
+      "key": "Enter",
+      "raises": "activate"
+    }
+  ],
+  "example": {
+    "props": {
+      "href": "/guide"
+    },
+    "text": "The guide"
+  }
+}

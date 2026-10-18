@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "paragraph",
+  "status": "portable",
+  "role": "paragraph",
+  "summary": "A paragraph of text.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "Some text."
+  }
+}

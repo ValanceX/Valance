@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "span",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "A run of text with a `class`.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "class": "x"
+    },
+    "text": "x"
+  }
+}

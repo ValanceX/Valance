@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "button",
+  "status": "portable",
+  "role": "button",
+  "summary": "Something to press. Its name is its content, or `label` for a button that is an icon.",
+  "props": {
+    "disabled": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false,
+      "a11y": "state"
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    },
+    "pressed": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {
+    "click": {
+      "meaning": "The person pressed it."
+    }
+  },
+  "content": "text",
+  "accessibleName": {
+    "from": "either",
+    "prop": "label"
+  },
+  "keyboard": [
+    {
+      "key": "Enter",
+      "raises": "click"
+    },
+    {
+      "key": "Space",
+      "raises": "click"
+    }
+  ],
+  "states": {
+    "disabled": "disabled"
+  },
+  "example": {
+    "text": "Save"
+  }
+}

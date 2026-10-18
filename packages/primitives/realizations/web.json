@@ -1,0 +1,474 @@
+{
+  "version": 1,
+  "target": "web",
+  "note": "How the web realizes each primitive: the template's tag, the element, the constant attributes and how each prop and event is realized (the shapes of @valancex/port-web). `primitive` joins a tag to its specification. A prop marked `optional` is optional on the web only (a styling or accessibility hook); `fixed` props are chosen by the tag; `rename` maps a portable prop to the web's name for it. Event payloads name an extractor (`checked`, `value`): data, not code.",
+  "primitives": {
+    "column": {
+      "primitive": "column",
+      "element": "vlx-column"
+    },
+    "row": {
+      "primitive": "row",
+      "element": "vlx-row"
+    },
+    "heading": {
+      "primitive": "heading",
+      "element": "h2",
+      "props": {
+        "level": {
+          "kind": "attribute",
+          "name": "aria-level"
+        }
+      }
+    },
+    "text": {
+      "primitive": "text",
+      "element": "span",
+      "props": {
+        "id": {
+          "kind": "attribute",
+          "name": "id"
+        }
+      }
+    },
+    "shell": {
+      "primitive": "shell",
+      "element": "div",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        },
+        "theme": {
+          "kind": "attribute",
+          "name": "data-theme"
+        }
+      }
+    },
+    "div": {
+      "primitive": "div",
+      "element": "div",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "header": {
+      "primitive": "header",
+      "element": "header",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "footer": {
+      "primitive": "footer",
+      "element": "footer",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "main": {
+      "primitive": "main",
+      "element": "main",
+      "props": {
+        "id": {
+          "kind": "attribute",
+          "name": "id"
+        },
+        "tabindex": {
+          "kind": "attribute",
+          "name": "tabindex"
+        }
+      }
+    },
+    "nav": {
+      "primitive": "nav",
+      "element": "nav",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        }
+      }
+    },
+    "aside": {
+      "primitive": "aside",
+      "element": "aside",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "section": {
+      "primitive": "section",
+      "element": "section"
+    },
+    "article": {
+      "primitive": "article",
+      "element": "article"
+    },
+    "h1": {
+      "primitive": "h1",
+      "element": "h1",
+      "props": {
+        "id": {
+          "kind": "attribute",
+          "name": "id"
+        }
+      }
+    },
+    "h2": {
+      "primitive": "h2",
+      "element": "h2",
+      "props": {
+        "id": {
+          "kind": "attribute",
+          "name": "id"
+        }
+      }
+    },
+    "h3": {
+      "primitive": "h3",
+      "element": "h3",
+      "props": {
+        "id": {
+          "kind": "attribute",
+          "name": "id"
+        }
+      }
+    },
+    "para": {
+      "primitive": "paragraph",
+      "element": "p",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "quote": {
+      "primitive": "blockquote",
+      "element": "blockquote",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "list": {
+      "primitive": "list",
+      "element": "ul",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "olist": {
+      "primitive": "list",
+      "element": "ol",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      },
+      "fixed": {
+        "ordered": true
+      }
+    },
+    "item": {
+      "primitive": "listitem",
+      "element": "li"
+    },
+    "pre": {
+      "primitive": "pre",
+      "element": "pre",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        },
+        "tabindex": {
+          "kind": "attribute",
+          "name": "tabindex"
+        }
+      }
+    },
+    "code": {
+      "primitive": "code",
+      "element": "code"
+    },
+    "strong": {
+      "primitive": "strong",
+      "element": "strong"
+    },
+    "em": {
+      "primitive": "emphasis",
+      "element": "em"
+    },
+    "span": {
+      "primitive": "span",
+      "element": "span",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        }
+      }
+    },
+    "image": {
+      "primitive": "image",
+      "element": "img",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        },
+        "src": {
+          "kind": "attribute",
+          "name": "src"
+        },
+        "alt": {
+          "kind": "attribute",
+          "name": "alt"
+        },
+        "loading": {
+          "kind": "attribute",
+          "name": "loading"
+        }
+      },
+      "rename": {
+        "label": "alt"
+      }
+    },
+    "a": {
+      "primitive": "a",
+      "element": "a",
+      "props": {
+        "href": {
+          "kind": "attribute",
+          "name": "href"
+        }
+      }
+    },
+    "link": {
+      "primitive": "link",
+      "element": "a",
+      "props": {
+        "href": {
+          "kind": "attribute",
+          "name": "href"
+        },
+        "class": {
+          "kind": "attribute",
+          "name": "class"
+        },
+        "current": {
+          "kind": "attribute",
+          "name": "aria-current"
+        }
+      }
+    },
+    "checkbox": {
+      "primitive": "checkbox",
+      "element": "input",
+      "attributes": {
+        "type": "checkbox"
+      },
+      "props": {
+        "checked": {
+          "kind": "controlled-boolean",
+          "name": "checked"
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        },
+        "invalid": {
+          "kind": "attribute",
+          "name": "aria-invalid"
+        },
+        "describedby": {
+          "kind": "attribute",
+          "name": "aria-describedby"
+        }
+      },
+      "events": {
+        "change": {
+          "type": "change",
+          "payload": {
+            "kind": "boolean",
+            "of": "checked"
+          }
+        }
+      }
+    },
+    "textfield": {
+      "primitive": "textfield",
+      "element": "input",
+      "props": {
+        "value": {
+          "kind": "controlled",
+          "name": "value"
+        },
+        "placeholder": {
+          "kind": "attribute",
+          "name": "placeholder"
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        },
+        "kind": {
+          "kind": "attribute",
+          "name": "type"
+        },
+        "invalid": {
+          "kind": "attribute",
+          "name": "aria-invalid"
+        },
+        "describedby": {
+          "kind": "attribute",
+          "name": "aria-describedby"
+        }
+      },
+      "events": {
+        "change": {
+          "type": "input",
+          "payload": {
+            "kind": "string",
+            "of": "value"
+          }
+        },
+        "submit": {
+          "type": "keydown",
+          "key": "Enter"
+        },
+        "cancel": {
+          "type": "keydown",
+          "key": "Escape"
+        }
+      }
+    },
+    "button": {
+      "primitive": "button",
+      "element": "button",
+      "props": {
+        "class": {
+          "kind": "attribute",
+          "name": "class",
+          "optional": true
+        },
+        "pressed": {
+          "kind": "attribute",
+          "name": "aria-pressed",
+          "optional": true
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        },
+        "disabled": {
+          "kind": "boolean-attribute",
+          "name": "disabled"
+        }
+      },
+      "events": {
+        "click": {
+          "type": "click"
+        }
+      }
+    },
+    "radiogroup": {
+      "primitive": "radiogroup",
+      "element": "div",
+      "attributes": {
+        "role": "radiogroup"
+      },
+      "props": {
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        },
+        "invalid": {
+          "kind": "attribute",
+          "name": "aria-invalid"
+        },
+        "describedby": {
+          "kind": "attribute",
+          "name": "aria-describedby"
+        }
+      }
+    },
+    "radio": {
+      "primitive": "radio",
+      "element": "input",
+      "attributes": {
+        "type": "radio"
+      },
+      "props": {
+        "checked": {
+          "kind": "controlled-boolean",
+          "name": "checked"
+        },
+        "value": {
+          "kind": "attribute",
+          "name": "value"
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        },
+        "disabled": {
+          "kind": "boolean-attribute",
+          "name": "disabled"
+        }
+      },
+      "events": {
+        "select": {
+          "type": "change",
+          "payload": {
+            "kind": "string",
+            "of": "value"
+          }
+        }
+      }
+    },
+    "status": {
+      "primitive": "status",
+      "element": "div",
+      "attributes": {
+        "role": "status"
+      }
+    },
+    "alert": {
+      "primitive": "alert",
+      "element": "div",
+      "attributes": {
+        "role": "alert"
+      }
+    },
+    "label": {
+      "primitive": "label",
+      "element": "label"
+    }
+  }
+}
