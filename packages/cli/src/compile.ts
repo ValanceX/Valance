@@ -20,8 +20,8 @@ import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
 import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
-import { checkTemplate } from "./rules.js";
-import { ENTRY_FILE } from "./project.js";
+import { checkReferences, checkTemplate } from "./rules.js";
+import { ENTRY_FILE, GENERATED_DIR } from "./project.js";
 
 export const SOURCE_DIR = "src";
 /** The component the page is drawn by. */
@@ -355,6 +355,19 @@ export interface Compiled {
   readonly templates: ReadonlyArray<{ readonly component: string; readonly file: string; readonly source: string; readonly builtIn: boolean }>;
 }
 
+/** The anchors of the content's headings: the ids the built-in views give them (the generated `content.json`, which the content stage wrote before this one). */
+const anchorsOf = (root: string): ReadonlySet<string> => {
+  try {
+    const content = JSON.parse(readFileSync(join(root, GENERATED_DIR, "content.json"), "utf8")) as {
+      readonly pages?: ReadonlyArray<{ readonly blocks?: ReadonlyArray<{ readonly anchor?: string }> }>;
+    };
+
+    return new Set((content.pages ?? []).flatMap((page) => (page.blocks ?? []).flatMap((block) => (block.anchor === undefined ? [] : [block.anchor]))));
+  } catch {
+    return new Set();
+  }
+};
+
 /** A tag the web renamed (decision P7: `para` is `paragraph`): said where a template still writes the old one. */
 const renamedHint = (
   vocabulary: Vocabulary,
@@ -441,6 +454,14 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
         tree.find((node) => node.name === template.component)?.interface?.name,
       ),
     );
+
+    const compiled = used.map((template, index) => ({
+      file: template.path,
+      source: template.source,
+      template: JSON.parse(texts[index] ?? "{}") as CompiledTemplate,
+      builtIn: template.builtIn,
+    }));
+    broken.push(...checkReferences(compiled, anchorsOf(root)));
 
     if (broken.length > 0) {
       throw new AppError(broken.map((each) => relocate(each, root)));

@@ -111,3 +111,57 @@ export const checkTemplate = (file: string, source: string, template: Template, 
 
   return found;
 };
+
+/** One template, as the reference check reads it: where it is written, its compiled form, and whether it is the package's own (a built-in view). */
+export interface Written {
+  readonly file: string;
+  readonly source: string;
+  readonly template: Template;
+  readonly builtIn: boolean;
+}
+
+const literal = (expression: TemplateExpression): string | undefined => (expression.kind === "literal" && typeof expression.value === "string" ? expression.value : undefined);
+
+const elementsOf = (element: TemplateElement): ReadonlyArray<TemplateElement> => [
+  element,
+  ...element.children.flatMap((child) => (child.kind === "element" ? elementsOf(child.element) : [])),
+];
+
+/**
+ * `unknown-ref`: a `describedby` that is a literal names an `id` that nothing in the program has. The program is every template of the target, and the headings of the content (the built-in views
+ * give each its anchor as its `id`). An `id` that the author's own template computes could be any text, so the check says nothing then. It reads the program, not one template, because an id is
+ * global to the page: the layout may hold the control and a page the text it points at.
+ */
+export const checkReferences = (written: ReadonlyArray<Written>, anchors: ReadonlySet<string>): ReadonlyArray<Diagnostic> => {
+  const ids = new Set(anchors);
+  let computed = false;
+  const references: Array<{ readonly file: string; readonly source: string; readonly element: TemplateElement; readonly id: string }> = [];
+
+  for (const { file, source, template, builtIn } of written) {
+    for (const element of elementsOf(template.root)) {
+      for (const prop of element.props) {
+        const value = literal(prop.value);
+
+        if (prop.prop === "id") {
+          if (value !== undefined) {
+            ids.add(value);
+          } else if (!builtIn) {
+            computed = true;
+          }
+        } else if (prop.prop === "describedby" && value !== undefined) {
+          references.push({ file, source, element, id: value });
+        }
+      }
+    }
+  }
+
+  return computed
+    ? []
+    : references
+        .filter((each) => !ids.has(each.id))
+        .map((each) => {
+          const at = placeOf(each.source, each.element.span.start.utf16);
+
+          return diagnostic(each.file, at.line, "unknown-ref", `<${each.element.component}> is described by "${each.id}", and no element in the program has that id`, at.column);
+        });
+};

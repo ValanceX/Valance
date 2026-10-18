@@ -71,6 +71,7 @@
       "moves": "previous"
     }
   ],
+  "replay": "safe",
   "states": {
     "checked": "checked",
     "disabled": "disabled"

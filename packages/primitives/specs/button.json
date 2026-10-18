@@ -54,6 +54,7 @@
       "raises": "click"
     }
   ],
+  "replay": "safe",
   "states": {
     "disabled": "disabled"
   },

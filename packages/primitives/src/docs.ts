@@ -73,6 +73,10 @@ export const generateDocs = (specifications: Readonly<Record<string, Specificati
       );
     }
 
+    if (specification.replay !== undefined) {
+      lines.push(`- **Early press**: ${specification.replay === "safe" ? "replayed once the application has started (the default)" : "dropped, not replayed"}`);
+    }
+
     if (specification.live !== undefined) {
       lines.push(`- **Live region**: ${specification.live.politeness}${specification.live.atomic ? ", atomic" : ""}`);
     }

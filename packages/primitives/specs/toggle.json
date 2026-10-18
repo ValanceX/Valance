@@ -58,6 +58,7 @@
       "raises": "change"
     }
   ],
+  "replay": "safe",
   "states": {
     "pressed": "pressed",
     "disabled": "disabled"

@@ -73,6 +73,7 @@
         }
       }
     },
+    "replay": { "enum": ["safe", "never"] },
     "states": {
       "type": "object",
       "additionalProperties": { "type": "string" }

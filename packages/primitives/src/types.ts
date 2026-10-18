@@ -79,6 +79,11 @@ export interface Specification {
   readonly content: Content;
   readonly accessibleName: AccessibleName;
   readonly keyboard: ReadonlyArray<KeyRow>;
+  /**
+   * Whether an early press of the control (before the application has started) may be replayed once it has: `safe` (the default for a control that changes only what the application holds),
+   * or `never` (the control is not idempotent). Declared here as the control's default; the per-use choice and the early-input shell that reads it are WP8 (decision H9).
+   */
+  readonly replay?: "safe" | "never";
   /** ARIA state or property to the prop that supplies it. */
   readonly states?: Readonly<Record<string, string>>;
   /** Props that refer to another node: `describedby` is a `ref` (decision A6). */

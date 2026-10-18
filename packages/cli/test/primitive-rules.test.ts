@@ -98,3 +98,38 @@ describe("a component that takes its name from its user (A3b)", () => {
     expect(await found(withField(optional, body, layout))).toContain("src/main.ts:8 component-schema");
   });
 });
+
+describe("a tag the web renamed (P7)", () => {
+  it("is refused with the new name in the message", async () => {
+    const result = await check(project({ "content/index.md": PAGE(), "src/main.ts": MAIN, "src/layout.mprx": '<column><para class="p">x</para></column>' }));
+    const messages = result.diagnostics.map((each) => each.message);
+
+    expect(messages.some((message) => message.includes("`para` is now `paragraph`"))).toBe(true);
+  });
+
+  it("accepts the new names", async () => {
+    expect(await codes('<column><paragraph class="p">x</paragraph><blockquote class="q">y</blockquote></column>')).toEqual([]);
+  });
+});
+
+describe("unknown-ref: a describedby that points at nothing", () => {
+  const field = (describedby: string) => `<textfield label="Name" value="" describedby="${describedby}" />`;
+
+  it("accepts a literal that is the id of an element in the program", async () => {
+    expect(await codes(`<column>${field("hint")}<text id="hint">Say who it is</text></column>`)).toEqual([]);
+  });
+
+  it("reports a literal that no element has as its id", async () => {
+    expect(await codes(`<column>${field("nothing")}<text id="hint">Say who it is</text></column>`)).toEqual(["src/layout.mprx:1:9 unknown-ref"]);
+  });
+
+  it("accepts the anchor of a heading in the content, which the built-in views give an id", async () => {
+    const files = { "content/index.md": PAGE("Home", "## Notes\n\nText."), "src/main.ts": MAIN, "src/layout.mprx": `<column>${field("notes")}</column>` };
+
+    expect((await check(project(files))).diagnostics).toEqual([]);
+  });
+
+  it("says nothing when an id is computed by the author's own template: it could be any", async () => {
+    expect(await codes(`<column>${field("row-1")}<text id={on ? "a" : "b"}>x</text></column>`)).toEqual([]);
+  });
+});

@@ -44,14 +44,24 @@ const additions: Record<string, ReadonlyArray<string>> = {
 /** Events the generated table has that the hand table did not: the textfield's focus and blur (the Desktop has them; Chromium raises them as the specification says). */
 const eventAdditions: Record<string, ReadonlyArray<string>> = { textfield: ["focus", "blur"] };
 
+/** Decision P7: the web's short tags are the ARIA names now. The hand table's tag, and the one that realizes it. */
+const renamed = loadWeb().renamed ?? {};
+
 describe("the generated web table", () => {
-  it("has every tag the hand table had, and the tags WP3 adds", () => {
-    expect(Object.keys(generated)).toEqual(expect.arrayContaining(Object.keys(legacy)));
+  it("has every tag the hand table had (renamed as P7 says), and the tags WP3 adds", () => {
+    expect(Object.keys(renamed).sort()).toEqual(["item", "para", "quote"]);
+    expect(Object.keys(generated)).toEqual(expect.arrayContaining(Object.keys(legacy).map((tag) => renamed[tag] ?? tag)));
     expect(
       Object.keys(generated)
-        .filter((tag) => !(tag in legacy))
+        .filter((tag) => !(tag in legacy) && !Object.values(renamed).includes(tag))
         .sort(),
     ).toEqual(["alert", "label", "radio", "radiogroup", "status", "toggle"]);
+  });
+
+  it("keeps none of the old tags", () => {
+    for (const old of Object.keys(renamed)) {
+      expect(generated[old], old).toBeUndefined();
+    }
   });
 
   for (const [tag, was] of Object.entries(legacy)) {
