@@ -67,8 +67,8 @@
   },
   "dependencies": {
     "@valancex/mesh-runtime": "^0.14.0",
-    "@valancex/nexus": "^0.13.0",
-    "@valancex/port-web": "^0.10.0",
+    "@valancex/nexus": "^0.12.3",
+    "@valancex/port-web": "^0.6.1",
     "@valancex/router": "workspace:^",
     "@valancex/valance": "workspace:^"
   },
