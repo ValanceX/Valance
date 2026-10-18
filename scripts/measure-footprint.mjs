@@ -1,7 +1,7 @@
 // What Valance costs to ship, start, update and keep in memory, measured from the packages published on npm and built the way an application is built, with `vlx build` (Vite). Anyone can reproduce a number,
 // and numbers can be compared between releases.
 //
-//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree]
+//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree] [--runs 7] [--only counter]
 //
 // By default the packages are the PUBLISHED ones, so a release is measured as a user gets it. With `--tree` the workspace's own packages (`@valancex/cli`, `common`, `valance`, `router`) are built and packed, and
 // their tarballs are installed instead, so a change that is not released yet (the release `connect` makes of the render it replaces, W21; the aligned MESH runtime range, W20) can be measured.
@@ -37,6 +37,9 @@ const DOCS_APP = resolve(option("--docs-app", join(here, "..", "examples", "docs
 const CHROMIUM = option("--chromium", process.env.CHROMIUM);
 const KEEP = args.includes("--keep");
 const TREE = args.includes("--tree");
+// How many fresh browsers each row takes the median of (default 7), and, with `--only counter`, only the counter's `installed` build is run in the browser (a quick scaling check).
+const RUNS = Number(option("--runs", "7"));
+const ONLY_COUNTER = option("--only") === "counter";
 
 // What an application is built with: the published tooling, at versions whose peer ranges accept each other. Update it when the ranges move.
 const PUBLISHED = { "@valancex/cli": "0.13.0", "@valancex/common": "0.13.0", effect: "3" };
@@ -348,8 +351,9 @@ const measureBrowser = async (browser, root, probe) => {
     const startHeap = [];
     const startWasm = [];
     const rss = [];
+    const loop = [];
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < RUNS; i++) {
       const context = await browser.newContext();
       const page = await context.newPage();
       const session = await context.newCDPSession(page);
@@ -429,6 +433,8 @@ const measureBrowser = async (browser, root, probe) => {
       // W18: the memory when the application has just started, then after a fixed number of updates.
       startHeap.push(Object.fromEntries((await session.send("Performance.getMetrics")).metrics.map((metric) => [metric.name, metric.value])).JSHeapUsedSize);
       startWasm.push(await page.evaluate(() => window.__memories.reduce((sum, memory) => sum + memory.buffer.byteLength, 0)));
+      const loopStarted = performance.now();
+
       await page.evaluate(
         async ({ probe, updates }) => {
           for (let n = 0; n < updates; n++) {
@@ -441,6 +447,7 @@ const measureBrowser = async (browser, root, probe) => {
         },
         { probe, updates: UPDATES },
       );
+      loop.push(performance.now() - loopStarted);
       await session.send("HeapProfiler.enable");
       await session.send("HeapProfiler.collectGarbage");
 
@@ -461,6 +468,8 @@ const measureBrowser = async (browser, root, probe) => {
       atStart: { jsHeapUsedBytes: median(startHeap), wasmMemoryBytes: median(startWasm) },
       afterUpdates: {
         updates: UPDATES,
+        // Wall-clock milliseconds per update over the whole loop: it must not grow with the number of updates.
+        msPerUpdate: median(loop) / UPDATES,
         jsHeapUsedBytes: median(heap),
         jsHeapUsedRange: [Math.min(...heap), Math.max(...heap)],
         wasmMemoryBytes: median(wasm),
@@ -497,11 +506,13 @@ if (!args.includes("--skip-browser")) {
     results.browser = { updates: UPDATES, chromium: browser.version() };
 
     for (const [build, { dir }] of Object.entries(counterBuilds)) {
+      if (ONLY_COUNTER && build !== "installed") continue;
+
       results.browser[build] = await measureBrowser(browser, join(dir, "dist", "web"), COUNTER_PROBE);
     }
 
     // The documentation site, whose updates are the theme toggle's: the same memory rows with a real page (W17, W18).
-    if (docsBuild !== undefined) {
+    if (docsBuild !== undefined && !ONLY_COUNTER) {
       results.browser.docsApp = await measureBrowser(browser, join(docsBuild.dir, "dist", "web"), DOCS_PROBE);
     }
 

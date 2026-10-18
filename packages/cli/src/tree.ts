@@ -5,7 +5,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 import type { Schema } from "effect";
 
-import type { Component } from "@valancex/common";
+import type { Component, PropDeclaration } from "@valancex/common";
 import { ENTRY_FILE } from "./project.js";
 
 export interface Place {
@@ -20,7 +20,7 @@ export interface Node {
   /** The template, relative to the project. */
   readonly file: string;
   /** The interface the component declares: present when it declares one (an omitted side is none), absent when its contract is inferred from the template and where it is used. */
-  readonly interface?: { readonly props: Readonly<Record<string, Schema.Schema<any, any, never>>>; readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>> };
+  readonly interface?: { readonly props: Readonly<Record<string, PropDeclaration>>; readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>> };
   /** The declared components its template writes. */
   readonly uses: ReadonlyArray<string>;
   /** Who uses it: the components whose templates write its tag; `"(application)"` for the layout and for an override. */

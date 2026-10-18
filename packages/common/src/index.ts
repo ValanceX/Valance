@@ -114,16 +114,23 @@ export interface Component {
   readonly [COMPONENT]: true;
   readonly template: Template;
   /** Present when the component declares its props (an omitted side of a declared interface is none). Absent: the contract is inferred from the template and its uses. */
-  readonly props?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+  readonly props?: Readonly<Record<string, PropDeclaration>>;
   readonly events?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
 }
 
+/** A prop is declared by its schema, or by `field(schema, default)` when an occurrence that leaves it out should get a value. */
+export type PropDeclaration = Schema.Schema<any, any, never> | Field<any>;
+
+/** Whether a prop is declared with a default. */
+export const isField = (value: unknown): value is Field => typeof value === "object" && value !== null && FIELD in value;
+
 export interface Contract<P extends string, E extends string> {
   /**
-   * The inputs the template reads, each with its type. Optional when the schema admits `undefined`. A prop has no default: the model has none. With neither `props` nor `events` the contract is
-   * inferred; with either, the interface is exactly what is written (an omitted side is none).
+   * The inputs the template reads, each with its type. Optional when the schema admits `undefined`. `field(schema, default)` gives a prop a default: an occurrence of the component that leaves
+   * the prop out gets the default (for a component with a template; a primitive ignores it), and the prop may then be left out. A string-literal union (`Schema.Literal("a", "b")`) is a closed set:
+   * the model checks every literal written for it. With neither `props` nor `events` the contract is inferred; with either, the interface is exactly what is written (an omitted side is none).
    */
-  readonly props?: { readonly [K in P]: Schema.Schema<any, any, never> };
+  readonly props?: { readonly [K in P]: PropDeclaration };
   /** The events the template raises, each with its payload's schema; `Schema.Void` is no payload. */
   readonly events?: { readonly [K in E]: Schema.Schema<any, any, never> };
 }
