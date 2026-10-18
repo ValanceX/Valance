@@ -120,7 +120,11 @@ try {
 } finally {
   if (!own.includes("--keep")) {
     restore();
-    run(pnpm, ["install", "--frozen-lockfile", "--ignore-scripts"], root);
+    // Back to what the lockfile says. On the branch that already asks for a MESH that is not published, the lockfile
+    // cannot be frozen yet: the note says what to do instead of failing the run that has just passed.
+    if (run(pnpm, ["install", "--frozen-lockfile", "--ignore-scripts"], root) !== 0) {
+      console.error("with-local-mesh: the lockfile does not match the packages' ranges (a branch that asks for a MESH that is not published): run `pnpm install` once it is");
+    }
   }
 }
 
