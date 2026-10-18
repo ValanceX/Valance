@@ -437,12 +437,22 @@ const measureBrowser = async (browser, root, probe) => {
 
       await page.evaluate(
         async ({ probe, updates }) => {
+          // Wait for the update with a message round trip, not `setTimeout(0)`: a timer nested five deep is held to 4 ms, which made every update cost at least that (and 4x that
+          // under CPU throttling), so a 3,000-update run took an hour. The wait is a macrotask either way, and the count of updates and what is measured are the same.
+          const tick = () =>
+            new Promise((resolve) => {
+              const channel = new MessageChannel();
+
+              channel.port1.onmessage = () => resolve(undefined);
+              channel.port2.postMessage(0);
+            });
+
           for (let n = 0; n < updates; n++) {
             const before = document.querySelector(probe.readout).textContent;
 
             document.querySelector(probe.button).click();
 
-            while (document.querySelector(probe.readout).textContent === before) await new Promise((resolve) => setTimeout(resolve, 0));
+            while (document.querySelector(probe.readout).textContent === before) await tick();
           }
         },
         { probe, updates: UPDATES },
