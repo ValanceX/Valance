@@ -369,6 +369,12 @@
         "cancel": {
           "type": "keydown",
           "key": "Escape"
+        },
+        "focus": {
+          "type": "focus"
+        },
+        "blur": {
+          "type": "blur"
         }
       }
     },

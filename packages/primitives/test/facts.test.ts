@@ -133,11 +133,8 @@ describe("a described primitive", () => {
 });
 
 describe("the events and keys", () => {
-  /** Events the specification has that the web does not realize, with the reason. */
-  const unrealized: Record<string, string> = {
-    "textfield.focus": "the web's textfield has no focus event; WP3 reports it and does not add it (a PORT Web feature: focus and blur events with no payload)",
-    "textfield.blur": "the web's textfield has no blur event; as focus",
-  };
+  /** Events the specification has that the web does not realize, with the reason: none. */
+  const unrealized: Record<string, string> = {};
 
   it("are realized by the web, except those listed", () => {
     const missing: string[] = [];

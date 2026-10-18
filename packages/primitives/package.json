@@ -30,7 +30,8 @@
     "test": "vitest run",
     "generate": "pnpm build && node scripts/generate.mjs",
     "docs": "pnpm build && node scripts/docs.mjs",
-    "parity": "node scripts/parity.mjs"
+    "parity": "node scripts/parity.mjs",
+    "test:browser": "vitest run -c vitest.browser.config.ts"
   },
   "peerDependencies": {
     "@valancex/valance": "^0.12.0"
@@ -44,10 +45,12 @@
     "@valancex/port-desktop-vocabulary": "^0.9.0",
     "@valancex/port-web": "^0.6.1",
     "@valancex/valance": "workspace:^",
+    "@vitest/browser": "3.2.7",
     "ajv": "^8.17.1",
     "aria-query": "^5.3.2",
     "dom-accessibility-api": "^0.7.0",
     "jsdom": "^26.0.0",
+    "playwright": "1.56.1",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0",
     "vnu-jar": "^26.10.12"

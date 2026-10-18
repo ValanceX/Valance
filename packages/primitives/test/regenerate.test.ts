@@ -41,6 +41,9 @@ const additions: Record<string, ReadonlyArray<string>> = {
   para: ["id"],
 };
 
+/** Events the generated table has that the hand table did not: the textfield's focus and blur (the Desktop has them; Chromium raises them as the specification says). */
+const eventAdditions: Record<string, ReadonlyArray<string>> = { textfield: ["focus", "blur"] };
+
 describe("the generated web table", () => {
   it("has every tag the hand table had, and the tags WP3 adds", () => {
     expect(Object.keys(generated)).toEqual(expect.arrayContaining(Object.keys(legacy)));
@@ -70,7 +73,7 @@ describe("the generated web table", () => {
           .filter((name) => !(name in was_))
           .sort();
 
-        expect(extra, `${tag} ${kind} beyond the hand table`).toEqual((kind === "props" ? (additions[tag] ?? []) : []).slice().sort());
+        expect(extra, `${tag} ${kind} beyond the hand table`).toEqual((kind === "props" ? (additions[tag] ?? []) : (eventAdditions[tag] ?? [])).slice().sort());
       }
     });
   }

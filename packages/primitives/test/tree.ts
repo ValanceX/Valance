@@ -49,7 +49,7 @@ export const treeOf = (realizations: WebRealizations, tag: string, example: Exam
       events,
       children: [
         ...(text === undefined ? [] : [{ type: "text", key: key(), text }]),
-        ...(children ?? []).map((child) => nodeOf(tagFor(child.name), child.props, child.text, child.children, false)),
+        ...(children ?? []).map((child) => nodeOf(tagFor(child.name), child.props, child.text, child.children, true)),
       ],
     };
   };

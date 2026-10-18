@@ -36,7 +36,7 @@ export const primitives: Web.WebPrimitives = {
   a: { element: "a", props: { href: Web.attribute("href") } },
   link: { element: "a", props: { href: Web.attribute("href"), class: Web.attribute("class"), current: Web.attribute("aria-current") } },
   checkbox: { element: "input", attributes: {"type":"checkbox"}, props: { checked: Web.controlledBoolean("checked"), label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) } },
-  textfield: { element: "input", props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label: Web.attribute("aria-label"), kind: Web.attribute("type"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }), submit: Web.event("keydown", undefined, { key: "Enter" }), cancel: Web.event("keydown", undefined, { key: "Escape" }) } },
+  textfield: { element: "input", props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label: Web.attribute("aria-label"), kind: Web.attribute("type"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }), submit: Web.event("keydown", undefined, { key: "Enter" }), cancel: Web.event("keydown", undefined, { key: "Escape" }), focus: Web.event("focus"), blur: Web.event("blur") } },
   button: { element: "button", props: { class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled") }, events: { click: Web.event("click") } },
   radiogroup: { element: "div", attributes: {"role":"radiogroup"}, props: { label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") } },
   radio: { element: "input", attributes: {"type":"radio"}, props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled") }, events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) } },
@@ -451,7 +451,9 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         }
       },
       "submit": {},
-      "cancel": {}
+      "cancel": {},
+      "focus": {},
+      "blur": {}
     }
   },
   "button": {

@@ -59,6 +59,22 @@
           "value": "s",
           "label": "Small"
         }
+      },
+      {
+        "name": "radio",
+        "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+        }
+      },
+      {
+        "name": "radio",
+        "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+        }
       }
     ],
     "describedByText": "Pick one"
