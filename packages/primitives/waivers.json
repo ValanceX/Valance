@@ -1,17 +1,1 @@
-[
-  {
-    "primitive": "status",
-    "member": "primitive",
-    "reason": "added to the Desktop PORT on the branch claude/wp3-primitives of valancex/port (vocabulary 19 components); the published 0.9.0 lacks it. Gone when the vocabulary is released and the dependency raised"
-  },
-  {
-    "primitive": "alert",
-    "member": "primitive",
-    "reason": "added to the Desktop PORT on the branch claude/wp3-primitives of valancex/port (vocabulary 19 components); the published 0.9.0 lacks it. Gone when the vocabulary is released and the dependency raised"
-  },
-  {
-    "primitive": "toggle",
-    "member": "primitive",
-    "reason": "added to the Desktop PORT on the branch claude/wp3b-releases of valancex/port (vocabulary 20 components); the published 0.9.0 lacks it. Gone when the vocabulary is released and the dependency raised"
-  }
-]
+[]
