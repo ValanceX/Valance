@@ -18,6 +18,8 @@ export interface AccessibleName {
   readonly from: "content" | "prop" | "either" | "none";
   readonly prop?: string;
   readonly orContainedIn?: "label";
+  /** A use without a name is an error (`unnamed-control`): the control is only usable if it has one. */
+  readonly required?: boolean;
 }
 
 export interface PropSpecification {

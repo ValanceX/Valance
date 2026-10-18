@@ -30,12 +30,14 @@
   "events": {},
   "content": {
     "only": [
-      "radio"
+      "radio",
+      "label"
     ]
   },
   "accessibleName": {
     "from": "prop",
-    "prop": "label"
+    "prop": "label",
+    "required": true
   },
   "keyboard": [],
   "states": {

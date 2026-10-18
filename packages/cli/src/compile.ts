@@ -2,6 +2,7 @@
 // `<callout>`), and the framework's own (`views/` in this package) fill in what the author did not write. A template with the same name as a built-in replaces it. The manifest MESH checks
 // the templates against is derived (Valance's `manifest`) from the tag table, the layout's scope and the command table, so there is no manifest file to keep in step.
 import { compileProgram } from "@valancex/mesh-compiler";
+import type { Template as CompiledTemplate } from "@valancex/mesh-compiler";
 import type * as Valance from "@valancex/valance";
 import { manifest } from "@valancex/valance/web/build";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -19,6 +20,7 @@ import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
 import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
+import { checkTemplate } from "./rules.js";
 import { ENTRY_FILE } from "./project.js";
 
 export const SOURCE_DIR = "src";
@@ -402,6 +404,18 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
   }
 
   const program = result.program as unknown as Valance.Program;
+  const rules = "tags" in vocabulary ? vocabulary.rules : undefined;
+
+  if (rules !== undefined) {
+    const texts = (program as unknown as { readonly templates: ReadonlyArray<string> }).templates;
+    const known = new Set(namesOf(vocabulary));
+    const broken = used.flatMap((template, index) => checkTemplate(template.path, template.source, JSON.parse(texts[index] ?? "{}") as CompiledTemplate, rules, known));
+
+    if (broken.length > 0) {
+      throw new AppError(broken.map((each) => relocate(each, root)));
+    }
+  }
+
   const enriched = (program as unknown as { readonly model: unknown }).model;
   const manifestOfProgram = typeof enriched === "string" ? JSON.parse(enriched) : enriched;
 

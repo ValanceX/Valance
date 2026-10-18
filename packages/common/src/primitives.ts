@@ -556,3 +556,34 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
     "events": {}
   }
 };
+
+/** What a use of a tag must satisfy besides its props (`vlx` checks it): the tags that need a name (a `label` prop, or a `label` around them), the tags a tag may contain only, and the tags a tag must be inside. */
+export const rules: { readonly named: ReadonlyArray<string>; readonly only: Readonly<Record<string, ReadonlyArray<string>>>; readonly within: Readonly<Record<string, ReadonlyArray<string>>> } = {
+  "named": [
+    "checkbox",
+    "textfield",
+    "radiogroup",
+    "radio"
+  ],
+  "only": {
+    "list": [
+      "item"
+    ],
+    "olist": [
+      "item"
+    ],
+    "radiogroup": [
+      "radio",
+      "label"
+    ]
+  },
+  "within": {
+    "item": [
+      "list",
+      "olist"
+    ],
+    "radio": [
+      "radiogroup"
+    ]
+  }
+};

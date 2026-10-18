@@ -56,7 +56,8 @@
       "properties": {
         "from": { "enum": ["content", "prop", "either", "none"] },
         "prop": { "type": "string" },
-        "orContainedIn": { "const": "label" }
+        "orContainedIn": { "const": "label" },
+        "required": { "type": "boolean" }
       }
     },
     "keyboard": {

@@ -46,7 +46,8 @@
   "accessibleName": {
     "from": "prop",
     "prop": "label",
-    "orContainedIn": "label"
+    "orContainedIn": "label",
+    "required": true
   },
   "keyboard": [
     {
@@ -74,7 +75,9 @@
     "checked": "checked",
     "disabled": "disabled"
   },
-  "within": ["radiogroup"],
+  "within": [
+    "radiogroup"
+  ],
   "example": {
     "props": {
       "checked": true,

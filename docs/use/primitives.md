@@ -442,7 +442,7 @@ A group of radios: choose one of a few. It has no events; its radios raise them.
 - **Status**: portable
 - **Role**: `radiogroup`
 - **Accessible name**: its `label`
-- **Content**: only `radio`
+- **Content**: only `radio`, `label`
 - **States**: invalid (`invalid`)
 
 | Prop | Type | Required | |

@@ -47,7 +47,8 @@
   "accessibleName": {
     "from": "prop",
     "prop": "label",
-    "orContainedIn": "label"
+    "orContainedIn": "label",
+    "required": true
   },
   "keyboard": [
     {
