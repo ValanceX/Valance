@@ -233,6 +233,7 @@ component(itemList, { props: { items: Schema.Array(Item), row: snippet(Item, Sch
 - `children` is reserved for the content between the tags: it must be `snippet()` (no parameters), and `children={…}` with content is `children-conflict`. A snippet is not data: it has no `field` default, is never optional, and is not a record field or an event's payload.
 - A snippet reads the scope of the template that **wrote** it (`count` above is the layout's, not the panel's), so a node that renders one is redrawn when that scope changes though its own props did not.
 - The arity and the types are checked: `snippet-arity-mismatch` in the composite's template when `{@render row(item)}` passes too few, and a member the parameter does not have is reported where the snippet is written. An older `@valancex/mesh-compiler` is told at the declaration (`component-schema`: "a snippet needs MESH 0.14 or later").
+- **Optional.** `snippet(…).optional()` (and `children: snippet().optional()`) is one an occurrence may leave out: it is `snippet<…>?` in the model, and an absent one draws nothing. Rendering it is `possibly-absent-snippet` unless it is inside the first branch of an `{#if has(name)}` (`&&` allowed), so `{#if has(header)}{@render header()}{/if}` is how a template uses one.
 - Slots (`mesh-slot`, `mesh-fill`) keep working for a component that does not declare `children`.
 
 ### Typed template imports
