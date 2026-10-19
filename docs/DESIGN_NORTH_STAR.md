@@ -5,7 +5,7 @@ Status: **locked** (2026-10-19). Applies to every public surface in the ValanceX
 Companion documents:
 
 - [API Design Principles v1.0](https://github.com/ValanceX/Mesh/blob/main/docs/standards/api-design-principles.md) (the rules; this north star is the shape those rules serve, and agrees with its §2.1 progressive disclosure, §6.4 defaults and §6.5 escape hatches; no conflict was found).
-- [Validation of the ecosystem against this north star](./north-star-validation-2026-10-19.md) (the first review, with findings and what is open).
+- [Scorecard](./NORTH_STAR_SCORECARD.md) (the 0 to 100 criteria new work is validated against) and the [baseline](./north-star-validation-2026-10-19.md) (the ecosystem's current score and evidence).
 
 **How to use it.** Before adding or changing a public API, name its tier (§3), check it against the principles (§1) and the anti-patterns (§4), and say so in the change. A change that cannot be placed in a tier, or that matches an anti-pattern, is a finding for the owner, not something to ship quietly. If this document and another one disagree, record the disagreement as a finding; do not resolve it silently.
 

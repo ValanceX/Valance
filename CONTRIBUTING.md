@@ -22,7 +22,7 @@ To try the CLI from a clone, `pnpm link --global` in `packages/cli`; the walkthr
 
 ## Design north star
 
-Every public API change is held to the [design north star](docs/DESIGN_NORTH_STAR.md): progressive disclosure, three tiers, four anti-patterns. Name the tier of your change and check it against the [review checklist](docs/DESIGN_NORTH_STAR.md#5-review-checklist-use-on-every-public-api-change).
+Every public API change is held to the [design north star](docs/DESIGN_NORTH_STAR.md): progressive disclosure, three tiers, four anti-patterns. Score your change with the [scorecard](docs/NORTH_STAR_SCORECARD.md), name its tier and check it against the [review checklist](docs/DESIGN_NORTH_STAR.md#5-review-checklist-use-on-every-public-api-change).
 
 ## Windows
 
