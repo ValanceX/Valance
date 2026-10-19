@@ -20,6 +20,10 @@ $ pnpm lint                  # oxlint (OXC); `pnpm format` writes the style, `pn
 
 To try the CLI from a clone, `pnpm link --global` in `packages/cli`; the walkthrough is in [`docs/application-model/TRY-IT.md`](docs/application-model/TRY-IT.md).
 
+## Design north star
+
+Every public API change is held to the [design north star](docs/DESIGN_NORTH_STAR.md): progressive disclosure, three tiers, four anti-patterns. Score your change with the [scorecard](docs/NORTH_STAR_SCORECARD.md), name its tier and check it against the [review checklist](docs/DESIGN_NORTH_STAR.md#5-review-checklist-use-on-every-public-api-change).
+
 ## Windows
 
 The same `pnpm` commands run in PowerShell or cmd. Git should check files out with LF endings (this repository's `.gitattributes` asks for it; tests compare file text, so `core.autocrlf=true` would otherwise hand them CRLF). Workspace links are directory junctions, which need no administrator rights. Scripts in the repository are Node scripts, not shell scripts; set an environment variable for one command with `$env:NAME = "value"; pnpm …` in PowerShell (`NAME=value pnpm …` in a POSIX shell).
