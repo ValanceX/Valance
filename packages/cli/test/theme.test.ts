@@ -104,6 +104,18 @@ describe("a project's own theme", () => {
     expect(readFileSync(join(root, ".valance", "theme.css"), "utf8")).toContain("--vlx-color-accent: #005a9c;");
   });
 
+  it("opts out of the library recipes with an empty recipe list: the tokens remain, no primitive is styled by the theme, and it checks clean", async () => {
+    const root = withTheme((edit) => edit("theme.json", (json) => (json.recipes = [])));
+
+    expect((await check(root)).diagnostics).toEqual([]);
+    generateEntries(root);
+
+    const css = readFileSync(join(root, ".valance", "theme.css"), "utf8");
+
+    expect(css).toContain("--vlx-color-accent:");
+    expect(css).not.toContain("[data-vlx=");
+  });
+
   it("is checked with the project: a recipe that names a token that does not exist is a diagnostic of vlx check", async () => {
     const root = withTheme((edit) => edit("recipes/button.json", (json) => (json.variants.intent.primary.background = "color.acent")));
     const found = (await check(root)).diagnostics.filter((each) => each.file.startsWith("theme/"));
