@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schema/theme-v1.json",
+  "title": "A theme (theme-v1): its token documents by mode, its recipes, and the pairs whose contrast it declares",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "modes", "recipes"],
+  "properties": {
+    "version": { "const": 1 },
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "modes": {
+      "type": "object",
+      "required": ["light"],
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "recipes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "contrast": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "on", "min"],
+        "properties": {
+          "text": { "type": "string" },
+          "on": { "type": "string" },
+          "min": { "type": "number", "minimum": 1, "maximum": 21 },
+          "modes": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        }
+      }
+    }
+  }
+}

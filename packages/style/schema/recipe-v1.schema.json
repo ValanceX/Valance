@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schema/recipe-v1.json",
+  "title": "A recipe (recipe-v1): the style of one part of one primitive, as data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "target"],
+  "properties": {
+    "version": { "const": 1 },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part"],
+      "properties": { "primitive": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" }, "part": { "type": "string" } }
+    },
+    "base": { "$ref": "#/definitions/declarations" },
+    "variants": { "type": "object", "additionalProperties": { "type": "object", "additionalProperties": { "$ref": "#/definitions/declarations" } } },
+    "states": { "type": "object", "additionalProperties": { "$ref": "#/definitions/declarations" } },
+    "when": { "type": "object", "propertyNames": { "pattern": "^[a-z-]+:[a-z-]+$" }, "additionalProperties": { "$ref": "#/definitions/declarations" } },
+    "escape": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "web": { "type": "object", "additionalProperties": false, "required": ["css"], "properties": { "css": { "type": "string", "minLength": 1 } } }
+      }
+    }
+  },
+  "definitions": {
+    "declarations": { "type": "object", "additionalProperties": { "$ref": "#/definitions/value" } },
+    "value": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 4 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "width": { "type": "string" }, "color": { "type": "string" }, "style": { "enum": ["solid", "dashed", "dotted"] }, "offset": { "type": "string" } }
+        }
+      ]
+    }
+  }
+}

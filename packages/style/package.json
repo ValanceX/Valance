@@ -1,0 +1,48 @@
+{
+  "name": "@valancex/style",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The style contract: tokens (Design Tokens format), recipes for the root part of a primitive, states, variants and conditions, as data; and what is generated or checked from them (a layered stylesheet for the web, resolved values for the Desktop, the contrast of declared pairs, the coverage of a theme). Private until the Style Gate.",
+  "license": "MIT",
+  "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "contract",
+    "schema",
+    "themes"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "test:browser": "vitest run -c vitest.browser.config.ts"
+  },
+  "dependencies": {
+    "@valancex/primitives": "workspace:^",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/port-web": "^0.10.0",
+    "@valancex/valance": "workspace:^",
+    "@vitest/browser": "3.2.7",
+    "playwright": "1.56.1",
+    "stylelint": "^17.16.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

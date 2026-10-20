@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "note": "The style contract (Bet 6; decisions S1 to S8, P3): the five things a theme may depend on. Everything else (the element, its class, the order of wrappers) is not part of it.",
+  "parts": {
+    "root": "The primitive itself: the one element or widget that is the primitive. The only part until a realization shows it needs another (S1)."
+  },
+  "interactionStates": {
+    "hovered": ":hover",
+    "pressed": ":active",
+    "focus-visible": ":focus-visible"
+  },
+  "semanticStates": [
+    "checked",
+    "invalid",
+    "disabled",
+    "busy",
+    "selected"
+  ],
+  "variants": {
+    "intent": {
+      "values": [
+        "neutral",
+        "primary",
+        "danger"
+      ],
+      "default": "neutral"
+    },
+    "size": {
+      "values": [
+        "sm",
+        "md",
+        "lg"
+      ],
+      "default": "md"
+    }
+  },
+  "conditions": {
+    "viewport": {
+      "values": [
+        "compact",
+        "medium",
+        "expanded"
+      ],
+      "web": {
+        "compact": "(width < 600px)",
+        "medium": "(600px <= width < 840px)",
+        "expanded": "(width >= 840px)"
+      }
+    },
+    "scheme": {
+      "values": [
+        "light",
+        "dark"
+      ],
+      "web": {
+        "light": "(prefers-color-scheme: light)",
+        "dark": "(prefers-color-scheme: dark)"
+      }
+    },
+    "contrast": {
+      "values": [
+        "more"
+      ],
+      "web": {
+        "more": "(prefers-contrast: more)"
+      }
+    },
+    "forced-colors": {
+      "values": [
+        "active"
+      ],
+      "web": {
+        "active": "(forced-colors: active)"
+      }
+    },
+    "reduced-motion": {
+      "values": [
+        "reduce"
+      ],
+      "web": {
+        "reduce": "(prefers-reduced-motion: reduce)"
+      }
+    },
+    "target": {
+      "values": [
+        "web",
+        "desktop"
+      ]
+    }
+  },
+  "properties": {
+    "background": {
+      "accepts": "color",
+      "web": [
+        "background-color"
+      ],
+      "desktop": "supported"
+    },
+    "text": {
+      "accepts": "color",
+      "web": [
+        "color"
+      ],
+      "desktop": "supported"
+    },
+    "border": {
+      "accepts": "stroke",
+      "web": [
+        "border"
+      ],
+      "desktop": "supported"
+    },
+    "radius": {
+      "accepts": "dimension",
+      "web": [
+        "border-radius"
+      ],
+      "desktop": "supported"
+    },
+    "padding": {
+      "accepts": "space-list",
+      "web": [
+        "padding"
+      ],
+      "desktop": "supported"
+    },
+    "gap": {
+      "accepts": "dimension",
+      "web": [
+        "gap"
+      ],
+      "desktop": "supported"
+    },
+    "min-size": {
+      "accepts": "dimension",
+      "web": [
+        "min-height",
+        "min-width"
+      ],
+      "desktop": "supported"
+    },
+    "type": {
+      "accepts": "typography",
+      "web": [
+        "font"
+      ],
+      "desktop": "partial"
+    },
+    "elevation": {
+      "accepts": "shadow",
+      "web": [
+        "box-shadow"
+      ],
+      "desktop": "unsupported"
+    },
+    "opacity": {
+      "accepts": "opacity",
+      "web": [
+        "opacity"
+      ],
+      "desktop": "unsupported"
+    },
+    "outline": {
+      "accepts": "stroke",
+      "web": [
+        "outline",
+        "outline-offset"
+      ],
+      "desktop": "partial"
+    },
+    "align": {
+      "accepts": "alignment",
+      "web": [
+        "align-items"
+      ],
+      "desktop": "unsupported"
+    }
+  },
+  "desktopNotes": {
+    "type": "The size of the type role; the family and weight are the toolkit's.",
+    "outline": "The focus ring's color and width; the toolkit draws its own ring."
+  }
+}

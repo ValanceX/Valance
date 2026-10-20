@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schema/style-contract-v1.json",
+  "title": "The style contract (style-contract-v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "parts",
+    "interactionStates",
+    "semanticStates",
+    "variants",
+    "conditions",
+    "properties"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "note": {
+      "type": "string"
+    },
+    "parts": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "interactionStates": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^:[a-z-]+$"
+      }
+    },
+    "semanticStates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "variants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "values",
+          "default"
+        ],
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "uniqueItems": true
+          },
+          "default": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "values"
+        ],
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "web": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "properties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accepts",
+          "web",
+          "desktop"
+        ],
+        "properties": {
+          "accepts": {
+            "enum": [
+              "color",
+              "stroke",
+              "dimension",
+              "space-list",
+              "typography",
+              "shadow",
+              "opacity",
+              "alignment"
+            ]
+          },
+          "web": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "desktop": {
+            "enum": [
+              "supported",
+              "partial",
+              "unsupported"
+            ]
+          }
+        }
+      }
+    },
+    "desktopNotes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}
