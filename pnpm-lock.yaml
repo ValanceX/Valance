@@ -395,6 +395,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      '@valancex/common':
+        specifier: workspace:^
+        version: link:../common
       '@valancex/port-web':
         specifier: ^0.10.0
         version: 0.10.0(@valancex/mesh-runtime@0.14.0)

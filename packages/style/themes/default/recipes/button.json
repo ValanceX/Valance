@@ -81,7 +81,7 @@
   },
   "when": {
     "viewport:compact": {
-      "min-size": "size.target"
+      "min-size": "size.target-touch"
     }
   }
 }

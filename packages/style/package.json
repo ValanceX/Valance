@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@valancex/common": "workspace:^",
     "@valancex/port-web": "^0.10.0",
     "@valancex/valance": "workspace:^",
     "@vitest/browser": "3.2.7",

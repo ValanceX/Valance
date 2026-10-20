@@ -84,6 +84,13 @@
         "unit": "rem"
       },
       "$description": "The least height of a control a finger or a pointer must hit."
+    },
+    "target-touch": {
+      "$value": {
+        "value": 3,
+        "unit": "rem"
+      },
+      "$description": "The least height of a control on a compact screen, where a finger is the pointer."
     }
   },
   "type": {
