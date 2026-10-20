@@ -17,3 +17,5 @@ minimumReleaseAgeExclude:
   - "@valancex/mesh-lsp-linux-x64@0.11.0"
   - "@valancex/mesh-lsp-win32-x64@0.11.0"
   - "@valancex/mesh-lsp@0.11.0"
+overrides:
+  ignore: 7.0.12
