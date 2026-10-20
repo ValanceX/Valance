@@ -18,31 +18,66 @@
     "example"
   ],
   "properties": {
-    "version": { "const": 1 },
-    "name": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
-    "status": { "enum": ["portable", "web-only", "desktop-only"] },
-    "role": { "type": ["string", "null"] },
-    "webRole": { "type": "string" },
-    "summary": { "type": "string", "minLength": 1 },
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*$"
+    },
+    "status": {
+      "enum": [
+        "portable",
+        "web-only",
+        "desktop-only"
+      ]
+    },
+    "role": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "webRole": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
     "props": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/definitions/prop" }
+      "additionalProperties": {
+        "$ref": "#/definitions/prop"
+      }
     },
     "events": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/definitions/event" }
+      "additionalProperties": {
+        "$ref": "#/definitions/event"
+      }
     },
     "content": {
       "oneOf": [
-        { "enum": ["none", "text", "any"] },
+        {
+          "enum": [
+            "none",
+            "text",
+            "any"
+          ]
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["only"],
+          "required": [
+            "only"
+          ],
           "properties": {
             "only": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "minItems": 1
             }
           }
@@ -52,12 +87,27 @@
     "accessibleName": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["from"],
+      "required": [
+        "from"
+      ],
       "properties": {
-        "from": { "enum": ["content", "prop", "either", "none"] },
-        "prop": { "type": "string" },
-        "orContainedIn": { "const": "label" },
-        "required": { "type": "boolean" }
+        "from": {
+          "enum": [
+            "content",
+            "prop",
+            "either",
+            "none"
+          ]
+        },
+        "prop": {
+          "type": "string"
+        },
+        "orContainedIn": {
+          "const": "label"
+        },
+        "required": {
+          "type": "boolean"
+        }
       }
     },
     "keyboard": {
@@ -65,45 +115,97 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["key"],
+        "required": [
+          "key"
+        ],
         "properties": {
-          "key": { "type": "string" },
-          "raises": { "type": "string" },
-          "moves": { "enum": ["next", "previous"] }
+          "key": {
+            "type": "string"
+          },
+          "raises": {
+            "type": "string"
+          },
+          "moves": {
+            "enum": [
+              "next",
+              "previous"
+            ]
+          }
         }
       }
     },
-    "replay": { "enum": ["safe", "never"] },
+    "replay": {
+      "enum": [
+        "safe",
+        "never"
+      ]
+    },
     "states": {
       "type": "object",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "relations": {
       "type": "object",
-      "additionalProperties": { "const": "ref" }
+      "additionalProperties": {
+        "const": "ref"
+      }
     },
     "live": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["politeness", "atomic"],
+      "required": [
+        "politeness",
+        "atomic"
+      ],
       "properties": {
-        "politeness": { "enum": ["polite", "assertive"] },
-        "atomic": { "type": "boolean" }
+        "politeness": {
+          "enum": [
+            "polite",
+            "assertive"
+          ]
+        },
+        "atomic": {
+          "type": "boolean"
+        }
       }
     },
-    "within": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "within": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
     "example": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "props": { "type": "object" },
-        "text": { "type": "string" },
+        "props": {
+          "type": "object"
+        },
+        "text": {
+          "type": "string"
+        },
         "children": {
           "type": "array",
-          "items": { "$ref": "#/definitions/exampleChild" }
+          "items": {
+            "$ref": "#/definitions/exampleChild"
+          }
         },
-        "describedByText": { "type": "string" }
+        "describedByText": {
+          "type": "string"
+        }
       }
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "minItems": 1
     }
   },
   "definitions": {
@@ -112,20 +214,37 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "properties": {
-            "kind": { "enum": ["string", "number", "boolean", "null", "any"] }
+            "kind": {
+              "enum": [
+                "string",
+                "number",
+                "boolean",
+                "null",
+                "any"
+              ]
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "values"],
+          "required": [
+            "kind",
+            "values"
+          ],
           "properties": {
-            "kind": { "const": "enum" },
+            "kind": {
+              "const": "enum"
+            },
             "values": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "minItems": 1
             }
           }
@@ -133,10 +252,17 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "element"],
+          "required": [
+            "kind",
+            "element"
+          ],
           "properties": {
-            "kind": { "const": "list" },
-            "element": { "$ref": "#/definitions/type" }
+            "kind": {
+              "const": "list"
+            },
+            "element": {
+              "$ref": "#/definitions/type"
+            }
           }
         }
       ]
@@ -144,11 +270,20 @@
     "prop": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "required"],
+      "required": [
+        "type",
+        "required"
+      ],
       "properties": {
-        "type": { "$ref": "#/definitions/type" },
-        "required": { "type": "boolean" },
-        "controlled": { "type": "boolean" },
+        "type": {
+          "$ref": "#/definitions/type"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "controlled": {
+          "type": "boolean"
+        },
         "a11y": {
           "enum": [
             "name",
@@ -158,28 +293,44 @@
             "description-target"
           ]
         },
-        "webOnly": { "type": "boolean" }
+        "webOnly": {
+          "type": "boolean"
+        }
       }
     },
     "event": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "payload": { "$ref": "#/definitions/type" },
-        "meaning": { "type": "string" }
+        "payload": {
+          "$ref": "#/definitions/type"
+        },
+        "meaning": {
+          "type": "string"
+        }
       }
     },
     "exampleChild": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "props": { "type": "object" },
-        "text": { "type": "string" },
+        "name": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object"
+        },
+        "text": {
+          "type": "string"
+        },
         "children": {
           "type": "array",
-          "items": { "$ref": "#/definitions/exampleChild" }
+          "items": {
+            "$ref": "#/definitions/exampleChild"
+          }
         }
       }
     }

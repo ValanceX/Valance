@@ -84,6 +84,8 @@ export interface Specification {
    * or `never` (the control is not idempotent). Declared here as the control's default; the per-use choice and the early-input shell that reads it are WP8 (decision H9).
    */
   readonly replay?: "safe" | "never";
+  /** The style variants this primitive takes (the style contract defines each one's values and default): each is a prop here whose enum is those values. */
+  readonly variants?: ReadonlyArray<string>;
   /** ARIA state or property to the prop that supplies it. */
   readonly states?: Readonly<Record<string, string>>;
   /** Props that refer to another node: `describedby` is a `ref` (decision A6). */
@@ -134,6 +136,8 @@ export interface WebRealization {
   readonly fixed?: Readonly<Record<string, unknown>>;
   /** Portable props the web names differently (`image`'s `label` is `alt`). */
   readonly rename?: Readonly<Record<string, string>>;
+  /** What a stylesheet reaches this tag by: the CSS selector of each state the tag has (a state a theme may style is one the specification declares and this table can reach). */
+  readonly style?: { readonly states?: Readonly<Record<string, string>> };
 }
 
 export interface WebRealizations {

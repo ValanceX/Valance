@@ -132,6 +132,8 @@ Something to press. Its name is its content, or `label` for a button that is an 
 | `label` | string | no | name |
 | `class` | string | no | web only |
 | `pressed` | string | no | web only |
+| `intent` | "neutral" | "primary" | "danger" | no |  |
+| `size` | "sm" | "md" | "lg" | no |  |
 
 | Event | Payload | |
 | --- | --- | --- |

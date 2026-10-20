@@ -35,6 +35,8 @@ export interface Contract {
   readonly variants: Readonly<Record<string, { readonly values: ReadonlyArray<string>; readonly default: string }>>;
   readonly conditions: Readonly<Record<string, { readonly values: ReadonlyArray<string>; readonly web?: Readonly<Record<string, string>> }>>;
   readonly properties: Readonly<Record<string, PropertyDefinition>>;
+  /** A mode named here is also the page's own whenever its condition holds (`dark` when the system prefers dark); any mode is reachable by `data-theme`. */
+  readonly modeConditions?: Readonly<Record<string, string>>;
   readonly desktopNotes?: Readonly<Record<string, string>>;
 }
 
@@ -60,7 +62,9 @@ export interface Recipe {
 export interface Theme {
   readonly version: 1;
   readonly name: string;
-  /** Mode name to the token document that defines it (relative to the theme file). `light` is the base. */
+  /** The tokens that do not change with the mode (space, radius, type), relative to the theme file. Optional. */
+  readonly base?: string;
+  /** Mode name to the token document that defines the tokens that do change (relative to the theme file). `light` is the mode a page has when it asks for none. */
   readonly modes: Readonly<Record<string, string>>;
   readonly recipes: ReadonlyArray<string>;
   readonly contrast?: ReadonlyArray<{ readonly text: string; readonly on: string; readonly min: number; readonly modes?: ReadonlyArray<string> }>;

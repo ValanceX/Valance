@@ -5,3 +5,8 @@ export type { Resolved } from "./tokens.js";
 export { toCss, toRgb } from "./color.js";
 export type { DtcgColor, Rgb } from "./color.js";
 export { composite, luminance, ratio } from "./contrast.js";
+export { loadTheme, validateRecipe } from "./theme.js";
+export { checkRecipe, checkTheme, contrastOf, defaultInputs, hookOf, statesOf, tagsOf } from "./check.js";
+export type { Checked, ContrastResult, Inputs } from "./check.js";
+export { didYouMean, nearest } from "./suggest.js";
+export { compileWeb, declarationOf, propertiesOf, propertyName } from "./css.js";

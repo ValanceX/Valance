@@ -4,24 +4,49 @@
   "title": "The web's realization of the primitives (realization-web-v1)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "target", "primitives"],
+  "required": [
+    "version",
+    "target",
+    "primitives"
+  ],
   "properties": {
-    "version": { "const": 1 },
-    "target": { "const": "web" },
-    "note": { "type": "string" },
-    "renamed": { "type": "object", "additionalProperties": { "type": "string" } },
+    "version": {
+      "const": 1
+    },
+    "target": {
+      "const": "web"
+    },
+    "note": {
+      "type": "string"
+    },
+    "renamed": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "primitives": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["primitive", "element"],
+        "required": [
+          "primitive",
+          "element"
+        ],
         "properties": {
-          "primitive": { "type": "string" },
-          "element": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "primitive": {
+            "type": "string"
+          },
+          "element": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
           "attributes": {
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "props": {
             "type": "object",
@@ -30,7 +55,10 @@
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["kind", "name"],
+                  "required": [
+                    "kind",
+                    "name"
+                  ],
                   "properties": {
                     "kind": {
                       "enum": [
@@ -41,19 +69,39 @@
                         "controlled-boolean"
                       ]
                     },
-                    "name": { "type": "string" },
-                    "optional": { "type": "boolean" }
+                    "name": {
+                      "type": "string"
+                    },
+                    "optional": {
+                      "type": "boolean"
+                    }
                   }
                 },
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["kind", "name", "holds"],
+                  "required": [
+                    "kind",
+                    "name",
+                    "holds"
+                  ],
                   "properties": {
-                    "kind": { "const": "property" },
-                    "name": { "type": "string" },
-                    "holds": { "enum": ["boolean", "number", "value"] },
-                    "optional": { "type": "boolean" }
+                    "kind": {
+                      "const": "property"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "holds": {
+                      "enum": [
+                        "boolean",
+                        "number",
+                        "value"
+                      ]
+                    },
+                    "optional": {
+                      "type": "boolean"
+                    }
                   }
                 }
               ]
@@ -64,26 +112,63 @@
             "additionalProperties": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["type"],
+              "required": [
+                "type"
+              ],
               "properties": {
-                "type": { "type": "string" },
-                "key": { "type": "string" },
+                "type": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["kind", "of"],
+                  "required": [
+                    "kind",
+                    "of"
+                  ],
                   "properties": {
-                    "kind": { "enum": ["string", "number", "boolean"] },
-                    "of": { "enum": ["checked", "value", "notPressed"] }
+                    "kind": {
+                      "enum": [
+                        "string",
+                        "number",
+                        "boolean"
+                      ]
+                    },
+                    "of": {
+                      "enum": [
+                        "checked",
+                        "value",
+                        "notPressed"
+                      ]
+                    }
                   }
                 }
               }
             }
           },
-          "fixed": { "type": "object" },
+          "fixed": {
+            "type": "object"
+          },
           "rename": {
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "style": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "states": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

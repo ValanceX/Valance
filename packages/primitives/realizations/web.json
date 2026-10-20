@@ -5,11 +5,17 @@
   "primitives": {
     "column": {
       "primitive": "column",
-      "element": "vlx-column"
+      "element": "vlx-column",
+      "attributes": {
+        "data-vlx": "column"
+      }
     },
     "row": {
       "primitive": "row",
-      "element": "vlx-row"
+      "element": "vlx-row",
+      "attributes": {
+        "data-vlx": "row"
+      }
     },
     "heading": {
       "primitive": "heading",
@@ -19,6 +25,9 @@
           "kind": "attribute",
           "name": "aria-level"
         }
+      },
+      "attributes": {
+        "data-vlx": "heading"
       }
     },
     "text": {
@@ -29,6 +38,9 @@
           "kind": "attribute",
           "name": "id"
         }
+      },
+      "attributes": {
+        "data-vlx": "text"
       }
     },
     "shell": {
@@ -295,7 +307,8 @@
       "primitive": "checkbox",
       "element": "input",
       "attributes": {
-        "type": "checkbox"
+        "type": "checkbox",
+        "data-vlx": "checkbox"
       },
       "props": {
         "checked": {
@@ -322,6 +335,12 @@
             "kind": "boolean",
             "of": "checked"
           }
+        }
+      },
+      "style": {
+        "states": {
+          "checked": ":checked",
+          "invalid": "[aria-invalid=\"true\"]"
         }
       }
     },
@@ -376,6 +395,14 @@
         "blur": {
           "type": "blur"
         }
+      },
+      "attributes": {
+        "data-vlx": "textfield"
+      },
+      "style": {
+        "states": {
+          "invalid": "[aria-invalid=\"true\"]"
+        }
       }
     },
     "button": {
@@ -399,11 +426,29 @@
         "disabled": {
           "kind": "boolean-attribute",
           "name": "disabled"
+        },
+        "intent": {
+          "kind": "attribute",
+          "name": "data-intent",
+          "optional": true
+        },
+        "size": {
+          "kind": "attribute",
+          "name": "data-size",
+          "optional": true
         }
       },
       "events": {
         "click": {
           "type": "click"
+        }
+      },
+      "attributes": {
+        "data-vlx": "button"
+      },
+      "style": {
+        "states": {
+          "disabled": ":disabled"
         }
       }
     },

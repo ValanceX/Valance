@@ -6,10 +6,10 @@
 import * as Web from "@valancex/valance/web";
 
 export const primitives: Web.WebPrimitives = {
-  column: { element: "vlx-column" },
-  row: { element: "vlx-row" },
-  heading: { element: "h2", props: { level: Web.attribute("aria-level") } },
-  text: { element: "span", props: { id: Web.attribute("id") } },
+  column: { element: "vlx-column", attributes: {"data-vlx":"column"} },
+  row: { element: "vlx-row", attributes: {"data-vlx":"row"} },
+  heading: { element: "h2", attributes: {"data-vlx":"heading"}, props: { level: Web.attribute("aria-level") } },
+  text: { element: "span", attributes: {"data-vlx":"text"}, props: { id: Web.attribute("id") } },
   shell: { element: "div", props: { class: Web.attribute("class"), theme: Web.attribute("data-theme") } },
   div: { element: "div", props: { class: Web.attribute("class") } },
   header: { element: "header", props: { class: Web.attribute("class") } },
@@ -35,9 +35,9 @@ export const primitives: Web.WebPrimitives = {
   image: { element: "img", props: { class: Web.attribute("class"), src: Web.attribute("src"), alt: Web.attribute("alt"), loading: Web.attribute("loading") } },
   a: { element: "a", props: { href: Web.attribute("href") } },
   link: { element: "a", props: { href: Web.attribute("href"), class: Web.attribute("class"), current: Web.attribute("aria-current") } },
-  checkbox: { element: "input", attributes: {"type":"checkbox"}, props: { checked: Web.controlledBoolean("checked"), label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) } },
-  textfield: { element: "input", props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label: Web.attribute("aria-label"), kind: Web.attribute("type"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }), submit: Web.event("keydown", undefined, { key: "Enter" }), cancel: Web.event("keydown", undefined, { key: "Escape" }), focus: Web.event("focus"), blur: Web.event("blur") } },
-  button: { element: "button", props: { class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled") }, events: { click: Web.event("click") } },
+  checkbox: { element: "input", attributes: {"type":"checkbox","data-vlx":"checkbox"}, props: { checked: Web.controlledBoolean("checked"), label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) } },
+  textfield: { element: "input", attributes: {"data-vlx":"textfield"}, props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label: Web.attribute("aria-label"), kind: Web.attribute("type"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }), submit: Web.event("keydown", undefined, { key: "Enter" }), cancel: Web.event("keydown", undefined, { key: "Escape" }), focus: Web.event("focus"), blur: Web.event("blur") } },
+  button: { element: "button", attributes: {"data-vlx":"button"}, props: { class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), intent: Web.attribute("data-intent"), size: Web.attribute("data-size") }, events: { click: Web.event("click") } },
   toggle: { element: "button", props: { pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), class: Web.attribute("class") }, events: { change: Web.event("click", { kind: "boolean", of: (_event, element) => element.getAttribute("aria-pressed") !== "true" }) } },
   radiogroup: { element: "div", attributes: {"role":"radiogroup"}, props: { label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") } },
   radio: { element: "input", attributes: {"type":"radio"}, props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled") }, events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) } },
@@ -480,6 +480,28 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
       "disabled": {
         "type": {
           "kind": "boolean"
+        },
+        "required": false
+      },
+      "intent": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "neutral",
+            "primary",
+            "danger"
+          ]
+        },
+        "required": false
+      },
+      "size": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "sm",
+            "md",
+            "lg"
+          ]
         },
         "required": false
       }

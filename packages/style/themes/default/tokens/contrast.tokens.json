@@ -1,0 +1,127 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "The contrast mode: the color roles. Mode-independent tokens (space, radius, border width, type) are in base.tokens.json.",
+  "color": {
+    "$type": "color",
+    "text": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "hex": "#000000"
+      },
+      "$description": "Body text and the text of controls."
+    },
+    "text-muted": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "hex": "#000000"
+      },
+      "$description": "Secondary text."
+    },
+    "surface": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "hex": "#ffffff"
+      },
+      "$description": "The page and the surface of a control."
+    },
+    "surface-field": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "hex": "#ffffff"
+      },
+      "$description": "The inside of a text field."
+    },
+    "border": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "hex": "#000000"
+      },
+      "$description": "The edge of a control, which must be seen against the surface."
+    },
+    "accent": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0,
+          0.0,
+          0.702
+        ],
+        "hex": "#0000b3"
+      },
+      "$description": "The surface of a primary control."
+    },
+    "on-accent": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "hex": "#ffffff"
+      },
+      "$description": "Text on the accent."
+    },
+    "danger": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.549,
+          0.0,
+          0.0
+        ],
+        "hex": "#8c0000"
+      },
+      "$description": "The surface of a control that destroys."
+    },
+    "on-danger": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "hex": "#ffffff"
+      },
+      "$description": "Text on the danger color."
+    },
+    "focus": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "hex": "#000000"
+      },
+      "$description": "The focus ring."
+    }
+  }
+}

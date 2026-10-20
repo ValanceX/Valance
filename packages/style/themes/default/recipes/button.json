@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "target": {
+    "primitive": "button",
+    "part": "root"
+  },
+  "base": {
+    "radius": "radius.2",
+    "padding": [
+      "space.2",
+      "space.4"
+    ],
+    "type": "type.label",
+    "min-size": "size.target"
+  },
+  "variants": {
+    "intent": {
+      "neutral": {
+        "background": "color.surface",
+        "text": "color.text",
+        "border": {
+          "width": "border.1",
+          "color": "color.border"
+        }
+      },
+      "primary": {
+        "background": "color.accent",
+        "text": "color.on-accent",
+        "border": {
+          "width": "border.1",
+          "color": "color.accent"
+        }
+      },
+      "danger": {
+        "background": "color.danger",
+        "text": "color.on-danger",
+        "border": {
+          "width": "border.1",
+          "color": "color.danger"
+        }
+      }
+    },
+    "size": {
+      "sm": {
+        "padding": [
+          "space.1",
+          "space.3"
+        ]
+      },
+      "md": {
+        "padding": [
+          "space.2",
+          "space.4"
+        ]
+      },
+      "lg": {
+        "padding": [
+          "space.3",
+          "space.6"
+        ]
+      }
+    }
+  },
+  "states": {
+    "hovered": {
+      "elevation": "elevation.1"
+    },
+    "pressed": {
+      "elevation": "none"
+    },
+    "focus-visible": {
+      "outline": {
+        "width": "border.2",
+        "color": "color.focus",
+        "offset": "space.1"
+      }
+    },
+    "disabled": {
+      "opacity": 0.5
+    }
+  },
+  "when": {
+    "viewport:compact": {
+      "min-size": "size.target"
+    }
+  }
+}

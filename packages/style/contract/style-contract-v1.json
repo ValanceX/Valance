@@ -179,5 +179,9 @@
   "desktopNotes": {
     "type": "The size of the type role; the family and weight are the toolkit's.",
     "outline": "The focus ring's color and width; the toolkit draws its own ring."
+  },
+  "modeConditions": {
+    "dark": "scheme:dark",
+    "contrast": "contrast:more"
   }
 }

@@ -32,6 +32,28 @@
       },
       "required": false,
       "webOnly": true
+    },
+    "intent": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "neutral",
+          "primary",
+          "danger"
+        ]
+      },
+      "required": false
+    },
+    "size": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      "required": false
     }
   },
   "events": {
@@ -60,5 +82,9 @@
   },
   "example": {
     "text": "Save"
-  }
+  },
+  "variants": [
+    "intent",
+    "size"
+  ]
 }

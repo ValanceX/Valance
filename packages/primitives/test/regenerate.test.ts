@@ -36,13 +36,16 @@ const plain = (value: unknown): unknown => {
 const additions: Record<string, ReadonlyArray<string>> = {
   textfield: ["kind", "invalid", "describedby"], // `id` on `text` is what a `describedby` points at
   checkbox: ["invalid", "describedby"],
-  button: ["label"],
+  button: ["label", "intent", "size"],
   text: ["id"],
   paragraph: ["id"],
 };
 
 /** Events the generated table has that the hand table did not: the textfield's focus and blur (the Desktop has them; Chromium raises them as the specification says). */
 const eventAdditions: Record<string, ReadonlyArray<string>> = { textfield: ["focus", "blur"] };
+
+/** The primitives a theme reaches by a hook (WP4: the seven of the portable core; another joins when a theme styles it). */
+const styleHooks = ["column", "row", "heading", "text", "button", "checkbox", "textfield"];
 
 /** Decision P7: the web's short tags are the ARIA names now. The hand table's tag, and the one that realizes it. */
 const renamed = loadWeb().renamed ?? {};
@@ -69,7 +72,11 @@ describe("the generated web table", () => {
       const now = generated[renamed[tag] ?? tag]!;
 
       expect(now.element).toBe(was.element);
-      expect(plain(now.attributes ?? {})).toEqual(plain(was.attributes ?? {}));
+      // the constant attributes are the hand table's, and the style hook (WP4: `data-vlx`, which a theme reaches a primitive by, never its element or its class) on the portable core
+      const { "data-vlx": hook, ...rest } = (now.attributes ?? {}) as Record<string, string>;
+
+      expect(plain(rest)).toEqual(plain(was.attributes ?? {}));
+      expect(hook === undefined ? [] : [hook]).toEqual(styleHooks.includes(renamed[tag] ?? tag) ? [renamed[tag] ?? tag] : []);
 
       for (const kind of ["props", "events"] as const) {
         const was_ = (was[kind] ?? {}) as Record<string, unknown>;
