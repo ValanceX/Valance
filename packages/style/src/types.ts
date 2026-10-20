@@ -26,6 +26,21 @@ export interface PropertyDefinition {
   readonly desktop: "supported" | "partial" | "unsupported";
 }
 
+/** What the contract needs of a primitive; generated from the primitive's specification and the web's realization (see primitives.ts), so this package reads no specification file. */
+export interface PrimitiveInfo {
+  readonly status: "portable" | "web-only" | "desktop-only";
+  /** A person acts on it (it has keys), so the interaction states apply. */
+  readonly interactive: boolean;
+  /** The semantic states its specification declares. */
+  readonly states: ReadonlyArray<string>;
+  /** The style variants it takes, each with the attribute the web realizes it as. */
+  readonly variants: ReadonlyArray<{ readonly name: string; readonly attribute: string }>;
+  /** The value of its `data-vlx` hook on the web: how a stylesheet reaches its root. Absent where the web has no hook for it. */
+  readonly hook?: string;
+  /** The CSS selector of each of its semantic states on the web. */
+  readonly stateSelectors: Readonly<Record<string, string>>;
+}
+
 export interface Contract {
   readonly version: 1;
   readonly parts: Readonly<Record<string, string>>;

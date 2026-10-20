@@ -6,7 +6,7 @@
 // A rule reaches a primitive only by what the contract names: its hook (`[data-vlx="button"]`), a variant's attribute (`[data-intent="primary"]`), a state's selector (`:hover`,
 // `[aria-invalid="true"]`) and a media condition. Never an element, a class, or a descendant.
 import { toCss, type DtcgColor } from "./color.js";
-import { hookOf, statesOf, tagsOf, type Inputs } from "./check.js";
+import { hookOf, statesOf, type Inputs } from "./check.js";
 import type { Declarations, LoadedTheme, RecipeValue, ResolvedToken } from "./types.js";
 
 const GENERIC_FAMILIES = new Set([
@@ -188,21 +188,19 @@ export const compileWeb = (loaded: LoadedTheme, inputs: Inputs): string => {
   // recipes, by primitive
   for (const { recipe } of [...loaded.recipes].sort((a, b) => a.recipe.target.primitive.localeCompare(b.recipe.target.primitive))) {
     const primitive = recipe.target.primitive;
-    const hook = hookOf(inputs.web, primitive);
+    const hook = hookOf(inputs, primitive);
 
     if (hook === undefined) {
       continue;
     }
 
-    const tag = tagsOf(inputs.web, primitive)[0]!;
-    const realization = inputs.web.primitives[tag]!;
+    const info = inputs.primitives[primitive]!;
 
     out.push(`\n  /* ${primitive} */\n`);
     out.push(block(hook, declarations(recipe.base ?? {})));
 
     for (const [variant, values] of Object.entries(recipe.variants ?? {})) {
-      const attribute = realization.props?.[variant];
-      const name = attribute !== undefined && "name" in attribute ? attribute.name : `data-${variant}`;
+      const name = info.variants.find((each) => each.name === variant)!.attribute;
       const defaulted = inputs.contract.variants[variant]!.default;
 
       for (const [value, properties] of Object.entries(values)) {
@@ -214,7 +212,7 @@ export const compileWeb = (loaded: LoadedTheme, inputs: Inputs): string => {
 
     const interaction = inputs.contract.interactionStates;
     const states = statesOf(inputs, primitive);
-    const stateSelector = (state: string): string => interaction[state] ?? realization.style?.states?.[state] ?? "";
+    const stateSelector = (state: string): string => interaction[state] ?? info.stateSelectors[state] ?? "";
 
     for (const state of states) {
       const properties = recipe.states?.[state];

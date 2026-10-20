@@ -6,7 +6,7 @@ import { join } from "node:path";
 import * as Web from "@valancex/valance/web";
 import { describe, expect, it } from "vitest";
 
-import { generateDocs, generatePrimitives, loadSpecifications, loadWeb, root, webTable } from "../src/index.js";
+import { generateDocs, generatePrimitives, generateStylePrimitives, loadSpecifications, loadWeb, root, webTable } from "../src/index.js";
 import { primitives as legacy } from "./legacy/primitives.js";
 
 const generated = webTable(loadWeb(), Web as never) as unknown as Record<
@@ -107,5 +107,11 @@ describe("the committed table", () => {
 describe("the committed reference page", () => {
   it("is what the generator writes from the specifications and the realizations", () => {
     expect(readFileSync(join(root, "..", "..", "docs", "use", "primitives.md"), "utf8")).toBe(generateDocs(loadSpecifications(), loadWeb()));
+  });
+});
+
+describe("the style contract's view of the primitives", () => {
+  it("is what the generator writes from the specifications and the realizations", () => {
+    expect(readFileSync(join(root, "..", "style", "src", "primitives.ts"), "utf8")).toBe(generateStylePrimitives(loadSpecifications(), loadWeb()));
   });
 });

@@ -382,9 +382,6 @@ importers:
 
   packages/style:
     dependencies:
-      '@valancex/primitives':
-        specifier: workspace:^
-        version: link:../primitives
       ajv:
         specifier: ^8.17.1
         version: 8.20.0

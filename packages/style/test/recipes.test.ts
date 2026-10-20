@@ -55,12 +55,11 @@ describe("a recipe that names something the contract or the primitive does not h
 
   it("styles a state the specification declares and the web has no selector for", () => {
     const inputs = defaultInputs();
-    const { style: _style, ...withoutStyle } = inputs.web.primitives["textfield"]!;
-    const web = { ...inputs.web, primitives: { ...inputs.web.primitives, textfield: withoutStyle } };
+    const info = { ...inputs.primitives["textfield"]!, stateSelectors: {} };
     const { loaded } = themeWith(() => undefined);
     const recipe = loaded.recipes.find((each) => each.recipe.target.primitive === "textfield")!;
 
-    expect(codes(checkRecipe(recipe.file, recipe.recipe, loaded.modes, { ...inputs, web }))).toEqual(["state-unreachable"]);
+    expect(codes(checkRecipe(recipe.file, recipe.recipe, loaded.modes, { ...inputs, primitives: { ...inputs.primitives, textfield: info } }))).toEqual(["state-unreachable"]);
   });
 });
 

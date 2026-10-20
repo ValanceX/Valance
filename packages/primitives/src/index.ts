@@ -6,5 +6,5 @@ export { manifestEntry, portablePropOf, webManifest } from "./manifest.js";
 export type { ManifestEntry } from "./manifest.js";
 export { parity, settle } from "./parity.js";
 export type { Desktop, DesktopComponent, Finding, Waiver } from "./parity.js";
-export { generatePrimitives } from "./generate.js";
+export { generatePrimitives, generateStylePrimitives } from "./generate.js";
 export { generateDocs } from "./docs.js";

@@ -1,54 +1,38 @@
 // The checks of a loaded theme that need the primitives' specifications: a recipe names a part, state, variant, property and token that exist, a value has the type the property takes, a focus indicator
 // is not removed, and the contrast of the declared pairs. Each is an error with a code, the file and a path into it; a suggestion where a near name exists.
-import { loadSpecifications, loadWeb } from "@valancex/primitives";
-import type { Specification, WebRealizations } from "@valancex/primitives";
-
 import { toRgb, type DtcgColor } from "./color.js";
 import { composite, ratio } from "./contrast.js";
 import { loadContract } from "./load.js";
+import { primitives } from "./primitives.js";
 import { didYouMean } from "./suggest.js";
-import type { Accepts, Contract, Declarations, LoadedTheme, Problem, Recipe, RecipeValue, ResolvedToken } from "./types.js";
+import type { Accepts, Contract, Declarations, LoadedTheme, PrimitiveInfo, Problem, Recipe, RecipeValue, ResolvedToken } from "./types.js";
 
 export interface Inputs {
   readonly contract: Contract;
-  readonly specifications: Readonly<Record<string, Specification>>;
-  readonly web: WebRealizations;
+  readonly primitives: Readonly<Record<string, PrimitiveInfo>>;
 }
 
-export const defaultInputs = (): Inputs => ({ contract: loadContract(), specifications: loadSpecifications(), web: loadWeb() });
+export const defaultInputs = (): Inputs => ({ contract: loadContract(), primitives });
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** The web tags that realize a primitive. */
-export const tagsOf = (web: WebRealizations, primitive: string): ReadonlyArray<string> =>
-  Object.entries(web.primitives)
-    .filter(([, each]) => each.primitive === primitive)
-    .map(([tag]) => tag);
-
-/** The CSS selector that reaches a primitive's root on the web: its hook attribute, which names the primitive and nothing about its element. Undefined where the web has no hook for it. */
-export const hookOf = (web: WebRealizations, primitive: string): string | undefined => {
-  const hook = tagsOf(web, primitive)
-    .map((tag) => web.primitives[tag]!.attributes?.["data-vlx"])
-    .find((value) => value !== undefined);
+/** The selector that reaches a primitive's root on the web: its hook attribute, which names the primitive and nothing about its element. Undefined where the web has no hook for it. */
+export const hookOf = (inputs: Inputs, primitive: string): string | undefined => {
+  const hook = inputs.primitives[primitive]?.hook;
 
   return hook === undefined ? undefined : `[data-vlx="${hook}"]`;
 };
 
 /** The states a recipe for `primitive` may style: the interaction states if a person acts on it, and the semantic states its specification declares. */
 export const statesOf = (inputs: Inputs, primitive: string): ReadonlyArray<string> => {
-  const specification = inputs.specifications[primitive];
+  const info = inputs.primitives[primitive];
 
-  if (specification === undefined) {
+  if (info === undefined) {
     return [];
   }
 
-  return [
-    ...(specification.keyboard.length > 0 ? Object.keys(inputs.contract.interactionStates) : []),
-    ...Object.keys(specification.states ?? {}).filter((state) => inputs.contract.semanticStates.includes(state)),
-  ];
+  return [...(info.interactive ? Object.keys(inputs.contract.interactionStates) : []), ...info.states.filter((state) => inputs.contract.semanticStates.includes(state))];
 };
-
-const tokenIn = (modes: LoadedTheme["modes"], path: string): ResolvedToken | undefined => Object.values(modes)[0]?.get(path);
 
 /** Whether `path` is a token of type `type` in every mode; the message of the first mode that is not. */
 const tokenProblem = (modes: LoadedTheme["modes"], path: string, types: ReadonlyArray<string>): string | undefined => {
@@ -158,11 +142,11 @@ const removesFocus = (declarations: Declarations | undefined): boolean => declar
 export const checkRecipe = (file: string, recipe: Recipe, modes: LoadedTheme["modes"], inputs: Inputs): Problem[] => {
   const problems: Problem[] = [];
   const { primitive, part } = recipe.target;
-  const specification = inputs.specifications[primitive];
+  const info = inputs.primitives[primitive];
 
-  if (specification === undefined) {
+  if (info === undefined) {
     return [
-      { file, path: "/target/primitive", code: "unknown-primitive", message: `there is no primitive "${primitive}"${didYouMean(primitive, Object.keys(inputs.specifications))}` },
+      { file, path: "/target/primitive", code: "unknown-primitive", message: `there is no primitive "${primitive}"${didYouMean(primitive, Object.keys(inputs.primitives))}` },
     ];
   }
 
@@ -175,7 +159,7 @@ export const checkRecipe = (file: string, recipe: Recipe, modes: LoadedTheme["mo
     });
   }
 
-  if (specification.status === "desktop-only") {
+  if (info.status === "desktop-only") {
     problems.push({ file, path: "/target/primitive", code: "not-on-the-web", message: `${primitive} is desktop-only; the web has no element for it` });
   }
 
@@ -184,8 +168,8 @@ export const checkRecipe = (file: string, recipe: Recipe, modes: LoadedTheme["mo
   for (const [variant, values] of Object.entries(recipe.variants ?? {})) {
     const definition = inputs.contract.variants[variant];
 
-    if (definition === undefined || !(specification.variants ?? []).includes(variant)) {
-      const known = (specification.variants ?? []).filter((each) => inputs.contract.variants[each] !== undefined);
+    if (definition === undefined || !info.variants.some((each) => each.name === variant)) {
+      const known = info.variants.map((each) => each.name).filter((each) => inputs.contract.variants[each] !== undefined);
 
       problems.push({
         file,
@@ -211,8 +195,6 @@ export const checkRecipe = (file: string, recipe: Recipe, modes: LoadedTheme["mo
   }
 
   const allowed = statesOf(inputs, primitive);
-  const tag = tagsOf(inputs.web, primitive)[0];
-
   for (const [state, declarations] of Object.entries(recipe.states ?? {})) {
     if (!allowed.includes(state)) {
       problems.push({
@@ -221,7 +203,7 @@ export const checkRecipe = (file: string, recipe: Recipe, modes: LoadedTheme["mo
         code: "unknown-state",
         message: `${primitive} has no state "${state}"${didYouMean(state, allowed)}; its states are ${allowed.length === 0 ? "none" : allowed.join(", ")}`,
       });
-    } else if (!(state in inputs.contract.interactionStates) && (tag === undefined || inputs.web.primitives[tag]?.style?.states?.[state] === undefined)) {
+    } else if (!(state in inputs.contract.interactionStates) && info.stateSelectors[state] === undefined) {
       problems.push({ file, path: `/states/${state}`, code: "state-unreachable", message: `the web has no selector for the state "${state}" of ${primitive}` });
     }
 
@@ -345,5 +327,3 @@ export const checkTheme = (loaded: LoadedTheme, inputs: Inputs = defaultInputs()
     contrast: contrast.results,
   };
 };
-
-export { tokenIn };

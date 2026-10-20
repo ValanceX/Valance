@@ -31,7 +31,6 @@
     "test:browser": "vitest run -c vitest.browser.config.ts"
   },
   "dependencies": {
-    "@valancex/primitives": "workspace:^",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
   },
