@@ -1,8 +1,22 @@
 {
   "name": "@valancex/style",
-  "version": "0.0.0",
-  "private": true,
-  "description": "The style contract: tokens (Design Tokens format), recipes for the root part of a primitive, states, variants and conditions, as data; and what is generated or checked from them (a layered stylesheet for the web, resolved values for the Desktop, the contrast of declared pairs, the coverage of a theme). Private until the Style Gate.",
+  "version": "0.13.0",
+  "description": "The style contract for VALANCE: tokens (Design Tokens format), recipes for a primitive's root part, states, variants and conditions, as data; and what is generated or checked from them (a layered stylesheet for the web, resolved values for the Desktop, the contrast of declared pairs, the coverage of a theme).",
+  "keywords": [
+    "valance",
+    "theme",
+    "design-tokens",
+    "style"
+  ],
+  "homepage": "https://github.com/ValanceX/Valance/tree/main/packages/style#readme",
+  "bugs": {
+    "url": "https://github.com/ValanceX/Valance/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ValanceX/Valance.git",
+    "directory": "packages/style"
+  },
   "license": "MIT",
   "author": "Jack Miller <jackmiller0899@gmail.com>",
   "type": "module",
@@ -24,11 +38,16 @@
     "schema",
     "themes"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "test": "vitest run",
-    "test:browser": "vitest run -c vitest.browser.config.ts"
+    "test:browser": "vitest run -c vitest.browser.config.ts",
+    "prepack": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "ajv": "^8.17.1",

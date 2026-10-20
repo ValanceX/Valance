@@ -48,7 +48,11 @@ export interface Contract {
   readonly interactionStates: Readonly<Record<string, string>>;
   readonly semanticStates: ReadonlyArray<string>;
   readonly variants: Readonly<Record<string, { readonly values: ReadonlyArray<string>; readonly default: string }>>;
-  readonly conditions: Readonly<Record<string, { readonly values: ReadonlyArray<string>; readonly web?: Readonly<Record<string, string>> }>>;
+  readonly conditions: Readonly<
+    Record<string, { readonly values: ReadonlyArray<string>; readonly web?: Readonly<Record<string, string>>; readonly desktop?: "supported" | "unsupported" }>
+  >;
+  /** Whether the Desktop applies a recipe's styles for a state. */
+  readonly desktopStates?: Readonly<Record<string, "supported" | "partial" | "unsupported">>;
   readonly properties: Readonly<Record<string, PropertyDefinition>>;
   /** A mode named here is also the page's own whenever its condition holds (`dark` when the system prefers dark); any mode is reachable by `data-theme`. */
   readonly modeConditions?: Readonly<Record<string, string>>;

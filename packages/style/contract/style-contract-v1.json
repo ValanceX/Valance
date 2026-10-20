@@ -45,7 +45,8 @@
         "compact": "(width < 600px)",
         "medium": "(600px <= width < 840px)",
         "expanded": "(width >= 840px)"
-      }
+      },
+      "desktop": "supported"
     },
     "scheme": {
       "values": [
@@ -55,7 +56,8 @@
       "web": {
         "light": "(prefers-color-scheme: light)",
         "dark": "(prefers-color-scheme: dark)"
-      }
+      },
+      "desktop": "supported"
     },
     "contrast": {
       "values": [
@@ -63,7 +65,8 @@
       ],
       "web": {
         "more": "(prefers-contrast: more)"
-      }
+      },
+      "desktop": "unsupported"
     },
     "forced-colors": {
       "values": [
@@ -71,7 +74,8 @@
       ],
       "web": {
         "active": "(forced-colors: active)"
-      }
+      },
+      "desktop": "unsupported"
     },
     "reduced-motion": {
       "values": [
@@ -79,13 +83,15 @@
       ],
       "web": {
         "reduce": "(prefers-reduced-motion: reduce)"
-      }
+      },
+      "desktop": "unsupported"
     },
     "target": {
       "values": [
         "web",
         "desktop"
-      ]
+      ],
+      "desktop": "supported"
     }
   },
   "properties": {
@@ -178,10 +184,21 @@
   },
   "desktopNotes": {
     "type": "The size of the type role; the family and weight are the toolkit's.",
-    "outline": "The focus ring's color and width; the toolkit draws its own ring."
+    "outline": "The focus ring's color and width; the toolkit draws its own ring.",
+    "states": "The toolkit draws its own hover, press and focus; a recipe's styles for them are web only. `invalid` and `disabled` are applied."
   },
   "modeConditions": {
     "dark": "scheme:dark",
     "contrast": "contrast:more"
+  },
+  "desktopStates": {
+    "hovered": "unsupported",
+    "pressed": "unsupported",
+    "focus-visible": "unsupported",
+    "invalid": "supported",
+    "disabled": "supported",
+    "checked": "unsupported",
+    "busy": "unsupported",
+    "selected": "unsupported"
   }
 }

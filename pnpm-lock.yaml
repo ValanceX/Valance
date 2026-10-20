@@ -217,6 +217,9 @@ importers:
       '@valancex/port-desktop-vocabulary':
         specifier: ^0.10.0
         version: 0.10.0
+      '@valancex/style':
+        specifier: workspace:^
+        version: link:../style
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance

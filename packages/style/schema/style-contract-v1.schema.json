@@ -87,6 +87,12 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "desktop": {
+            "enum": [
+              "supported",
+              "unsupported"
+            ]
           }
         }
       }
@@ -142,6 +148,16 @@
       "additionalProperties": {
         "type": "string",
         "pattern": "^[a-z-]+:[a-z-]+$"
+      }
+    },
+    "desktopStates": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "supported",
+          "partial",
+          "unsupported"
+        ]
       }
     }
   }

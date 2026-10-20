@@ -11,3 +11,7 @@ export { primitives } from "./primitives.js";
 export type { Checked, ContrastResult, Inputs } from "./check.js";
 export { didYouMean, nearest } from "./suggest.js";
 export { compileWeb, declarationOf, propertiesOf, propertyName } from "./css.js";
+export { coverageOf, styleable } from "./coverage.js";
+export type { Coverage, NotApplied, Target } from "./coverage.js";
+export { resolveForDesktop } from "./desktop.js";
+export type { DesktopRecipe, DesktopStyle, DesktopTheme } from "./desktop.js";

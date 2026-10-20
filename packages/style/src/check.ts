@@ -5,7 +5,7 @@ import { composite, ratio } from "./contrast.js";
 import { loadContract } from "./load.js";
 import { primitives } from "./primitives.js";
 import { didYouMean } from "./suggest.js";
-import type { Accepts, Contract, Declarations, LoadedTheme, PrimitiveInfo, Problem, Recipe, RecipeValue, ResolvedToken } from "./types.js";
+import type { Accepts, Contract, Declarations, LoadedTheme, PrimitiveInfo, Problem, Recipe, RecipeValue } from "./types.js";
 
 export interface Inputs {
   readonly contract: Contract;
