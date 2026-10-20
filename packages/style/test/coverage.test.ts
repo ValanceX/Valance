@@ -77,3 +77,15 @@ describe("what the Desktop is told", () => {
     expect(theme.defaults).toEqual({ intent: "neutral", size: "md" });
   });
 });
+
+describe("the Desktop's theme", () => {
+  it("is the one the window's own tests read (a copy of this fixture is in the PORT repository: packages/port-desktop/tests/fixtures/theme-default.json)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const fixture = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "desktop-theme-default.json"), "utf8")) as unknown;
+
+    // When the contract changes this fails; copy the new resolution to both fixtures (here and in the PORT repository) and run the window's tests.
+    expect(JSON.parse(JSON.stringify(resolveForDesktop(loaded, inputs)))).toEqual(fixture);
+  });
+});
