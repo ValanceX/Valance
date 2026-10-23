@@ -1,17 +1,1 @@
-[
-  {
-    "primitive": "dialog",
-    "member": "primitive",
-    "reason": "added to the Desktop PORT on the branch claude/wp6b-overlays of valancex/port (vocabulary 0.12.0, unreleased); the published 0.11.0 lacks it. Gone when the vocabulary is released and the dependency raised"
-  },
-  {
-    "primitive": "popover",
-    "member": "primitive",
-    "reason": "added to the Desktop PORT on the branch claude/wp6b-overlays of valancex/port (vocabulary 0.12.0, unreleased); the published 0.11.0 lacks it. Gone when the vocabulary is released and the dependency raised"
-  },
-  {
-    "primitive": "button",
-    "member": "props.id",
-    "reason": "added to the Desktop PORT on the branch claude/wp6b-overlays of valancex/port (vocabulary 0.12.0, unreleased); the published 0.11.0 lacks it. Gone when the vocabulary is released and the dependency raised"
-  }
-]
+[]
