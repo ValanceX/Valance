@@ -25,7 +25,7 @@ describe("dependency boundary", () => {
   });
 
   it("Valance's core (index, internal, errors) names no PORT package and nothing Web; only the ./web entries do", () => {
-    for (const file of ["index.ts", "internal.ts", "errors.ts"]) {
+    for (const file of ["index.ts", "internal.ts", "errors.ts", "units.ts"]) {
       const core = source(file);
 
       expect(
@@ -35,7 +35,9 @@ describe("dependency boundary", () => {
       expect(core, file).not.toMatch(/\b(DOM|Element|document|window|HTML|Web)\b/);
     }
 
-    for (const file of readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts")) {
+    for (const file of readdirSync(here("../src/")).filter(
+      (name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts" && name !== "units.ts",
+    )) {
       expect(file.startsWith("web") || file === "native.ts", file).toBe(true);
     }
   });

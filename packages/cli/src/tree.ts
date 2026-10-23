@@ -25,6 +25,8 @@ export interface Node {
     readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>>;
     /** The prop that is the component's accessible name, if it declares one. */
     readonly name?: string;
+    /** The state and commands of one occurrence of the component, if it has any. */
+    readonly unit?: Component["unit"];
   };
   /** The declared components its template writes. */
   readonly uses: ReadonlyArray<string>;
@@ -60,9 +62,16 @@ export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<C
 
     if (!found.has(name)) {
       const contract =
-        declared.props === undefined && declared.events === undefined
+        declared.props === undefined && declared.events === undefined && declared.unit === undefined
           ? {}
-          : { interface: { props: declared.props ?? {}, events: declared.events ?? {}, ...(declared.name === undefined ? {} : { name: declared.name }) } };
+          : {
+              interface: {
+                props: declared.props ?? {},
+                events: declared.events ?? {},
+                ...(declared.name === undefined ? {} : { name: declared.name }),
+                ...(declared.unit === undefined ? {} : { unit: declared.unit }),
+              },
+            };
 
       found.set(name, { name, file: declared.template.mprx, ...contract, uses: [], parents: [] });
     }

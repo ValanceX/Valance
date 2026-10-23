@@ -17,11 +17,16 @@ export interface Entry {
   readonly commands: Readonly<Record<string, never>>;
   /** Every prop is a name the template reads: the same name and type, absent when the prop may be. */
   readonly scope: Readonly<Record<string, MeshType>>;
+  /** The state and commands of one occurrence, when the component has a unit: their names join the scope and the commands in the model. */
+  readonly unit?: {
+    readonly state: Readonly<Record<string, { readonly type: MeshType; readonly default: unknown; readonly controllable?: boolean }>>;
+    readonly commands: Readonly<Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }>>;
+  };
 }
 
 /** A schema with no model type, said at the declaration. */
 export interface Problem {
-  readonly kind: "props" | "events";
+  readonly kind: "props" | "events" | "unit";
   readonly name: string;
   readonly reason: string;
   /** The whole message, for a problem that is not a missing type. */
@@ -112,6 +117,8 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
     }
   }
 
+  const unit = declared.unit === undefined ? undefined : unitEntry(declared.unit, props, problems);
+
   if (declared.name !== undefined) {
     const named = props[declared.name];
 
@@ -127,5 +134,50 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
     }
   }
 
-  return { entry: { props, events, commands: {}, scope }, problems };
+  return { entry: { props, events, commands: {}, scope, ...(unit === undefined ? {} : { unit }) }, problems };
+};
+
+/** The model's `unit` of a component: each state field with its type and default, each command with its parameters. A field whose schema has no model type is a problem at the declaration. */
+const unitEntry = (declared: NonNullable<NonNullable<Node["interface"]>["unit"]>, props: Entry["props"], problems: Array<Problem>): Entry["unit"] => {
+  const state: Record<string, NonNullable<Entry["unit"]>["state"][string]> = {};
+  const commands: Record<string, NonNullable<Entry["unit"]>["commands"][string]> = {};
+
+  for (const [name, field] of Object.entries(declared.fields)) {
+    try {
+      const type = typeOf(field.schema);
+      const controllable = declared.controllable.includes(name);
+
+      if (!Schema.is(field.schema as SchemaOf)(field.initial)) {
+        throw new Error("its default is not a value of its type");
+      }
+
+      if (controllable && props[name] === undefined) {
+        throw new Error("it is `controllable`, so the component must declare a prop of the same name (optional, of the same type) for the caller to own it with");
+      }
+
+      state[name] = {
+        type: type.kind === "optional" ? type.type : type,
+        default: Schema.encodeSync(field.schema as SchemaOf)(field.initial),
+        ...(controllable ? { controllable: true } : {}),
+      };
+    } catch (error) {
+      problems.push({ kind: "unit", name, reason: reasonOf(error) });
+    }
+  }
+
+  for (const [name, command] of Object.entries(declared.commands)) {
+    try {
+      const parameters = Object.entries(command.input?.fields ?? {}).map(([parameter, schema]) => {
+        const type = typeOf(schema as SchemaOf);
+
+        return { name: parameter, type: type.kind === "optional" ? type.type : type };
+      });
+
+      commands[name] = { parameters };
+    } catch (error) {
+      problems.push({ kind: "unit", name, reason: reasonOf(error) });
+    }
+  }
+
+  return { state, commands };
 };

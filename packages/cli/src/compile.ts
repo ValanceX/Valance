@@ -313,7 +313,7 @@ const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArr
     const site = declarations.get(node.file);
 
     for (const each of bad) {
-      const place = site?.member(each.kind, each.name) ?? site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+      const place = site?.member(each.kind === "unit" ? "props" : each.kind, each.name) ?? site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
 
       problems.push(
         diagnostic(
@@ -321,7 +321,7 @@ const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArr
           place.line,
           "component-schema",
           each.message === undefined
-            ? `${node.name}'s ${each.kind === "props" ? "prop" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`
+            ? `${node.name}'s ${each.kind === "props" ? "prop" : each.kind === "unit" ? "unit field or command" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`
             : `${node.name}: ${each.message}`,
           place.column,
         ),

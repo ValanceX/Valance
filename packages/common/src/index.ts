@@ -24,6 +24,7 @@
 //     events: { toggle: Schema.Void },                      // an event's schema is its payload; the empty schema is no payload
 //   });
 import type * as Valance from "@valancex/valance";
+import { UNIT } from "@valancex/valance";
 import { Schema } from "effect";
 
 import type { Interceptor } from "./transport.js";
@@ -118,6 +119,8 @@ export interface Component {
   readonly events?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
   /** The prop that is the component's accessible name, when its template passes the name of whoever uses it through to a control (see `Contract.name`). */
   readonly name?: string;
+  /** The state and commands of one occurrence of the component, when it has any (see `unit`). */
+  readonly unit?: Valance.Unit;
 }
 
 export const SNIPPET = Symbol.for("valancex.common.snippet");
@@ -171,6 +174,11 @@ export interface Contract<P extends string, E extends string> {
    * a control in the template that has no name of its own (no `label`, not inside a `<label>`) is then not reported by `unnamed-control`, because the name arrives from the use.
    */
   readonly name?: P;
+  /**
+   * State that belongs to one occurrence of the component, such as whether a disclosure is open or which tab is chosen: `unit({ state, commands })`. The template reads its fields and runs its commands
+   * by name, like any others; the application never sees them. A component with a unit states its interface (`props` and `events`, empty if it has none).
+   */
+  readonly unit?: Valance.Unit;
 }
 
 /**
@@ -184,8 +192,76 @@ export function component<P extends string = string, E extends string = string>(
     ...(contract.props === undefined ? {} : { props: contract.props }),
     ...(contract.events === undefined ? {} : { events: contract.events }),
     ...(contract.name === undefined ? {} : { name: contract.name }),
+    ...(contract.unit === undefined ? {} : { unit: contract.unit }),
   };
 }
+
+// ---- units ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** What a unit's commands change: some of its fields. */
+type Changes<S> = Partial<S>;
+
+/** One command of a unit: a function of the state as the person saw it that returns the fields it changes, or the same with parameters and the events it announces. */
+export type UnitCommandSpec<S, P extends Schema.Struct.Fields = Schema.Struct.Fields> =
+  | ((state: S) => Changes<S>)
+  | {
+      /** The command's parameters, in order: `{ n: Schema.Number }`. Each is a parameter of the command in the model. */
+      readonly params?: P;
+      readonly run: (state: S, args: Schema.Struct.Type<P>) => Changes<S>;
+      /** Events of the component the command announces to its caller, each with the payload it carries, worked out from the state the command leaves: `{ change: (next) => next.at }`. */
+      readonly raises?: Readonly<Record<string, (next: S, args: Schema.Struct.Type<P>) => unknown>>;
+    };
+
+/** A command with parameters, typed: the parameters' types reach `run` and `raises`. */
+export const unitCommand = <S, P extends Schema.Struct.Fields>(spec: {
+  readonly params: P;
+  readonly run: (state: S, args: Schema.Struct.Type<P>) => Changes<S>;
+  readonly raises?: Readonly<Record<string, (next: S, args: Schema.Struct.Type<P>) => unknown>>;
+}): UnitCommandSpec<S, P> => spec;
+
+/**
+ * Declares the state and commands of one occurrence of a component (Tier 2; a component with no unit needs none of it). The state is typed with defaults, as application state is; a command is a
+ * pure function of the state as the person saw it that returns the fields it changes:
+ *
+ *   export default component(template, {
+ *     props: { label: Schema.String },
+ *     events: {},
+ *     unit: unit({ state: { open: field(Schema.Boolean, false) }, commands: { toggle: (state) => ({ open: !state.open }) } }),
+ *   });
+ *
+ * The template reads `open` and runs `toggle()`; the application holds neither. The state belongs to the occurrence: it follows its row when a keyed list is re-sorted, and starts again from the defaults
+ * when the occurrence leaves the page and returns. State that must outlive that (or that another part of the application reads) is application state, not a unit. A field named in `controllable` is
+ * owned by the caller when it writes a prop of the same name (the prop must be declared, optional and of the same type): the prop is then the value, the unit's change to it is not applied, and
+ * `raises` tells the caller what the person chose.
+ */
+export const unit = <F extends Fields>(definition: {
+  readonly state: F;
+  readonly commands: { readonly [name: string]: UnitCommandSpec<StateOf<F>, any> };
+  readonly controllable?: ReadonlyArray<Extract<keyof F, string>>;
+}): Valance.Unit<StateOf<F>> => {
+  const entries = Object.entries(definition.state) as Array<[string, Field<any>]>;
+  const fields = Object.fromEntries(entries.map(([name, each]) => [name, { schema: each.schema, initial: each.initial }]));
+  const schema = Schema.Struct(Object.fromEntries(entries.map(([name, each]) => [name, each.schema])));
+
+  return {
+    [UNIT]: true,
+    schema: schema as unknown as Schema.Schema<StateOf<F>, any, never>,
+    fields,
+    controllable: definition.controllable ?? [],
+    commands: Object.fromEntries(
+      Object.entries(definition.commands).map(([name, command]) => [
+        name,
+        typeof command === "function"
+          ? { run: command }
+          : {
+              ...(command.params === undefined ? {} : { input: Schema.Struct(command.params) }),
+              run: command.run,
+              ...(command.raises === undefined ? {} : { raises: command.raises }),
+            },
+      ]),
+    ),
+  } as Valance.Unit<StateOf<F>>;
+};
 
 // ---- the application ---------------------------------------------------------------------------------------------------------------------------------------
 

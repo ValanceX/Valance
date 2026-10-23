@@ -24,9 +24,12 @@ import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
+import { makeRegistry, type Deliver, type Registry, type Unit } from "./units.js";
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
+export { isUnit, UNIT } from "./units.js";
+export type { Unit, UnitCommand } from "./units.js";
 export type { ValanceErrorCode } from "./errors.js";
 
 /** What a command binding may require: only what the NEXUS application runtime itself provides. */
@@ -89,6 +92,13 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
    * fail catches the failure into state, as an event command does. A key the table lacks fails `start` with `UnmappedCommand`.
    */
   readonly start?: string;
+  /**
+   * The units of the components the views' programs use, by component name (Tier 2): state and commands that belong to one occurrence of a component, such as whether a disclosure is open.
+   * `start` keeps the state of the occurrences that have changed, gives it to every render beside the state of the application, binds each unit's commands to
+   * `"component/name"` (an exact key of `commands` for the same name wins) and lets go of an occurrence's state when a later render no longer has it. The application never sees any of it.
+   * Without `units`, nothing about them is done.
+   */
+  readonly units?: Readonly<Record<string, Unit>>;
 }
 
 /** The failures a table can raise: the union over every command (and binding) in it, exactly. */
@@ -446,6 +456,14 @@ export const start = <S, E, R extends Ambient, V extends string>(
       }
     }
 
+    // The units' commands: a binding for each, below an exact key the author wrote and above a bare name (which would otherwise bind to a unit's command of the same name).
+    let deliverIntent: Deliver = () => Effect.die(new ValanceError("target-not-drawn", "VALANCE: a unit announced something before the application was ready"));
+    const registry: Registry | undefined = app.units === undefined || Object.keys(app.units).length === 0 ? undefined : yield* makeRegistry(app.units, () => deliverIntent);
+
+    for (const [key, binding] of Object.entries(registry?.bindings ?? {})) {
+      commands[key] ??= binding as Nexus.Mesh.Binding<E, R>;
+    }
+
     for (const [name, binding] of named) {
       commands[`app/${name}`] ??= binding;
     }
@@ -480,25 +498,38 @@ export const start = <S, E, R extends Ambient, V extends string>(
     );
     // The render of one given state. The adapter renders a host's scope value, not a value it is handed, and a
     // sequential stream must render each emitted state exactly: a constant scope does that.
-    const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> => {
-      const view = app.view(value);
-      const snapshot = app.views[view].scope(value);
-      const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
+    const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
+      Effect.gen(function* () {
+        const view = app.view(value);
+        const units = registry === undefined ? undefined : yield* registry.units;
+        const render = yield* Nexus.Mesh.render(app.views[view].program, app.views[view].scope(value), units);
 
-      return Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render.pipe(Effect.map((render) => ({ view, render })));
-    };
+        if (registry !== undefined) {
+          yield* registry.observe(render);
+        }
+
+        return { view, render };
+      });
 
     // The render of `value` after `previous`: the same view is MESH's update of the previous render (the new render and the patches that turn the one into the other), anything else
     // is rendered afresh. The previous render is the last one this stream produced, so what `update` is given is always the render the target was last given.
-    const advance = (previous: Viewed | undefined, value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> => {
-      const view = app.view(value);
+    const advance = (previous: Viewed | undefined, value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
+      Effect.gen(function* () {
+        const view = app.view(value);
 
-      return previous === undefined || previous.view !== view
-        ? renderOf(value)
-        : Nexus.Mesh.update(previous.render, app.views[view].scope(value) as Record<string, unknown>).pipe(
-            Effect.map(({ render, patches }): Viewed => ({ view, render, patches })),
-          );
-    };
+        if (previous === undefined || previous.view !== view) {
+          return yield* renderOf(value);
+        }
+
+        const units = registry === undefined ? undefined : yield* registry.units;
+        const { render, patches } = yield* Nexus.Mesh.update(previous.render, app.views[view].scope(value) as Record<string, unknown>, units);
+
+        if (registry !== undefined) {
+          yield* registry.observe(render);
+        }
+
+        return { view, render, patches } satisfies Viewed;
+      });
 
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
     // `runFork`: the handle holds none of them, so joining it imports nothing into the caller). The caller's
@@ -538,9 +569,20 @@ export const start = <S, E, R extends Ambient, V extends string>(
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
       // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
       // `state.get` is read after the wake, so what is rendered is never older than the element that woke it; the first element is still the first draw.
-      values: Stream.mapAccumEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), undefined as Viewed | undefined, (previous, value) =>
-        advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
-      ),
+      // With units, a change in any occurrence's state wakes a render too, and a render is wanted when either the application's state or the units' state is not the one last rendered.
+      values:
+        registry === undefined
+          ? Stream.mapAccumEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), undefined as Viewed | undefined, (previous, value) =>
+              advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
+            )
+          : Stream.mapAccumEffect(
+              Stream.changesWith(
+                Stream.mapEffect(Stream.merge(state.values, registry.epoch.values), () => Effect.zip(state.get, registry.epoch.get)),
+                (left, right) => left[0] === right[0] && left[1] === right[1],
+              ),
+              undefined as Viewed | undefined,
+              (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
+            ),
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
 
@@ -554,6 +596,15 @@ export const start = <S, E, R extends Ambient, V extends string>(
 
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
       },
+    };
+
+    // What a unit announces to its caller goes where any event does: to the table's binding for the intent, admitted like any command.
+    deliverIntent = (intent) => {
+      const { component, name } = intent.command;
+      const key = `${component}/${name}`;
+      const binding = Object.hasOwn(commands, key) ? commands[key] : undefined;
+
+      return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(intent.arguments, intent));
     };
 
     // Start-time work: the SAME admission as `invoke` and dispatch, with no caller. Last step before the handle exists, after every failure `start` can have, so a

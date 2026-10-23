@@ -305,8 +305,19 @@ export const initialState = (author: DefinedApp | undefined): AppState => ({
   ...stateOf(author)?.initial,
 });
 
+/** The units of the components the author registered, by the tag each is written as (its template's file name without `.mprx`). */
+export const unitsOf = (author: DefinedApp | undefined): Readonly<Record<string, Valance.Unit>> => {
+  const parts = [author, author?.targets?.web, author?.targets?.desktop];
+  const components = parts.flatMap((part) => [...(part?.layout === undefined ? [] : [part.layout]), ...(part?.components ?? []), ...(part?.override ?? [])]);
+
+  return Object.fromEntries(
+    components.flatMap((component) => (component.unit === undefined ? [] : [[component.template.mprx.replace(/^.*[\\/]/, "").replace(/\.mprx$/, ""), component.unit] as const])),
+  );
+};
+
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);
+  const units = unitsOf(author);
 
   return Valance.define({
     name: content.site.name,
@@ -328,6 +339,7 @@ export const application = (content: Content, program: Valance.Program, author?:
     view: () => "layout" as const,
     commands: commandTable(author, (page) => pageAt(content, page) !== undefined) as never,
     ...(persisted(author).length === 0 ? {} : { start: "persist" }),
+    ...(Object.keys(units).length === 0 ? {} : { units }),
   });
 };
 
