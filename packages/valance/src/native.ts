@@ -22,6 +22,8 @@ export type Outbound =
   | { readonly op: "hello"; readonly protocol: number; readonly app: string }
   | { readonly op: "draw" | "update"; readonly tree: RenderTree }
   | { readonly op: "unmount" }
+  /** Focus the part `key` names, or the first thing in it that takes focus (`focusFirstInvalid`, decision I13): a request to the window after the screen that has the part, not a command and not state. A window that does not know it ignores it. */
+  | { readonly op: "focus"; readonly key: string }
   /** What the window is called. Sent before the first screen and whenever it changes: the window is the host's, so the application says its title, not a template. */
   | { readonly op: "title"; readonly title: string }
   /** How the application asks the window to look: `light` or `dark`, or `system` for the person's own. Sent before the first screen and whenever it changes. */
@@ -202,6 +204,7 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
         return {
           draw: (tree) => (retitle(), send({ op: "draw", tree: options.present?.(tree) ?? tree })),
           update: (tree) => (retitle(), send({ op: "update", tree: options.present?.(tree) ?? tree })),
+          focus: (key) => send({ op: "focus", key }),
           unmount: () => send({ op: "unmount" }),
         };
       });
