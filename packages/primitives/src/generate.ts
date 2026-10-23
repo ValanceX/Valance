@@ -69,7 +69,8 @@ export const generatePrimitives = (specifications: Readonly<Record<string, Speci
     }
 
     if (each.group !== undefined) {
-      parts.push(`group: ${JSON.stringify(each.group)}`);
+      // `group` is PORT Web 0.11's; spread from an untyped object so that the table builds against a PORT whose `WebPrimitive` does not have it (which ignores it).
+      parts.push(`...({ group: ${JSON.stringify(each.group)} } as object)`);
     }
 
     tags.push(`  ${key(tag)}: { ${parts.join(", ")} },`);
