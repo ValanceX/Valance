@@ -53,13 +53,22 @@ const page = (body: string): string => `<page title={title}>${body}</page>`;
 describe.skipIf(Web.layerProp === undefined)("a layer (PORT Web 0.12)", () => {
   const layers: Web.WebPrimitives = {
     ...primitives,
-    dialog: { element: "dialog", layer: "modal", props: { open: Web.layerProp!("open"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! } } as never,
-    popover: {
-      element: "div",
-      layer: "popover",
-      props: { open: Web.layerProp!("open"), anchor: Web.layerProp!("anchor"), placement: Web.layerProp!("placement") },
-      events: { dismiss: Web.layerDismiss! },
-    } as never,
+    ...(Web.layerProp === undefined
+      ? {}
+      : {
+          dialog: {
+            element: "dialog",
+            layer: "modal",
+            props: { open: Web.layerProp("open"), label: Web.attribute("aria-label") },
+            events: { dismiss: Web.layerDismiss! },
+          } as never,
+          popover: {
+            element: "div",
+            layer: "popover",
+            props: { open: Web.layerProp("open"), anchor: Web.layerProp("anchor"), placement: Web.layerProp("placement") },
+            events: { dismiss: Web.layerDismiss! },
+          } as never,
+        }),
   };
   const withLayers = manifest({ primitives: layers, scopes: { board: Board }, commands });
 

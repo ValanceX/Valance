@@ -62,7 +62,12 @@ const toolDiffers: Record<string, { tool: string; official: string; reason: stri
   },
 };
 
-const tags = Object.entries(realizations.primitives);
+// A layer needs PORT Web 0.12: with an older PORT the table leaves it out (the next case says so), and there is nothing to draw.
+const tags = Object.entries(realizations.primitives).filter(([tag]) => tag in table);
+
+it("draws every tag the realizations name, except the layers when the PORT has none (PORT Web 0.12)", () => {
+  expect(Object.keys(realizations.primitives).filter((tag) => !(tag in table))).toEqual(Web.layerProp === undefined ? ["dialog", "popover"] : []);
+});
 
 describe.each(tags)("the web tag %s", (tag, realization: WebRealization) => {
   const specification: Specification = specifications[realization.primitive]!;
