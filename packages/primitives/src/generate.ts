@@ -22,6 +22,8 @@ const propSource = (realization: PropRealization): string => {
       return `Web.controlled(${JSON.stringify(realization.name)})`;
     case "controlled-boolean":
       return `Web.controlledBoolean(${JSON.stringify(realization.name)})`;
+    case "element":
+      return `Web.elementWhen!(${JSON.stringify(realization.name)})`;
     case "text-property":
       return `Web.textProperty(${JSON.stringify(realization.name)})`;
     case "property":
@@ -52,7 +54,8 @@ export const generatePrimitives = (specifications: Readonly<Record<string, Speci
     if (each.props !== undefined) {
       parts.push(
         `props: { ${Object.entries(each.props)
-          .map(([name, how]) => `${key(name)}: ${propSource(how)}`)
+          // A prop that chooses the element needs PORT Web 0.11: without it the prop is left out (and a template that writes it is refused as an unrealized prop), and everything else works.
+          .map(([name, how]) => (how.kind === "element" ? `...(Web.elementWhen === undefined ? {} : { ${key(name)}: ${propSource(how)} })` : `${key(name)}: ${propSource(how)}`))
           .join(", ")} }`,
       );
     }

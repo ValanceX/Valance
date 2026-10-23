@@ -24,7 +24,7 @@ export const primitives: Web.WebPrimitives = {
   h3: { element: "h3", props: { id: Web.attribute("id") } },
   paragraph: { element: "p", props: { class: Web.attribute("class"), id: Web.attribute("id") } },
   blockquote: { element: "blockquote", props: { class: Web.attribute("class") } },
-  list: { element: "ul", props: { class: Web.attribute("class") } },
+  list: { element: "ul", props: { ...(Web.elementWhen === undefined ? {} : { ordered: Web.elementWhen!("ol") }), class: Web.attribute("class") } },
   olist: { element: "ol", props: { class: Web.attribute("class") } },
   listitem: { element: "li" },
   pre: { element: "pre", props: { class: Web.attribute("class"), tabindex: Web.attribute("tabindex") } },
@@ -244,6 +244,12 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
   },
   "list": {
     "props": {
+      "ordered": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false
+      },
       "class": {
         "type": {
           "kind": "string"

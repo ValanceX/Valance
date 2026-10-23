@@ -7,6 +7,7 @@ import type { HydrationResult, WebPort, WebPortOptions, WebPrimitive, WebPrimiti
 import type { BoundaryValue } from "@valancex/mesh-runtime";
 import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
 
+import * as PortWeb from "@valancex/port-web";
 import { attribute, controlled, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
@@ -17,6 +18,13 @@ import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, controlled, controlledBoolean, property, textProperty } from "@valancex/port-web";
+/**
+ * Chooses a primitive's element by a boolean prop: `true` makes it the element `name` says (a list's `ordered` makes `ol`), and PORT Web replaces the element when the prop changes.
+ * From PORT Web 0.11; with an older PORT it is absent, and a table written for it leaves the prop out.
+ */
+export const elementWhen: ((name: string) => WebPrimitive extends { props?: Readonly<Record<string, infer P>> } ? P : never) | undefined = (
+  PortWeb as unknown as { readonly elementWhen?: (name: string) => never }
+).elementWhen;
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
 export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";

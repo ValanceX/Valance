@@ -215,3 +215,31 @@ describe("the replay declaration", () => {
     ).toEqual(acted);
   });
 });
+
+describe("one list, whose element is chosen by a prop", () => {
+  const items = specifications["list"]!.example!.children;
+  const elementWith = (ordered: boolean | undefined) => {
+    const dom = new JSDOM(`<!doctype html><body><div id="root"></div></body>`);
+    const g = globalThis as Record<string, unknown>;
+
+    for (const name of ["document", "Node", "Element", "HTMLElement", "HTMLInputElement", "Event", "KeyboardEvent"]) {
+      g[name] = (dom.window as unknown as Record<string, unknown>)[name];
+    }
+
+    const container = dom.window.document.getElementById("root")!;
+    const port = createWebPort({ container, primitives: table, report: () => {} });
+
+    port.draw(treeOf(realizations, "list", { props: ordered === undefined ? {} : { ordered }, children: items }));
+
+    return container.firstElementChild!.localName;
+  };
+
+  // `ordered` is realized by the element, which needs PORT Web 0.11; the PORT before it has no such prop and the table leaves it out.
+  const chooses = (table["list"] as { props?: Record<string, unknown> }).props?.["ordered"] !== undefined;
+
+  it.skipIf(!chooses)("is an ol while `ordered` is true, a ul otherwise (needs @valancex/port-web 0.11)", () => {
+    expect(elementWith(true)).toBe("ol");
+    expect(elementWith(false)).toBe("ul");
+    expect(elementWith(undefined)).toBe("ul");
+  });
+});

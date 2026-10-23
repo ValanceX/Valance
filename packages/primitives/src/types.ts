@@ -104,7 +104,7 @@ export interface Specification {
 
 export type PropRealization =
   | {
-      readonly kind: "attribute" | "text-property" | "controlled" | "boolean-attribute" | "controlled-boolean";
+      readonly kind: "attribute" | "text-property" | "controlled" | "boolean-attribute" | "controlled-boolean" | "element";
       readonly name: string;
       readonly optional?: boolean;
     }

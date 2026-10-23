@@ -84,7 +84,8 @@
                         "text-property",
                         "controlled",
                         "boolean-attribute",
-                        "controlled-boolean"
+                        "controlled-boolean",
+                        "element"
                       ]
                     },
                     "name": {

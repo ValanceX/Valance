@@ -191,6 +191,10 @@
       "primitive": "list",
       "element": "ul",
       "props": {
+        "ordered": {
+          "kind": "element",
+          "name": "ol"
+        },
         "class": {
           "kind": "attribute",
           "name": "class"

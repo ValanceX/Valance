@@ -11,6 +11,8 @@ export interface WebHelpers {
   readonly controlled: (name: string) => unknown;
   readonly controlledBoolean: (name: string) => unknown;
   readonly property: (name: string, holds: "boolean" | "number" | "value") => unknown;
+  /** Chooses the element by a boolean prop (PORT Web 0.11). Absent in an older PORT, and then a table that uses it is refused when it is built. */
+  readonly elementWhen?: (name: string) => unknown;
   readonly textProperty: (name: string) => unknown;
   readonly event: (
     type: string,
@@ -40,6 +42,8 @@ const propOf = (web: WebHelpers, realization: PropRealization): unknown => {
       return web.controlled(realization.name);
     case "controlled-boolean":
       return web.controlledBoolean(realization.name);
+    case "element":
+      return web.elementWhen!(realization.name);
     case "text-property":
       return web.textProperty(realization.name);
     case "property":
@@ -70,7 +74,12 @@ export const webTable = (realizations: WebRealizations, web: WebHelpers): WebPri
         ...(each.props === undefined
           ? {}
           : {
-              props: Object.fromEntries(Object.entries(each.props).map(([name, realization]) => [name, propOf(web, realization)])),
+              // a prop that chooses the element needs PORT Web 0.11; without it the prop is left out, as the generated table does
+              props: Object.fromEntries(
+                Object.entries(each.props)
+                  .filter(([, realization]) => realization.kind !== "element" || web.elementWhen !== undefined)
+                  .map(([name, realization]) => [name, propOf(web, realization)]),
+              ),
             }),
         ...(each.group === undefined ? {} : { group: each.group }),
         ...(each.events === undefined
@@ -91,6 +100,7 @@ export const typeOfRealization = (realization: PropRealization): Type => {
       return { kind: "string" };
     case "boolean-attribute":
     case "controlled-boolean":
+    case "element":
       return { kind: "boolean" };
     case "property":
       return {
