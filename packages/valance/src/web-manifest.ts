@@ -174,6 +174,11 @@ const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.Typ
 // ---- the three sources ---------------------------------------------------------------------------------------------------------------------------------------------
 
 const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["props"]>[string], path: string): Field => {
+  // A prop that chooses the element (PORT Web 0.11) is a boolean the template may leave out; compared as text so that this builds against a PORT whose kinds do not have it.
+  if ((realization as { readonly kind: string }).kind === "element") {
+    return { type: { kind: "boolean" }, required: false };
+  }
+
   switch (realization.kind) {
     case "attribute":
     case "controlled":
