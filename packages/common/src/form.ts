@@ -211,7 +211,7 @@ export interface Where<S, A> {
   readonly get?: (state: S) => State;
   readonly set?: (state: S, form: State) => S;
   /** The application's state after a submit that the schema accepted, from the decoded value. The form keeps what was typed. */
-  readonly then: (state: S, value: A) => S;
+  readonly submitted: (state: S, value: A) => S;
 }
 
 /** The part of `Valance.CommandMaker` the form uses, so this file imports no more of Valance than that. */
@@ -640,11 +640,11 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
       const how = {
         get: given.get ?? ((state: never) => (state as Record<string, State>)[field!]!),
         set: given.set ?? ((state: never, form: State) => ({ ...(state as object), [field!]: form }) as never),
-        then: given.then,
+        submitted: given.submitted,
       };
 
       if (given.field === undefined && (given.get === undefined || given.set === undefined)) {
-        throw new FormError("Form: say where the form is: `field: \"signup\"`, or `get` and `set`");
+        throw new FormError('Form: say where the form is: `field: "signup"`, or `get` and `set`');
       }
 
       return {
@@ -661,7 +661,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
           const result = form.submit(how.get(current as never));
           const next = how.set(current as never, result.state);
 
-          return (result.ok ? how.then(next, result.value) : next) as never;
+          return (result.ok ? how.submitted(next, result.value) : next) as never;
         }),
       } as unknown as Commands;
     },

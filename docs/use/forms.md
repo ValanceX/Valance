@@ -13,7 +13,7 @@ const signup = Form.make(Signup);
 export default defineApp({
   state: { signup: signup.field(), done: field(Schema.Boolean, false) },
   derived: (derive) => ({ form: signup.view(derive, (state) => state.signup) }),
-  commands: (command) => signup.commands(command, { field: "signup", then: (state) => ({ ...state, done: true }) }),
+  commands: (command) => signup.commands(command, { field: "signup", submitted: (state) => ({ ...state, done: true }) }),
   layout: component(layout),
 });
 ```
