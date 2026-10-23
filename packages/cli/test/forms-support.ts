@@ -35,7 +35,6 @@ export const errorsOf = (html: string): ReadonlyArray<string> => {
   }
 };
 
-
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm" };
 export const browserAvailable = await chromium
   .launch()
@@ -98,4 +97,3 @@ export const portFocuses = (() => {
 
   return major > 0 || minor >= 11;
 })();
-
