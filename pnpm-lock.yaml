@@ -6,8 +6,6 @@ settings:
 
 overrides:
   ignore: 7.0.12
-  '@valancex/port-web': file:local-packs/valancex-port-web-0.11.0.tgz
-  '@valancex/port-desktop-vocabulary': file:local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz
 
 importers:
 
@@ -55,7 +53,7 @@ importers:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@0.10.0(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -70,8 +68,8 @@ importers:
         specifier: ^0.10.3
         version: 0.10.3(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -116,8 +114,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -187,8 +185,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       '@vitest/browser':
         specifier: 3.2.7
         version: 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
@@ -220,8 +218,8 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/port-desktop-vocabulary':
-        specifier: file:../../local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz
-        version: file:local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz
+        specifier: ^0.10.0
+        version: 0.10.0
       '@valancex/style':
         specifier: workspace:^
         version: link:../style
@@ -287,8 +285,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/router':
         specifier: workspace:^
         version: link:../router
@@ -327,11 +325,11 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/port-desktop-vocabulary':
-        specifier: file:../../local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz
-        version: file:local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz
+        specifier: ^0.10.0
+        version: 0.10.0
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -382,8 +380,8 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -416,8 +414,8 @@ importers:
         specifier: workspace:^
         version: link:../common
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -442,9 +440,6 @@ importers:
       '@valancex/nexus':
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
-      '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.11.0.tgz
-        version: file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -455,6 +450,9 @@ importers:
       '@valancex/mesh-runtime':
         specifier: ^0.15.0
         version: 0.15.0
+      '@valancex/port-web':
+        specifier: ^0.10.0
+        version: 0.10.0(@valancex/mesh-runtime@0.15.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -1200,21 +1198,18 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.14.0 || ^0.15.0
 
-  '@valancex/port-desktop-vocabulary@file:local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz':
-    resolution: {integrity: sha512-ko8JmF9i+NBpfXBNrPANUd1Wx7YgRD42f2BaEzAZGMzXxa8lpUQf4Kv22FICKzwrYUhg8Nj0u/oewI6r1Vl4XQ==, tarball: file:local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz}
-    version: 0.11.0
+  '@valancex/port-desktop-vocabulary@0.10.0':
+    resolution: {integrity: sha512-9jIqaI07C3V+p2DarkbtAj1zFkhhxQUMJAHHA0vaMWVQwoKhPFpaH+ILxScPGqvvHS20PHXEqiBkZ1YmMmWokQ==}
     engines: {node: '>=22'}
 
-  '@valancex/port-web@file:local-packs/valancex-port-web-0.11.0.tgz':
-    resolution: {integrity: sha512-PJA5o3YeUVCH8bXbJnnpmpwuiPOuRhDx7N5zLFykFe+ue9RrISajBqy300rewWRFkXca/mChUiPhaPxu87AUJg==, tarball: file:local-packs/valancex-port-web-0.11.0.tgz}
-    version: 0.11.0
+  '@valancex/port-web@0.10.0':
+    resolution: {integrity: sha512-6Knb2PmwzgqdQCroZh7cfgndDYy0a4uJ0e7mk55pWOb+QpLQNZhu6IhMtNpr61vwyiu0QZ/w9qOgetLkcolDFA==}
     engines: {node: '>=22'}
     peerDependencies:
-      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0
+      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0
 
   '@valancex/valance@0.5.0':
     resolution: {integrity: sha512-yq9rNKRL3W6+SMUs3g9jDv8LOGOpQ8Q8Hk+kV1PR60mb+108g0GgYww+e9S1N9YPM/kBV9Sl9MOQvN77w9cVsQ==}
-    version: 0.5.0
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
@@ -2697,19 +2692,19 @@ snapshots:
       '@valancex/mesh-runtime': 0.15.0
       effect: 3.22.2
 
-  '@valancex/port-desktop-vocabulary@file:local-packs/valancex-port-desktop-vocabulary-0.11.0.tgz': {}
+  '@valancex/port-desktop-vocabulary@0.10.0': {}
 
-  '@valancex/port-web@file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)':
+  '@valancex/port-web@0.10.0(@valancex/mesh-runtime@0.15.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.15.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@0.10.0(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)':
     dependencies:
       '@valancex/mesh-runtime': 0.15.0
       '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.15.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': file:local-packs/valancex-port-web-0.11.0.tgz(@valancex/mesh-runtime@0.15.0)
+      '@valancex/port-web': 0.10.0(@valancex/mesh-runtime@0.15.0)
 
   '@vitest/browser@3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)':
     dependencies:

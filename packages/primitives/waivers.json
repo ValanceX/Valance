@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "primitive": "button",
+    "member": "props.intent",
+    "reason": "added to the Desktop PORT on the branch claude/wp4-style of valancex/port (vocabulary, unreleased); the published 0.10.0 lacks it. Gone when the vocabulary is released and the dependency raised"
+  },
+  {
+    "primitive": "button",
+    "member": "props.size",
+    "reason": "added to the Desktop PORT on the branch claude/wp4-style of valancex/port (vocabulary, unreleased); the published 0.10.0 lacks it. Gone when the vocabulary is released and the dependency raised"
+  }
+]
