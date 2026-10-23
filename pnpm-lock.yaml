@@ -6,8 +6,6 @@ settings:
 
 overrides:
   ignore: 7.0.12
-  '@valancex/port-web': file:local-packs/valancex-port-web-0.12.0.tgz
-  '@valancex/port-desktop-vocabulary': file:local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz
 
 importers:
 
@@ -49,13 +47,13 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   examples/docs-site:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@0.11.0(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -70,8 +68,8 @@ importers:
         specifier: ^0.10.3
         version: 0.10.3(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -86,7 +84,7 @@ importers:
         version: 7.3.6(@types/node@22.20.5)
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   examples/todo:
     dependencies:
@@ -116,8 +114,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -126,7 +124,7 @@ importers:
         version: 0.28.2
       jsdom:
         specifier: ^26.1.0
-        version: 26.1.0
+        version: 26.1.0(supports-color@10.2.2)
       postject:
         specifier: 1.0.0-alpha.6
         version: 1.0.0-alpha.6
@@ -135,7 +133,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   examples/todo-multi:
     dependencies:
@@ -163,7 +161,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   examples/tracer-web:
     dependencies:
@@ -187,8 +185,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       '@vitest/browser':
         specifier: 3.2.7
         version: 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
@@ -197,7 +195,7 @@ importers:
         version: 3.22.2
       jsdom:
         specifier: ^26.0.0
-        version: 26.1.0
+        version: 26.1.0(supports-color@10.2.2)
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -209,7 +207,7 @@ importers:
         version: 7.3.6(@types/node@22.20.5)
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   packages/cli:
     dependencies:
@@ -220,8 +218,8 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/port-desktop-vocabulary':
-        specifier: file:../../local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz
-        version: file:local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/style':
         specifier: workspace:^
         version: link:../style
@@ -264,7 +262,7 @@ importers:
         version: 4.0.0(@types/react@19.2.18)
       jsdom:
         specifier: ^26.0.0
-        version: 26.1.0
+        version: 26.1.0(supports-color@10.2.2)
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -273,7 +271,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
       vnu-jar:
         specifier: ^26.10.12
         version: 26.10.12
@@ -287,8 +285,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/router':
         specifier: workspace:^
         version: link:../router
@@ -307,7 +305,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   packages/primitives:
     devDependencies:
@@ -327,11 +325,11 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/port-desktop-vocabulary':
-        specifier: file:../../local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz
-        version: file:local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz
+        specifier: ^0.11.0
+        version: 0.11.0
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -349,7 +347,7 @@ importers:
         version: 0.7.1
       jsdom:
         specifier: ^26.0.0
-        version: 26.1.0
+        version: 26.1.0(supports-color@10.2.2)
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -358,7 +356,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
       vnu-jar:
         specifier: ^26.10.12
         version: 26.10.12
@@ -382,8 +380,8 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -392,13 +390,13 @@ importers:
         version: 3.22.2
       jsdom:
         specifier: ^26.0.0
-        version: 26.1.0
+        version: 26.1.0(supports-color@10.2.2)
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   packages/style:
     dependencies:
@@ -416,8 +414,8 @@ importers:
         specifier: workspace:^
         version: link:../common
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -429,22 +427,19 @@ importers:
         version: 1.56.1
       stylelint:
         specifier: ^17.16.0
-        version: 17.16.0(typescript@5.9.3)
+        version: 17.16.0(supports-color@10.2.2)(typescript@5.9.3)
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
   packages/valance:
     dependencies:
       '@valancex/nexus':
         specifier: ^0.14.0
         version: 0.14.0(@valancex/mesh-runtime@0.15.0)
-      '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.12.0.tgz
-        version: file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -455,6 +450,9 @@ importers:
       '@valancex/mesh-runtime':
         specifier: ^0.15.0
         version: 0.15.0
+      '@valancex/port-web':
+        specifier: ^0.11.0
+        version: 0.11.0(@valancex/mesh-runtime@0.15.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -466,7 +464,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.0
-        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+        version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
 
 packages:
 
@@ -740,6 +738,7 @@ packages:
     engines: {node: ^22.20 || ^24.12 || >=25}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -800,48 +799,56 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@oxfmt/binding-linux-arm64-musl@0.71.0':
     resolution: {integrity: sha512-AOCaminv/+fhinUXKvtPZT4POhNYmN9GfvaJdgJa1AbvuzClWGwDIXfJg8eu3sYaVL2B68jNvmS7LZGAYa0z3A==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@oxfmt/binding-linux-ppc64-gnu@0.71.0':
     resolution: {integrity: sha512-0SHxuaa4QRLM7jfsd8wc6L7KdLg+FR6/ah9k1eAvcrK/Sni7oxchMvsjwUsyakVAta+wBVDkjJTr7/RFU0uUGA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@oxfmt/binding-linux-riscv64-gnu@0.71.0':
     resolution: {integrity: sha512-UNKj1+rPorTK6uSlQzpN96vDNbHbL/63zcpznweo0ImQdkDdtQCS7G3puxX++2cESPKT2B56Y6DICUmFTJde5A==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@oxfmt/binding-linux-riscv64-musl@0.71.0':
     resolution: {integrity: sha512-5cVXKj7a0mWu7GU6/bZgNyv+KtLgM5S9cnT26Os2/abj8pK/bklHsbdYEHGLLniGjNYkyzwem8mZciPCaDtilw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@oxfmt/binding-linux-s390x-gnu@0.71.0':
     resolution: {integrity: sha512-lNpcMuZvyU1V/CY5h19hac03m4E4PLSYRckcxZOynSPojI4Mwt6nEu9wT/gVf0bclH3xGEWjwqApnSTgjkd2oA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@oxfmt/binding-linux-x64-gnu@0.71.0':
     resolution: {integrity: sha512-5/Z6pUewQpknXqC4/ykK6Zc6RiteAnPem1Ci7K1RZLVF6w6MMjwHjR4vsjijW4Czidgv7HKeVglGjElADliT9w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@oxfmt/binding-linux-x64-musl@0.71.0':
     resolution: {integrity: sha512-uVdG2N/4GEbOeljpQ+xv+NeEwJWJGj0WaxSiSYnoiqIYy3RWrWd3rGUmxWXP1A8+ferNvvwFoDAtvgsDUvBuSw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@oxfmt/binding-openharmony-arm64@0.71.0':
     resolution: {integrity: sha512-1LwEZmSDRFKeBaGd/Hgj2xI3SmgGFpF4YtgkSx0sTYdTiZfHWbcFvRIBjL1YiDNdQd9Khda3Ij8CoqBULjskDg==}
@@ -914,48 +921,56 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@oxlint/binding-linux-arm64-musl@1.86.0':
     resolution: {integrity: sha512-vCiUQb9ZNzZalxYRU4mlZwUqT5f+c7Sk9DwUOplWHtik3Dl4r3DVnUB5tBeRuTAUe6MUVCTylNW7TkkN8J1oTw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@oxlint/binding-linux-ppc64-gnu@1.86.0':
     resolution: {integrity: sha512-T0AzE89yjTYmOhB/hb6i+rWTpe2mYt+xiguBhs9DEPIJTZ1H8OYqsE4VxJHHw2Wlq8Mztwvp2P8NV87ZOuhPRw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@oxlint/binding-linux-riscv64-gnu@1.86.0':
     resolution: {integrity: sha512-s49r0K2f5Oc7fJoMUO1WkdhYK5Ob79uYRwWQ/XNoGysaOq3RUGmGUbHSuXiyydTTA+P9xEdDEnnlZVXiaSJhlw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@oxlint/binding-linux-riscv64-musl@1.86.0':
     resolution: {integrity: sha512-JIa2tYR8ayb3nvcMSZzn4O/xTy13S7MHllu7cBD+B5qDQXXSRy/Vwk1aNpiTjZmBJGwKCHOy/NvnY5Xcwg27uQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@oxlint/binding-linux-s390x-gnu@1.86.0':
     resolution: {integrity: sha512-XwXMyBsAuWZkhZU74UNcfQKr1CJJAKnS80dZzOnjl6A4fKcf91IjFgidegQugMHA5SN8ulwDXEDV1yPntjXgQQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@oxlint/binding-linux-x64-gnu@1.86.0':
     resolution: {integrity: sha512-C1WjukSyMnr66b+w1/tV8RFVv6d9v0MzDf4p9IxVXknqgmTHBgZh1pccN1eHzFr0b9Tbb3OXoPsAAdAuHAQfeA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@oxlint/binding-linux-x64-musl@1.86.0':
     resolution: {integrity: sha512-ap6KLmvC38c6MdYzsIh25cXQupqYvjd37tMNftzrX1DCtkX1Gcf2B+S2B17dD4lKa5c5gJog7DQJyDo82PBKyw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@oxlint/binding-openharmony-arm64@1.86.0':
     resolution: {integrity: sha512-996Q9w/2GLwNyy5Djs39Jt09aFlr4b7TPhoj7dvo5FHmcyiF68nPz73HNc5UAYKIYeK+M9JzPQ4Wg1r1dXvP6A==}
@@ -1018,66 +1033,79 @@ packages:
     resolution: {integrity: sha512-J/6xhutJPtFyIkmHdf4olOdHHKH5kOJNumojdWn+Elv5ICEYTVOa362Vw27TxsK0BLzb1le3EDlO3UbvFK1lnQ==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.64.0':
     resolution: {integrity: sha512-G4L/Nnx59d2LvDoV/P4S5lZ7oVLT6hodOHMacqjiq2LL2gts86KbkEBTYL53+fBt0odhf7XPIbIATGoYiJctxg==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.64.0':
     resolution: {integrity: sha512-zF16pvJDEUksGYRbfnXne7pdklAyj2XDmJeYKgP93oq0cUyX9Y8O7lUo1R+IY1GagP/YBvCEDCe7eEcAKpw//g==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.64.0':
     resolution: {integrity: sha512-nIggWn8n+w12+R5lsV+PYYoUY8vuObxPAQqJI7WES+9v0qspYuAHoZMfYM0yLxlipasT5BY9ht5W8t5c/rSCkg==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.64.0':
     resolution: {integrity: sha512-WLOTiHPzszP0dxIMsHpFeDSOSB5I49Mj8K4+yKE3H1X/D0JRG5XZ5jrctJLMjnUc/LUzaKiwq6EHWNJ8pup8PA==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.64.0':
     resolution: {integrity: sha512-35RK9aRhh7g7Pmeu5gQ01aCvrhXzj9LoBE6xtUcEH1ns+nyTaSzxSpADmBQINu4QiTDGvmQYwo1j5hlg1rRXFw==}
     cpu: [loong64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.64.0':
     resolution: {integrity: sha512-RqTfnpoTjuWfPAmqK5p2edt2AMCDJWm6oTn7sKfmyx+6tRga0ip05SJ977o6udTcIiDeF/CJMUfkaN4gtWt6Aw==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.64.0':
     resolution: {integrity: sha512-RQjZPigjxFvFZDijG6rjlSXxhRaTf9zLYVpGK+lVcga64oMqP1GbgVqCb46eHTTceSIgp89Ja0y5aPe3GFBYHg==}
     cpu: [ppc64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.64.0':
     resolution: {integrity: sha512-tjL58mgQcTRnDRpeky+Sth1MKQeYi2Ct6r3Luq9E5aTSjnM/i/JbozqZkKqp9thM5+oDSZxo+05f9kdQedfTGA==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.64.0':
     resolution: {integrity: sha512-ictoRyVaoZ8C67myHef+8hhCa6IplXJJ/xUCkVCxziV4zxMZh+jvhkhGsPBLqj1S72fnqD0QH5zL4lcaa4X7DQ==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.64.0':
     resolution: {integrity: sha512-8aVvZ2hfr9RLFzBQkQNmYeHLDja8fLeQAmLt757zdKN/B+8L809KlLJKctQjS22wZotptV8G6o7fVPuAs8S1tQ==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.64.0':
     resolution: {integrity: sha512-2dEF8GAcDKwshUfydD+GhosppNyBzhVUHkdFF3CXd3FpOkzj/RZzF5aoEtzklujklT5qFVRU2GK/cFeLaTNKVg==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.64.0':
     resolution: {integrity: sha512-3XHTvoo2hKkh0MiOfS7SkhHjMaaWF7P4F3drocZZaho/Z8w7h/jpnuBHm91BOQLfvrKHs1yR+zir4E8RI3XzTQ==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.64.0':
     resolution: {integrity: sha512-HKtkzodL4a3KFWDXDoO61cRynAWTR3LnAE0oGtfG9lcNFpNuVYUFOByxDgNqEvic9rvaQbAj+SFwTEWDptRaIw==}
@@ -1200,21 +1228,18 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.14.0 || ^0.15.0
 
-  '@valancex/port-desktop-vocabulary@file:local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz':
-    resolution: {integrity: sha512-2sJEzTiJJOFd0VhOBdNdJUHdrdybeVSHkJYJpwoehaH7RyTnY7UYX+8g4NY1NxkVM8iVGRgjwv3Equ6u8/rhZQ==, tarball: file:local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz}
-    version: 0.12.0
+  '@valancex/port-desktop-vocabulary@0.11.0':
+    resolution: {integrity: sha512-ko8JmF9i+NBpfXBNrPANUd1Wx7YgRD42f2BaEzAZGMzXxa8lpUQf4Kv22FICKzwrYUhg8Nj0u/oewI6r1Vl4XQ==}
     engines: {node: '>=22'}
 
-  '@valancex/port-web@file:local-packs/valancex-port-web-0.12.0.tgz':
-    resolution: {integrity: sha512-SRNMyOtQFQjWif+hCmVWbhTusEQZM37aJ3bVcTGyIttwfdnMwbEXVcj9eX89HI9HV3HBAWVe/afn3CW/wJWRWQ==, tarball: file:local-packs/valancex-port-web-0.12.0.tgz}
-    version: 0.12.0
+  '@valancex/port-web@0.11.0':
+    resolution: {integrity: sha512-PJA5o3YeUVCH8bXbJnnpmpwuiPOuRhDx7N5zLFykFe+ue9RrISajBqy300rewWRFkXca/mChUiPhaPxu87AUJg==}
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0
 
   '@valancex/valance@0.5.0':
     resolution: {integrity: sha512-yq9rNKRL3W6+SMUs3g9jDv8LOGOpQ8Q8Hk+kV1PR60mb+108g0GgYww+e9S1N9YPM/kBV9Sl9MOQvN77w9cVsQ==}
-    version: 0.5.0
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
@@ -2697,19 +2722,19 @@ snapshots:
       '@valancex/mesh-runtime': 0.15.0
       effect: 3.22.2
 
-  '@valancex/port-desktop-vocabulary@file:local-packs/valancex-port-desktop-vocabulary-0.12.0.tgz': {}
+  '@valancex/port-desktop-vocabulary@0.11.0': {}
 
-  '@valancex/port-web@file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)':
+  '@valancex/port-web@0.11.0(@valancex/mesh-runtime@0.15.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.15.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.15.0)(@valancex/port-web@0.11.0(@valancex/mesh-runtime@0.15.0))(effect@3.22.2)':
     dependencies:
       '@valancex/mesh-runtime': 0.15.0
       '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.15.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': file:local-packs/valancex-port-web-0.12.0.tgz(@valancex/mesh-runtime@0.15.0)
+      '@valancex/port-web': 0.11.0(@valancex/mesh-runtime@0.15.0)
 
   '@vitest/browser@3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)':
     dependencies:
@@ -2720,7 +2745,7 @@ snapshots:
       magic-string: 0.30.21
       sirv: 3.0.2
       tinyrainbow: 2.0.0
-      vitest: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+      vitest: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)
       ws: 8.22.0
     optionalDependencies:
       playwright: 1.56.1
@@ -2900,9 +2925,11 @@ snapshots:
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.2.0
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@10.2.2):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 10.2.2
 
   decimal.js@10.6.0: {}
 
@@ -3064,17 +3091,17 @@ snapshots:
 
   html-tags@5.1.0: {}
 
-  http-proxy-agent@7.0.2:
+  http-proxy-agent@7.0.2(supports-color@10.2.2):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
-  https-proxy-agent@7.0.6:
+  https-proxy-agent@7.0.6(supports-color@10.2.2):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -3165,14 +3192,14 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@26.1.0:
+  jsdom@26.1.0(supports-color@10.2.2):
     dependencies:
       cssstyle: 4.6.0
       data-urls: 5.0.0
       decimal.js: 10.6.0
       html-encoding-sniffer: 4.0.0
-      http-proxy-agent: 7.0.2
-      https-proxy-agent: 7.0.6
+      http-proxy-agent: 7.0.2(supports-color@10.2.2)
+      https-proxy-agent: 7.0.6(supports-color@10.2.2)
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.28
       parse5: 7.3.0
@@ -3487,7 +3514,7 @@ snapshots:
     dependencies:
       js-tokens: 9.0.1
 
-  stylelint@17.16.0(typescript@5.9.3):
+  stylelint@17.16.0(supports-color@10.2.2)(typescript@5.9.3):
     dependencies:
       '@csstools/css-calc': 3.4.3(@csstools/css-parser-algorithms@4.0.2(@csstools/css-tokenizer@4.0.2))(@csstools/css-tokenizer@4.0.2)
       '@csstools/css-parser-algorithms': 4.0.2(@csstools/css-tokenizer@4.0.2)
@@ -3500,7 +3527,7 @@ snapshots:
       cosmiconfig: 9.0.2(typescript@5.9.3)
       css-functions-list: 3.3.3
       css-tree: 3.2.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       fast-glob: 3.3.3
       fastest-levenshtein: 1.0.16
       file-entry-cache: 11.1.5
@@ -3600,10 +3627,10 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite-node@3.2.4(@types/node@22.20.5):
+  vite-node@3.2.4(@types/node@22.20.5)(supports-color@10.2.2):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
       vite: 7.3.6(@types/node@22.20.5)
@@ -3633,7 +3660,7 @@ snapshots:
       '@types/node': 22.20.5
       fsevents: 2.3.3
 
-  vitest@3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0):
+  vitest@3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
@@ -3644,7 +3671,7 @@ snapshots:
       '@vitest/spy': 3.2.7
       '@vitest/utils': 3.2.7
       chai: 5.3.3
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@10.2.2)
       expect-type: 1.4.0
       magic-string: 0.30.21
       pathe: 2.0.3
@@ -3656,12 +3683,12 @@ snapshots:
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
       vite: 7.3.6(@types/node@22.20.5)
-      vite-node: 3.2.4(@types/node@22.20.5)
+      vite-node: 3.2.4(@types/node@22.20.5)(supports-color@10.2.2)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.20.5
       '@vitest/browser': 3.2.7(playwright@1.56.1)(vite@7.3.6(@types/node@22.20.5))(vitest@3.2.7)
-      jsdom: 26.1.0
+      jsdom: 26.1.0(supports-color@10.2.2)
     transitivePeerDependencies:
       - jiti
       - less
