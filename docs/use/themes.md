@@ -33,6 +33,10 @@ theme/recipes/*.json      one recipe per primitive
 
 The stylesheet declares `@layer vlx-library, vlx-theme, vlx-app;`. Rules reach a primitive only through its `data-vlx` hook, never through a tag, class or id, so application CSS in `vlx-app` wins without specificity games.
 
+## Hover, press, focus
+
+`hovered` rules are written inside `@media (any-hover: hover)`, so a touch screen's sticky `:hover` never paints them (I15); `pressed` is `:active` and needs no hover. `focus-visible` is `:focus-visible` (after Tab, not after a click). While a modal layer is open the page behind it is locked against scrolling (see [Layers](layers.md)).
+
 ## What the Desktop applies
 
-Fill, text color, border, radius, padding, gap, minimum size, type size, the button's `intent` and `size`, the textfield's invalid state and the viewport class. Other declarations are reported as ignored in `vlx theme check`.
+Fill, text color, border, radius, padding, gap, minimum size, type size, the button's `intent` and `size`, its `hovered` and `pressed` states (the pointer over it, and held down; with the properties above), the textfield's invalid state and the viewport class. The window draws its own focus ring, so `focus-visible` is web only. Other declarations are reported as ignored in `vlx theme check`.

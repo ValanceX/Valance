@@ -90,6 +90,14 @@ export const inBrowser = async (files: Record<string, string>, run: (page: Page,
   }
 };
 
+/** Whether the installed Web PORT has layers (0.12): the dialog and popover cases need it, and say so when it is not there. */
+export const portLayers = (() => {
+  const { version } = JSON.parse(readFileSync(join(createRequire(import.meta.url).resolve("@valancex/port-web/package.json")), "utf8")) as { version: string };
+  const [major = 0, minor = 0] = version.split(".").map(Number);
+
+  return major > 0 || minor >= 12;
+})();
+
 /** Whether the installed Web PORT moves focus on request (0.11): the end-to-end focus case needs it, and says so when it is not there. */
 export const portFocuses = (() => {
   const { version } = JSON.parse(readFileSync(join(createRequire(import.meta.url).resolve("@valancex/port-web/package.json")), "utf8")) as { version: string };

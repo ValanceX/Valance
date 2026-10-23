@@ -61,15 +61,15 @@ const eventOf = (web: WebHelpers, realization: EventRealization): unknown =>
   realization.raised === true
     ? web.layerDismiss
     : web.event(
-    realization.type,
-    realization.payload === undefined
-      ? undefined
-      : {
-          kind: realization.payload.kind,
-          of: extractors[realization.payload.of] as never,
-        },
-    realization.key === undefined ? undefined : { key: realization.key },
-  );
+        realization.type,
+        realization.payload === undefined
+          ? undefined
+          : {
+              kind: realization.payload.kind,
+              of: extractors[realization.payload.of] as never,
+            },
+        realization.key === undefined ? undefined : { key: realization.key },
+      );
 
 /** The table `createWebPort` is given and the manifest is derived from, in the order the realizations list the tags. */
 export const webTable = (realizations: WebRealizations, web: WebHelpers): WebPrimitives =>
@@ -78,29 +78,29 @@ export const webTable = (realizations: WebRealizations, web: WebHelpers): WebPri
       // a layer needs PORT Web 0.12; without it the layer is left out, as the generated table does
       .filter(([, each]) => each.layer === undefined || web.layerProp !== undefined)
       .map(([tag, each]) => [
-      tag,
-      {
-        element: each.element,
-        ...(each.attributes === undefined ? {} : { attributes: each.attributes }),
-        ...(each.props === undefined
-          ? {}
-          : {
-              // a prop that chooses the element needs PORT Web 0.11; without it the prop is left out, as the generated table does
-              props: Object.fromEntries(
-                Object.entries(each.props)
-                  .filter(([, realization]) => realization.kind !== "element" || web.elementWhen !== undefined)
-                  .map(([name, realization]) => [name, propOf(web, realization)]),
-              ),
-            }),
-        ...(each.group === undefined ? {} : { group: each.group }),
-        ...(each.layer === undefined ? {} : { layer: each.layer }),
-        ...(each.events === undefined
-          ? {}
-          : {
-              events: Object.fromEntries(Object.entries(each.events).map(([name, realization]) => [name, eventOf(web, realization)])),
-            }),
-      },
-    ]),
+        tag,
+        {
+          element: each.element,
+          ...(each.attributes === undefined ? {} : { attributes: each.attributes }),
+          ...(each.props === undefined
+            ? {}
+            : {
+                // a prop that chooses the element needs PORT Web 0.11; without it the prop is left out, as the generated table does
+                props: Object.fromEntries(
+                  Object.entries(each.props)
+                    .filter(([, realization]) => realization.kind !== "element" || web.elementWhen !== undefined)
+                    .map(([name, realization]) => [name, propOf(web, realization)]),
+                ),
+              }),
+          ...(each.group === undefined ? {} : { group: each.group }),
+          ...(each.layer === undefined ? {} : { layer: each.layer }),
+          ...(each.events === undefined
+            ? {}
+            : {
+                events: Object.fromEntries(Object.entries(each.events).map(([name, realization]) => [name, eventOf(web, realization)])),
+              }),
+        },
+      ]),
   ) as unknown as WebPrimitives;
 
 /** The kind a web prop's value has, by how it is realized. */

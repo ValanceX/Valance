@@ -63,7 +63,9 @@ describe("vlx theme check", () => {
     expect(text).toMatch(/contrast {2}light {5}color\.text on color\.surface {2}\d+\.\d\d:1 {2}\(min 4\.5\) {2}ok/);
     expect(text).toContain("web: 7 of 7 primitives of the portable core styled");
     expect(text).toContain("desktop: 7 of 7 primitives of the portable core styled");
-    expect(text).toContain("not applied: button state hovered (unsupported)");
+    expect(text).toContain("not applied: button state focus-visible (unsupported)");
+    // hovered and pressed are applied on the Desktop now (decision I22), with the properties it honors
+    expect(text).not.toContain("not applied: button state hovered");
     expect(text).toContain("no problems");
     expect(err).not.toHaveBeenCalled();
   });

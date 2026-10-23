@@ -30,7 +30,8 @@ export const layerProp: ((name: "open" | "anchor" | "placement") => WebPrimitive
   PortWeb as unknown as { readonly layerProp?: (name: string) => never }
 ).layerProp;
 /** The event a layer raises when the person asks to close it (PORT Web 0.12), with the reason `"escape"` or `"outside"`. */
-export const layerDismiss: (WebPrimitive extends { events?: Readonly<Record<string, infer E>> } ? E : never) | undefined = (PortWeb as unknown as { readonly layerDismiss?: never }).layerDismiss;
+export const layerDismiss: (WebPrimitive extends { events?: Readonly<Record<string, infer E>> } ? E : never) | undefined = (PortWeb as unknown as { readonly layerDismiss?: never })
+  .layerDismiss;
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
 export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";

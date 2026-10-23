@@ -50,6 +50,34 @@ const compile = async (source: string, model: unknown = derived) =>
 
 const page = (body: string): string => `<page title={title}>${body}</page>`;
 
+describe.skipIf(Web.layerProp === undefined)("a layer (PORT Web 0.12)", () => {
+  const layers: Web.WebPrimitives = {
+    ...primitives,
+    dialog: { element: "dialog", layer: "modal", props: { open: Web.layerProp!("open"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! } } as never,
+    popover: {
+      element: "div",
+      layer: "popover",
+      props: { open: Web.layerProp!("open"), anchor: Web.layerProp!("anchor"), placement: Web.layerProp!("placement") },
+      events: { dismiss: Web.layerDismiss! },
+    } as never,
+  };
+  const withLayers = manifest({ primitives: layers, scopes: { board: Board }, commands });
+
+  it("has its props by what they are (open a boolean, anchor and placement text) and its dismissal with the reason as a string payload", () => {
+    expect(withLayers.components["dialog"]!.props["open"]).toEqual({ type: { kind: "boolean" }, required: false });
+    expect(withLayers.components["popover"]!.props["anchor"]).toEqual({ type: { kind: "string" }, required: false });
+    expect(withLayers.components["dialog"]!.events).toEqual({ dismiss: { payload: { kind: "string" } } });
+  });
+
+  it("is checked by MESH: a handler takes the reason as a string, and one that takes it as a number is refused", async () => {
+    const run = (source: string) =>
+      compileProgram({ model: { manifest: JSON.stringify(withLayers), path: "components.json" }, root: "board", components: [{ component: "board", path: "board.mprx", source }] });
+
+    expect((await run(page(`<dialog open={loading} label="Sure?" on.dismiss={search($event)}><text>Sure?</text></dialog>`))).program).toBeDefined();
+    expect((await run(page(`<dialog open={loading} label="Sure?" on.dismiss={select(1)}><text>Sure?</text></dialog>`))).program).toBeUndefined();
+  });
+});
+
 describe("what is derived", () => {
   it("tags from the primitives table (props by realization, events with their declared payload kind), scope from the Schema, commands from the command table", () => {
     const c = derived.components;

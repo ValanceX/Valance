@@ -22,7 +22,7 @@ There is no component for it. The window's title comes from the application (a f
 
 ## Naming rules
 
-One word per thing, lower case. Two events: **click** (a button) and **change** (the value of a checkbox or a text field changed; it carries the new value). If a word you expected is missing (an image, a link, a divider), it is not built yet; the [investigation](../application-model/NATIVE-VOCABULARY.md#tiers) says what is planned and why.
+One word per thing, lower case. Events are few: **click** (a button), **dismiss** (a dialog or popover: the person asked to close it) and **change** (the value of a checkbox or a text field changed; it carries the new value). If a word you expected is missing (an image, a link, a divider), it is not built yet; the [investigation](../application-model/NATIVE-VOCABULARY.md#tiers) says what is planned and why.
 
 ## Where the web is different
 
