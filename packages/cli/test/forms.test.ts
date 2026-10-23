@@ -35,9 +35,9 @@ export default defineApp({
 });
 `;
 const LAYOUT = `<shell class="x" theme="light">
-{#each form.fields as f (f.name)}
+{#each form.fields as f (f.name)}<column>
 {#if f.kind == "boolean"}<checkbox label={f.title} checked={f.checked} invalid={f.invalid} describedby={f.errorId} on.change={check(f.name, $event)} />{:else}<textfield label={f.title} value={f.value} kind={f.input} invalid={f.invalid} describedby={f.errorId} on.change={edit(f.name, $event)} on.blur={blur(f.name)} />{/if}
-<text id={f.errorId}>{f.error}</text>
+<text id={f.errorId}>{f.error}</text></column>
 {/each}
 <button on.click={submit()}>Sign up</button>{#if done}<status>Welcome, signed up</status>{/if}
 </shell>
@@ -150,8 +150,7 @@ describe.runIf(browserAvailable)("used in a browser", () => {
 
         // A submit that fails touches every field and says how many need attention.
         await age.fill("7.5");
-        await age.blur();
-        await page.waitForSelector('input[aria-label="Age"][aria-invalid="true"]');
+        // No pause: the message has its room (F24), so what is below it does not move when the message comes or goes, and the click lands.
         await page.click('button:text-is("Sign up")');
         await page.waitForFunction(() => document.querySelectorAll('[aria-invalid="true"]').length === 2);
         expect(await page.locator("#age-error").textContent()).toBe("Enter a whole number from 18 to 120");
@@ -171,9 +170,6 @@ describe.runIf(browserAvailable)("used in a browser", () => {
 
         // A correct form submits.
         await age.fill("36");
-        await age.blur();
-        // (An error that appears or goes when a field is left moves what is below it: a click made in the same moment lands on what moved. The test waits for the page to settle, as a person's pause would.)
-        await page.waitForSelector('input[aria-label="Age"][aria-invalid="false"]');
         await page.getByLabel("I accept the terms").click();
         await page.waitForFunction(() => (document.querySelector('input[type="checkbox"]') as HTMLInputElement).checked);
         await page.click('button:text-is("Sign up")');

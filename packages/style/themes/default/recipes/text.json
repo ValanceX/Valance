@@ -6,6 +6,7 @@
   },
   "base": {
     "text": "color.text",
-    "type": "type.body"
+    "type": "type.body",
+    "min-size": "size.line"
   }
 }

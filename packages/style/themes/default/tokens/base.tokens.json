@@ -91,6 +91,13 @@
         "unit": "rem"
       },
       "$description": "The least height of a control on a compact screen, where a finger is the pointer."
+    },
+    "line": {
+      "$value": {
+        "value": 1.5,
+        "unit": "rem"
+      },
+      "$description": "The height of one line of body text (its line height): the room a message that comes and goes keeps, so what is below it does not move."
     }
   },
   "type": {

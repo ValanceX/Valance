@@ -20,15 +20,15 @@ export default defineApp({
 
 ```html
 <shell class="x" theme="light">
-{#each form.fields as f (f.name)}
+{#each form.fields as f (f.name)}<column>
 {#if f.kind == "boolean"}<checkbox label={f.title} checked={f.checked} invalid={f.invalid} describedby={f.errorId} on.change={check(f.name, $event)} />{:else}<textfield label={f.title} value={f.value} kind={f.input} invalid={f.invalid} describedby={f.errorId} on.change={edit(f.name, $event)} on.blur={blur(f.name)} />{/if}
-<text id={f.errorId}>{f.error}</text>
+<text id={f.errorId}>{f.error}</text></column>
 {/each}
 <button on.click={submit()}>Sign up</button>{#if done}<status>Welcome, signed up</status>{/if}
 </shell>
 ```
 
-That is the whole form: 22 lines of schema, wiring and template, and no validation outside the schema (`packages/cli/test/forms.test.ts` builds it, uses it in a browser, and checks the HTML it draws with the Nu Html Checker and what a screen reader says with the Accessible Name and Description Computation).
+That is the whole form: 24 lines of schema, wiring and template, and no validation outside the schema (`packages/cli/test/forms.test.ts` builds it, uses it in a browser, and checks the HTML it draws with the Nu Html Checker and what a screen reader says with the Accessible Name and Description Computation).
 
 Tier 1 is `Form.make(schema)`. Tier 2: `initial` (the text each field starts with), `message` (your words, or a translation, for a field with no `message` annotation, told `{ path, code, params, actual }`), and a server's `FieldErrors`.
 
