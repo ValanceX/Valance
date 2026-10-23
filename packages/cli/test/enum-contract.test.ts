@@ -23,18 +23,15 @@ describe("the model a contract makes", () => {
   it("writes a string-literal union as an enum, keeps a prop that admits undefined optional, and gives a default only to a `field`", async () => {
     const { Schema } = await import("effect");
     const { field } = await import("@valancex/common");
-    const { entry, problems } = entryOf(
-      {
-        props: {
-          tone: field(Schema.Literal("info", "danger"), "info"),
-          shade: Schema.UndefinedOr(Schema.Literal("light", "dark")),
-          title: Schema.String,
-          size: field(Schema.UndefinedOr(Schema.Number), 3),
-        },
-        events: {},
+    const { entry, problems } = entryOf({
+      props: {
+        tone: field(Schema.Literal("info", "danger"), "info"),
+        shade: Schema.UndefinedOr(Schema.Literal("light", "dark")),
+        title: Schema.String,
+        size: field(Schema.UndefinedOr(Schema.Number), 3),
       },
-      true,
-    );
+      events: {},
+    });
 
     expect(problems).toEqual([]);
     expect(entry.props).toEqual({

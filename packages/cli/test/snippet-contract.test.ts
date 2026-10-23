@@ -107,7 +107,7 @@ describe("the use site is checked (vlx check)", () => {
   it("reports `children` written both as an attribute and as content between the tags", async () => {
     const layout = '<panel title="T" children={count}>x</panel>';
 
-    expect((await codes(FILES(layout))).sort()).toContain("src/layout.mprx:1 children-conflict");
+    expect([...(await codes(FILES(layout)))].sort()).toContain("src/layout.mprx:1 children-conflict");
   });
 });
 

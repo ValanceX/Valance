@@ -50,7 +50,7 @@ describe("the model a unit makes", () => {
       controllable: ["at"],
       commands: {
         toggle: (state) => ({ open: !state.open }),
-        select: unitCommand({ params: { n: Schema.Number }, run: (_state, { n }) => ({ at: n }), raises: { change: (next) => next.at } }),
+        select: unitCommand({ params: { n: Schema.Number }, run: (_state: any, { n }: { n: number }) => ({ at: n }), raises: { change: (next: any) => next.at } }) as never,
       },
     });
     const { entry, problems } = entryOf({ props: { at: Schema.UndefinedOr(Schema.Number) }, events: { change: Schema.Number }, unit: declared });
