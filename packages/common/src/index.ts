@@ -365,3 +365,7 @@ export interface DefinedApp extends AppDefinition<any> {
 export const derivedOf = (author: { readonly derived?: AppDefinition<any>["derived"] } | undefined): Readonly<Record<string, Derived<any>>> => author?.derived?.(derive) ?? {};
 
 export const defineApp = <S extends StateInput = {}>(definition: AppDefinition<S>): DefinedApp => ({ ...definition, [APP]: true }) as unknown as DefinedApp;
+
+// ---- forms ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+export * as Form from "./form.js";
