@@ -67,12 +67,16 @@
     "vite": "7.3.6"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^22.0.0",
     "@types/react": "19.2.18",
     "@valancex/mesh-runtime": "^0.14.0",
+    "dom-accessibility-api": "^0.7.0",
     "ink-testing-library": "4.0.0",
+    "jsdom": "^26.0.0",
     "playwright": "1.56.1",
     "typescript": "^5.6.0",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "vnu-jar": "^26.10.12"
   }
 }

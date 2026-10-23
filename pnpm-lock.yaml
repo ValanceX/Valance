@@ -242,6 +242,9 @@ importers:
         specifier: 7.3.6
         version: 7.3.6(@types/node@22.20.5)
     devDependencies:
+      '@types/jsdom':
+        specifier: ^21.1.7
+        version: 21.1.7
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -251,9 +254,15 @@ importers:
       '@valancex/mesh-runtime':
         specifier: ^0.14.0
         version: 0.14.0
+      dom-accessibility-api:
+        specifier: ^0.7.0
+        version: 0.7.1
       ink-testing-library:
         specifier: 4.0.0
         version: 4.0.0(@types/react@19.2.18)
+      jsdom:
+        specifier: ^26.0.0
+        version: 26.1.0
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -263,6 +272,9 @@ importers:
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.5)(@vitest/browser@3.2.7)(jsdom@26.1.0)
+      vnu-jar:
+        specifier: ^26.10.12
+        version: 26.10.12
 
   packages/common:
     dependencies:

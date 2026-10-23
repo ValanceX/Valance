@@ -57,12 +57,14 @@ export interface State {
   readonly remote: Readonly<Record<string, string>>;
 }
 
-export const StateSchema: Schema.Schema<State> = Schema.Struct({
-  values: Schema.Record({ key: Schema.String, value: Schema.Union(Schema.String, Schema.Boolean) }),
-  touched: Schema.Record({ key: Schema.String, value: Schema.Literal(true) }),
-  attempted: Schema.Boolean,
-  remote: Schema.Record({ key: Schema.String, value: Schema.String }),
-}) as unknown as Schema.Schema<State>;
+/** The schema of a form's state: a struct with a named entry for each field (the model has no type for a record with free keys), so it can be a field of the application's state and be read in a template. */
+const stateSchemaOf = (fields: ReadonlyArray<Descriptor>): Schema.Schema<State> =>
+  Schema.Struct({
+    values: Schema.Struct(Object.fromEntries(fields.map((each) => [each.name, each.kind === "boolean" ? Schema.Boolean : Schema.String]))),
+    touched: Schema.Struct(Object.fromEntries(fields.map((each) => [each.name, Schema.optional(Schema.Literal(true))]))),
+    attempted: Schema.Boolean,
+    remote: Schema.Struct(Object.fromEntries(fields.map((each) => [each.name, Schema.optional(Schema.String)]))),
+  }) as unknown as Schema.Schema<State>;
 
 /** What a template reads about one field. */
 export interface FieldView {
@@ -79,7 +81,7 @@ export interface FieldView {
   readonly invalid: boolean;
   /** The message to show, empty when none is shown. */
   readonly error: string;
-  /** The address of the element that shows the message: what the control's `describedby` names. Empty when no message is shown. */
+  /** The address of the element that shows the message, always drawn (empty when there is no message): what the control's `describedby` names. */
   readonly errorId: string;
   readonly touched: boolean;
   readonly dirty: boolean;
@@ -212,13 +214,15 @@ export interface Where<S, A> {
 /** The part of `Valance.CommandMaker` the form uses, so this file imports no more of Valance than that. */
 export interface CommandMaker<S> {
   <I>(input: Schema.Schema<I, any, never>, transition: (input: I, current: S) => S): unknown;
+  (transition: (current: S) => S): unknown;
 }
 
 // ---- describing a schema ----------------------------------------------------------------------------------------------------------------------------------------
 
 const SCHEMA_ID = AST.SchemaIdAnnotationId;
 /** The titles Effect gives a refinement or a keyword by itself: `minLength(2)`, `int`, `string`. An author's title is anything else. */
-const generated = (title: string): boolean => /^\w+\(.*\)$/.test(title) || ["string", "number", "boolean", "int", "nonEmpty", "trimmed", "lowercased", "uppercased", "finite", "nonNaN"].includes(title);
+const generated = (title: string): boolean =>
+  /^\w+\(.*\)$/.test(title) || ["string", "number", "boolean", "int", "nonEmpty", "trimmed", "lowercased", "uppercased", "finite", "nonNaN"].includes(title);
 
 const titleOf = (node: AST.AST | AST.PropertySignature): string | undefined => {
   const given = node.annotations[AST.TitleAnnotationId];
@@ -237,7 +241,11 @@ const unwrapOptional = (ast: AST.AST): AST.AST => {
 };
 
 /** The encoded base of a type (what is typed) and its decoded base, the refinements met on the way down, and the titles. */
-const baseOf = (given: AST.AST, side: "encoded" | "decoded", refinements: Array<AST.Refinement> = []): { readonly base: AST.AST; readonly refinements: ReadonlyArray<AST.Refinement> } => {
+const baseOf = (
+  given: AST.AST,
+  side: "encoded" | "decoded",
+  refinements: Array<AST.Refinement> = [],
+): { readonly base: AST.AST; readonly refinements: ReadonlyArray<AST.Refinement> } => {
   const ast = unwrapOptional(given);
 
   if (ast._tag === "Refinement") {
@@ -265,7 +273,7 @@ const literalsOf = (ast: AST.AST): ReadonlyArray<string | number | boolean> | un
   if (ast._tag === "Union") {
     const each = ast.types.map(literalsOf);
 
-    return each.every((one) => one !== undefined) ? each.flat() as ReadonlyArray<string | number | boolean> : undefined;
+    return each.every((one) => one !== undefined) ? (each.flat() as ReadonlyArray<string | number | boolean>) : undefined;
   }
 
   return undefined;
@@ -283,7 +291,10 @@ const describeField = (path: ReadonlyArray<string>, ps: AST.PropertySignature): 
   }
 
   const optional = ps.isOptional || (ps.type._tag === "Union" && ps.type.types.some((each) => each._tag === "UndefinedKeyword"));
-  const constraints = Object.assign({}, ...chain.map((each) => (each.annotations[AST.JSONSchemaAnnotationId] as Record<string, unknown> | undefined) ?? {})) as Record<string, unknown>;
+  const constraints = Object.assign({}, ...chain.map((each) => (each.annotations[AST.JSONSchemaAnnotationId] as Record<string, unknown> | undefined) ?? {})) as Record<
+    string,
+    unknown
+  >;
   const hasMessage = chain.some((each) => each.annotations[AST.MessageAnnotationId] !== undefined) || ps.type.annotations[AST.MessageAnnotationId] !== undefined;
   const typed = encoded.base;
   const literals = literalsOf(typed);
@@ -304,7 +315,9 @@ const describeField = (path: ReadonlyArray<string>, ps: AST.PropertySignature): 
     kind = "choice";
     choices = literals as ReadonlyArray<string>;
   } else if (typed._tag === "TypeLiteral" || typed._tag === "TupleType") {
-    throw new FormError(`Form: the field "${name}" is ${typed._tag === "TupleType" ? "a list" : "a record"} where a value is needed (lists of fields are not supported yet; flat and nested records are)`);
+    throw new FormError(
+      `Form: the field "${name}" is ${typed._tag === "TupleType" ? "a list" : "a record"} where a value is needed (lists of fields are not supported yet; flat and nested records are)`,
+    );
   } else {
     throw new FormError(`Form: the field "${name}" has a type a form cannot draw (${typed._tag}): text, a number typed as text, a boolean, a closed set of strings, or a secret`);
   }
@@ -451,7 +464,13 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
   const fields = describe(schema.ast);
   const byName = new Map(fields.map((each) => [each.name, each] as const));
   const fieldMessages = fieldMessagesOf(schema.ast);
-  const warnings = fields.filter((each) => !each.hasMessage && Object.keys(each.constraints).length > 0).map((each) => `${each.name}: its constraints (${Object.keys(each.constraints).join(", ")}) have no message of their own: add \`message\` to the schema, or a \`message\` function to the form's options`);
+  const warnings = fields
+    .filter((each) => !each.hasMessage && Object.keys(each.constraints).length > 0)
+    .map(
+      (each) =>
+        `${each.name}: its constraints (${Object.keys(each.constraints).join(", ")}) have no message of their own: add \`message\` to the schema, or a \`message\` function to the form's options`,
+    );
+  const stateSchema = stateSchemaOf(fields);
   const given = (options.initial ?? {}) as Record<string, unknown>;
   const valueOf = (descriptor: Descriptor): string | boolean => {
     const at = descriptor.path.reduce<unknown>((value, step) => (typeof value === "object" && value !== null ? (value as Record<string, unknown>)[step] : undefined), given);
@@ -510,7 +529,8 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
         (spoken && "message" in issue && (typeof issue.message === "string" || (Option.isOption(issue.message) && Option.isSome(issue.message))));
       const ofField = fieldMessages.get(name);
       const said = own || ofField === undefined || issue._tag === "Missing" ? undefined : ofField(issue);
-      const fromField = typeof said === "string" ? said : typeof said === "object" && said !== null && "message" in said ? String((said as { readonly message: unknown }).message) : undefined;
+      const fromField =
+        typeof said === "string" ? said : typeof said === "object" && said !== null && "message" in said ? String((said as { readonly message: unknown }).message) : undefined;
       // The author's message on the check, else on the field (it speaks for every check of the field), else "Required", the application's words, the schema's own words.
       const message =
         (own ? ParseResult.TreeFormatter.formatIssueSync(issue) : undefined) ??
@@ -549,7 +569,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
         checked: value === true,
         invalid: error !== "",
         error,
-        errorId: error === "" ? "" : `${each.name.replace(/\./g, "-")}-error`,
+        errorId: `${each.name.replace(/\./g, "-")}-error`,
         touched: state.touched[each.name] === true,
         dirty: value !== initial.values[each.name],
       };
@@ -572,7 +592,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
     initial,
     standard: Schema.standardSchemaV1(schema as Schema.Schema<A, I, never>),
     warnings,
-    field: () => ({ [FIELD]: true, schema: StateSchema as Schema.Schema<State, any, never>, initial }) as unknown as Field<State>,
+    field: () => ({ [FIELD]: true, schema: stateSchema as Schema.Schema<State, any, never>, initial }) as unknown as Field<State>,
     view,
     edit: (state, name, value) => {
       known(name);
@@ -600,16 +620,30 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
         known(name);
       }
 
-      return { ...state, attempted: true, touched: { ...state.touched, ...Object.fromEntries(Object.keys(errors).map((name) => [name, true as const])) }, remote: { ...state.remote, ...errors } };
+      return {
+        ...state,
+        attempted: true,
+        touched: { ...state.touched, ...Object.fromEntries(Object.keys(errors).map((name) => [name, true as const])) },
+        remote: { ...state.remote, ...errors },
+      };
     },
     draft: (state) => ({ version, values: Object.fromEntries(fields.filter((each) => !each.redacted).map((each) => [each.name, state.values[each.name]!])) }),
-    restore: (draft) => (draft.version !== version ? initial : { ...initial, values: { ...initial.values, ...Object.fromEntries(Object.entries(draft.values).filter(([name]) => byName.has(name) && !byName.get(name)!.redacted)) } }),
+    restore: (draft) =>
+      draft.version !== version
+        ? initial
+        : { ...initial, values: { ...initial.values, ...Object.fromEntries(Object.entries(draft.values).filter(([name]) => byName.has(name) && !byName.get(name)!.redacted)) } },
     commands: (command, how) =>
       ({
-        edit: command(Schema.Struct({ name: Schema.String, value: Schema.String }), ({ name, value }, current) => how.set(current as never, form.edit(how.get(current as never), name, value)) as never),
-        check: command(Schema.Struct({ name: Schema.String, value: Schema.Boolean }), ({ name, value }, current) => how.set(current as never, form.check(how.get(current as never), name, value)) as never),
+        edit: command(
+          Schema.Struct({ name: Schema.String, value: Schema.String }),
+          ({ name, value }, current) => how.set(current as never, form.edit(how.get(current as never), name, value)) as never,
+        ),
+        check: command(
+          Schema.Struct({ name: Schema.String, value: Schema.Boolean }),
+          ({ name, value }, current) => how.set(current as never, form.check(how.get(current as never), name, value)) as never,
+        ),
         blur: command(Schema.Struct({ name: Schema.String }), ({ name }, current) => how.set(current as never, form.blur(how.get(current as never), name)) as never),
-        submit: command(Schema.Struct({}), (_input, current) => {
+        submit: command((current: unknown) => {
           const result = form.submit(how.get(current as never));
           const next = how.set(current as never, result.state);
 
