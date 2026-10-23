@@ -72,6 +72,7 @@ export const webTable = (realizations: WebRealizations, web: WebHelpers): WebPri
           : {
               props: Object.fromEntries(Object.entries(each.props).map(([name, realization]) => [name, propOf(web, realization)])),
             }),
+        ...(each.group === undefined ? {} : { group: each.group }),
         ...(each.events === undefined
           ? {}
           : {

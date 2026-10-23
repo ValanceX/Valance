@@ -538,6 +538,10 @@
             "of": "value"
           }
         }
+      },
+      "group": {
+        "within": "radiogroup",
+        "attribute": "name"
       }
     },
     "status": {

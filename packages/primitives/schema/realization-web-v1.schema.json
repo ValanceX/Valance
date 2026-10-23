@@ -48,6 +48,24 @@
               "type": "string"
             }
           },
+          "group": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "within",
+              "attribute"
+            ],
+            "properties": {
+              "within": {
+                "type": "string",
+                "minLength": 1
+              },
+              "attribute": {
+                "type": "string",
+                "pattern": "^[a-z_:][a-z0-9_.:-]*$"
+              }
+            }
+          },
           "props": {
             "type": "object",
             "additionalProperties": {

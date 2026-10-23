@@ -65,6 +65,10 @@ export const generatePrimitives = (specifications: Readonly<Record<string, Speci
       );
     }
 
+    if (each.group !== undefined) {
+      parts.push(`group: ${JSON.stringify(each.group)}`);
+    }
+
     tags.push(`  ${key(tag)}: { ${parts.join(", ")} },`);
 
     const entry = manifestEntry(specifications, tag, each);

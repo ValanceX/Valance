@@ -3,6 +3,7 @@
 //
 // A difference from the specification is a test of its own that says so and asserts it, so it fails when the difference goes away.
 import { createWebPort } from "@valancex/port-web";
+import portPackage from "@valancex/port-web/package.json";
 import * as Web from "@valancex/valance/web";
 import { userEvent } from "@vitest/browser/context";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -19,6 +20,13 @@ const table = webTable(realizations, Web as never);
 
 /** The tag a primitive is written as on the web. */
 const tagOf = (primitive: string): string => Object.entries(realizations.primitives).find(([, each]) => each.primitive === primitive)![0];
+
+/** Whether the installed Web PORT gives a group's radios one name (0.11): the cases that show it need it, and the known differences of the PORT before it run without it. */
+const grouped = (() => {
+  const [major = 0, minor = 0] = (portPackage as { version: string }).version.split(".").map(Number);
+
+  return major > 0 || minor >= 11;
+})();
 
 let container: HTMLElement;
 let reports: Array<[string, unknown]>;
@@ -154,11 +162,10 @@ describe("the keys of a radio group", () => {
     expect(reports).toEqual([["radio.select", "m"]]);
   });
 
-  // KNOWN DIFFERENCES, not passes. HTML makes radios one group by a shared non-empty name (the HTML Standard, "radio button group"), and the web's radios have no name, so to the browser each is a group of
-  // one: (1) Tab visits every radio in turn instead of the group once (the pattern: Tab enters at the selected radio and the next Tab leaves the group), and (2) choosing one leaves the previously
-  // selected radio checked in the DOM until the application renders what `select` brought. Giving a group's radios one name needs a PORT Web feature (WP6: the name must be the group's, and not shared
-  // by two mounts in one document). The arrows themselves work for radios without a name in Chromium (the test above), which the HTML Standard does not promise. When these stop being true they fail.
-  it("Tab visits each radio in turn: the radios are not one group to the browser (known difference)", async () => {
+  // KNOWN DIFFERENCES of a PORT Web before 0.11, run only with it, and failing when they stop being true: HTML makes radios one group by a shared non-empty name (the HTML Standard, "radio button group"),
+  // and those radios have no name, so to the browser each is a group of one: (1) Tab visits every radio in turn instead of the group once, and (2) choosing one leaves the previously selected radio
+  // checked in the DOM until the application renders what `select` brought. The arrows themselves work for radios without a name in Chromium (the test above), which the HTML Standard does not promise.
+  it.skipIf(grouped)("Tab visits each radio in turn: the radios are not one group to the browser (known difference of PORT Web before 0.11)", async () => {
     draw("radiogroup");
     await userEvent.tab();
     await userEvent.tab();
@@ -166,11 +173,29 @@ describe("the keys of a radio group", () => {
     expect(container.querySelector("input")!.hasAttribute("name")).toBe(false);
   });
 
-  it("a selected radio stays checked until the application renders (known difference)", async () => {
+  it.skipIf(grouped)("a selected radio stays checked until the application renders (known difference of PORT Web before 0.11)", async () => {
     draw("radiogroup");
     await userEvent.tab();
     await userEvent.keyboard("{ArrowDown}");
     expect([...container.querySelectorAll("input")].map((each) => each.checked)).toEqual([true, true, false]);
+  });
+
+  // HTML makes radios one group by a shared non-empty name (the HTML Standard, "radio button group"); the PORT gives a radiogroup's radios the group's name (WebPrimitive.group), so the browser's own
+  // behavior is the pattern's: Tab enters the group once, at the selected radio, and the next Tab leaves it; and choosing one unchecks the previous one at once.
+  it.skipIf(!grouped)("Tab enters the group once and the next Tab leaves it: the radios are one group to the browser (needs @valancex/port-web 0.11)", async () => {
+    draw("radiogroup");
+    await userEvent.tab();
+    expect(focused()).toBe("input[s]");
+    await userEvent.tab();
+    expect(focused()).not.toMatch(/^input/);
+    expect(container.querySelector("input")!.getAttribute("name")).toBe(container.querySelectorAll("input")[2]!.getAttribute("name"));
+  });
+
+  it.skipIf(!grouped)("choosing a radio unchecks the one that was selected, at once (needs @valancex/port-web 0.11)", async () => {
+    draw("radiogroup");
+    await userEvent.tab();
+    await userEvent.keyboard("{ArrowDown}");
+    expect([...container.querySelectorAll("input")].map((each) => each.checked)).toEqual([false, true, false]);
   });
 });
 
