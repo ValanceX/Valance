@@ -229,7 +229,7 @@ describe("one list, whose element is chosen by a prop", () => {
     const container = dom.window.document.getElementById("root")!;
     const port = createWebPort({ container, primitives: table, report: () => {} });
 
-    port.draw(treeOf(realizations, "list", { props: ordered === undefined ? {} : { ordered }, children: items }));
+    port.draw(treeOf(realizations, "list", { props: ordered === undefined ? {} : { ordered }, ...(items === undefined ? {} : { children: items }) }));
 
     return container.firstElementChild!.localName;
   };
