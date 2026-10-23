@@ -326,11 +326,7 @@ export const applyHead = (document: Document, head: HeadTags): void => {
   const says = (element: Element, tag: string, attributes: Readonly<Record<string, string | undefined>>): boolean => {
     const given = Object.entries(attributes).filter((entry): entry is [string, string] => entry[1] !== undefined);
 
-    return (
-      element.localName === tag &&
-      element.attributes.length === given.length + 1 &&
-      given.every(([name, value]) => element.getAttribute(name) === value)
-    );
+    return element.localName === tag && element.attributes.length === given.length + 1 && given.every(([name, value]) => element.getAttribute(name) === value);
   };
 
   const kept = new Set<number>();

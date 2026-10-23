@@ -12,7 +12,7 @@
 import { Either, Option, ParseResult, Schema, SchemaAST as AST } from "effect";
 
 import type { Derived, DeriveMaker, Field } from "./index.js";
-import { FIELD } from "./index.js";
+import { FIELD, FORM } from "./index.js";
 
 /** A mistake in the schema a form is made from, said at the declaration and naming the field. */
 export class FormError extends Error {
@@ -51,8 +51,8 @@ export interface State {
   readonly values: Readonly<Record<string, string | boolean>>;
   /** The fields the person has left. */
   readonly touched: Readonly<Record<string, true>>;
-  /** Whether a submit has been tried. */
-  readonly attempted: boolean;
+  /** How many times a submit has been tried, or a server has answered one with messages: the count a host watches to take the person to the first field in error (`ApplicationDefinition.focusFirstInvalid`). */
+  readonly attempts: number;
   /** The messages a server gave, by field name; a field's is gone when it is edited. */
   readonly remote: Readonly<Record<string, string>>;
 }
@@ -62,7 +62,7 @@ const stateSchemaOf = (fields: ReadonlyArray<Descriptor>): Schema.Schema<State> 
   Schema.Struct({
     values: Schema.Struct(Object.fromEntries(fields.map((each) => [each.name, each.kind === "boolean" ? Schema.Boolean : Schema.String]))),
     touched: Schema.Struct(Object.fromEntries(fields.map((each) => [each.name, Schema.optional(Schema.Literal(true))]))),
-    attempted: Schema.Boolean,
+    attempts: Schema.Number,
     remote: Schema.Struct(Object.fromEntries(fields.map((each) => [each.name, Schema.optional(Schema.String)]))),
   }) as unknown as Schema.Schema<State>;
 
@@ -480,7 +480,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
 
     return typeof at === "boolean" ? at : at === undefined ? (descriptor.kind === "boolean" ? false : "") : String(at);
   };
-  const initial: State = { values: Object.fromEntries(fields.map((each) => [each.name, valueOf(each)])), touched: {}, attempted: false, remote: {} };
+  const initial: State = { values: Object.fromEntries(fields.map((each) => [each.name, valueOf(each)])), touched: {}, attempts: 0, remote: {} };
   const version = hash(fields.map((each) => `${each.name}:${each.kind}`).join("|"));
   const known = (name: string): Descriptor => {
     const found = byName.get(name);
@@ -548,7 +548,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
     return { errors };
   };
 
-  const touchedAll = (state: State): State => ({ ...state, attempted: true, touched: Object.fromEntries(fields.map((each) => [each.name, true as const])) });
+  const touchedAll = (state: State): State => ({ ...state, attempts: state.attempts + 1, touched: Object.fromEntries(fields.map((each) => [each.name, true as const])) });
 
   const view = ((state: State | DeriveMaker<any>, from?: (state: any) => State): View | Derived<View> => {
     if (typeof state === "function") {
@@ -556,7 +556,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
     }
 
     const found = problems(state).errors;
-    const shown = (name: string): string => state.remote[name] ?? (state.touched[name] === true || state.attempted ? (found.get(name) ?? "") : "");
+    const shown = (name: string): string => state.remote[name] ?? (state.touched[name] === true || state.attempts > 0 ? (found.get(name) ?? "") : "");
     const views = fields.map((each): FieldView => {
       const value = state.values[each.name];
       const error = shown(each.name);
@@ -582,9 +582,9 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
     return {
       fields: views,
       valid: found.size === 0 && Object.keys(state.remote).length === 0,
-      message: state.attempted && count > 0 ? `${count} ${count === 1 ? "field needs" : "fields need"} attention` : "",
+      message: state.attempts > 0 && count > 0 ? `${count} ${count === 1 ? "field needs" : "fields need"} attention` : "",
       first: views.find((each) => each.invalid)?.name ?? "",
-      submitted: state.attempted,
+      submitted: state.attempts > 0,
     };
   }) as Form<A, I>["view"];
 
@@ -595,7 +595,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
     initial,
     standard: Schema.standardSchemaV1(schema as Schema.Schema<A, I, never>),
     warnings,
-    field: () => ({ [FIELD]: true, schema: stateSchema as Schema.Schema<State, any, never>, initial }) as unknown as Field<State>,
+    field: () => ({ [FIELD]: true, [FORM]: true, schema: stateSchema as Schema.Schema<State, any, never>, initial }) as unknown as Field<State>,
     view,
     edit: (state, name, value) => {
       known(name);
@@ -625,7 +625,7 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
 
       return {
         ...state,
-        attempted: true,
+        attempts: state.attempts + 1,
         touched: { ...state.touched, ...Object.fromEntries(Object.keys(errors).map((name) => [name, true as const])) },
         remote: { ...state.remote, ...errors },
       };

@@ -28,6 +28,8 @@ export interface Viewed {
    * one of the same view (a stream's later elements), absent when it was rendered afresh (the first, or another view's).
    */
   readonly patches?: Nexus.Mesh.RenderPatches;
+  /** The application's `focusFirstInvalid` count for the state this render shows. Absent when the application has none. */
+  readonly attention?: number;
 }
 
 export interface Running<S, E> {

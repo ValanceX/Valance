@@ -2,14 +2,14 @@
 // judged by the official checkers (the Nu Html Checker for conformance; the Accessible Name and Description Computation for what a screen reader says about each field).
 import { spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { extname, join, normalize, sep } from "node:path";
 import { computeAccessibleDescription, computeAccessibleName } from "dom-accessibility-api";
 import { JSDOM } from "jsdom";
-import { chromium } from "playwright";
+import { chromium, type Page } from "playwright";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { build } from "../src/build.js";
@@ -92,48 +92,65 @@ const browserAvailable = await chromium
   })
   .catch(() => false);
 
+/** Builds the project, serves `dist/web`, and runs `run` against a page that has loaded and is running. */
+const inBrowser = async (files: Record<string, string>, run: (page: Page, errors: Array<string>) => Promise<void>): Promise<void> => {
+  const root = project(files);
+
+  await build(root);
+
+  const dist = normalize(join(root, "dist/web"));
+  const server = createServer((request, response) => {
+    void (async () => {
+      const url = new URL(request.url ?? "/", "http://x").pathname;
+      const path = normalize(join(dist, url.endsWith("/") ? `${url}index.html` : url));
+
+      if (!path.startsWith(dist + sep)) {
+        response.writeHead(403).end();
+        return;
+      }
+
+      try {
+        response.writeHead(200, { "content-type": TYPES[extname(path)] ?? "application/octet-stream" }).end(await readFile(path));
+      } catch {
+        response.writeHead(404).end();
+      }
+    })();
+  });
+
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+
+  const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const browser = await chromium.launch();
+
+  try {
+    const page = await browser.newPage();
+    const errors: Array<string> = [];
+
+    page.on("pageerror", (error) => void errors.push(error.message));
+    await page.goto(`${origin}/`);
+    await page.waitForSelector('#app[data-valance="running"], #app[data-valance="failed"]');
+    expect(await page.getAttribute("#app", "data-valance")).toBe("running");
+    await run(page, errors);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+};
+
+/** Whether the installed Web PORT moves focus on request (0.11): the end-to-end focus case needs it, and says so when it is not there. */
+const portFocuses = (() => {
+  const { version } = JSON.parse(readFileSync(join(createRequire(import.meta.url).resolve("@valancex/port-web/package.json")), "utf8")) as { version: string };
+  const [major = 0, minor = 0] = version.split(".").map(Number);
+
+  return major > 0 || minor >= 11;
+})();
+
 describe.runIf(browserAvailable)("used in a browser", () => {
   it(
     "shows an error after the person leaves a field, not at the first keystroke; a failed submit says how many fields need attention; the HTML drawn is conforming and each field has its name and its message for a screen reader",
     { timeout: 240_000 },
     async () => {
-      const root = project(FILES);
-
-      await build(root);
-
-      const dist = normalize(join(root, "dist/web"));
-      const server = createServer((request, response) => {
-        void (async () => {
-          const url = new URL(request.url ?? "/", "http://x").pathname;
-          const path = normalize(join(dist, url.endsWith("/") ? `${url}index.html` : url));
-
-          if (!path.startsWith(dist + sep)) {
-            response.writeHead(403).end();
-            return;
-          }
-
-          try {
-            response.writeHead(200, { "content-type": TYPES[extname(path)] ?? "application/octet-stream" }).end(await readFile(path));
-          } catch {
-            response.writeHead(404).end();
-          }
-        })();
-      });
-
-      await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-
-      const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-      const browser = await chromium.launch();
-
-      try {
-        const page = await browser.newPage();
-        const errors: Array<string> = [];
-
-        page.on("pageerror", (error) => void errors.push(error.message));
-        await page.goto(`${origin}/`);
-        await page.waitForSelector('#app[data-valance="running"], #app[data-valance="failed"]');
-        expect(await page.getAttribute("#app", "data-valance")).toBe("running");
-
+      await inBrowser(FILES, async (page, errors) => {
         const name = page.getByLabel("Name");
         const age = page.getByLabel("Age");
 
@@ -175,10 +192,29 @@ describe.runIf(browserAvailable)("used in a browser", () => {
         await page.click('button:text-is("Sign up")');
         await page.waitForSelector("text=Welcome, signed up");
         expect(errors).toEqual([]);
-      } finally {
-        await browser.close();
-        server.close();
-      }
+      });
+    },
+  );
+
+  it.skipIf(!portFocuses)(
+    "a failed submit takes the person to the first field in error, and a second failed submit does it again (needs @valancex/port-web 0.11)",
+    { timeout: 240_000 },
+    async () => {
+      await inBrowser(FILES, async (page) => {
+        const active = () => page.evaluate(() => (document.activeElement as HTMLInputElement | null)?.getAttribute("aria-label") ?? document.activeElement?.localName ?? "");
+
+        await page.getByLabel("Name").fill("Ada");
+        await page.getByLabel("Name").blur();
+        await page.click('button:text-is("Sign up")');
+        await page.waitForFunction(() => document.querySelectorAll('[aria-invalid="true"]').length === 2);
+        // The name is right; the first field in error is the age.
+        await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Age");
+        // The person goes elsewhere; the same submit fails again and the age is asked for again.
+        await page.getByLabel("I accept the terms").focus();
+        await page.click('button:text-is("Sign up")');
+        await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Age");
+        expect(await active()).toBe("Age");
+      });
     },
   );
 

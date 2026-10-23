@@ -234,7 +234,7 @@ describe("the commands (what a template runs)", () => {
     expect(blurred.signup.touched).toEqual({ accept: true, name: true });
     expect(blurred.done).toBe(false);
     expect(commands["submit"]!.run(blurred).done).toBe(false);
-    expect(commands["submit"]!.run(blurred).signup.attempted).toBe(true);
+    expect(commands["submit"]!.run(blurred).signup.attempts).toBe(1);
     expect(commands["submit"]!.run(commands["edit"]!.run(commands["edit"]!.run(blurred, { name: "age", value: "36" }), { name: "plan", value: "pro" })).done).toBe(true);
   });
 

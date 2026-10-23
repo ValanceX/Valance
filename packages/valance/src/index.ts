@@ -99,6 +99,13 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
    * Without `units`, nothing about them is done.
    */
   readonly units?: Readonly<Record<string, Unit>>;
+  /**
+   * Takes the person to the first field in error each time a count of the application's rises (Tier 2): a count, not a flag, so that a second failed submit, which changes no
+   * message, still counts. A form keeps one (`attempts`), and `focusFirstInvalid: (state) => state.signup.attempts` is the whole of it. After the render that shows the rise
+   * is applied, the target is asked to focus the first node in the tree that says it is `invalid` (a request to the platform, not a command, and not state); nothing is done
+   * when no node is, or when the target cannot focus. The count at the first render is the baseline: a page that opens with attempts already made does not move focus.
+   */
+  readonly focusFirstInvalid?: (state: S) => number;
 }
 
 /** The failures a table can raise: the union over every command (and binding) in it, exactly. */
@@ -496,6 +503,8 @@ export const start = <S, E, R extends Ambient, V extends string>(
     const hosts = new Map<string, Nexus.Mesh.Host<E, R>>(
       Object.entries<View<S>>(app.views).map(([name, view]) => [name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands })]),
     );
+    // The count `focusFirstInvalid` reads from a state, for the render of that state: absent when the application has no such function.
+    const attended = (value: S): { readonly attention?: number } => (app.focusFirstInvalid === undefined ? {} : { attention: app.focusFirstInvalid(value) });
     // The render of one given state. The adapter renders a host's scope value, not a value it is handed, and a
     // sequential stream must render each emitted state exactly: a constant scope does that.
     const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
@@ -507,14 +516,14 @@ export const start = <S, E, R extends Ambient, V extends string>(
           const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
           const render = yield* Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render;
 
-          return { view, render };
+          return { view, render, ...attended(value) };
         }
 
         const render = yield* renderWithUnits(app.views[view].program, snapshot, yield* registry.units);
 
         yield* registry.observe(render);
 
-        return { view, render };
+        return { view, render, ...attended(value) };
       });
 
     // The render of `value` after `previous`: the same view is MESH's update of the previous render (the new render and the patches that turn the one into the other), anything else
@@ -535,7 +544,7 @@ export const start = <S, E, R extends Ambient, V extends string>(
           yield* registry.observe(render);
         }
 
-        return { view, render, patches } satisfies Viewed;
+        return { view, render, patches, ...attended(value) } satisfies Viewed;
       });
 
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
@@ -668,6 +677,8 @@ export interface Target {
   draw(tree: RenderTree): void;
   update(tree: RenderTree): void;
   patch?(patches: Nexus.Mesh.RenderPatches): unknown;
+  /** Asks the platform to move focus to the part `key` names, once the render that has it is applied (a request, not state): `focusFirstInvalid` uses it. A target that cannot has none. */
+  focus?(key: string): unknown;
   unmount(): void;
 }
 
@@ -736,6 +747,27 @@ const ledgerBound = (ledger: number | undefined): number => {
   return Math.floor(bound);
 };
 
+/** The key of the first node, in tree order, whose `invalid` prop is true: where a failed submit takes the person. */
+const firstInvalid = (part: RenderTree["root"] | RenderTree["root"]["children"][number]): string | undefined => {
+  if (part.type === "text") {
+    return undefined;
+  }
+
+  if (part.props["invalid"] === true) {
+    return part.key;
+  }
+
+  for (const child of part.children) {
+    const found = firstInvalid(child);
+
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  return undefined;
+};
+
 const connect = <S, E, T extends Target, A>(
   application: ApplicationHandle<S, E>,
   create: TargetFactory<T>,
@@ -797,6 +829,8 @@ const connect = <S, E, T extends Target, A>(
     // skipped, never reordered): the first element is the first draw (or hydration), no commit can fall between. A later render of the SAME view is
     // the same program: update. One of ANOTHER view is another program, and only the composer knows that: draw afresh.
     // The follower is Valance's fiber, not NEXUS's (O15): the caller's scope owns it.
+    // The `focusFirstInvalid` count of the render last applied: what a later one is compared with.
+    let attention: number | undefined;
     const firstDone = yield* Deferred.make<A, Nexus.Mesh.MeshDiagnostics>();
     const follower = yield* Stream.runForEach(running.values, (viewed) =>
       Effect.suspend(() => {
@@ -819,12 +853,24 @@ const connect = <S, E, T extends Target, A>(
           drawn.current = viewed;
           previous.render.release();
 
+          // A rise in the application's count takes the person to the first field in error: after the render that shows it is applied, as a call on the target.
+          if (viewed.attention !== undefined && attention !== undefined && viewed.attention > attention) {
+            const found = firstInvalid(viewed.render.tree.root);
+
+            if (found !== undefined) {
+              target.focus?.(found);
+            }
+          }
+
+          attention = viewed.attention ?? attention;
+
           return Effect.void;
         }
 
         // Draw or hydrate, and retain the render, in one synchronous step: no event can be reported in between.
         const result = first(target, viewed.render.tree);
         drawn.current = viewed;
+        attention = viewed.attention;
 
         return Deferred.succeed(firstDone, result);
       }),

@@ -55,6 +55,9 @@ export type Viewport = "compact" | "medium" | "expanded";
 
 export const FIELD = Symbol.for("valancex.common.field");
 
+/** The brand of a state field that holds a form (`Form.field()`): the application then takes the person to the first field in error after a failed submit, with nothing written. */
+export const FORM = Symbol.for("valancex.common.form");
+
 /** A state field: its type and its default, declared together. */
 export interface Field<A = unknown> {
   readonly [FIELD]: true;
@@ -157,6 +160,8 @@ export const isSnippet = (value: unknown): value is SnippetDeclaration => typeof
 export type PropDeclaration = Schema.Schema<any, any, never> | Field<any> | SnippetDeclaration;
 
 /** Whether a prop is declared with a default. */
+export const isFormField = (value: unknown): boolean => typeof value === "object" && value !== null && FORM in value;
+
 export const isField = (value: unknown): value is Field => typeof value === "object" && value !== null && FIELD in value;
 
 export interface Contract<P extends string, E extends string> {
