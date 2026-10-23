@@ -1,5 +1,6 @@
 // Units (direction Bet 8): the state of one occurrence of a component, held by the host beside the application's. The acceptance: a disclosure's open state survives a re-sort of its list row, and is
 // absent from the application's state. It is shown to fail where the state would not follow the row (a repeat keyed by position), and the controlled case keeps one copy of the value.
+import type * as Nexus from "@valancex/nexus";
 import { compileProgram } from "@valancex/mesh-compiler";
 import * as MeshRuntime from "@valancex/mesh-runtime";
 import { Chunk, Effect, Exit, Schema, Scope, Stream } from "effect";
@@ -169,7 +170,7 @@ const clicks = (render: { readonly tree: unknown }): ReadonlyArray<string> => {
 const open = async (page: string, units = true) => {
   const scope = await Effect.runPromise(Scope.make());
   const base = application(await compile(page));
-  const handle = await Effect.runPromise(Valance.start(units ? base : { ...base, units: undefined }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(units ? base : (({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.extend(scope)));
   const running = runningOf(handle);
   const seen: Array<{ readonly render: { readonly tree: unknown; readonly instances: ReadonlyArray<{ readonly instance: string; readonly state: Record<string, unknown> }> } }> =
     [];
@@ -194,7 +195,7 @@ const open = async (page: string, units = true) => {
         handle
           .invoke(
             key,
-            args.map((value) => ({ value })),
+            args.map((value) => ({ value }) as Nexus.Mesh.IntentArgument),
           )
           .pipe(Effect.orDie),
       );
@@ -229,7 +230,7 @@ describe.skipIf(!supported)("the state of one occurrence", () => {
   it("is shown to fail without the feature: an application that does not register the units does not start, for the commands nothing binds", async () => {
     const scope = await Effect.runPromise(Scope.make());
     const base = application(await compile(KEYED));
-    const started = await Effect.runPromise(Effect.exit(Valance.start({ ...base, units: undefined }).pipe(Scope.extend(scope))));
+    const started = await Effect.runPromise(Effect.exit(Valance.start((({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.extend(scope))));
 
     expect(Exit.isFailure(started)).toBe(true);
     expect(JSON.stringify(started)).toContain("ConformanceViolation");

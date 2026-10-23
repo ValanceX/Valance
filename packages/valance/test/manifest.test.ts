@@ -113,7 +113,8 @@ describe("what is derived", () => {
 });
 
 describe("string literals are closed sets (T7)", () => {
-  const scopeOf = (fields: Schema.Struct.Fields) => manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) }, commands: () => ({}) }).components["v"]!.scope;
+  const scopeOf = (fields: Schema.Struct.Fields) =>
+    manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) as unknown as Schema.Schema<any, any, never> }, commands: () => ({}) }).components["v"]!.scope;
 
   it("a literal, or a union of string literals, is an enum; a number or boolean literal keeps its kind", () => {
     expect(
