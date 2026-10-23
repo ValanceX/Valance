@@ -1,20 +1,12 @@
 // A signup form from its schema (direction Bet 11): under 25 lines of schema, wiring and template, with no validation outside the schema; built with `vlx build`, used in a browser, and the HTML it draws
 // judged by the official checkers (the Nu Html Checker for conformance; the Accessible Name and Description Computation for what a screen reader says about each field).
-import { spawnSync } from "node:child_process";
-import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
-import { extname, join, normalize, sep } from "node:path";
 import { computeAccessibleDescription, computeAccessibleName } from "dom-accessibility-api";
 import { JSDOM } from "jsdom";
-import { chromium, type Page } from "playwright";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { build } from "../src/build.js";
 import { check } from "../src/check.js";
 import { cleanup, PAGE, project } from "./fixture.js";
+import { browserAvailable, errorsOf, inBrowser, portFocuses } from "./forms-support.js";
 
 afterEach(cleanup);
 
@@ -44,29 +36,6 @@ const LAYOUT = `<shell class="x" theme="light">
 `;
 const FILES: Record<string, string> = { "content/index.md": PAGE("Home", "Text."), "src/main.ts": MAIN, "src/layout.mprx": LAYOUT };
 
-const jar = join(createRequire(import.meta.url).resolve("vnu-jar/package.json"), "..", "build", "dist", "vnu.jar");
-
-/** The Nu Html Checker's errors for a document. */
-const errorsOf = (html: string): ReadonlyArray<string> => {
-  const directory = mkdtempSync(join(tmpdir(), "vnu-"));
-
-  try {
-    writeFileSync(join(directory, "page.html"), html);
-
-    const run = spawnSync("java", ["-jar", jar, "--format", "json", directory], { encoding: "utf8" });
-
-    if (run.error !== undefined) {
-      throw new Error(`the Nu Html Checker needs Java: ${run.error.message}`);
-    }
-
-    const report = JSON.parse(run.stderr.slice(run.stderr.indexOf("{"))) as { messages: Array<{ type: string; subType?: string; message: string }> };
-
-    return report.messages.filter((each) => (each.subType ?? each.type) === "error").map((each) => each.message);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-};
-
 describe("the form", () => {
   it("is under 25 lines of schema, wiring and template, and no validation is written outside the schema", () => {
     const lines = (text: string) => text.split("\n").filter((line) => line.trim() !== "").length;
@@ -81,69 +50,6 @@ describe("the form", () => {
     expect((await check(project(FILES))).diagnostics).toEqual([]);
   });
 });
-
-const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm" };
-const browserAvailable = await chromium
-  .launch()
-  .then(async (browser) => {
-    await browser.close();
-
-    return true;
-  })
-  .catch(() => false);
-
-/** Builds the project, serves `dist/web`, and runs `run` against a page that has loaded and is running. */
-const inBrowser = async (files: Record<string, string>, run: (page: Page, errors: Array<string>) => Promise<void>): Promise<void> => {
-  const root = project(files);
-
-  await build(root);
-
-  const dist = normalize(join(root, "dist/web"));
-  const server = createServer((request, response) => {
-    void (async () => {
-      const url = new URL(request.url ?? "/", "http://x").pathname;
-      const path = normalize(join(dist, url.endsWith("/") ? `${url}index.html` : url));
-
-      if (!path.startsWith(dist + sep)) {
-        response.writeHead(403).end();
-        return;
-      }
-
-      try {
-        response.writeHead(200, { "content-type": TYPES[extname(path)] ?? "application/octet-stream" }).end(await readFile(path));
-      } catch {
-        response.writeHead(404).end();
-      }
-    })();
-  });
-
-  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-
-  const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  const browser = await chromium.launch();
-
-  try {
-    const page = await browser.newPage();
-    const errors: Array<string> = [];
-
-    page.on("pageerror", (error) => void errors.push(error.message));
-    await page.goto(`${origin}/`);
-    await page.waitForSelector('#app[data-valance="running"], #app[data-valance="failed"]');
-    expect(await page.getAttribute("#app", "data-valance")).toBe("running");
-    await run(page, errors);
-  } finally {
-    await browser.close();
-    server.close();
-  }
-};
-
-/** Whether the installed Web PORT moves focus on request (0.11): the end-to-end focus case needs it, and says so when it is not there. */
-const portFocuses = (() => {
-  const { version } = JSON.parse(readFileSync(join(createRequire(import.meta.url).resolve("@valancex/port-web/package.json")), "utf8")) as { version: string };
-  const [major = 0, minor = 0] = version.split(".").map(Number);
-
-  return major > 0 || minor >= 11;
-})();
 
 describe.runIf(browserAvailable)("used in a browser", () => {
   it(

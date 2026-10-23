@@ -46,8 +46,20 @@ Tier 1 is `Form.make(schema)`. Tier 2: `initial` (the text each field starts wit
 
 ## Drawn with the ordinary primitives
 
-A form is a model, not a primitive: `textfield`, `checkbox`, `text` and `button`. `describedby` names the message element, which is always drawn (empty when there is no message), because a primitive's relation prop cannot be left out of a template that may or may not have a value; an empty `aria-describedby` is an error in HTML (the Nu Html Checker says so).
+A form is a model, not a primitive: `textfield`, `checkbox`, `radiogroup`, `text` and `button`. `describedby` names the message element, which is always drawn (empty when there is no message), because a primitive's relation prop cannot be left out of a template that may or may not have a value; an empty `aria-describedby` is an error in HTML (the Nu Html Checker says so).
+
+**A closed set** (`Schema.Literal("small", "medium", "large")`) is a field of kind `choice`, with its values in `f.choices`. Draw it as a `radiogroup` with one `radio` for each, and choose with `edit`:
+
+```html
+{#if f.kind == "choice"}<radiogroup label={f.title} invalid={f.invalid} describedby={f.errorId}>{#each f.choices as c (c)}<radio label={c} value={c} checked={f.value == c} on.select={edit(f.name, $event)} />{/each}</radiogroup>{/if}
+```
+
+The group is one tab stop and the arrow keys choose, which is the browser's own behavior for radios of one group; PORT Web names the group (it is the `radiogroup`'s, never shared with another group or another mount of the page). `packages/cli/test/forms-choice.test.ts` builds it and checks the HTML and the accessible name.
+
+## Where focus goes
+
+A failed submit moves focus to the first field in error, and a second failed submit does it again. A state field made with `Form.field()` is enough: nothing is written. (The mechanism is `focusFirstInvalid`, a count the form keeps of its attempts, Tier 2 for an application that is not built with `defineApp`.) Focus is not state: it is a request to the platform after the render that shows the error is applied.
 
 ## Not done yet
 
-Lists of fields with row keys, a form in a list row that keeps its state across a re-sort, a closed set drawn as a `radiogroup` (WP6), moving focus to the first invalid field (a host request, WP6), and a `kind` enum on the web `textfield`. See the decisions F17 to F22.
+Lists of fields with row keys, a form in a list row that keeps its state across a re-sort, and a `kind` enum on the web `textfield`. See the decisions F17 to F25.
