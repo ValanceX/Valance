@@ -24,7 +24,7 @@ import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { makeRegistry, type Deliver, type Registry, type Unit } from "./units.js";
+import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
@@ -501,12 +501,18 @@ export const start = <S, E, R extends Ambient, V extends string>(
     const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
       Effect.gen(function* () {
         const view = app.view(value);
-        const units = registry === undefined ? undefined : yield* registry.units;
-        const render = yield* Nexus.Mesh.render(app.views[view].program, app.views[view].scope(value), units);
+        const snapshot = app.views[view].scope(value);
 
-        if (registry !== undefined) {
-          yield* registry.observe(render);
+        if (registry === undefined) {
+          const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
+          const render = yield* Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render;
+
+          return { view, render };
         }
+
+        const render = yield* renderWithUnits(app.views[view].program, snapshot, yield* registry.units);
+
+        yield* registry.observe(render);
 
         return { view, render };
       });
@@ -521,8 +527,9 @@ export const start = <S, E, R extends Ambient, V extends string>(
           return yield* renderOf(value);
         }
 
-        const units = registry === undefined ? undefined : yield* registry.units;
-        const { render, patches } = yield* Nexus.Mesh.update(previous.render, app.views[view].scope(value) as Record<string, unknown>, units);
+        const snapshot = app.views[view].scope(value) as Record<string, unknown>;
+        const { render, patches } =
+          registry === undefined ? yield* Nexus.Mesh.update(previous.render, snapshot) : yield* updateWithUnits(previous.render, snapshot, yield* registry.units);
 
         if (registry !== undefined) {
           yield* registry.observe(render);
@@ -604,7 +611,9 @@ export const start = <S, E, R extends Ambient, V extends string>(
       const key = `${component}/${name}`;
       const binding = Object.hasOwn(commands, key) ? commands[key] : undefined;
 
-      return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(intent.arguments, intent));
+      return binding === undefined
+        ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name })
+        : inApplication((binding as (args: ReadonlyArray<Nexus.Mesh.IntentArgument>, intent: Nexus.Mesh.CommandIntent) => Effect.Effect<unknown, E, R>)(intent.arguments, intent));
     };
 
     // Start-time work: the SAME admission as `invoke` and dispatch, with no caller. Last step before the handle exists, after every failure `start` can have, so a

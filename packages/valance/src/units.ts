@@ -7,10 +7,60 @@
  * Mechanism, not API: an author writes a `unit(...)` and registers it with its component; nothing here is named by an application. Not exported from
  * the package's entry beyond the types a definition needs.
  */
-import type { CommandIntent, Render, UnitOccurrence, UnitStates } from "@valancex/mesh-runtime";
-
 import * as Nexus from "@valancex/nexus";
 import { Effect, Exit, Schema, Scope } from "effect";
+
+/**
+ * One occurrence of a component with a unit in a render, as MESH 0.15 lists it (`Render.instances`). Written here and not imported, so that this package builds and
+ * runs, for an application with no units, against the MESH and NEXUS it was released with before them.
+ */
+export interface UnitOccurrence {
+  readonly instance: string;
+  readonly component: string;
+  readonly state: Readonly<Record<string, any>>;
+  readonly controlled?: ReadonlyArray<string>;
+}
+
+/** The state the host holds for the occurrences that have changed, by the occurrence's key. */
+export type UnitStates = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+
+/** A command intent as far as units are concerned: `instance` and `controlled` are in it from MESH 0.15. */
+export type UnitIntent = Nexus.Mesh.CommandIntent & { readonly instance?: string; readonly controlled?: ReadonlyArray<string> };
+
+/** The part of the NEXUS adapter that units use: NEXUS 0.14 has it. An older one has none, and an application without units never asks for it. */
+interface UnitsAdapter {
+  readonly render: (program: Nexus.Mesh.Program, snapshot: Record<string, unknown>, units?: UnitStates) => Effect.Effect<Nexus.Mesh.Render, Nexus.Mesh.MeshDiagnostics>;
+  readonly update: (previous: Nexus.Mesh.Render, snapshot: Record<string, unknown>, units?: UnitStates) => Effect.Effect<Nexus.Mesh.Updated, Nexus.Mesh.MeshDiagnostics>;
+  readonly raise: (
+    render: Nexus.Mesh.Render,
+    instance: string,
+    event: string,
+    payload?: unknown,
+  ) => Effect.Effect<Nexus.Mesh.CommandIntent | undefined, Nexus.Mesh.MeshDiagnostics>;
+}
+
+const adapter = (): UnitsAdapter => {
+  const found = Nexus.Mesh as unknown as Partial<UnitsAdapter>;
+
+  if (found.render === undefined || found.update === undefined || found.raise === undefined) {
+    throw new Error("VALANCE: units need @valancex/nexus 0.14 and @valancex/mesh-runtime 0.15");
+  }
+
+  return found as UnitsAdapter;
+};
+
+/** Renders with the state of the occurrences. */
+export const renderWithUnits: UnitsAdapter["render"] = (program, snapshot, units) => Effect.suspend(() => adapter().render(program, snapshot, units));
+
+/** Updates with the state of the occurrences. */
+export const updateWithUnits: UnitsAdapter["update"] = (previous, snapshot, units) => Effect.suspend(() => adapter().update(previous, snapshot, units));
+
+/** The occurrences a render lists. */
+export const occurrencesOf = (render: Nexus.Mesh.Render): ReadonlyArray<UnitOccurrence> =>
+  (render as unknown as { readonly instances?: ReadonlyArray<UnitOccurrence> }).instances ?? [];
+
+/** A unit command's binding: the arguments, and the intent (which names the occurrence). */
+export type UnitBinding = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>, intent?: UnitIntent) => Effect.Effect<unknown, never, never>;
 
 /** The brand of a unit definition. */
 export const UNIT = Symbol.for("valancex.valance.unit");
@@ -51,19 +101,19 @@ interface Held {
 /** What the last render said about an occurrence, and the render it was in. */
 interface Seen {
   readonly occurrence: UnitOccurrence;
-  readonly render: Render;
+  readonly render: Nexus.Mesh.Render;
 }
 
 /** Runs a deliverable intent: the binding of the command table it names. */
-export type Deliver = (intent: CommandIntent) => Effect.Effect<unknown, unknown, never>;
+export type Deliver = (intent: Nexus.Mesh.CommandIntent) => Effect.Effect<unknown, unknown, never>;
 
 export interface Registry {
   /** The state of the occurrences that have changed, for the runtime's `units` input. */
   readonly units: Effect.Effect<UnitStates>;
   /** The render just made: remembers its occurrences and lets go of the state of those it no longer has. */
-  readonly observe: (render: Render) => Effect.Effect<void>;
+  readonly observe: (render: Nexus.Mesh.Render) => Effect.Effect<void>;
   /** The bindings of the command table for every unit command, by `"component/name"`. */
-  readonly bindings: Readonly<Record<string, Nexus.Mesh.Binding<never, never>>>;
+  readonly bindings: Readonly<Record<string, UnitBinding>>;
   /** A counter that changes whenever any occurrence's state does: what wakes the renders. */
   readonly epoch: Nexus.State.StateHandle<number>;
 }
@@ -111,7 +161,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
         return made;
       });
 
-    const bind = (component: string, name: string, unit: Unit): Nexus.Mesh.Binding<never, never> => {
+    const bind = (component: string, name: string, unit: Unit): UnitBinding => {
       const command = unit.commands[name]!;
       const names = command.input === undefined ? [] : Object.keys(command.input.fields);
 
@@ -150,7 +200,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
 
           // What the command announces to its caller, told against the state it leaves (the caller's value for a field it owns).
           for (const [event, payload] of Object.entries(command.raises ?? {})) {
-            const intended = yield* Nexus.Mesh.raise(known.render, key, event, payload({ ...basis, ...changes }, decoded)).pipe(Effect.orDie);
+            const intended = yield* Effect.suspend(() => adapter().raise(known.render, key, event, payload({ ...basis, ...changes }, decoded))).pipe(Effect.orDie);
 
             if (intended !== undefined) {
               yield* deliver()(intended).pipe(Effect.orDie);
@@ -159,7 +209,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
         }) as Effect.Effect<unknown, never, never>;
     };
 
-    const bindings: Record<string, Nexus.Mesh.Binding<never, never>> = {};
+    const bindings: Record<string, UnitBinding> = {};
 
     for (const [component, unit] of Object.entries(units)) {
       for (const name of Object.keys(unit.commands)) {
@@ -175,11 +225,12 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
       ),
       observe: (render) =>
         Effect.suspend(() => {
-          const present = new Set(render.instances.map((each) => each.instance));
+          const occurrences = occurrencesOf(render);
+          const present = new Set(occurrences.map((each) => each.instance));
 
           seen.clear();
 
-          for (const occurrence of render.instances) {
+          for (const occurrence of occurrences) {
             seen.set(occurrence.instance, { occurrence, render });
           }
 
