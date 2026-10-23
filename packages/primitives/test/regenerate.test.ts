@@ -39,6 +39,7 @@ const additions: Record<string, ReadonlyArray<string>> = {
   button: ["label", "intent", "size"],
   text: ["id"],
   paragraph: ["id"],
+  list: Web.elementWhen === undefined ? [] : ["ordered"], // the element it chooses (PORT Web 0.11)
 };
 
 /** Events the generated table has that the hand table did not: the textfield's focus and blur (the Desktop has them; Chromium raises them as the specification says). */
