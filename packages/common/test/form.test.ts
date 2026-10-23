@@ -211,3 +211,28 @@ describe("as the Standard Schema (F10)", () => {
     expect((await standard["~standard"].validate({ name: "A", age: "36", plan: "free", accept: true })).issues).toHaveLength(1);
   });
 });
+
+describe("the commands (what a template runs)", () => {
+  // A command maker that gives back the transition itself, so the test applies it to a state.
+  const maker = ((first: unknown, second?: unknown) => (!Schema.isSchema(first) ? { run: (state: unknown) => (first as (s: unknown) => unknown)(state) } : { run: (state: unknown, input: unknown) => (second as (i: unknown, s: unknown) => unknown)(input, state) })) as never;
+  type App = { readonly signup: Form.State; readonly done: boolean };
+  const commands = signup.commands(maker as never, { field: "signup", then: (state: App) => ({ ...state, done: true }) }) as unknown as Record<string, { run: (state: App, input?: unknown) => App }>;
+  const app: App = { signup: signup.initial, done: false };
+
+  it("edit, check and blur change the form's field of the state and nothing else; a submit that the schema refuses leaves the application as it was and a good one runs `then`", () => {
+    const edited = commands["edit"]!.run(app, { name: "name", value: "Ada" });
+    const checked = commands["check"]!.run(edited, { name: "accept", value: true });
+    const blurred = commands["blur"]!.run(checked, { name: "name" });
+
+    expect(blurred.signup.values).toMatchObject({ name: "Ada", accept: true });
+    expect(blurred.signup.touched).toEqual({ accept: true, name: true });
+    expect(blurred.done).toBe(false);
+    expect(commands["submit"]!.run(blurred).done).toBe(false);
+    expect(commands["submit"]!.run(blurred).signup.attempted).toBe(true);
+    expect(commands["submit"]!.run(commands["edit"]!.run(commands["edit"]!.run(blurred, { name: "age", value: "36" }), { name: "plan", value: "pro" })).done).toBe(true);
+  });
+
+  it("says where the form is, or refuses", () => {
+    expect(() => signup.commands(maker as never, { then: (state: App) => state })).toThrow(/say where the form is/);
+  });
+});

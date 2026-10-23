@@ -205,8 +205,11 @@ export interface Commands {
 
 /** Where the form is in the application's state, and what a submit that the schema accepts does. */
 export interface Where<S, A> {
-  readonly get: (state: S) => State;
-  readonly set: (state: S, form: State) => S;
+  /** The state field that holds the form (`state: { signup: signup.field() }` is `"signup"`): the usual way to say where it is. */
+  readonly field?: string;
+  /** Where the form is, when it is not simply a field of the state. */
+  readonly get?: (state: S) => State;
+  readonly set?: (state: S, form: State) => S;
   /** The application's state after a submit that the schema accepted, from the decoded value. The form keeps what was typed. */
   readonly then: (state: S, value: A) => S;
 }
@@ -632,8 +635,19 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
       draft.version !== version
         ? initial
         : { ...initial, values: { ...initial.values, ...Object.fromEntries(Object.entries(draft.values).filter(([name]) => byName.has(name) && !byName.get(name)!.redacted)) } },
-    commands: (command, how) =>
-      ({
+    commands: (command, given) => {
+      const field = given.field;
+      const how = {
+        get: given.get ?? ((state: never) => (state as Record<string, State>)[field!]!),
+        set: given.set ?? ((state: never, form: State) => ({ ...(state as object), [field!]: form }) as never),
+        then: given.then,
+      };
+
+      if (given.field === undefined && (given.get === undefined || given.set === undefined)) {
+        throw new FormError("Form: say where the form is: `field: \"signup\"`, or `get` and `set`");
+      }
+
+      return {
         edit: command(
           Schema.Struct({ name: Schema.String, value: Schema.String }),
           ({ name, value }, current) => how.set(current as never, form.edit(how.get(current as never), name, value)) as never,
@@ -649,7 +663,8 @@ export function make<A, I>(schema: Schema.Schema<A, I, never>, options: Options<
 
           return (result.ok ? how.then(next, result.value) : next) as never;
         }),
-      }) as unknown as Commands,
+      } as unknown as Commands;
+    },
   };
 
   return form;
