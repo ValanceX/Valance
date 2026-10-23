@@ -19,9 +19,9 @@
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.0.0",
-    "@valancex/mesh-compiler": "^0.14.0",
-    "@valancex/mesh-runtime": "^0.14.0",
-    "@valancex/nexus": "^0.13.0",
+    "@valancex/mesh-compiler": "^0.15.0",
+    "@valancex/mesh-runtime": "^0.15.0",
+    "@valancex/nexus": "^0.14.0",
     "@valancex/port-web": "^0.10.0",
     "effect": "^3.10.0",
     "esbuild": "0.28.2",
