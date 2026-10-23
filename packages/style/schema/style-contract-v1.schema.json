@@ -35,6 +35,13 @@
         "pattern": "^:[a-z-]+$"
       }
     },
+    "interactionMedia": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^\\(.+\\)$"
+      }
+    },
     "semanticStates": {
       "type": "array",
       "items": {

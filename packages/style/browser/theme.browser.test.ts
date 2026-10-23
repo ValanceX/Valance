@@ -144,6 +144,19 @@ describe("the default theme in Chromium", () => {
     expect(style(disabled!, "opacity")).toEqual({ opacity: "0.5" });
   });
 
+  it("locks the page's scroll while a modal layer is open and gives it back when it closes (I14)", () => {
+    const dialog = document.createElement("dialog");
+
+    container.append(dialog);
+    expect(getComputedStyle(document.documentElement).overflow).toBe("visible");
+    dialog.showModal();
+    expect(getComputedStyle(document.documentElement).overflow).toBe("hidden");
+    expect(getComputedStyle(document.documentElement).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(dialog).overscrollBehaviorY).toBe("contain");
+    dialog.close();
+    expect(getComputedStyle(document.documentElement).overflow).toBe("visible");
+  });
+
   it("styles the checkbox and the textfield, and the textfield's invalid state", () => {
     draw(node("column", {}, [node("checkbox", { checked: false }), node("textfield", { value: "" }), node("textfield", { value: "", invalid: true })]));
     const [checkbox, field, invalid] = [...root().children];

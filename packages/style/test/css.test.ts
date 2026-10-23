@@ -55,6 +55,13 @@ describe("the default theme's stylesheet", () => {
     expect(css).toContain('[data-vlx="checkbox"][aria-invalid="true"] {');
   });
 
+  it("styles hover only where a pointer can hover, and locks the page's scroll under a modal layer, in the library layer", () => {
+    expect(css).toMatch(/@media \(any-hover: hover\) \{\n {4}\[data-vlx="button"\]:hover \{/);
+    expect(css).not.toMatch(/\n {2}\[data-vlx="button"\]:hover \{/);
+    expect(css).toMatch(/@layer vlx-library \{\n {2}:root:has\(:modal\) \{\n {4}overflow: hidden;\n {4}scrollbar-gutter: stable;/);
+    expect(css).toContain(":modal {\n    overscroll-behavior: contain;");
+  });
+
   it("has a media query for a condition", () => {
     expect(css).toContain("@media (width < 600px) {");
   });

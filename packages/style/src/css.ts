@@ -185,6 +185,12 @@ export const compileWeb = (loaded: LoadedTheme, inputs: Inputs): string => {
     );
   }
 
+  // the page under a modal layer (I14): it does not scroll behind it, and the scrollbar's width stays so the content does not shift; the layer itself does not chain its scroll to the page
+  out.push("}\n\n@layer vlx-library {\n");
+  out.push(block(":root:has(:modal)", ["overflow: hidden", "scrollbar-gutter: stable"]));
+  out.push(block(":modal", ["overscroll-behavior: contain"]));
+  out.push("}\n\n@layer vlx-theme {\n");
+
   // recipes, by primitive
   for (const { recipe } of [...loaded.recipes].sort((a, b) => a.recipe.target.primitive.localeCompare(b.recipe.target.primitive))) {
     const primitive = recipe.target.primitive;
@@ -218,7 +224,13 @@ export const compileWeb = (loaded: LoadedTheme, inputs: Inputs): string => {
       const properties = recipe.states?.[state];
 
       if (properties !== undefined) {
-        out.push(block(`${hook}${stateSelector(state)}`, declarations(properties)));
+        const media = inputs.contract.interactionMedia?.[state];
+
+        out.push(
+          media === undefined
+            ? block(`${hook}${stateSelector(state)}`, declarations(properties))
+            : `  @media ${media} {\n${block(`${hook}${stateSelector(state)}`, declarations(properties), "    ")}  }\n`,
+        );
       }
     }
 

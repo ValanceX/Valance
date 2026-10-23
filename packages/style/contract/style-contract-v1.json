@@ -9,6 +9,9 @@
     "pressed": ":active",
     "focus-visible": ":focus-visible"
   },
+  "interactionMedia": {
+    "hovered": "(any-hover: hover)"
+  },
   "semanticStates": [
     "checked",
     "invalid",
@@ -185,15 +188,15 @@
   "desktopNotes": {
     "type": "The size of the type role; the family and weight are the toolkit's.",
     "outline": "The focus ring's color and width; the toolkit draws its own ring.",
-    "states": "The toolkit draws its own hover, press and focus; a recipe's styles for them are web only. `invalid` and `disabled` are applied."
+    "states": "`hovered` and `pressed` are applied to a button (the pointer over it, and held down; the properties the Desktop honors). The toolkit draws its own focus ring, so `focus-visible` is web only. `invalid` and `disabled` are applied."
   },
   "modeConditions": {
     "dark": "scheme:dark",
     "contrast": "contrast:more"
   },
   "desktopStates": {
-    "hovered": "unsupported",
-    "pressed": "unsupported",
+    "hovered": "supported",
+    "pressed": "supported",
     "focus-visible": "unsupported",
     "invalid": "supported",
     "disabled": "supported",

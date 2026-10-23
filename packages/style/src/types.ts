@@ -46,6 +46,8 @@ export interface Contract {
   readonly parts: Readonly<Record<string, string>>;
   /** Interaction states, each with the CSS pseudo-class that reaches it on the web. */
   readonly interactionStates: Readonly<Record<string, string>>;
+  /** The media query an interaction state's rules sit in on the web: hover styling only where a pointer can hover (I15), so a touch screen's sticky `:hover` never paints. */
+  readonly interactionMedia?: Readonly<Record<string, string>>;
   readonly semanticStates: ReadonlyArray<string>;
   readonly variants: Readonly<Record<string, { readonly values: ReadonlyArray<string>; readonly default: string }>>;
   readonly conditions: Readonly<

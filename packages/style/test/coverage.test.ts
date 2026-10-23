@@ -27,7 +27,7 @@ describe("coverage", () => {
   it("the Desktop lists what it does not apply, by primitive", () => {
     const names = coverageOf(loaded, inputs, "desktop").notApplied.map((each) => `${each.primitive} ${each.kind} ${each.name} ${each.support}`);
 
-    expect(names).toContain("button state hovered unsupported");
+    expect(names).not.toContain("button state hovered unsupported");
     expect(names).toContain("button state focus-visible unsupported");
     expect(names).toContain("(theme) condition mode contrast unsupported");
     expect(names).toContain("checkbox state focus-visible unsupported");
