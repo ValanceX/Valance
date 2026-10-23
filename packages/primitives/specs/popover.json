@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "name": "popover",
+  "status": "portable",
+  "role": "group",
+  "summary": "A layer placed at an element, not modal: the page behind it stays usable. The application owns `open`. An `auto` popover (the default) raises `dismiss` when the person presses outside it or presses Escape; a `manual` one never does.",
+  "props": {
+    "open": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": true
+    },
+    "anchor": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "relationship"
+    },
+    "placement": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "top",
+          "bottom",
+          "start",
+          "end"
+        ]
+      },
+      "required": false
+    },
+    "kind": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "auto",
+          "manual"
+        ]
+      },
+      "required": false
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    }
+  },
+  "events": {
+    "dismiss": {
+      "payload": {
+        "kind": "string"
+      },
+      "meaning": "The person asked to close it: the payload is `escape` or `outside`. Nothing closes until the application sets `open` to false."
+    }
+  },
+  "content": "any",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label"
+  },
+  "keyboard": [
+    {
+      "key": "Escape",
+      "raises": "dismiss"
+    }
+  ],
+  "replay": "safe",
+  "example": {
+    "props": {
+      "open": true,
+      "label": "Details"
+    },
+    "children": [
+      {
+        "name": "text",
+        "text": "More about this."
+      }
+    ]
+  }
+}

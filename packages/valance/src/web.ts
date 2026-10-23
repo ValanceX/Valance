@@ -25,6 +25,12 @@ export { attribute, booleanAttribute, controlled, controlledBoolean, property, t
 export const elementWhen: ((name: string) => WebPrimitive extends { props?: Readonly<Record<string, infer P>> } ? P : never) | undefined = (
   PortWeb as unknown as { readonly elementWhen?: (name: string) => never }
 ).elementWhen;
+/** A layer's prop (PORT Web 0.12): `layerProp("open")` is whether the layer is shown, `"anchor"` the `id` of what a popover sits at, `"placement"` where. Absent with an older PORT, and a table written for it leaves its layers out. */
+export const layerProp: ((name: "open" | "anchor" | "placement") => WebPrimitive extends { props?: Readonly<Record<string, infer P>> } ? P : never) | undefined = (
+  PortWeb as unknown as { readonly layerProp?: (name: string) => never }
+).layerProp;
+/** The event a layer raises when the person asks to close it (PORT Web 0.12), with the reason `"escape"` or `"outside"`. */
+export const layerDismiss: (WebPrimitive extends { events?: Readonly<Record<string, infer E>> } ? E : never) | undefined = (PortWeb as unknown as { readonly layerDismiss?: never }).layerDismiss;
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
 export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";

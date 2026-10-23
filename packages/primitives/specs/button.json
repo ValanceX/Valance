@@ -5,6 +5,12 @@
   "role": "button",
   "summary": "Something to press. Its name is its content, or `label` for a button that is an icon.",
   "props": {
+    "id": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false
+    },
     "disabled": {
       "type": {
         "kind": "boolean"

@@ -103,6 +103,13 @@ export const primitives: Readonly<Record<string, PrimitiveInfo>> = {
     "variants": [],
     "stateSelectors": {}
   },
+  "dialog": {
+    "status": "portable",
+    "interactive": true,
+    "states": [],
+    "variants": [],
+    "stateSelectors": {}
+  },
   "div": {
     "status": "web-only",
     "interactive": false,
@@ -214,6 +221,13 @@ export const primitives: Readonly<Record<string, PrimitiveInfo>> = {
   "paragraph": {
     "status": "portable",
     "interactive": false,
+    "states": [],
+    "variants": [],
+    "stateSelectors": {}
+  },
+  "popover": {
+    "status": "portable",
+    "interactive": true,
     "states": [],
     "variants": [],
     "stateSelectors": {}

@@ -37,13 +37,15 @@ export const primitives: Web.WebPrimitives = {
   link: { element: "a", props: { href: Web.attribute("href"), class: Web.attribute("class"), current: Web.attribute("aria-current") } },
   checkbox: { element: "input", attributes: {"type":"checkbox","data-vlx":"checkbox"}, props: { checked: Web.controlledBoolean("checked"), label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) } },
   textfield: { element: "input", attributes: {"data-vlx":"textfield"}, props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label: Web.attribute("aria-label"), kind: Web.attribute("type"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }), submit: Web.event("keydown", undefined, { key: "Enter" }), cancel: Web.event("keydown", undefined, { key: "Escape" }), focus: Web.event("focus"), blur: Web.event("blur") } },
-  button: { element: "button", attributes: {"data-vlx":"button"}, props: { class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), intent: Web.attribute("data-intent"), size: Web.attribute("data-size") }, events: { click: Web.event("click") } },
+  button: { element: "button", attributes: {"data-vlx":"button"}, props: { id: Web.attribute("id"), class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), intent: Web.attribute("data-intent"), size: Web.attribute("data-size") }, events: { click: Web.event("click") } },
   toggle: { element: "button", props: { pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), class: Web.attribute("class") }, events: { change: Web.event("click", { kind: "boolean", of: (_event, element) => element.getAttribute("aria-pressed") !== "true" }) } },
   radiogroup: { element: "div", attributes: {"role":"radiogroup"}, props: { label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") } },
   radio: { element: "input", attributes: {"type":"radio"}, props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled") }, events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) }, ...({ group: {"within":"radiogroup","attribute":"name"} } as object) },
   status: { element: "div", attributes: {"role":"status"} },
   alert: { element: "div", attributes: {"role":"alert"} },
   label: { element: "label" },
+  ...(Web.layerProp === undefined ? {} : { dialog: { element: "dialog", props: { open: Web.layerProp!("open"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! }, ...({ layer: "modal" } as object) } }),
+  ...(Web.layerProp === undefined ? {} : { popover: { element: "div", attributes: {"role":"group"}, props: { open: Web.layerProp!("open"), anchor: Web.layerProp!("anchor"), placement: Web.layerProp!("placement"), kind: Web.attribute("popover"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! }, ...({ layer: "popover" } as object) } }),
 };
 
 /** What each tag's props and events are, as the specification states them (the derivation from the table alone cannot say whether a prop is required, nor type one realized as text). */
@@ -465,6 +467,12 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
   },
   "button": {
     "props": {
+      "id": {
+        "type": {
+          "kind": "string"
+        },
+        "required": false
+      },
       "class": {
         "type": {
           "kind": "string"
@@ -620,6 +628,80 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
   "label": {
     "props": {},
     "events": {}
+  },
+  "dialog": {
+    "props": {
+      "open": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": true
+      },
+      "label": {
+        "type": {
+          "kind": "string"
+        },
+        "required": true
+      }
+    },
+    "events": {
+      "dismiss": {
+        "payload": {
+          "kind": "string"
+        }
+      }
+    }
+  },
+  "popover": {
+    "props": {
+      "open": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": true
+      },
+      "anchor": {
+        "type": {
+          "kind": "string"
+        },
+        "required": false
+      },
+      "placement": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "top",
+            "bottom",
+            "start",
+            "end"
+          ]
+        },
+        "required": false
+      },
+      "kind": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "auto",
+            "manual"
+          ]
+        },
+        "required": false
+      },
+      "label": {
+        "type": {
+          "kind": "string"
+        },
+        "required": false
+      }
+    },
+    "events": {
+      "dismiss": {
+        "payload": {
+          "kind": "string"
+        }
+      }
+    }
   }
 };
 
@@ -636,7 +718,8 @@ export const rules: { readonly named: ReadonlyArray<string>; readonly only: Read
     "checkbox",
     "textfield",
     "radiogroup",
-    "radio"
+    "radio",
+    "dialog"
   ],
   "only": {
     "list": [

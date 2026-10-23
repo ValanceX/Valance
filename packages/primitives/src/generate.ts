@@ -24,6 +24,8 @@ const propSource = (realization: PropRealization): string => {
       return `Web.controlledBoolean(${JSON.stringify(realization.name)})`;
     case "element":
       return `Web.elementWhen!(${JSON.stringify(realization.name)})`;
+    case "layer":
+      return `Web.layerProp!(${JSON.stringify(realization.name)})`;
     case "text-property":
       return `Web.textProperty(${JSON.stringify(realization.name)})`;
     case "property":
@@ -32,6 +34,10 @@ const propSource = (realization: PropRealization): string => {
 };
 
 const eventSource = (realization: EventRealization): string => {
+  if (realization.raised === true) {
+    return "Web.layerDismiss!";
+  }
+
   const payload = realization.payload === undefined ? "undefined" : `{ kind: ${JSON.stringify(realization.payload.kind)}, of: ${extract[realization.payload.of]} }`;
   const key_ = realization.key === undefined ? "" : `, { key: ${JSON.stringify(realization.key)} }`;
 
@@ -73,7 +79,13 @@ export const generatePrimitives = (specifications: Readonly<Record<string, Speci
       parts.push(`...({ group: ${JSON.stringify(each.group)} } as object)`);
     }
 
-    tags.push(`  ${key(tag)}: { ${parts.join(", ")} },`);
+    if (each.layer !== undefined) {
+      // `layer` is PORT Web 0.12's; as with `group`, the table builds against a PORT whose `WebPrimitive` does not have it, and then a layer is left out (a template that writes it is refused as an unknown component).
+      parts.push(`...({ layer: ${JSON.stringify(each.layer)} } as object)`);
+      tags.push(`  ...(Web.layerProp === undefined ? {} : { ${key(tag)}: { ${parts.join(", ")} } }),`);
+    } else {
+      tags.push(`  ${key(tag)}: { ${parts.join(", ")} },`);
+    }
 
     const entry = manifestEntry(specifications, tag, each);
 

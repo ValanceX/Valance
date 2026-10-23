@@ -28,6 +28,13 @@ const grouped = (() => {
   return major > 0 || minor >= 11;
 })();
 
+/** Whether the installed Web PORT has layers (0.12): the cases of a dialog and a popover need it. */
+const layered = (() => {
+  const [major = 0, minor = 0] = (portPackage as { version: string }).version.split(".").map(Number);
+
+  return major > 0 || minor >= 12;
+})();
+
 let container: HTMLElement;
 let reports: Array<[string, unknown]>;
 let clicks: number;
@@ -205,5 +212,56 @@ describe("the keys of the web-only link", () => {
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
     expect(clicks).toBe(1);
+  });
+});
+
+describe.skipIf(!layered)("the keys of a dialog and a popover (needs @valancex/port-web 0.12)", () => {
+  it("a dialog is modal while open: the page behind it is inert, focus is inside it, Tab stays in it, and Escape raises dismiss with `escape` and does not close it", async () => {
+    const outside = document.createElement("button");
+
+    document.body.append(outside);
+
+    try {
+      draw("dialog");
+
+      const dialog = container.querySelector("dialog")!;
+
+      expect(dialog.matches(":modal")).toBe(true);
+      expect(dialog.contains(document.activeElement)).toBe(true);
+      await userEvent.tab();
+      await userEvent.tab();
+      await userEvent.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+      await userEvent.keyboard("{Escape}");
+      expect(reports).toEqual([["dialog.dismiss", "escape"]]);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(dialog.matches(":modal")).toBe(true);
+    } finally {
+      outside.remove();
+    }
+  });
+
+  it("a popover raises dismiss with `escape` for Escape and with `outside` for a press outside it", async () => {
+    draw("popover");
+    expect(container.querySelector("[popover]")!.matches(":popover-open")).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    expect(reports).toEqual([["popover.dismiss", "escape"]]);
+    reports.length = 0;
+    // the application did not close it, so the PORT opens it again (within 100 ms)
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(container.querySelector("[popover]")!.matches(":popover-open")).toBe(true);
+
+    const elsewhere = document.createElement("button");
+
+    elsewhere.style.cssText = "position:fixed;top:0;left:0";
+    elsewhere.textContent = "elsewhere";
+    document.body.append(elsewhere);
+
+    try {
+      await userEvent.click(elsewhere);
+      expect(reports).toEqual([["popover.dismiss", "outside"]]);
+    } finally {
+      elsewhere.remove();
+    }
   });
 });

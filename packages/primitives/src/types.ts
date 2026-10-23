@@ -104,7 +104,7 @@ export interface Specification {
 
 export type PropRealization =
   | {
-      readonly kind: "attribute" | "text-property" | "controlled" | "boolean-attribute" | "controlled-boolean" | "element";
+      readonly kind: "attribute" | "text-property" | "controlled" | "boolean-attribute" | "controlled-boolean" | "element" | "layer";
       readonly name: string;
       readonly optional?: boolean;
     }
@@ -123,6 +123,8 @@ export interface EventRealization {
     readonly of: "checked" | "value";
   };
   readonly key?: string;
+  /** The PORT raises it (a layer's dismissal), not the platform: there is no DOM event of `type` to listen for. */
+  readonly raised?: true;
 }
 
 export interface WebRealization {
@@ -132,6 +134,8 @@ export interface WebRealization {
   readonly attributes?: Readonly<Record<string, string>>;
   readonly props?: Readonly<Record<string, PropRealization>>;
   readonly events?: Readonly<Record<string, EventRealization>>;
+  /** The element is a layer above the page: a modal (`dialog`, shown with `showModal()`) or a popover. Its `open`, `anchor` and `placement` props are `layer` props. */
+  readonly layer?: "modal" | "popover";
   /** The group the element is in by the platform's own grouping: the tag it is within, and the attribute that carries it (a radio's `name`, which gives a group one tab stop and the arrow keys). */
   readonly group?: { readonly within: string; readonly attribute: string };
   /** Portable props the tag settles itself (`olist` is a list whose `ordered` is true). */

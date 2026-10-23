@@ -17,6 +17,7 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 | [`code`](#code) | portable | `code` | `<code>` | nothing of its own (a name comes from where it is used) |
 | [`column`](#column) | portable | none | `<column>` | nothing of its own (a name comes from where it is used) |
 | [`columnheader`](#columnheader) | desktop-only | `columnheader` | - | the text inside it |
+| [`dialog`](#dialog) | portable | `dialog` | `<dialog>` | its `label` |
 | [`div`](#div) | web-only | `generic` | `<div>` | nothing of its own (a name comes from where it is used) |
 | [`emphasis`](#emphasis) | portable | `emphasis` | `<em>` | nothing of its own (a name comes from where it is used) |
 | [`footer`](#footer) | web-only | `contentinfo` | `<footer>` | nothing of its own (a name comes from where it is used) |
@@ -33,6 +34,7 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 | [`main`](#main) | web-only | `main` | `<main>` | nothing of its own (a name comes from where it is used) |
 | [`nav`](#nav) | web-only | `navigation` | `<nav>` | its `label` |
 | [`paragraph`](#paragraph) | portable | `paragraph` | `<paragraph>` | nothing of its own (a name comes from where it is used) |
+| [`popover`](#popover) | portable | `group` | `<popover>` | its `label` |
 | [`pre`](#pre) | web-only | `generic` | `<pre>` | nothing of its own (a name comes from where it is used) |
 | [`radio`](#radio) | portable | `radio` | `<radio>` | its `label`, or a `label` around it |
 | [`radiogroup`](#radiogroup) | portable | `radiogroup` | `<radiogroup>` | its `label` |
@@ -128,6 +130,7 @@ Something to press. Its name is its content, or `label` for a button that is an 
 
 | Prop | Type | Required | |
 | --- | --- | --- | --- |
+| `id` | string | no |  |
 | `disabled` | boolean | no | state |
 | `label` | string | no | name |
 | `class` | string | no | web only |
@@ -201,6 +204,26 @@ A cell that names its column; `sort` says how the column is sorted.
 | Prop | Type | Required | |
 | --- | --- | --- | --- |
 | `sort` | string | no |  |
+
+## dialog
+
+A modal layer: while it is open the page behind it is inert, and focus stays inside it. The application owns `open`; when the person asks to close it (Escape, or a press outside it) the dialog raises `dismiss`, and the application decides whether it closes.
+
+- **Status**: portable
+- **Role**: `dialog`
+- **Accessible name**: its `label`
+- **Content**: anything
+- **Early press**: replayed once the application has started (the default)
+- **Keys**: Escape raises `dismiss`
+
+| Prop | Type | Required | |
+| --- | --- | --- | --- |
+| `open` | boolean | yes |  |
+| `label` | string | yes | name |
+
+| Event | Payload | |
+| --- | --- | --- |
+| `dismiss` | string | The person asked to close it: the payload is `escape` or `outside`. Nothing closes until the application sets `open` to false. |
 
 ## div
 
@@ -408,6 +431,29 @@ A paragraph of text.
 | --- | --- | --- | --- |
 | `class` | string | no | web only |
 | `id` | string | no | description-target |
+
+## popover
+
+A layer placed at an element, not modal: the page behind it stays usable. The application owns `open`. An `auto` popover (the default) raises `dismiss` when the person presses outside it or presses Escape; a `manual` one never does.
+
+- **Status**: portable
+- **Role**: `group`
+- **Accessible name**: its `label`
+- **Content**: anything
+- **Early press**: replayed once the application has started (the default)
+- **Keys**: Escape raises `dismiss`
+
+| Prop | Type | Required | |
+| --- | --- | --- | --- |
+| `open` | boolean | yes |  |
+| `anchor` | string | no | relationship |
+| `placement` | "top" | "bottom" | "start" | "end" | no |  |
+| `kind` | "auto" | "manual" | no |  |
+| `label` | string | no | name |
+
+| Event | Payload | |
+| --- | --- | --- |
+| `dismiss` | string | The person asked to close it: the payload is `escape` or `outside`. Nothing closes until the application sets `open` to false. |
 
 ## pre
 

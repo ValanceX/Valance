@@ -12,7 +12,7 @@ const specifications = loadSpecifications();
 const realizations = loadWeb();
 const table = webTable(realizations, Web as never);
 
-/** Decision A11: the twenty-three role names of version 1, pinned to AccessKit 0.17.1. */
+/** Decision A11: the twenty-three role names of version 1, pinned to AccessKit 0.17.1, and the two decision I23 adds (`dialog`, `group`; AccessKit has both). */
 const A11 = [
   "heading",
   "paragraph",
@@ -37,6 +37,8 @@ const A11 = [
   "row",
   "cell",
   "columnheader",
+  "dialog",
+  "group",
 ] as const;
 
 const draw = (tag: string) => {

@@ -36,7 +36,7 @@ const plain = (value: unknown): unknown => {
 const additions: Record<string, ReadonlyArray<string>> = {
   textfield: ["kind", "invalid", "describedby"], // `id` on `text` is what a `describedby` points at
   checkbox: ["invalid", "describedby"],
-  button: ["label", "intent", "size"],
+  button: ["id", "label", "intent", "size"], // `id` is what a popover's `anchor` names
   text: ["id"],
   paragraph: ["id"],
   list: Web.elementWhen === undefined ? [] : ["ordered"], // the element it chooses (PORT Web 0.11)
@@ -59,7 +59,16 @@ describe("the generated web table", () => {
       Object.keys(generated)
         .filter((tag) => !(tag in legacy) && !Object.values(renamed).includes(tag))
         .sort(),
-    ).toEqual(["alert", "label", "radio", "radiogroup", "status", "toggle"]);
+    ).toEqual([
+      "alert",
+      ...(Web.layerProp === undefined ? [] : ["dialog"]), // the layers (PORT Web 0.12)
+      "label",
+      ...(Web.layerProp === undefined ? [] : ["popover"]),
+      "radio",
+      "radiogroup",
+      "status",
+      "toggle",
+    ]);
   });
 
   it("keeps none of the old tags", () => {

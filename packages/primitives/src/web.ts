@@ -13,6 +13,10 @@ export interface WebHelpers {
   readonly property: (name: string, holds: "boolean" | "number" | "value") => unknown;
   /** Chooses the element by a boolean prop (PORT Web 0.11). Absent in an older PORT, and then a table that uses it is refused when it is built. */
   readonly elementWhen?: (name: string) => unknown;
+  /** A layer's prop (PORT Web 0.12). Absent in an older PORT, and then a layer is left out of the table, as the generated table does. */
+  readonly layerProp?: (name: string) => unknown;
+  /** The event a layer raises when the person asks to close it (PORT Web 0.12). */
+  readonly layerDismiss?: unknown;
   readonly textProperty: (name: string) => unknown;
   readonly event: (
     type: string,
@@ -44,6 +48,8 @@ const propOf = (web: WebHelpers, realization: PropRealization): unknown => {
       return web.controlledBoolean(realization.name);
     case "element":
       return web.elementWhen!(realization.name);
+    case "layer":
+      return web.layerProp!(realization.name);
     case "text-property":
       return web.textProperty(realization.name);
     case "property":
@@ -52,7 +58,9 @@ const propOf = (web: WebHelpers, realization: PropRealization): unknown => {
 };
 
 const eventOf = (web: WebHelpers, realization: EventRealization): unknown =>
-  web.event(
+  realization.raised === true
+    ? web.layerDismiss
+    : web.event(
     realization.type,
     realization.payload === undefined
       ? undefined
@@ -66,7 +74,10 @@ const eventOf = (web: WebHelpers, realization: EventRealization): unknown =>
 /** The table `createWebPort` is given and the manifest is derived from, in the order the realizations list the tags. */
 export const webTable = (realizations: WebRealizations, web: WebHelpers): WebPrimitives =>
   Object.fromEntries(
-    Object.entries(realizations.primitives).map(([tag, each]) => [
+    Object.entries(realizations.primitives)
+      // a layer needs PORT Web 0.12; without it the layer is left out, as the generated table does
+      .filter(([, each]) => each.layer === undefined || web.layerProp !== undefined)
+      .map(([tag, each]) => [
       tag,
       {
         element: each.element,
@@ -82,6 +93,7 @@ export const webTable = (realizations: WebRealizations, web: WebHelpers): WebPri
               ),
             }),
         ...(each.group === undefined ? {} : { group: each.group }),
+        ...(each.layer === undefined ? {} : { layer: each.layer }),
         ...(each.events === undefined
           ? {}
           : {
@@ -102,6 +114,8 @@ export const typeOfRealization = (realization: PropRealization): Type => {
     case "controlled-boolean":
     case "element":
       return { kind: "boolean" };
+    case "layer":
+      return { kind: realization.name === "open" ? "boolean" : "string" };
     case "property":
       return {
         kind: realization.holds === "value" ? "any" : realization.holds,

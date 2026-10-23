@@ -179,6 +179,11 @@ const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["pr
     return { type: { kind: "boolean" }, required: false };
   }
 
+  // A layer's prop (PORT Web 0.12): its `open` is a boolean, its `anchor` and `placement` are text; the specification says which a use must write.
+  if ((realization as { readonly kind: string }).kind === "layer") {
+    return { type: { kind: (realization as unknown as { readonly name: string }).name === "open" ? "boolean" : "string" }, required: false };
+  }
+
   switch (realization.kind) {
     case "attribute":
     case "controlled":
@@ -198,6 +203,11 @@ const tagOf = (tag: string, primitive: WebPrimitives[string]): Manifest["compone
   props: Object.fromEntries(Object.entries(primitive.props ?? {}).map(([name, realization]) => [name, propOf(name, realization, `${tag}.${name}`)])),
   events: Object.fromEntries(
     Object.entries(primitive.events ?? {}).map(([name, realization]) => {
+      // a layer's dismissal is raised by the PORT with the reason as its payload
+      if ((realization as { readonly raised?: boolean }).raised === true) {
+        return [name, { payload: { kind: "string" } as MeshType }];
+      }
+
       if (realization.payload === undefined) {
         return [name, {}];
       }

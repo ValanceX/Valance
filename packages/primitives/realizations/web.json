@@ -413,6 +413,11 @@
       "primitive": "button",
       "element": "button",
       "props": {
+        "id": {
+          "kind": "attribute",
+          "name": "id",
+          "optional": true
+        },
         "class": {
           "kind": "attribute",
           "name": "class",
@@ -565,6 +570,65 @@
     "label": {
       "primitive": "label",
       "element": "label"
+    },
+    "dialog": {
+      "primitive": "dialog",
+      "element": "dialog",
+      "layer": "modal",
+      "props": {
+        "open": {
+          "kind": "layer",
+          "name": "open"
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label"
+        }
+      },
+      "events": {
+        "dismiss": {
+          "type": "close",
+          "raised": true
+        }
+      }
+    },
+    "popover": {
+      "primitive": "popover",
+      "element": "div",
+      "layer": "popover",
+      "props": {
+        "open": {
+          "kind": "layer",
+          "name": "open"
+        },
+        "anchor": {
+          "kind": "layer",
+          "name": "anchor"
+        },
+        "placement": {
+          "kind": "layer",
+          "name": "placement"
+        },
+        "kind": {
+          "kind": "attribute",
+          "name": "popover",
+          "optional": true
+        },
+        "label": {
+          "kind": "attribute",
+          "name": "aria-label",
+          "optional": true
+        }
+      },
+      "events": {
+        "dismiss": {
+          "type": "close",
+          "raised": true
+        }
+      },
+      "attributes": {
+        "role": "group"
+      }
     }
   },
   "renamed": {

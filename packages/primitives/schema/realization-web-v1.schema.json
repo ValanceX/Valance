@@ -85,7 +85,8 @@
                         "controlled",
                         "boolean-attribute",
                         "controlled-boolean",
-                        "element"
+                        "element",
+                        "layer"
                       ]
                     },
                     "name": {
@@ -164,6 +165,9 @@
                       ]
                     }
                   }
+                },
+                "raised": {
+                  "const": true
                 }
               }
             }
@@ -188,6 +192,12 @@
                 }
               }
             }
+          },
+          "layer": {
+            "enum": [
+              "modal",
+              "popover"
+            ]
           }
         }
       }

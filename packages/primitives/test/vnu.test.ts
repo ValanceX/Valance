@@ -61,6 +61,17 @@ describe("the HTML the web tags draw", () => {
     expect(found).toEqual([]);
   });
 
+  it("checks the layers' own constructs: a dialog written open and a popover with its mode are valid, a wrong mode or a second `open` value is an error", { timeout: 60_000 }, () => {
+    const good = check({ good: page(`<dialog open aria-label="Sure?"><p>Sure?</p></dialog><div popover="manual" role="group" aria-label="Details"><p>More</p></div>`) });
+    const bad = check({
+      mode: page(`<div popover="sometimes"><p>More</p></div>`),
+      open: page(`<dialog open="false" aria-label="Sure?"><p>Sure?</p></dialog>`),
+    });
+
+    expect(good.filter((each) => each.type === "error")).toEqual([]);
+    expect(bad.filter((each) => each.type === "error").map((each) => each.file).sort()).toEqual(["mode.html", "open.html"]);
+  });
+
   it("does report a real error (the checker is running)", { timeout: 60_000 }, () => {
     const found = check({ bad: page(`<ul><span>not an item</span></ul>`) });
 
