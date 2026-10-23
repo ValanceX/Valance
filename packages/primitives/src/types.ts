@@ -95,6 +95,8 @@ export interface Specification {
     readonly politeness: "polite" | "assertive";
     readonly atomic: boolean;
   };
+  /** A modal layer: the page behind it is inert while it is open, so one cannot be inside another (decision I29). */
+  readonly modal?: true;
   /** The primitives this one must be inside (a list item is in a list). */
   readonly within?: ReadonlyArray<string>;
   readonly example: Example;
@@ -151,5 +153,7 @@ export interface WebRealizations {
   readonly target: "web";
   /** Tags that were renamed (decision P7): the old tag, and the tag it is now. A template that writes the old one is told the new one. */
   readonly renamed?: Readonly<Record<string, string>>;
+  /** Props that were renamed (decision I29): the tag, then the old prop and the prop it is now. A template that writes the old one is told the new one. */
+  readonly renamedProps?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly primitives: Readonly<Record<string, WebRealization>>;
 }

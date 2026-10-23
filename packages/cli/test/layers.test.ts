@@ -4,6 +4,7 @@ import { computeAccessibleName } from "dom-accessibility-api";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { build } from "../src/build.js";
 import { check } from "../src/check.js";
 import { cleanup, PAGE, project } from "./fixture.js";
 import { browserAvailable, errorsOf, inBrowser, portLayers } from "./forms-support.js";
@@ -47,6 +48,37 @@ describe.runIf(portLayers)("a dialog and a popover (needs @valancex/port-web 0.1
     expect((await check(project({ ...FILES, "src/layout.mprx": LAYOUT.replace("open={confirming} ", "") }))).diagnostics).not.toEqual([]);
   });
 
+  const diagnosticsOf = async (layout: string): Promise<ReadonlyArray<string>> =>
+    (await check(project({ ...FILES, "src/layout.mprx": layout }))).diagnostics.map(({ line, code, message }) => `${line} ${code}: ${message}`);
+
+  it("a popover's `mode` is accepted and the old `kind` is refused with a diagnostic that names `mode` (decision I29); a textfield's `kind` is unchanged", async () => {
+    const popover = (props: string) => `<shell class="x" theme="light"><popover open={menu} ${props} on.dismiss={toggleMenu()}><text>Archive</text></popover></shell>`;
+
+    expect(await diagnosticsOf(popover('mode="manual"'))).toEqual([]);
+    expect(await diagnosticsOf(popover('mode="sometimes"'))).not.toEqual([]);
+
+    const old = await diagnosticsOf(popover('kind="manual"'));
+
+    expect(old).toHaveLength(1);
+    expect(old[0]).toContain('unknown-prop: component "popover" has no prop "kind"');
+    expect(old[0]).toContain("`kind` on `popover` is now `mode`");
+    expect(await diagnosticsOf('<shell class="x" theme="light"><textfield label="Pass" value="" kind="password" /></shell>')).toEqual([]);
+  });
+
+  it("a dialog inside a dialog is a diagnostic that names both; dialogs side by side, and a popover inside a dialog, are fine (decision I29)", async () => {
+    const nested = await diagnosticsOf(
+      '<shell class="x" theme="light"><dialog open={confirming} label="A" on.dismiss={cancel()}><column><dialog open={menu} label="B" on.dismiss={toggleMenu()}><text>b</text></dialog></column></dialog></shell>',
+    );
+
+    expect(nested).toHaveLength(1);
+    expect(nested[0]).toMatch(/nested-modal: <dialog> is a modal layer inside <dialog>/);
+    expect(
+      await diagnosticsOf(
+        '<shell class="x" theme="light"><dialog open={confirming} label="A" on.dismiss={cancel()}><popover open={menu} on.dismiss={toggleMenu()}><text>p</text></popover></dialog><dialog open={menu} label="B" on.dismiss={toggleMenu()}><text>b</text></dialog></shell>',
+      ),
+    ).toEqual([]);
+  });
+
   describe.runIf(browserAvailable)("used in a browser", () => {
     it(
       "a dialog is modal while the application has it open, keeps focus inside, scrolls nothing behind it, is dismissed by Escape as the application decides, and gives focus back",
@@ -86,6 +118,27 @@ describe.runIf(portLayers)("a dialog and a popover (needs @valancex/port-web 0.1
           expect(await modal()).toBe(false);
           expect(errors).toEqual([]);
         });
+      },
+    );
+
+    it(
+      "a dialog that a component draws inside another dialog, which the compiler cannot see, is refused by the PORT when it is drawn, with the message that names both (decision I29)",
+      { timeout: 240_000 },
+      async () => {
+        const files = {
+          ...FILES,
+          "src/main.ts": MAIN.replace('import layout from "./layout.mprx";', 'import layout from "./layout.mprx";\nimport sure from "./sure.mprx";').replace(
+            "layout: component(layout),",
+            "layout: component(layout),\n  components: [component(sure)],",
+          ),
+          "src/layout.mprx": LAYOUT.replace("<text>This cannot be undone.</text>", "<sure />"),
+          "src/sure.mprx": '<dialog open={true} label="Really?"><text>Really?</text></dialog>',
+        };
+
+        const root = project(files);
+
+        // Nothing at compile time sees the two meet (the compiler judges one template); the first page that draws them is refused, here the server's, so the build fails and says why.
+        await expect(build(root)).rejects.toThrow(/nested-modal|a modal layer inside <dialog>/);
       },
     );
 

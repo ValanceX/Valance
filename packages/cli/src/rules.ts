@@ -1,5 +1,5 @@
 // What a use of a primitive must satisfy besides its props, from the primitives' specifications (`rules` of the vocabulary): a control has a name (`unnamed-control`), a list holds only items
-// (`list-child`), an item is in a list (`outside-container`). The checks read the compiled templates; a component the author wrote is not a primitive and is never judged by them (it may well draw the
+// (`list-child`), an item is in a list (`outside-container`), a modal layer is not inside another (`nested-modal`). The checks read the compiled templates; a component the author wrote is not a primitive and is never judged by them (it may well draw the
 // right primitive), only what the template itself writes.
 import type { Template, TemplateChild, TemplateElement, TemplateExpression } from "@valancex/mesh-compiler";
 
@@ -68,6 +68,17 @@ export const checkTemplate = (file: string, source: string, template: Template, 
         element,
         "unnamed-control",
         `<${tag}> has no accessible name: give it a \`label\`, or put it inside a <label> that says what it is for. In a component that takes its name from whoever uses it, declare the prop as the name (\`component(template, { props: { label: Schema.String }, name: "label" })\`) and write it here`,
+      );
+    }
+
+    // one modal layer at a time (decision I29)
+    const outer = rules.modal?.includes(tag) === true ? [...structural].reverse().find((each) => rules.modal?.includes(each) === true) : undefined;
+
+    if (outer !== undefined) {
+      report(
+        element,
+        "nested-modal",
+        `<${tag}> is a modal layer inside <${outer}>, another modal layer: a dialog inside a dialog is not supported, so open one at a time or put them side by side`,
       );
     }
 

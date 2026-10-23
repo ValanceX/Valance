@@ -609,7 +609,7 @@
           "kind": "layer",
           "name": "placement"
         },
-        "kind": {
+        "mode": {
           "kind": "attribute",
           "name": "popover",
           "optional": true
@@ -635,5 +635,10 @@
     "para": "paragraph",
     "item": "listitem",
     "quote": "blockquote"
+  },
+  "renamedProps": {
+    "popover": {
+      "kind": "mode"
+    }
   }
 }

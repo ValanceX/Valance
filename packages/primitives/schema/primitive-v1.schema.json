@@ -206,6 +206,9 @@
       },
       "uniqueItems": true,
       "minItems": 1
+    },
+    "modal": {
+      "const": true
     }
   },
   "definitions": {

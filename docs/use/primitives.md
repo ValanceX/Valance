@@ -56,6 +56,7 @@ What each primitive is: its role, how it is named, the states it carries, its pr
 ## What `vlx` checks of a use
 
 - **`unnamed-control`**: a control whose name comes from a prop (`checkbox`, `radio`, `radiogroup`, `textfield`) has a `label`, or is inside a `<label>` that says what it is for. A reusable component that takes its name from whoever uses it says which prop that is in its contract, `component(template, { props: { label: Schema.String }, name: "label" })`: the prop must be a string every use writes (a use that omits it is reported where it is written), the template must read it (`name-unused` otherwise), and a control in it with no name of its own is not reported.
+- **`nested-modal`**: a `dialog` is not inside another `dialog` in the same template (one modal layer at a time; a dialog that a component draws inside another dialog is refused by the PORT when it is drawn).
 - **`list-child`**: a `list` holds only `listitem`s (also under `{#if}` and `{#each}`); text or another primitive in it is reported. **`outside-container`**: a `listitem` is inside a `list` or `olist`, a `radio` inside a `radiogroup`.
 
 ## a
@@ -448,7 +449,7 @@ A layer placed at an element, not modal: the page behind it stays usable. The ap
 | `open` | boolean | yes |  |
 | `anchor` | string | no | relationship |
 | `placement` | "top" | "bottom" | "start" | "end" | no |  |
-| `kind` | "auto" | "manual" | no |  |
+| `mode` | "auto" | "manual" | no |  |
 | `label` | string | no | name |
 
 | Event | Payload | |

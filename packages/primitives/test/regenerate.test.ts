@@ -125,3 +125,23 @@ describe("the style contract's view of the primitives", () => {
     expect(readFileSync(join(root, "..", "style", "src", "primitives.ts"), "utf8")).toBe(generateStylePrimitives(loadSpecifications(), loadWeb()));
   });
 });
+
+describe("a popover's mode (decision I29)", () => {
+  const specifications = loadSpecifications();
+  const popover = specifications["popover"]!;
+
+  it("is `mode` in the specification, the realization and the table, and `kind` is gone: a popover does not accept it", () => {
+    expect(Object.keys(popover.props)).toContain("mode");
+    expect(Object.keys(popover.props)).not.toContain("kind");
+    expect(Object.keys(loadWeb().primitives["popover"]!.props ?? {})).toContain("mode");
+    expect(Object.keys(loadWeb().primitives["popover"]!.props ?? {})).not.toContain("kind");
+    expect(Object.keys(generated["popover"]?.props ?? { mode: 0 })).not.toContain("kind");
+    // the textfield's `kind` (its input type) is unchanged
+    expect(Object.keys(specifications["textfield"]!.props)).toContain("kind");
+    expect(loadWeb().renamedProps).toEqual({ popover: { kind: "mode" } });
+  });
+
+  it("is `auto` or `manual`", () => {
+    expect(popover.props["mode"]!.type).toEqual({ kind: "enum", values: ["auto", "manual"] });
+  });
+});

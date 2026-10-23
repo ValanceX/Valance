@@ -45,7 +45,7 @@ export const primitives: Web.WebPrimitives = {
   alert: { element: "div", attributes: {"role":"alert"} },
   label: { element: "label" },
   ...(Web.layerProp === undefined ? {} : { dialog: { element: "dialog", props: { open: Web.layerProp!("open"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! }, ...({ layer: "modal" } as object) } }),
-  ...(Web.layerProp === undefined ? {} : { popover: { element: "div", attributes: {"role":"group"}, props: { open: Web.layerProp!("open"), anchor: Web.layerProp!("anchor"), placement: Web.layerProp!("placement"), kind: Web.attribute("popover"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! }, ...({ layer: "popover" } as object) } }),
+  ...(Web.layerProp === undefined ? {} : { popover: { element: "div", attributes: {"role":"group"}, props: { open: Web.layerProp!("open"), anchor: Web.layerProp!("anchor"), placement: Web.layerProp!("placement"), mode: Web.attribute("popover"), label: Web.attribute("aria-label") }, events: { dismiss: Web.layerDismiss! }, ...({ layer: "popover" } as object) } }),
 };
 
 /** What each tag's props and events are, as the specification states them (the derivation from the table alone cannot say whether a prop is required, nor type one realized as text). */
@@ -678,7 +678,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         },
         "required": false
       },
-      "kind": {
+      "mode": {
         "type": {
           "kind": "enum",
           "values": [
@@ -712,13 +712,23 @@ export const renamed: Readonly<Record<string, string>> = {
   "quote": "blockquote"
 };
 
+/** The props that were renamed (decision I29), by tag, old to new: a template that writes the old one is told the new. */
+export const renamedProps: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "popover": {
+    "kind": "mode"
+  }
+};
+
 /** What a use of a tag must satisfy besides its props (`vlx` checks it): the tags that need a name (a `label` prop, or a `label` around them), the tags a tag may contain only, and the tags a tag must be inside. */
-export const rules: { readonly named: ReadonlyArray<string>; readonly only: Readonly<Record<string, ReadonlyArray<string>>>; readonly within: Readonly<Record<string, ReadonlyArray<string>>> } = {
+export const rules: { readonly named: ReadonlyArray<string>; readonly modal: ReadonlyArray<string>; readonly only: Readonly<Record<string, ReadonlyArray<string>>>; readonly within: Readonly<Record<string, ReadonlyArray<string>>> } = {
   "named": [
     "checkbox",
     "textfield",
     "radiogroup",
     "radio",
+    "dialog"
+  ],
+  "modal": [
     "dialog"
   ],
   "only": {

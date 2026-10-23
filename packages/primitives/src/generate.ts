@@ -93,13 +93,17 @@ export const generatePrimitives = (specifications: Readonly<Record<string, Speci
   }
 
   const tagOf = (primitive: string): string => Object.entries(realizations.primitives).find(([, each]) => each.primitive === primitive)?.[0] ?? primitive;
-  const rules = { named: [] as string[], only: {} as Record<string, string[]>, within: {} as Record<string, string[]> };
+  const rules = { named: [] as string[], modal: [] as string[], only: {} as Record<string, string[]>, within: {} as Record<string, string[]> };
 
   for (const [tag, each] of Object.entries(realizations.primitives)) {
     const specification = specifications[each.primitive]!;
 
     if (specification.accessibleName.required === true) {
       rules.named.push(tag);
+    }
+
+    if (specification.modal === true) {
+      rules.modal.push(tag);
     }
 
     if (typeof specification.content === "object") {
@@ -132,8 +136,11 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
 /** The tags that were renamed (decision P7), old to new: a template that writes the old one is told the new. */
 export const renamed: Readonly<Record<string, string>> = ${JSON.stringify(realizations.renamed ?? {}, null, 2)};
 
+/** The props that were renamed (decision I29), by tag, old to new: a template that writes the old one is told the new. */
+export const renamedProps: Readonly<Record<string, Readonly<Record<string, string>>>> = ${JSON.stringify(realizations.renamedProps ?? {}, null, 2)};
+
 /** What a use of a tag must satisfy besides its props (\`vlx\` checks it): the tags that need a name (a \`label\` prop, or a \`label\` around them), the tags a tag may contain only, and the tags a tag must be inside. */
-export const rules: { readonly named: ReadonlyArray<string>; readonly only: Readonly<Record<string, ReadonlyArray<string>>>; readonly within: Readonly<Record<string, ReadonlyArray<string>>> } = ${JSON.stringify(rules, null, 2)};
+export const rules: { readonly named: ReadonlyArray<string>; readonly modal: ReadonlyArray<string>; readonly only: Readonly<Record<string, ReadonlyArray<string>>>; readonly within: Readonly<Record<string, ReadonlyArray<string>>> } = ${JSON.stringify(rules, null, 2)};
 `;
 };
 

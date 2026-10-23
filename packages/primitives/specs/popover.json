@@ -30,7 +30,7 @@
       },
       "required": false
     },
-    "kind": {
+    "mode": {
       "type": {
         "kind": "enum",
         "values": [

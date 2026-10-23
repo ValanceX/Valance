@@ -2,6 +2,7 @@
   "version": 1,
   "name": "dialog",
   "status": "portable",
+  "modal": true,
   "role": "dialog",
   "summary": "A modal layer: while it is open the page behind it is inert, and focus stays inside it. The application owns `open`; when the person asks to close it (Escape, or a press outside it) the dialog raises `dismiss`, and the application decides whether it closes.",
   "props": {

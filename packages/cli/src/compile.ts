@@ -372,8 +372,16 @@ const anchorsOf = (root: string): ReadonlySet<string> => {
 const renamedHint = (
   vocabulary: Vocabulary,
   used: ReadonlyArray<{ readonly path: string; readonly source: string }>,
-  at: { readonly path: string; readonly span: { readonly start: { readonly line: number; readonly column: number } } },
+  at: { readonly path: string; readonly message?: string; readonly span: { readonly start: { readonly line: number; readonly column: number } } },
 ): string => {
+  // a prop the web renamed (decision I29: a popover's `kind` is `mode`): the diagnostic names the tag and the prop
+  const prop = /component "([^"]+)" has no prop "([^"]+)"/.exec(at.message ?? "");
+  const renamedProp = prop === null || !("tags" in vocabulary) ? undefined : vocabulary.renamedProps?.[prop[1]!]?.[prop[2]!];
+
+  if (renamedProp !== undefined) {
+    return ` (\`${prop![2]}\` on \`${prop![1]}\` is now \`${renamedProp}\`)`;
+  }
+
   const renamed = "tags" in vocabulary ? vocabulary.renamed : undefined;
   const line = used.find((template) => template.path === at.path)?.source.split("\n")[at.span.start.line - 1];
 

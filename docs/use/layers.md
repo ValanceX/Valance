@@ -24,7 +24,15 @@ The person asking to close it (Escape, or a press outside it) does **not** close
 <popover open={menu} anchor="more" placement="bottom" on.dismiss={toggleMenu()}><text>Archive</text></popover>
 ```
 
-A popover is not modal: the page behind it works. `anchor` is the `id` of the element it sits against (a `button` has one on every target), `placement` is `top`, `bottom`, `start` or `end`, and `kind` is `auto` (the default: Escape or a press outside raises `dismiss`) or `manual` (never). Without an `anchor` it is placed in the middle of the window. On the web the placement is CSS anchor positioning; a browser without it shows the popover where it puts it.
+A popover is not modal: the page behind it works. `anchor` is the `id` of the element it sits against (a `button` has one on every target), `placement` is `top`, `bottom`, `start` or `end`, and `mode` is `auto` (the default: Escape or a press outside raises `dismiss`) or `manual` (never). Without an `anchor` it is placed in the middle of the window. On the web the placement is CSS anchor positioning; a browser without it shows the popover where it puts it.
+
+## One modal at a time
+
+A dialog inside a dialog is refused: `vlx` reports `nested-modal` where one template writes it, and the PORT refuses it, with the same words, where a component draws it inside another (the server's page, or the browser's, is not drawn). Put the two side by side, or open one after the other. A popover inside a dialog is fine.
+
+## Renamed
+
+A popover's `mode` was called `kind` before the first release; the word is the input type of a `textfield`. `vlx` says so where a template still writes it: `` `kind` on `popover` is now `mode` ``.
 
 ## Scrolling
 
@@ -32,14 +40,14 @@ While a modal is open the page behind it does not scroll and its scrollbar keeps
 
 ## Where it differs on the window
 
-The window has no `popover` attribute and no top layer: a popover is an area at its anchor's rectangle of the last frame, and an anchor that is not on screen puts it in the middle. A `kind="auto"` popover is dismissed by a press outside it, or Escape. Focus return uses the same rule as the web.
+The window has no `popover` attribute and no top layer: a popover is an area at its anchor's rectangle of the last frame, and an anchor that is not on screen puts it in the middle. A `mode="auto"` popover is dismissed by a press outside it, or Escape. Focus return uses the same rule as the web.
 
 ## Tiers
 
 | | Tier |
 |---|---|
 | `dialog`, `popover`, `open`, `label`, `on.dismiss` | 1 |
-| `anchor`, `placement`, `kind` | 2 |
+| `anchor`, `placement`, `mode` | 2 |
 | `layer`, `layerProp`, `layerDismiss` in a web table (for a primitive author) | 3 |
 
 Needs PORT 0.12. With an older PORT the two tags are not in the table, and a template that writes them is told so.
