@@ -31,6 +31,8 @@ export interface Config {
   };
   /** The application's backend: the address its requests are made to (a path on the site's own origin, or an absolute https address), and, for `vlx dev`, where a path is proxied to. */
   readonly api: { readonly base: string; readonly proxy: string };
+  /** What `vlx dev --record` leaves out of a session log (Tier 2; R9, R14): nothing, unless the project says. */
+  readonly record: { readonly redact: { readonly scope: ReadonlyArray<ReadonlyArray<string>>; readonly commands: ReadonlyArray<string> } };
 }
 
 const read = (root: string, file: string): { readonly text: string; readonly value: unknown } | undefined => {
@@ -138,6 +140,43 @@ const api = (value: unknown): string | undefined => {
   return undefined;
 };
 
+const record = (value: unknown): string | undefined => {
+  const redact = (value as { readonly redact?: unknown } | null)?.redact;
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => key !== "redact") ||
+    typeof redact !== "object" ||
+    redact === null ||
+    Array.isArray(redact)
+  ) {
+    return 'must be an object such as { "redact": { "scope": [["password"]], "commands": ["login/type"] } }';
+  }
+
+  const { scope, commands, ...others } = redact as { scope?: unknown; commands?: unknown };
+
+  if (Object.keys(others).length > 0) {
+    return `"redact" has unknown settings ${Object.keys(others)
+      .map((key) => `"${key}"`)
+      .join(", ")} (known: scope, commands)`;
+  }
+
+  if (
+    scope !== undefined &&
+    (!Array.isArray(scope) || scope.some((path) => !Array.isArray(path) || path.length === 0 || path.some((step) => typeof step !== "string" || step === "")))
+  ) {
+    return '"redact.scope" must be a list of paths, each a non-empty list of field names ("*" is any list index or field): [["password"], ["people", "*", "pin"]]';
+  }
+
+  if (commands !== undefined && (!Array.isArray(commands) || commands.some((name) => typeof name !== "string" || !/^[\w-]+\/[\w-]+$/.test(name)))) {
+    return '"redact.commands" must be a list of "component/name" commands whose parameters are not recorded: ["login/type"]';
+  }
+
+  return undefined;
+};
+
 /** Reads and validates the project's configuration. Every problem in both files is reported together. */
 export const loadConfig = (root: string): Config => {
   const project = read(root, PROJECT_FILE);
@@ -150,7 +189,7 @@ export const loadConfig = (root: string): Config => {
   const desktop = read(root, DESKTOP_FILE);
   const problems = [
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
-    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title }, ["name"]),
+    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title, record }, ["name"]),
     ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
   ];
 
@@ -165,7 +204,11 @@ export const loadConfig = (root: string): Config => {
     readonly announce?: boolean;
     readonly api?: { readonly base: string; readonly proxy?: string };
   };
-  const named = project.value as { readonly name: string; readonly title?: string };
+  const named = project.value as {
+    readonly name: string;
+    readonly title?: string;
+    readonly record?: { readonly redact: { readonly scope?: string[][]; readonly commands?: string[] } };
+  };
 
   return {
     name: named.name,
@@ -173,6 +216,7 @@ export const loadConfig = (root: string): Config => {
     title: named.title ?? DEFAULT_TITLE,
     web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },
+    record: { redact: { scope: named.record?.redact.scope ?? [], commands: named.record?.redact.commands ?? [] } },
   };
 };
 

@@ -36,7 +36,7 @@ const HELP = `vlx <command>
 
   init [name] [--web]              make a new application
   dev [--port N] [--host H]        serve it and rebuild as it changes (--record [file]: write a session log)
-  replay <log> [--route R]         play a session log against this project and find where it differs
+  replay <log> [--route R] [--allow-user-data]  play a session log against this project and find where it differs
   build                            write the site to dist/web/
   check [--json]                   find mistakes in your files without building
   theme check [--json]             check the theme: tokens, recipes, contrast, and what each target applies
@@ -69,7 +69,7 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   generate: GENERATE_HELP,
   g: GENERATE_HELP,
   replay:
-    "vlx replay <log> [--route changes,update,render] [--json]\n\nPlay a session log (written by vlx dev --record, or one of MESH's conformance logs) against this project's templates by the three routes of the equivalence law, and find the first line where one differs from the log: a tree, an event's outcome, a program or manifest that is not the one recorded. It runs no command and reads no clock. Exits 0 when every route gave what the log recorded, 1 when one did not.\n",
+    "vlx replay <log> [--route changes,update,render] [--json] [--allow-user-data]\n\nPlay a session log (written by vlx dev --record, or one of MESH's conformance logs) against this project's templates by the three routes of the equivalence law, and find the first line where one differs from the log: a tree, an event's outcome, a program or manifest that is not the one recorded. It runs no command and reads no clock. Exits 0 when every route gave what the log recorded, 1 when one did not, 2 when the log cannot be read. A log that holds user data (every recording does: its header says containsUserData) is refused unless you pass --allow-user-data: a divergence prints what was typed and shown.\n",
   dev: "vlx dev [--web|--desktop] [--port N] [--host H] [--record [file]]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page. --record writes the web page's session as a log (default .valance/sessions/<time>.jsonl) for vlx replay: development only, never uploaded, and it holds what the person typed.\n",
   build:
     "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/web/; any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
@@ -271,10 +271,6 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         console.log(`vlx dev: ${running.url}`);
 
-        if (record !== undefined) {
-          console.log(`vlx dev: recording the session to ${record} (it holds what is typed: keep it local; replay it with vlx replay)`);
-        }
-
         // Until interrupted (or, for a desktop project, until the window is closed).
         await new Promise<void>((resolve) => {
           process.once("SIGINT", resolve);
@@ -298,6 +294,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         const replayed = await replayFile(findRoot(cwd), resolve(cwd, file), {
           ...(routes === undefined ? {} : { routes: routes.split(",") }),
           json: rest.includes("--json"),
+          allowUserData: rest.includes("--allow-user-data"),
         });
 
         (replayed.code === 0 ? console.log : console.error)(replayed.output);

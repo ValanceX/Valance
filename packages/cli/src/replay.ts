@@ -4,8 +4,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { ReplayResult, ReplaySetup, Route } from "@valancex/valance/replay";
-import { parseLog, programHash, replay, ROUTES, sha256 } from "@valancex/valance/replay";
+import { holdsUserData, parseLog, programHash, replay, ROUTES, sha256 } from "@valancex/valance/replay";
 
+import { userDataRefusal } from "./recording-guard.js";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
 import { generateContent, generateProgram, programFile } from "./emit.js";
@@ -52,7 +53,11 @@ export interface ReplayRun {
 }
 
 /** Replays the log at `file` in the project at `root`. 0 when every route gave what the log recorded, 1 when one did not, 2 for a log or a route that cannot be read. */
-export const replayFile = async (root: string, file: string, options?: { readonly routes?: ReadonlyArray<string>; readonly json?: boolean }): Promise<ReplayRun> => {
+export const replayFile = async (
+  root: string,
+  file: string,
+  options?: { readonly routes?: ReadonlyArray<string>; readonly json?: boolean; readonly allowUserData?: boolean },
+): Promise<ReplayRun> => {
   if (!existsSync(file)) {
     return { code: 2, output: `vlx replay: ${file} is not a file` };
   }
@@ -69,6 +74,10 @@ export const replayFile = async (root: string, file: string, options?: { readonl
     lines = parseLog(readFileSync(file, "utf8"));
   } catch (error) {
     return { code: 2, output: `vlx replay: ${error instanceof Error ? error.message : String(error)}` };
+  }
+
+  if (holdsUserData(lines) && options?.allowUserData !== true) {
+    return { code: 2, output: userDataRefusal(file) };
   }
 
   const result = await replay(lines, await setupOf(root), { routes });

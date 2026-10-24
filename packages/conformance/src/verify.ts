@@ -432,7 +432,7 @@ const terminal = async (): Promise<{ adapter: Adapter; close: () => void }> => {
 
 const replayLogs = async (): Promise<Verification> => {
   const { compile } = await import("@valancex/mesh-compiler");
-  const { programHash, parseLog, replay, sha256 } = await import("@valancex/valance/replay");
+  const { holdsUserData, programHash, parseLog, replay, sha256 } = await import("@valancex/valance/replay");
   const directory = join(require_.resolve("@valancex/mesh-conformance/package.json"), "..", "conformance", "replay");
 
   if (!existsSync(directory)) {
@@ -479,6 +479,12 @@ const replayLogs = async (): Promise<Verification> => {
         manifest: await sha256(model),
       },
     };
+    // A log is attached to the report only if it holds no user data (R16): the flag is the guard, and the control below is a log that carries it.
+    if (holdsUserData(lines)) {
+      failures.push(`${name}: the log holds user data (its header says containsUserData) and is not attached to a report`);
+      continue;
+    }
+
     const result = await replay(lines, setup);
 
     checked += 1;
@@ -499,7 +505,7 @@ const replayLogs = async (): Promise<Verification> => {
       const at = wrong.findIndex((line, index) => index > 0 && line.line === "tree");
 
       wrong[at] = { line: "tree", sha256: "0".repeat(64) };
-      control = !(await replay(wrong, setup)).ok;
+      control = !(await replay(wrong, setup)).ok && holdsUserData([{ ...(lines[0] as object), containsUserData: true } as never, ...lines.slice(1)]) && !holdsUserData(lines);
     }
   }
 
@@ -509,7 +515,7 @@ const replayLogs = async (): Promise<Verification> => {
     tool: "@valancex/valance/replay",
     standard: "MESH's session-log vectors (replay/), by the three routes of the equivalence law",
     checked,
-    control: { wrong: "a log with a changed tree hash", found: control },
+    control: { wrong: "a log with a changed tree hash, and a log whose header says containsUserData", found: control },
     failures,
   });
 };

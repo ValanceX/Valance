@@ -32,12 +32,27 @@ export type SessionLine =
       /** SHA-256 of the manifest text. */
       readonly manifest: string;
       readonly hashes?: "sources" | "templates";
+      /** Present and `true` in every log a recorder writes (R16): a recording holds what a person typed and saw. `redacted` says what it left out. */
+      readonly containsUserData?: boolean;
+      /** What the recorder replaced with a digest (R9, R14): scope paths (`*` is any list index or field name) and the commands whose parameters were. */
+      readonly redacted?: Redaction;
       readonly snapshot: Record<string, unknown>;
     }
   | { readonly line: "changes"; readonly changes: ReadonlyArray<Change>; readonly rejects?: string }
   | { readonly line: "event"; readonly n: number; readonly on: number; readonly handler: string; readonly payload?: unknown; readonly out: Outcome; readonly origin?: "early" }
   | { readonly line: "tree"; readonly sha256: string; readonly tree?: RenderTree }
   | { readonly line: "result"; readonly of?: number; readonly data?: unknown };
+
+/** What a recording leaves out (R9, R14): the scope paths whose values it replaces with a digest, and the commands whose payloads and parameters it does. */
+export interface Redaction {
+  /** Paths into the program root's scope, `*` standing for any list index or field name: `["credentials", "password"]`, `["people", "*", "pin"]`. */
+  readonly scope?: ReadonlyArray<ReadonlyArray<string>>;
+  /** Commands as `component/name`: an event that makes one of them is recorded with a digest as its payload. */
+  readonly commands?: ReadonlyArray<string>;
+}
+
+/** True when a log's header says it holds user data (every recording does, R16): it is not to be attached, printed or shared without the person saying they mean to. */
+export const holdsUserData = (lines: ReadonlyArray<SessionLine>): boolean => lines.some((each) => each.line === "header" && each.containsUserData === true);
 
 /** The checkpoint interval: the whole tree is written at every 50th line and at the end. */
 export const CHECKPOINT = 50;
@@ -331,8 +346,102 @@ export interface RecorderOptions {
   /** The version of the runtime that records (information). */
   readonly runtime?: string;
   /** For each view: the compiled templates in order, and the manifest text, so the header can hash them. */
-  readonly programs: (view: string) => { readonly templates: ReadonlyArray<string>; readonly model: string };
+  readonly programs: (view: string) => { readonly root?: string; readonly templates: ReadonlyArray<string>; readonly model: string };
+  /**
+   * What not to write (Tier 2; R9, R14). Nothing is redacted by default and the header says `containsUserData` either way. A marked value is **never written**: its place holds a digest keyed
+   * with a random key that exists only in this recorder, so equal values have equal digests in one log and nothing else can be learned from it. The tree hashes are taken from a second render of
+   * the redacted snapshot, so the log still replays. Needs `programs` to give the `root`.
+   */
+  readonly redact?: Redaction;
+  /** Told once when the redaction changes the shape of the tree (a marked value decides a branch): the log would not replay at that event, and the secret was not written either way. */
+  readonly warn?: (message: string) => void;
 }
+
+// ---- redaction ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** A digest of `value`, keyed: `redacted:` and 16 hexadecimal digits. */
+const digestor = async (): Promise<(value: unknown) => Promise<string>> => {
+  const key = await globalThis.crypto.subtle.importKey("raw", globalThis.crypto.getRandomValues(new Uint8Array(32)), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+
+  return async (value) =>
+    `redacted:${Array.from(new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, new TextEncoder().encode(compact(value)))).slice(0, 8), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+};
+
+/** `value` with every leaf replaced: a string by its digest, a number by 0, a boolean by false; `null` stays, so the shape stays. */
+const leaves = async (value: unknown, digest: (value: unknown) => Promise<string>): Promise<unknown> => {
+  if (typeof value === "string") {
+    return digest(value);
+  }
+
+  if (typeof value === "number") {
+    return 0;
+  }
+
+  if (typeof value === "boolean") {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return Promise.all(value.map((each) => leaves(each, digest)));
+  }
+
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, each]) => [key, await leaves(each, digest)] as const)));
+  }
+
+  return value;
+};
+
+/** `snapshot` (a copy) with the values at `paths` replaced. */
+const redactScope = async (
+  snapshot: Record<string, unknown>,
+  paths: ReadonlyArray<ReadonlyArray<string>>,
+  digest: (value: unknown) => Promise<string>,
+): Promise<Record<string, unknown>> => {
+  const copy = clone(snapshot);
+  const walk = async (at: unknown, path: ReadonlyArray<string>): Promise<void> => {
+    if (at === null || typeof at !== "object") {
+      return;
+    }
+
+    const record = at as Record<string, unknown>;
+    const [step, ...rest] = path;
+    const names = step === "*" ? Object.keys(record) : step !== undefined && step in record ? [step] : [];
+
+    for (const name of names) {
+      if (rest.length === 0) {
+        record[name] = await leaves(record[name], digest);
+      } else {
+        await walk(record[name], rest);
+      }
+    }
+  };
+
+  for (const path of paths) {
+    await walk(copy, path);
+  }
+
+  return copy;
+};
+
+/** The event handlers and node keys of a tree: what a person could press, and where. A redaction that changes this has changed the tree's shape. */
+const shapeOf = (tree: RenderTree): string => {
+  const found: string[] = [];
+  const visit = (node: unknown): void => {
+    if (node === null || typeof node !== "object") {
+      return;
+    }
+
+    const record = node as { key?: string; events?: Record<string, string>; children?: unknown[] };
+
+    found.push(`${record.key ?? ""}:${Object.values(record.events ?? {}).join(",")}`);
+    record.children?.forEach(visit);
+  };
+
+  visit((tree as unknown as { root: unknown }).root);
+
+  return found.join("|");
+};
 
 /**
  * A recorder for `MountOptions.record`: writes a log of the session it follows. Hashing is asynchronous, so the lines are written in the order of what happened, by an internal queue;
@@ -344,9 +453,15 @@ export const recorder = (options: RecorderOptions): SessionRecorder & { readonly
   let previous: Record<string, unknown> | undefined;
   let lines = 0;
   let sequence = 0;
-  // The renders drawn in this segment, by ordinal: an event names the one it was drawn against.
+  // The renders drawn in this segment, by ordinal: an event names the one it was drawn against. With a redaction, `shown` holds the render of the redacted snapshot beside each.
   let drawn: Render[] = [];
+  let shown: Render[] = [];
   let last: Render | undefined;
+  let program: { readonly root: string; readonly templates: ReadonlyArray<string>; readonly model: string } | undefined;
+  let digest: ((value: unknown) => Promise<string>) | undefined;
+  let warned = false;
+  const scopePaths = options.redact?.scope ?? [];
+  const commands = options.redact?.commands ?? [];
 
   const write = (line: SessionLine): void => {
     lines += 1;
@@ -363,17 +478,52 @@ export const recorder = (options: RecorderOptions): SessionRecorder & { readonly
     sha256: await treeHash(made.tree),
     ...(final || (lines + 1) % CHECKPOINT === 0 ? { tree: made.tree } : {}),
   });
+  const keyed = async (): Promise<(value: unknown) => Promise<string>> => (digest ??= await digestor());
+  // The render of the redacted snapshot (rule 5), or the render itself when nothing is redacted.
+  const redactedRender = async (made: Render, snapshot: Record<string, unknown>): Promise<{ readonly render: Render; readonly snapshot: Record<string, unknown> }> => {
+    if (scopePaths.length === 0) {
+      return { render: made, snapshot };
+    }
+
+    if (program === undefined || program.root === undefined) {
+      throw new Error("a redaction needs `programs` to give the root of the program");
+    }
+
+    const redacted = await redactScope(snapshot, scopePaths, await keyed());
+    const result = await render({ program: { root: program.root, templates: program.templates }, model: program.model, snapshot: clone(redacted) });
+
+    if (result.render === undefined) {
+      throw new Error(`the redacted snapshot does not render: ${code(result)}`);
+    }
+
+    if (!warned && shapeOf(result.render.tree) !== shapeOf(made.tree)) {
+      warned = true;
+      write({ line: "result", data: { redaction: "changed-the-tree" } });
+      options.warn?.(
+        "a value marked sensitive decides which nodes or handlers the tree has (an {#if}, an {#each}, a key): this log will not replay at an event on them. Keep a sensitive value opaque in the template (R14).",
+      );
+    }
+
+    return { render: result.render, snapshot: redacted };
+  };
 
   return {
     presented: (made) =>
       enqueue(async () => {
-        const snapshot = clone(made.snapshot);
+        const first = view !== made.view || previous === undefined;
 
-        if (view !== made.view || previous === undefined) {
-          const { templates, model } = options.programs(made.view);
+        if (first) {
+          program = { root: "", ...options.programs(made.view) } as typeof program;
+        }
+
+        const { render: redacted, snapshot } = await redactedRender(made.render, clone(made.snapshot));
+
+        if (first) {
+          const { templates, model } = program!;
 
           view = made.view;
           drawn = [made.render];
+          shown = [redacted];
           write({
             line: "header",
             format: FORMAT,
@@ -382,29 +532,44 @@ export const recorder = (options: RecorderOptions): SessionRecorder & { readonly
             program: await programHash(templates),
             manifest: await sha256(model),
             hashes: "templates",
+            containsUserData: true,
+            ...(scopePaths.length === 0 && commands.length === 0
+              ? {}
+              : { redacted: { ...(scopePaths.length === 0 ? {} : { scope: scopePaths }), ...(commands.length === 0 ? {} : { commands }) } }),
             snapshot,
           });
         } else {
           drawn.push(made.render);
-          write({ line: "changes", changes: diff(previous, snapshot) });
+          shown.push(redacted);
+          write({ line: "changes", changes: diff(previous!, snapshot) });
         }
 
         previous = snapshot;
-        last = made.render;
-        write(await treeLine(made.render, false));
+        last = redacted;
+        write(await treeLine(redacted, false));
       }),
     event: (reported) =>
       enqueue(async () => {
-        const on = drawn.indexOf(reported.render);
+        const index = drawn.indexOf(reported.render);
+        const on = index < 0 ? drawn.length - 1 : index;
+        const against = shown[on] ?? reported.render;
+        let payload = reported.payload;
+        let out = await outcomeOf(against, reported.handler, payload);
+
+        // A command listed as sensitive: its payload is not written, and the outcome is what the runtime makes of the digest, which is what the player will compute.
+        if ("intent" in out && commands.includes(commandOf(out.intent))) {
+          payload = await leaves(payload, await keyed());
+          out = await outcomeOf(against, reported.handler, payload);
+        }
 
         sequence += 1;
         write({
           line: "event",
           n: sequence,
-          on: on < 0 ? drawn.length - 1 : on,
+          on,
           handler: reported.handler,
-          ...(reported.payload === undefined ? {} : { payload: reported.payload }),
-          out: await outcomeOf(reported.render, reported.handler, reported.payload),
+          ...(payload === undefined ? {} : { payload }),
+          out,
           ...(reported.early === true ? { origin: "early" as const } : {}),
         });
       }),
@@ -420,6 +585,12 @@ export const recorder = (options: RecorderOptions): SessionRecorder & { readonly
       }
     },
   };
+};
+
+const commandOf = (intent: unknown): string => {
+  const command = (intent as { readonly command?: { readonly component?: string; readonly name?: string } } | undefined)?.command;
+
+  return `${command?.component ?? ""}/${command?.name ?? ""}`;
 };
 
 /**

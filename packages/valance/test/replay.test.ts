@@ -5,6 +5,7 @@ import { Effect, Exit, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
+import { render, update } from "@valancex/mesh-runtime";
 import { compact, formatLine, parseLog, programHash, recorder, replay, sha256, treeHash } from "../src/replay.js";
 import type { SessionLine } from "../src/replay.js";
 
@@ -199,5 +200,123 @@ describe("a recorded session", () => {
 
     // the first click came before the relabel and after the add: its `on` is the second tree (ordinal 1)
     expect(first.on).toBe(1);
+  });
+});
+
+// ---- redaction (R9, R14, R16) -------------------------------------------------------------------------------------------------------------------------------------------------
+
+const secret = "hunter2-the-secret";
+const manifest = JSON.stringify({
+  version: 1,
+  types: {},
+  components: {
+    login: {
+      props: {},
+      events: {},
+      commands: { type: { parameters: [{ name: "text", type: { kind: "string" } }] }, save: { parameters: [] } },
+      scope: { password: { kind: "string" }, user: { kind: "string" } },
+    },
+    field: { props: { value: { type: { kind: "string" }, required: true } }, events: { input: { payload: { kind: "string" } } }, commands: {}, scope: {} },
+    text: { props: {}, events: {}, commands: {}, scope: {} },
+  },
+});
+const built = await compileProgram({
+  model: { manifest, path: "components.json" },
+  root: "login",
+  components: [{ component: "login", path: "login.mprx", source: "<text><field value={password} on.input={type($event)} /><field value={user} on.input={type($event)} /></text>" }],
+});
+
+describe("a recording that redacts", () => {
+  const login = built.program as unknown as { readonly root: string; readonly templates: ReadonlyArray<string> };
+  const record = async (redact?: { scope?: string[][]; commands?: string[] }) => {
+    const written: string[] = [];
+    const warnings: string[] = [];
+    const recording = recorder({
+      write: (line) => written.push(line),
+      warn: (message) => warnings.push(message),
+      programs: () => ({ root: login.root, templates: login.templates, model: manifest }),
+      redact,
+    });
+    const snapshot = { password: secret, user: "ada" };
+    const asked = await render({ program: login, model: manifest, snapshot });
+    const first = asked.render!;
+
+    recording.presented({ view: "main", snapshot, render: first });
+
+    const field = (first.tree.root as unknown as { children: ReadonlyArray<{ events: { input: string } }> }).children[0]!.events.input;
+
+    recording.event({ handler: field, payload: secret, render: first });
+
+    const changed = { password: `${secret}!`, user: "ada" };
+    const next = await update(first, changed);
+
+    recording.presented({ view: "main", snapshot: changed, render: next.render! });
+    await recording.flush();
+
+    return { text: written.join("\n"), warnings };
+  };
+
+  it("says that it holds user data, always", async () => {
+    const { text } = await record();
+
+    expect(parseLog(text)[0]).toMatchObject({ line: "header", containsUserData: true });
+    expect(text).toContain(secret);
+  });
+
+  it("never writes a marked value, in the snapshot, the changes, the trees, the payloads or the outcomes, and the log still replays by three routes", async () => {
+    const { text, warnings } = await record({ scope: [["password"]], commands: ["login/type"] });
+    const lines = parseLog(text);
+
+    expect(text).not.toContain(secret);
+    expect(lines[0]).toMatchObject({ containsUserData: true, redacted: { scope: [["password"]], commands: ["login/type"] } });
+    expect((lines[0] as unknown as { snapshot: { password: string; user: string } }).snapshot.password).toMatch(/^redacted:[0-9a-f]{16}$/);
+    expect((lines[0] as unknown as { snapshot: { user: string } }).snapshot.user).toBe("ada");
+    expect(lines.find((each) => each.line === "event")).toMatchObject({ payload: expect.stringMatching(/^redacted:/) });
+    expect(warnings).toEqual([]);
+
+    const played = await replay(lines, { program: login, model: manifest });
+
+    expect(played.ok).toBe(true);
+    expect(played.agree).toBe(true);
+    expect(played.routes.map((each) => each.hashes.length)).toEqual([3, 3, 3]);
+  });
+
+  it("keys the digest with a key that exists only in the recorder: two recordings of the same value differ, equal values within one log are equal", async () => {
+    const a = parseLog((await record({ scope: [["password"]] })).text);
+    const b = parseLog((await record({ scope: [["password"]] })).text);
+    const password = (line: SessionLine) => (line as unknown as { snapshot: { password: string } }).snapshot.password;
+
+    expect(password(a[0]!)).not.toBe(password(b[0]!));
+    expect(await sha256(secret)).not.toContain(password(a[0]!).slice(9));
+  });
+
+  it("a marked value that is not redacted is found: the same log without the marking carries it (the check above fails without the feature)", async () => {
+    expect((await record({ scope: [], commands: [] })).text).toContain(secret);
+  });
+
+  it("warns once, and writes the finding, when a marked value decides a branch (R14 rule 2): the log would not replay at that event", async () => {
+    const branching = await compileProgram({
+      model: { manifest, path: "components.json" },
+      root: "login",
+      components: [{ component: "login", path: "login.mprx", source: '<text>{#if user == "ada"}<field value={password} on.input={type($event)} />{/if}</text>' }],
+    });
+    const program = branching.program as unknown as { readonly root: string; readonly templates: ReadonlyArray<string> };
+    const written: string[] = [];
+    const warnings: string[] = [];
+    const recording = recorder({
+      write: (line) => written.push(line),
+      warn: (message) => warnings.push(message),
+      programs: () => ({ root: program.root, templates: program.templates, model: manifest }),
+      redact: { scope: [["user"]] },
+    });
+    const snapshot = { password: "p", user: "ada" };
+
+    recording.presented({ view: "main", snapshot, render: (await render({ program, model: manifest, snapshot })).render! });
+    await recording.flush();
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("sensitive");
+    expect(written.join("\n")).toContain('"redaction":"changed-the-tree"');
+    expect(written.join("\n")).not.toContain('"user":"ada"');
   });
 });

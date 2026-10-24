@@ -11,6 +11,7 @@
 //   valance.json, valance.web.json   the server restarts (the name and the base are fixed when it starts)
 //
 // A mistake in any of them leaves the last good build serving, and is shown in the terminal and as an overlay in the page, naming the file and line. Fixing it reloads the page.
+import { recordingNotice } from "./recording-guard.js";
 import type { ViteDevServer } from "vite";
 import { createServer } from "vite";
 import { appendFileSync, mkdirSync } from "node:fs";
@@ -104,6 +105,10 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   let pending: Promise<void> = Promise.resolve();
 
   generateEntries(root, config, { record: options.record !== undefined });
+
+  if (options.record !== undefined) {
+    recordingNotice(root, options.record, config).forEach(log);
+  }
 
   const base = baseConfig(root, config);
   const server = await createServer({

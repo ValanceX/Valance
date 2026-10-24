@@ -1,4 +1,7 @@
 node_modules
 dist
 .valance
+# session recordings (vlx dev --record) hold what was typed: never commit them
+.valance/sessions/
+*.session.jsonl
 .work*
