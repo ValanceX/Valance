@@ -198,8 +198,9 @@ describe("the release check", () => {
   });
 
   it("fails a known red under --strict-known (the release dry run, once the fixes are published)", () => {
-    expect(over(checkResults(budgets, results, { strictKnown: true }))).toEqual(["wire.wholeTree", "installability"]);
-    expect(over(checkResults(budgets, { ...results, newestInstallsTogether: { installs: true } }, { strictKnown: true }))).toEqual(["wire.wholeTree"]);
+    // the whole-tree wire bytes have no limit yet, so they are only ever reported; the installability has one
+    expect(over(checkResults(budgets, results, { strictKnown: true }))).toEqual(["installability"]);
+    expect(over(checkResults(budgets, { ...results, newestInstallsTogether: { installs: true } }, { strictKnown: true }))).toEqual([]);
   });
 
   it("does not fail a browser row it was told was not measured, and fails one that is missing", () => {
@@ -248,5 +249,27 @@ describe("the release check", () => {
     expect(spawnSync("node", [script], { encoding: "utf8" }).status).toBe(2);
     expect(execFileSync("node", [script, "--rule"], { encoding: "utf8" })).toContain("the rule holds");
     expect(readdirSync(directory)).toHaveLength(2);
+  });
+});
+
+describe("the workflows", () => {
+  const workflows = new URL("../../../.github/workflows/", import.meta.url);
+  const release = readFileSync(new URL("release.yml", workflows), "utf8");
+
+  it("the release holds the tree to its budgets before it packs: the job runs the check, and `pack` waits for it", () => {
+    expect(release).toMatch(/\n {2}budgets:\n {4}needs: ci\n/);
+    expect(release).toContain("node scripts/check-budgets.mjs --rule");
+    expect(release).toContain("node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json");
+    expect(release).toMatch(/\n {2}pack:\n {4}needs: \[ci, conformance, budgets\]\n/);
+    // a real release (a tag push) also needs the known reds that have an expected value to be green; a dry run reports them
+    expect(release).toContain("github.event_name == 'push' && '--strict-known'");
+  });
+
+  it("measures weekly, keeps the results as an artifact, and is not a gate on a push", () => {
+    const weekly = readFileSync(new URL("budgets.yml", workflows), "utf8");
+
+    expect(weekly).toMatch(/schedule:\n\s+- cron: "\d+ \d+ \* \* 1"/);
+    expect(weekly).toContain("upload-artifact");
+    expect(weekly).not.toMatch(/\n {2}push:/);
   });
 });

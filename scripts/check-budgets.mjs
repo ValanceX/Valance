@@ -103,7 +103,16 @@ export const check = (budgets, results, options = {}) => {
     const measured = at(results, each.path);
     const red = each.expect === undefined ? true : measured !== each.expect;
 
-    row("known", each.id, each.what, measured, each.expect ?? "no limit yet", red ? (options.strictKnown === true ? "over" : "known red") : "ok", each.reason);
+    // A known red with an expected value is one that must be green at a release (--strict-known); one with no limit yet (the whole-tree wire bytes) is only ever reported.
+    row(
+      "known",
+      each.id,
+      each.what,
+      measured,
+      each.expect ?? "no limit yet",
+      red ? (options.strictKnown === true && each.expect !== undefined ? "over" : "known red") : "ok",
+      each.reason,
+    );
   }
 
   const problems = ruleProblems(budgets);

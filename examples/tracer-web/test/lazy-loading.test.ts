@@ -10,7 +10,7 @@ import { compileProgram } from "@valancex/mesh-compiler";
 import { declaredEvents, render as meshRender } from "@valancex/mesh-runtime";
 import * as Valance from "@valancex/valance";
 import * as Nexus from "@valancex/nexus";
-import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
+import { Deferred, Effect, Exit, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { textTarget, type TextTarget } from "./non-dom-target.js";

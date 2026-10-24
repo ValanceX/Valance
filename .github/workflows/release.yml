@@ -95,8 +95,48 @@ jobs:
           name: conformance-report
           path: conformance-report.json
 
+  # The budgets (Bet 3; decisions W1 to W24), measured on the tree being released and held to packages/cli/src/budgets.json: the counter and docs-app built with `vlx build` and run in Chromium,
+  # the runtime's own update costs and wire bytes, and the previous release measured beside it for the wall-clock ratio gates (W4: only ever compared on one machine). The step FAILS when a
+  # ceiling is crossed. A tag push (a real release) also requires the known reds that have an expected value (the newest set installs together) to be green; a dry run only reports them.
+  budgets:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm --filter @valancex/tracer-web exec playwright install --with-deps chromium
+      - name: The budgets are consistent (a raised ceiling has its size analysis)
+        run: node scripts/check-budgets.mjs --rule
+      - name: Measure the tree and the previous release
+        env:
+          PLAYWRIGHT_MODULES: ${{ github.workspace }}/node_modules/.pnpm/node_modules
+        run: |
+          node scripts/measure-footprint.mjs --tree --runs 3 --json budgets-results.json
+          node scripts/measure-footprint.mjs --runs 3 --json budgets-previous.json
+      - name: Hold the tree to its budgets
+        run: |
+          node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json --json budgets-report.json ${{ github.event_name == 'push' && '--strict-known' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: budgets
+          path: |
+            budgets-results.json
+            budgets-previous.json
+            budgets-report.json
+
   pack:
-    needs: [ci, conformance]
+    needs: [ci, conformance, budgets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,0 +1,46 @@
+name: Budgets
+
+# Weekly, so a trend exists (Bet 3, W6): the tree measured as `release.yml` measures it, the results kept as an artifact for 90 days and compared with the previous release on the same runner. The
+# release dry run is where a ceiling breach fails a release; this is where it is noticed between releases. Nothing here is a gate on a push.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budgets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm --filter @valancex/tracer-web exec playwright install --with-deps chromium
+      - name: Measure the tree and the previous release
+        env:
+          PLAYWRIGHT_MODULES: ${{ github.workspace }}/node_modules/.pnpm/node_modules
+        run: |
+          node scripts/measure-footprint.mjs --tree --runs 5 --json budgets-results.json
+          node scripts/measure-footprint.mjs --runs 5 --json budgets-previous.json
+      - name: Hold the tree to its budgets
+        run: node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json --json budgets-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: budgets-weekly
+          retention-days: 90
+          path: |
+            budgets-results.json
+            budgets-previous.json
+            budgets-report.json
