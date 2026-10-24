@@ -5,12 +5,14 @@ name: Release
 # published to npm with provenance, and a GitHub release with the tarballs and
 # the version's release notes.
 #
-# The release is three packages with ONE version, in this order (each depends
-# on the one before): @valancex/valance, @valancex/common (what an
-# application's src/main.ts imports, and the runtime the build runs) and
-# @valancex/cli (the `vlx` command).
+# The release is five packages with ONE version, published in dependency order
+# (each depends only on ones before it): @valancex/valance, @valancex/style
+# (the default theme and the style contract), @valancex/router,
+# @valancex/common (what an application's src/main.ts imports, and the runtime
+# the build runs; it depends on valance and router) and @valancex/cli (the `vlx`
+# command; it depends on common, style and valance).
 #
-# - A pushed `v<number>…` tag publishes (not `vscode-v*`, which is the extension's: release-vscode.yml). Its tag must be `v` + the version of all three
+# - A pushed `v<number>…` tag publishes (not `vscode-v*`, which is the extension's: release-vscode.yml). Its tag must be `v` + the version of all five
 #   packages (packages/*/package.json), which must agree. Tagging the release
 #   commit is the maintainer's step.
 # - A manual run publishes only with `publish` set, and only from a tag;
@@ -155,9 +157,9 @@ jobs:
           # `workspace:^` ranges are written as real ones by pack.
           pnpm --filter @valancex/valance pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/style pack --pack-destination "$PWD/out"
+          pnpm --filter @valancex/router pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/common pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/cli pack --pack-destination "$PWD/out"
-          pnpm --filter @valancex/router pack --pack-destination "$PWD/out"
       - uses: actions/upload-artifact@v4
         with:
           name: release-packages
@@ -244,8 +246,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
-          # Absolute, so npm reads each tarball as a file, not a GitHub spec. In dependency order.
-          for package in valance style common cli router; do
+          # Absolute, so npm reads each tarball as a file, not a GitHub spec. In dependency order: common depends on router, and cli on common and style.
+          for package in valance style router common cli; do
             tarball="$PWD/out/valancex-${package}-${VERSION}.tgz"
             if [ "$PUBLISH" = "true" ]; then
               npm publish "$tarball" --access public --provenance
