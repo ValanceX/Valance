@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schema/conformance-report-v1.json",
+  "title": "A PORT's report against the primitive vectors (conformance-report-v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "port", "portVersion", "spec", "adapter", "results", "summary"],
+  "properties": {
+    "version": { "const": 1 },
+    "port": { "type": "string", "minLength": 1 },
+    "portVersion": { "type": "string", "minLength": 1 },
+    "spec": { "const": "primitives@1" },
+    "adapter": { "type": "string", "minLength": 1 },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["primitive", "case", "result"],
+        "properties": {
+          "primitive": { "type": "string" },
+          "case": { "type": "string" },
+          "result": { "enum": ["pass", "fail", "unsupported"] },
+          "declared": { "const": true },
+          "detail": { "type": "string" }
+        },
+        "allOf": [
+          { "if": { "properties": { "result": { "const": "unsupported" } }, "required": ["result"] }, "then": { "required": ["declared"] } },
+          { "if": { "properties": { "result": { "const": "fail" } }, "required": ["result"] }, "then": { "required": ["detail"] } }
+        ]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "fail", "unsupported"],
+      "properties": { "pass": { "type": "integer", "minimum": 0 }, "fail": { "type": "integer", "minimum": 0 }, "unsupported": { "type": "integer", "minimum": 0 } }
+    }
+  }
+}

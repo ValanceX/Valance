@@ -1,0 +1,77 @@
+{
+  "name": "@valancex/conformance",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The conformance kit: the five-operation adapter and its line-JSON protocol, the report schema, the primitive vectors generated from the specifications, the gallery with its forced states, the specification verifiers and the signed conformance report. Private until the Spec Gate.",
+  "license": "MIT",
+  "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./adapters/web": {
+      "types": "./dist/adapters/web.d.ts",
+      "default": "./dist/adapters/web.js"
+    },
+    "./adapters/terminal": {
+      "types": "./dist/adapters/terminal/adapter.d.ts",
+      "default": "./dist/adapters/terminal/adapter.js"
+    },
+    "./package.json": "./package.json",
+    "./adapters/jsdom": {
+      "types": "./dist/adapters/jsdom.d.ts",
+      "default": "./dist/adapters/jsdom.js"
+    },
+    "./site": {
+      "types": "./dist/site.d.ts",
+      "default": "./dist/site.js"
+    },
+    "./chromium": {
+      "types": "./dist/chromium.d.ts",
+      "default": "./dist/chromium.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "schema",
+    "vectors"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "test:browser": "vitest run -c vitest.browser.config.ts",
+    "generate": "pnpm build && node scripts/generate.mjs",
+    "report": "pnpm build && node scripts/report.mjs"
+  },
+  "devDependencies": {
+    "@types/aria-query": "^5.0.4",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.0.0",
+    "@valancex/common": "workspace:^",
+    "@valancex/mesh-compiler": "^0.15.0",
+    "@valancex/mesh-conformance": "^0.15.0",
+    "@valancex/mesh-runtime": "^0.15.0",
+    "@valancex/port-web": "^0.12.0",
+    "@valancex/primitives": "workspace:^",
+    "@valancex/style": "workspace:^",
+    "@valancex/valance": "workspace:^",
+    "@vitest/browser": "3.2.7",
+    "ajv": "^8.17.1",
+    "aria-query": "^5.3.2",
+    "dom-accessibility-api": "^0.7.0",
+    "jsdom": "^26.0.0",
+    "playwright": "1.56.1",
+    "stylelint": "^17.16.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "vnu-jar": "^26.10.12"
+  }
+}
