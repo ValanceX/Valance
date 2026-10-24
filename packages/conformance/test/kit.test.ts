@@ -34,7 +34,7 @@ describe("the vectors", () => {
       expect(ids.has(`${specification.name}/example`), specification.name).toBe(true);
 
       for (const [prop, definition] of Object.entries(specification.props)) {
-        if (definition.type.kind === "enum") {
+        if (definition.type.kind === "enum" && definition.webOnly !== true) {
           for (const value of definition.type.values) {
             expect(ids.has(`${specification.name}/variant:${prop}=${value}`), `${specification.name} ${prop}=${value}`).toBe(true);
           }

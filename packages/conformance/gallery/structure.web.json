@@ -1,639 +1,659 @@
 {
-  "column/example": [
-    {
-      "key": "g0",
-      "component": "column",
-      "text": "a",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "row/example": [
-    {
-      "key": "g1",
-      "component": "row",
-      "text": "a",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "heading/example": [
-    {
-      "key": "g2",
-      "component": "heading",
-      "role": "heading",
-      "name": "Title",
-      "text": "Title",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "text/example": [
-    {
-      "key": "g3",
-      "component": "text",
-      "text": "Say something",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "paragraph/example": [
-    {
-      "key": "g4",
-      "component": "paragraph",
-      "role": "paragraph",
-      "text": "Some text.",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "blockquote/example": [
-    {
-      "key": "g5",
-      "component": "blockquote",
-      "role": "blockquote",
-      "text": "Quoted.",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "list/example": [
-    {
-      "key": "g6",
-      "component": "list",
-      "role": "list",
-      "text": "OneTwo",
-      "enabled": true,
-      "children": ["g6.0", "g6.1"]
-    },
-    {
-      "key": "g6.0",
-      "component": "listitem",
-      "role": "listitem",
-      "text": "One",
-      "enabled": true,
-      "children": []
-    },
-    {
-      "key": "g6.1",
-      "component": "listitem",
-      "role": "listitem",
-      "text": "Two",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "list/example@olist": [
-    {
-      "key": "g7",
-      "component": "olist",
-      "role": "list",
-      "text": "OneTwo",
-      "enabled": true,
-      "children": ["g7.0", "g7.1"]
-    },
-    {
-      "key": "g7.0",
-      "component": "listitem",
-      "role": "listitem",
-      "text": "One",
-      "enabled": true,
-      "children": []
-    },
-    {
-      "key": "g7.1",
-      "component": "listitem",
-      "role": "listitem",
-      "text": "Two",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "code/example": [
-    {
-      "key": "g8",
-      "component": "code",
-      "role": "code",
-      "text": "x = 1",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "strong/example": [
-    {
-      "key": "g9",
-      "component": "strong",
-      "role": "strong",
-      "text": "Careful",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "emphasis/example": [
-    {
-      "key": "g10",
-      "component": "em",
-      "role": "emphasis",
-      "text": "really",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "image/example": [
-    {
-      "key": "g11",
-      "component": "image",
-      "role": "img",
-      "name": "A dot",
-      "text": "",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "link/example": [
-    {
-      "key": "g12",
-      "component": "link",
-      "role": "link",
-      "name": "The guide",
-      "text": "The guide",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "checkbox/example": [
-    {
-      "key": "g13",
-      "component": "checkbox",
-      "role": "checkbox",
-      "name": "Done",
-      "text": "",
-      "value": "on",
-      "enabled": true,
-      "checked": true,
-      "invalid": true,
-      "children": []
-    }
-  ],
-  "checkbox/checked=true": [
-    {
-      "key": "g14",
-      "component": "checkbox",
-      "role": "checkbox",
-      "name": "Done",
-      "text": "",
-      "value": "on",
-      "enabled": true,
-      "checked": true,
-      "invalid": true,
-      "children": []
-    }
-  ],
-  "checkbox/checked=false": [
-    {
-      "key": "g15",
-      "component": "checkbox",
-      "role": "checkbox",
-      "name": "Done",
-      "text": "",
-      "value": "on",
-      "enabled": true,
-      "checked": false,
-      "invalid": true,
-      "children": []
-    }
-  ],
-  "checkbox/invalid=true": [
-    {
-      "key": "g16",
-      "component": "checkbox",
-      "role": "checkbox",
-      "name": "Done",
-      "text": "",
-      "value": "on",
-      "enabled": true,
-      "checked": true,
-      "invalid": true,
-      "children": []
-    }
-  ],
-  "checkbox/invalid=false": [
-    {
-      "key": "g17",
-      "component": "checkbox",
-      "role": "checkbox",
-      "name": "Done",
-      "text": "",
-      "value": "on",
-      "enabled": true,
-      "checked": true,
-      "invalid": false,
-      "children": []
-    }
-  ],
-  "textfield/example": [
-    {
-      "key": "g18",
-      "component": "textfield",
-      "role": "textbox",
-      "name": "Name",
-      "text": "",
-      "value": "Ada",
-      "enabled": true,
-      "invalid": true,
-      "children": []
-    }
-  ],
-  "textfield/invalid=true": [
-    {
-      "key": "g19",
-      "component": "textfield",
-      "role": "textbox",
-      "name": "Name",
-      "text": "",
-      "value": "Ada",
-      "enabled": true,
-      "invalid": true,
-      "children": []
-    }
-  ],
-  "textfield/invalid=false": [
-    {
-      "key": "g20",
-      "component": "textfield",
-      "role": "textbox",
-      "name": "Name",
-      "text": "",
-      "value": "Ada",
-      "enabled": true,
-      "invalid": false,
-      "children": []
-    }
-  ],
-  "button/example": [
-    {
-      "key": "g21",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=neutral,size=sm": [
-    {
-      "key": "g22",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=neutral,size=md": [
-    {
-      "key": "g23",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=neutral,size=lg": [
-    {
-      "key": "g24",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=primary,size=sm": [
-    {
-      "key": "g25",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=primary,size=md": [
-    {
-      "key": "g26",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=primary,size=lg": [
-    {
-      "key": "g27",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=danger,size=sm": [
-    {
-      "key": "g28",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=danger,size=md": [
-    {
-      "key": "g29",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/intent=danger,size=lg": [
-    {
-      "key": "g30",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "button/disabled=true": [
-    {
-      "key": "g31",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": false,
-      "children": []
-    }
-  ],
-  "button/disabled=false": [
-    {
-      "key": "g32",
-      "component": "button",
-      "role": "button",
-      "name": "Save",
-      "text": "Save",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "toggle/example": [
-    {
-      "key": "g33",
-      "component": "toggle",
-      "role": "button",
-      "name": "Bold",
-      "text": "Bold",
-      "enabled": true,
-      "pressed": true,
-      "children": []
-    }
-  ],
-  "toggle/pressed=true": [
-    {
-      "key": "g34",
-      "component": "toggle",
-      "role": "button",
-      "name": "Bold",
-      "text": "Bold",
-      "enabled": true,
-      "pressed": true,
-      "children": []
-    }
-  ],
-  "toggle/pressed=false": [
-    {
-      "key": "g35",
-      "component": "toggle",
-      "role": "button",
-      "name": "Bold",
-      "text": "Bold",
-      "enabled": true,
-      "pressed": false,
-      "children": []
-    }
-  ],
-  "toggle/disabled=true": [
-    {
-      "key": "g36",
-      "component": "toggle",
-      "role": "button",
-      "name": "Bold",
-      "text": "Bold",
-      "enabled": false,
-      "pressed": true,
-      "children": []
-    }
-  ],
-  "toggle/disabled=false": [
-    {
-      "key": "g37",
-      "component": "toggle",
-      "role": "button",
-      "name": "Bold",
-      "text": "Bold",
-      "enabled": true,
-      "pressed": true,
-      "children": []
-    }
-  ],
-  "radiogroup/example": [
-    {
-      "key": "g38",
-      "component": "radiogroup",
-      "role": "radiogroup",
-      "name": "Size",
-      "text": "",
-      "enabled": true,
-      "children": ["g38.0", "g38.1", "g38.2"]
-    },
-    {
-      "key": "g38.0",
-      "component": "radio",
-      "role": "radio",
-      "name": "Small",
-      "text": "",
-      "value": "s",
-      "enabled": true,
-      "checked": true,
-      "children": []
-    },
-    {
-      "key": "g38.1",
-      "component": "radio",
-      "role": "radio",
-      "name": "Medium",
-      "text": "",
-      "value": "m",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    },
-    {
-      "key": "g38.2",
-      "component": "radio",
-      "role": "radio",
-      "name": "Large",
-      "text": "",
-      "value": "l",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    }
-  ],
-  "radiogroup/invalid=true": [
-    {
-      "key": "g39",
-      "component": "radiogroup",
-      "role": "radiogroup",
-      "name": "Size",
-      "text": "",
-      "enabled": true,
-      "invalid": true,
-      "children": ["g39.0", "g39.1", "g39.2"]
-    },
-    {
-      "key": "g39.0",
-      "component": "radio",
-      "role": "radio",
-      "name": "Small",
-      "text": "",
-      "value": "s",
-      "enabled": true,
-      "checked": true,
-      "children": []
-    },
-    {
-      "key": "g39.1",
-      "component": "radio",
-      "role": "radio",
-      "name": "Medium",
-      "text": "",
-      "value": "m",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    },
-    {
-      "key": "g39.2",
-      "component": "radio",
-      "role": "radio",
-      "name": "Large",
-      "text": "",
-      "value": "l",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    }
-  ],
-  "radiogroup/invalid=false": [
-    {
-      "key": "g40",
-      "component": "radiogroup",
-      "role": "radiogroup",
-      "name": "Size",
-      "text": "",
-      "enabled": true,
-      "invalid": false,
-      "children": ["g40.0", "g40.1", "g40.2"]
-    },
-    {
-      "key": "g40.0",
-      "component": "radio",
-      "role": "radio",
-      "name": "Small",
-      "text": "",
-      "value": "s",
-      "enabled": true,
-      "checked": true,
-      "children": []
-    },
-    {
-      "key": "g40.1",
-      "component": "radio",
-      "role": "radio",
-      "name": "Medium",
-      "text": "",
-      "value": "m",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    },
-    {
-      "key": "g40.2",
-      "component": "radio",
-      "role": "radio",
-      "name": "Large",
-      "text": "",
-      "value": "l",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    }
-  ],
-  "status/example": [
-    {
-      "key": "g41",
-      "component": "status",
-      "role": "status",
-      "text": "Saved.",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "alert/example": [
-    {
-      "key": "g42",
-      "component": "alert",
-      "role": "alert",
-      "text": "Could not save.",
-      "enabled": true,
-      "children": []
-    }
-  ],
-  "label/example": [
-    {
-      "key": "g43",
-      "component": "label",
-      "text": "Done",
-      "enabled": true,
-      "children": ["g43.0"]
-    },
-    {
-      "key": "g43.0",
-      "component": "checkbox",
-      "role": "checkbox",
-      "name": "Done",
-      "text": "",
-      "value": "on",
-      "enabled": true,
-      "checked": false,
-      "children": []
-    }
-  ]
+ "column/example": [
+  {
+   "key": "g0",
+   "component": "column",
+   "text": "a",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "row/example": [
+  {
+   "key": "g1",
+   "component": "row",
+   "text": "a",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "heading/example": [
+  {
+   "key": "g2",
+   "component": "heading",
+   "role": "heading",
+   "name": "Title",
+   "text": "Title",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "text/example": [
+  {
+   "key": "g3",
+   "component": "text",
+   "text": "Say something",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "paragraph/example": [
+  {
+   "key": "g4",
+   "component": "paragraph",
+   "role": "paragraph",
+   "text": "Some text.",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "blockquote/example": [
+  {
+   "key": "g5",
+   "component": "blockquote",
+   "role": "blockquote",
+   "text": "Quoted.",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "list/example": [
+  {
+   "key": "g6",
+   "component": "list",
+   "role": "list",
+   "text": "OneTwo",
+   "enabled": true,
+   "children": [
+    "g6.0",
+    "g6.1"
+   ]
+  },
+  {
+   "key": "g6.0",
+   "component": "listitem",
+   "role": "listitem",
+   "text": "One",
+   "enabled": true,
+   "children": []
+  },
+  {
+   "key": "g6.1",
+   "component": "listitem",
+   "role": "listitem",
+   "text": "Two",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "list/example@olist": [
+  {
+   "key": "g7",
+   "component": "olist",
+   "role": "list",
+   "text": "OneTwo",
+   "enabled": true,
+   "children": [
+    "g7.0",
+    "g7.1"
+   ]
+  },
+  {
+   "key": "g7.0",
+   "component": "listitem",
+   "role": "listitem",
+   "text": "One",
+   "enabled": true,
+   "children": []
+  },
+  {
+   "key": "g7.1",
+   "component": "listitem",
+   "role": "listitem",
+   "text": "Two",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "code/example": [
+  {
+   "key": "g8",
+   "component": "code",
+   "role": "code",
+   "text": "x = 1",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "strong/example": [
+  {
+   "key": "g9",
+   "component": "strong",
+   "role": "strong",
+   "text": "Careful",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "emphasis/example": [
+  {
+   "key": "g10",
+   "component": "em",
+   "role": "emphasis",
+   "text": "really",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "image/example": [
+  {
+   "key": "g11",
+   "component": "image",
+   "role": "img",
+   "name": "A dot",
+   "text": "",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "link/example": [
+  {
+   "key": "g12",
+   "component": "link",
+   "role": "link",
+   "name": "The guide",
+   "text": "The guide",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "checkbox/example": [
+  {
+   "key": "g13",
+   "component": "checkbox",
+   "role": "checkbox",
+   "name": "Done",
+   "text": "",
+   "value": "on",
+   "enabled": true,
+   "checked": true,
+   "invalid": true,
+   "children": []
+  }
+ ],
+ "checkbox/checked=true": [
+  {
+   "key": "g14",
+   "component": "checkbox",
+   "role": "checkbox",
+   "name": "Done",
+   "text": "",
+   "value": "on",
+   "enabled": true,
+   "checked": true,
+   "invalid": true,
+   "children": []
+  }
+ ],
+ "checkbox/checked=false": [
+  {
+   "key": "g15",
+   "component": "checkbox",
+   "role": "checkbox",
+   "name": "Done",
+   "text": "",
+   "value": "on",
+   "enabled": true,
+   "checked": false,
+   "invalid": true,
+   "children": []
+  }
+ ],
+ "checkbox/invalid=true": [
+  {
+   "key": "g16",
+   "component": "checkbox",
+   "role": "checkbox",
+   "name": "Done",
+   "text": "",
+   "value": "on",
+   "enabled": true,
+   "checked": true,
+   "invalid": true,
+   "children": []
+  }
+ ],
+ "checkbox/invalid=false": [
+  {
+   "key": "g17",
+   "component": "checkbox",
+   "role": "checkbox",
+   "name": "Done",
+   "text": "",
+   "value": "on",
+   "enabled": true,
+   "checked": true,
+   "invalid": false,
+   "children": []
+  }
+ ],
+ "textfield/example": [
+  {
+   "key": "g18",
+   "component": "textfield",
+   "role": "textbox",
+   "name": "Name",
+   "text": "",
+   "value": "Ada",
+   "enabled": true,
+   "invalid": true,
+   "children": []
+  }
+ ],
+ "textfield/invalid=true": [
+  {
+   "key": "g19",
+   "component": "textfield",
+   "role": "textbox",
+   "name": "Name",
+   "text": "",
+   "value": "Ada",
+   "enabled": true,
+   "invalid": true,
+   "children": []
+  }
+ ],
+ "textfield/invalid=false": [
+  {
+   "key": "g20",
+   "component": "textfield",
+   "role": "textbox",
+   "name": "Name",
+   "text": "",
+   "value": "Ada",
+   "enabled": true,
+   "invalid": false,
+   "children": []
+  }
+ ],
+ "button/example": [
+  {
+   "key": "g21",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=neutral,size=sm": [
+  {
+   "key": "g22",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=neutral,size=md": [
+  {
+   "key": "g23",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=neutral,size=lg": [
+  {
+   "key": "g24",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=primary,size=sm": [
+  {
+   "key": "g25",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=primary,size=md": [
+  {
+   "key": "g26",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=primary,size=lg": [
+  {
+   "key": "g27",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=danger,size=sm": [
+  {
+   "key": "g28",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=danger,size=md": [
+  {
+   "key": "g29",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/intent=danger,size=lg": [
+  {
+   "key": "g30",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "button/disabled=true": [
+  {
+   "key": "g31",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": false,
+   "children": []
+  }
+ ],
+ "button/disabled=false": [
+  {
+   "key": "g32",
+   "component": "button",
+   "role": "button",
+   "name": "Save",
+   "text": "Save",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "toggle/example": [
+  {
+   "key": "g33",
+   "component": "toggle",
+   "role": "button",
+   "name": "Bold",
+   "text": "Bold",
+   "enabled": true,
+   "pressed": true,
+   "children": []
+  }
+ ],
+ "toggle/pressed=true": [
+  {
+   "key": "g34",
+   "component": "toggle",
+   "role": "button",
+   "name": "Bold",
+   "text": "Bold",
+   "enabled": true,
+   "pressed": true,
+   "children": []
+  }
+ ],
+ "toggle/pressed=false": [
+  {
+   "key": "g35",
+   "component": "toggle",
+   "role": "button",
+   "name": "Bold",
+   "text": "Bold",
+   "enabled": true,
+   "pressed": false,
+   "children": []
+  }
+ ],
+ "toggle/disabled=true": [
+  {
+   "key": "g36",
+   "component": "toggle",
+   "role": "button",
+   "name": "Bold",
+   "text": "Bold",
+   "enabled": false,
+   "pressed": true,
+   "children": []
+  }
+ ],
+ "toggle/disabled=false": [
+  {
+   "key": "g37",
+   "component": "toggle",
+   "role": "button",
+   "name": "Bold",
+   "text": "Bold",
+   "enabled": true,
+   "pressed": true,
+   "children": []
+  }
+ ],
+ "radiogroup/example": [
+  {
+   "key": "g38",
+   "component": "radiogroup",
+   "role": "radiogroup",
+   "name": "Size",
+   "text": "",
+   "enabled": true,
+   "children": [
+    "g38.0",
+    "g38.1",
+    "g38.2"
+   ]
+  },
+  {
+   "key": "g38.0",
+   "component": "radio",
+   "role": "radio",
+   "name": "Small",
+   "text": "",
+   "value": "s",
+   "enabled": true,
+   "checked": true,
+   "children": []
+  },
+  {
+   "key": "g38.1",
+   "component": "radio",
+   "role": "radio",
+   "name": "Medium",
+   "text": "",
+   "value": "m",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  },
+  {
+   "key": "g38.2",
+   "component": "radio",
+   "role": "radio",
+   "name": "Large",
+   "text": "",
+   "value": "l",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  }
+ ],
+ "radiogroup/invalid=true": [
+  {
+   "key": "g39",
+   "component": "radiogroup",
+   "role": "radiogroup",
+   "name": "Size",
+   "text": "",
+   "enabled": true,
+   "invalid": true,
+   "children": [
+    "g39.0",
+    "g39.1",
+    "g39.2"
+   ]
+  },
+  {
+   "key": "g39.0",
+   "component": "radio",
+   "role": "radio",
+   "name": "Small",
+   "text": "",
+   "value": "s",
+   "enabled": true,
+   "checked": true,
+   "children": []
+  },
+  {
+   "key": "g39.1",
+   "component": "radio",
+   "role": "radio",
+   "name": "Medium",
+   "text": "",
+   "value": "m",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  },
+  {
+   "key": "g39.2",
+   "component": "radio",
+   "role": "radio",
+   "name": "Large",
+   "text": "",
+   "value": "l",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  }
+ ],
+ "radiogroup/invalid=false": [
+  {
+   "key": "g40",
+   "component": "radiogroup",
+   "role": "radiogroup",
+   "name": "Size",
+   "text": "",
+   "enabled": true,
+   "invalid": false,
+   "children": [
+    "g40.0",
+    "g40.1",
+    "g40.2"
+   ]
+  },
+  {
+   "key": "g40.0",
+   "component": "radio",
+   "role": "radio",
+   "name": "Small",
+   "text": "",
+   "value": "s",
+   "enabled": true,
+   "checked": true,
+   "children": []
+  },
+  {
+   "key": "g40.1",
+   "component": "radio",
+   "role": "radio",
+   "name": "Medium",
+   "text": "",
+   "value": "m",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  },
+  {
+   "key": "g40.2",
+   "component": "radio",
+   "role": "radio",
+   "name": "Large",
+   "text": "",
+   "value": "l",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  }
+ ],
+ "status/example": [
+  {
+   "key": "g41",
+   "component": "status",
+   "role": "status",
+   "text": "Saved.",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "alert/example": [
+  {
+   "key": "g42",
+   "component": "alert",
+   "role": "alert",
+   "text": "Could not save.",
+   "enabled": true,
+   "children": []
+  }
+ ],
+ "label/example": [
+  {
+   "key": "g43",
+   "component": "label",
+   "text": "Done",
+   "enabled": true,
+   "children": [
+    "g43.0"
+   ]
+  },
+  {
+   "key": "g43.0",
+   "component": "checkbox",
+   "role": "checkbox",
+   "name": "Done",
+   "text": "",
+   "value": "on",
+   "enabled": true,
+   "checked": false,
+   "children": []
+  }
+ ]
 }

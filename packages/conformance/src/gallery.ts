@@ -69,7 +69,9 @@ export const cellsOf = (specifications: Readonly<Record<string, Specification>>,
     add("example", example.props);
 
     // every combination of the closed sets (the product of their members), then each state alone
-    const sets = Object.entries(specification.props).flatMap(([prop, definition]) => (definition.type.kind === "enum" ? [[prop, definition.type.values] as const] : []));
+    const sets = Object.entries(specification.props).flatMap(([prop, definition]) =>
+      definition.type.kind === "enum" && definition.webOnly !== true ? [[prop, definition.type.values] as const] : [],
+    );
     const combinations = sets.reduce<ReadonlyArray<ReadonlyArray<readonly [string, string]>>>(
       (so_far, [prop, values]) => so_far.flatMap((each) => values.map((value) => [...each, [prop, value] as const])),
       [[]],

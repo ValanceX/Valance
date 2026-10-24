@@ -275,8 +275,8 @@ const vectorsOf = (specification: Specification, tag: string, realizations: WebR
       }
     }
 
-    // each member of a closed set is accepted
-    if (definition.type.kind === "enum") {
+    // each member of a closed set is accepted (a web-only prop is not the contract between PORTs: the Web PORT's own tests cover it)
+    if (definition.type.kind === "enum" && definition.webOnly !== true) {
       for (const value of definition.type.values) {
         const props = { ...example.props, [prop]: value };
 
