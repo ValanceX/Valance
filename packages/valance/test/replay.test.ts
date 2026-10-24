@@ -235,7 +235,7 @@ describe("a recording that redacts", () => {
       write: (line) => written.push(line),
       warn: (message) => warnings.push(message),
       programs: () => ({ root: login.root, templates: login.templates, model: manifest }),
-      redact,
+      ...(redact === undefined ? {} : { redact }),
     });
     const snapshot = { password: secret, user: "ada" };
     const asked = await render({ program: login, model: manifest, snapshot });
