@@ -2,15 +2,7 @@
 import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 
-import type {
-  Adapter,
-  Capabilities,
-  ForcedState,
-  Interaction,
-  Observation,
-  Reported,
-  Tree,
-} from "./protocol.js";
+import type { Adapter, Capabilities, ForcedState, Interaction, Observation, Reported, Tree } from "./protocol.js";
 import { Refused } from "./protocol.js";
 
 // ---- the line-JSON protocol -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -42,11 +34,7 @@ export type Response =
     };
 
 /** Serves `adapter` on lines: reads a request from `input`, writes its response to `output`. For a PORT written in this language that is run as a child process. */
-export const serve = (
-  adapter: Adapter,
-  input: Readable,
-  output: Writable,
-): void => {
+export const serve = (adapter: Adapter, input: Readable, output: Writable): void => {
   const lines = createInterface({ input });
   let chain: Promise<void> = Promise.resolve();
 
@@ -95,10 +83,7 @@ export const serve = (
 
 /** An adapter that talks to a PORT's adapter over lines: the other end of `serve`, or of any language's server of the same messages. */
 export const connect = (input: Readable, output: Writable): Adapter => {
-  const waiting = new Map<
-    number,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
-  >();
+  const waiting = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   let next = 0;
 
   createInterface({ input }).on("line", (text) => {
@@ -118,9 +103,7 @@ export const connect = (input: Readable, output: Writable): Adapter => {
     }
   });
 
-  const ask = <T>(
-    request: Omit<Request, "id"> & Record<string, unknown>,
-  ): Promise<T> =>
+  const ask = <T>(request: Omit<Request, "id"> & Record<string, unknown>): Promise<T> =>
     new Promise<T>((resolve, reject) => {
       next += 1;
       waiting.set(next, {
@@ -134,10 +117,8 @@ export const connect = (input: Readable, output: Writable): Adapter => {
     capabilities: () => ask<Capabilities>({ op: "capabilities" }),
     load: (tree) => ask<void>({ op: "load", tree }),
     update: (tree) => ask<void>({ op: "update", tree }),
-    observe: async (key) =>
-      (await ask<Observation | null>({ op: "observe", key })) ?? undefined,
-    interact: (key, how) =>
-      ask<ReadonlyArray<Reported>>({ op: "interact", key, how }),
+    observe: async (key) => (await ask<Observation | null>({ op: "observe", key })) ?? undefined,
+    interact: (key, how) => ask<ReadonlyArray<Reported>>({ op: "interact", key, how }),
     force: (key, state) => ask<void>({ op: "force", key, state }),
     unmount: () => ask<void>({ op: "unmount" }),
   };

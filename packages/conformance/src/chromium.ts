@@ -13,11 +13,7 @@ export const PSEUDO: Readonly<Record<ForcedState, string>> = {
 };
 
 /** Forces `states` on the first element `selector` matches, until `release` is called. */
-export const force = async (
-  page: Page,
-  selector: string,
-  states: ReadonlyArray<ForcedState>,
-): Promise<() => Promise<void>> => {
+export const force = async (page: Page, selector: string, states: ReadonlyArray<ForcedState>): Promise<() => Promise<void>> => {
   const session = await page.context().newCDPSession(page);
 
   await session.send("DOM.enable");
@@ -50,18 +46,12 @@ export const force = async (
 };
 
 /** The computed values of `properties` on the first element `selector` matches. */
-export const computed = (
-  page: Page,
-  selector: string,
-  properties: ReadonlyArray<string>,
-): Promise<Readonly<Record<string, string>>> =>
+export const computed = (page: Page, selector: string, properties: ReadonlyArray<string>): Promise<Readonly<Record<string, string>>> =>
   page.evaluate(
     ([where, names]) => {
       const style = getComputedStyle(document.querySelector(where as string)!);
 
-      return Object.fromEntries(
-        (names as string[]).map((name) => [name, style.getPropertyValue(name)]),
-      );
+      return Object.fromEntries((names as string[]).map((name) => [name, style.getPropertyValue(name)]));
     },
     [selector, [...properties]] as const,
   );

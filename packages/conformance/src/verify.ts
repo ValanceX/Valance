@@ -11,14 +11,7 @@
 //   chromium  the primitive vectors through the Web PORT in a real browser
 //   desktop   the Desktop's AccessKit tree, by accesskit_consumer and an invariant checker (the PORT's own tests, run where its source is)
 import { spawn, spawnSync } from "node:child_process";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -28,14 +21,7 @@ import { elementRoles, roles } from "aria-query";
 import { JSDOM } from "jsdom";
 import stylelint from "stylelint";
 import { loadSpecifications } from "@valancex/primitives";
-import {
-  compileWeb,
-  defaultInputs,
-  loadTheme,
-  resolveDocument,
-  root as styleRoot,
-  validateDocument,
-} from "@valancex/style";
+import { compileWeb, defaultInputs, loadTheme, resolveDocument, root as styleRoot, validateDocument } from "@valancex/style";
 
 import { jsdomAdapter, jsdomWorld } from "./adapters/jsdom.js";
 import { connect } from "./lines.js";
@@ -71,11 +57,7 @@ const require_ = createRequire(import.meta.url);
 /** The version of an installed package: its `package.json`, found from where its entry resolves (some packages do not export it). */
 const version = (name: string): string => {
   try {
-    return (
-      JSON.parse(
-        readFileSync(require_.resolve(`${name}/package.json`), "utf8"),
-      ) as { version: string }
-    ).version;
+    return (JSON.parse(readFileSync(require_.resolve(`${name}/package.json`), "utf8")) as { version: string }).version;
   } catch {
     // not exported: look for it from its entry
   }
@@ -120,14 +102,8 @@ export const settle = (
       ? {
           detail: [
             ...failures.slice(0, 5),
-            ...(failures.length > 5
-              ? [`… and ${failures.length - 5} more`]
-              : []),
-            ...(broken
-              ? [
-                  "the control (a deliberately wrong input) was NOT found: the verifier is not running",
-                ]
-              : []),
+            ...(failures.length > 5 ? [`… and ${failures.length - 5} more`] : []),
+            ...(broken ? ["the control (a deliberately wrong input) was NOT found: the verifier is not running"] : []),
           ].join("; "),
         }
       : {}),
@@ -138,38 +114,22 @@ export const settle = (
 
 const vnu = (html: string): ReadonlyArray<string> => {
   const directory = mkdtempSync(join(tmpdir(), "vnu-report-"));
-  const jar = join(
-    require_.resolve("vnu-jar/package.json"),
-    "..",
-    "build",
-    "dist",
-    "vnu.jar",
-  );
+  const jar = join(require_.resolve("vnu-jar/package.json"), "..", "build", "dist", "vnu.jar");
 
   try {
     writeFileSync(join(directory, "page.html"), html);
 
-    const result = spawnSync(
-      "java",
-      ["-jar", jar, "--format", "json", directory],
-      { encoding: "utf8" },
-    );
+    const result = spawnSync("java", ["-jar", jar, "--format", "json", directory], { encoding: "utf8" });
 
     if (result.error !== undefined) {
-      throw new Error(
-        `the Nu Html Checker needs Java: ${result.error.message}`,
-      );
+      throw new Error(`the Nu Html Checker needs Java: ${result.error.message}`);
     }
 
-    const report = JSON.parse(
-      result.stderr.slice(result.stderr.indexOf("{")),
-    ) as {
+    const report = JSON.parse(result.stderr.slice(result.stderr.indexOf("{"))) as {
       messages: Array<{ type: string; subType?: string; message: string }>;
     };
 
-    return report.messages
-      .filter((each) => (each.subType ?? each.type) === "error")
-      .map((each) => each.message);
+    return report.messages.filter((each) => (each.subType ?? each.type) === "error").map((each) => each.message);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -177,9 +137,7 @@ const vnu = (html: string): ReadonlyArray<string> => {
 
 const html = (): Verification => {
   const site = gallerySite();
-  const control = vnu(
-    site.html.replace("<main>", "<main><button><button>x</button></button>"),
-  );
+  const control = vnu(site.html.replace("<main>", "<main><button><button>x</button></button>"));
 
   return settle({
     id: "html",
@@ -212,18 +170,14 @@ const names = (): Verification => {
   let checked = 0;
 
   // every control that must be named, wherever the gallery draws it, has a name by the computation the standard defines
-  for (const element of document.querySelectorAll(
-    "input, [role=radiogroup], [role=radio]",
-  )) {
+  for (const element of document.querySelectorAll("input, [role=radiogroup], [role=radio]")) {
     const role = getRole(element);
 
     if (role !== null && NEEDS_NAME.has(role)) {
       checked += 1;
 
       if (computeAccessibleName(element) === "") {
-        failures.push(
-          `<${element.localName}> (${role}) has no accessible name`,
-        );
+        failures.push(`<${element.localName}> (${role}) has no accessible name`);
       }
     }
   }
@@ -238,35 +192,26 @@ const names = (): Verification => {
     }
 
     const prop = cell.props[rule.prop];
-    const element = [
-      ...document.querySelectorAll(`[data-theme="light"] *`),
-    ].find(
-      (each) =>
-        (each.getAttribute("aria-label") ?? "") === prop &&
-        getRole(each) === (specification.webRole ?? specification.role),
+    const element = [...document.querySelectorAll(`[data-theme="light"] *`)].find(
+      (each) => (each.getAttribute("aria-label") ?? "") === prop && getRole(each) === (specification.webRole ?? specification.role),
     );
 
     if (typeof prop === "string" && element !== undefined) {
       checked += 1;
 
       if (computeAccessibleName(element) !== prop) {
-        failures.push(
-          `${cell.id}: the name is "${computeAccessibleName(element)}", the specification gives "${prop}"`,
-        );
+        failures.push(`${cell.id}: the name is "${computeAccessibleName(element)}", the specification gives "${prop}"`);
       }
     }
   }
 
-  const unnamed = new JSDOM(
-    `<!doctype html><body><input type="checkbox"></body>`,
-  ).window.document.querySelector("input")!;
+  const unnamed = new JSDOM(`<!doctype html><body><input type="checkbox"></body>`).window.document.querySelector("input")!;
 
   return settle({
     id: "names",
     title: "Accessible names",
     tool: `dom-accessibility-api ${version("dom-accessibility-api")}`,
-    standard:
-      "Accessible Name and Description Computation 1.2; the name-presence rule of the primitive specifications",
+    standard: "Accessible Name and Description Computation 1.2; the name-presence rule of the primitive specifications",
     checked,
     control: {
       wrong: "a checkbox with no label",
@@ -279,25 +224,16 @@ const names = (): Verification => {
 const rolesVerifier = (): Verification => {
   const { document, cells } = gallery();
   const specifications = loadSpecifications();
-  const defined = new Set(
-    [...roles.keys()].filter(
-      (name) =>
-        !(roles.get(name) as unknown as { abstract?: boolean }).abstract,
-    ),
-  );
+  const defined = new Set([...roles.keys()].filter((name) => !(roles.get(name) as unknown as { abstract?: boolean }).abstract));
   const failures: string[] = [];
   let checked = 0;
 
   for (const element of document.querySelectorAll("[role]")) {
     checked += 1;
 
-    for (const role of (element.getAttribute("role") ?? "")
-      .split(/\s+/)
-      .filter(Boolean)) {
+    for (const role of (element.getAttribute("role") ?? "").split(/\s+/).filter(Boolean)) {
       if (!defined.has(role as never)) {
-        failures.push(
-          `<${element.localName} role="${role}"> is not a role WAI-ARIA defines`,
-        );
+        failures.push(`<${element.localName} role="${role}"> is not a role WAI-ARIA defines`);
       }
     }
   }
@@ -306,71 +242,42 @@ const rolesVerifier = (): Verification => {
   const world = jsdomWorld();
 
   for (const cell of cells.filter((each) => each.dimension === "example")) {
-    const expected =
-      specifications[cell.primitive]!.webRole ??
-      specifications[cell.primitive]!.role;
+    const expected = specifications[cell.primitive]!.webRole ?? specifications[cell.primitive]!.role;
     const port = world.create(() => undefined);
 
     port.draw(cell.tree as never);
 
     const element = port.inspect(cell.key) as Element | undefined;
 
-    if (
-      expected !== null &&
-      expected !== undefined &&
-      expected !== "generic" &&
-      element !== undefined
-    ) {
+    if (expected !== null && expected !== undefined && expected !== "generic" && element !== undefined) {
       checked += 1;
 
       const explicit = element.getAttribute("role");
       // the most specific entry of the table that fits: `a` is generic, `a[href]` is a link; a constraint `undefined` is an attribute that is absent (an `input` with no `type` is a text box), `set` one that is present
-      const matches = (each: {
-        readonly name: string;
-        readonly value?: string | number;
-        readonly constraints?: ReadonlyArray<string>;
-      }): boolean => {
+      const matches = (each: { readonly name: string; readonly value?: string | number; readonly constraints?: ReadonlyArray<string> }): boolean => {
         const found = element.getAttribute(each.name);
 
         if (each.constraints?.includes("undefined") === true) {
           return found === null;
         }
 
-        return each.value === undefined
-          ? found !== null
-          : found === String(each.value);
+        return each.value === undefined ? found !== null : found === String(each.value);
       };
       const fits = [...elementRoles.entries()]
-        .filter(
-          ([description, names]) =>
-            description.name === element.localName &&
-            [...names].length > 0 &&
-            (description.attributes ?? []).every((each) =>
-              matches(each as never),
-            ),
-        )
-        .sort(
-          (left, right) =>
-            (right[0].attributes?.length ?? 0) -
-            (left[0].attributes?.length ?? 0),
-        );
+        .filter(([description, names]) => description.name === element.localName && [...names].length > 0 && (description.attributes ?? []).every((each) => matches(each as never)))
+        .sort((left, right) => (right[0].attributes?.length ?? 0) - (left[0].attributes?.length ?? 0));
       const implicit = fits[0]?.[1];
-      const found =
-        explicit ?? (implicit === undefined ? undefined : [...implicit][0]);
+      const found = explicit ?? (implicit === undefined ? undefined : [...implicit][0]);
 
       if (found !== expected) {
-        failures.push(
-          `${cell.id}: <${element.localName}> is ${String(found)}, the specification says ${expected}`,
-        );
+        failures.push(`${cell.id}: <${element.localName}> is ${String(found)}, the specification says ${expected}`);
       }
     }
 
     port.unmount();
   }
 
-  const bogus = new JSDOM(
-    `<!doctype html><body><div role="bogus">x</div></body>`,
-  ).window.document.querySelector("div")!;
+  const bogus = new JSDOM(`<!doctype html><body><div role="bogus">x</div></body>`).window.document.querySelector("div")!;
 
   return settle({
     id: "roles",
@@ -421,25 +328,18 @@ const lint = async (css: string): Promise<string[]> => {
     codeFilename: "theme.css",
   });
 
-  return result.results.flatMap((each) => [
-    ...each.warnings.map((warning) => `${warning.rule}: ${warning.text}`),
-    ...each.parseErrors.map((error) => `parse: ${error.text}`),
-  ]);
+  return result.results.flatMap((each) => [...each.warnings.map((warning) => `${warning.rule}: ${warning.text}`), ...each.parseErrors.map((error) => `parse: ${error.text}`)]);
 };
 
 const css = async (): Promise<Verification> => {
-  const loaded = loadTheme(
-    join(styleRoot, "themes", "default", "theme.json"),
-    (path) => path,
-  );
+  const loaded = loadTheme(join(styleRoot, "themes", "default", "theme.json"), (path) => path);
   const sheet = compileWeb(loaded, defaultInputs());
 
   return settle({
     id: "css",
     title: "CSS of the default theme",
     tool: `stylelint ${version("stylelint")} (core rules)`,
-    standard:
-      "CSS (the properties, values, at-rules and media queries CSS defines); the style contract's selector boundary",
+    standard: "CSS (the properties, values, at-rules and media queries CSS defines); the style contract's selector boundary",
     checked: sheet.split("\n").length,
     control: {
       wrong: "color: #zzz",
@@ -453,27 +353,18 @@ const css = async (): Promise<Verification> => {
 
 const tokens = (): Verification => {
   const suite = join(styleRoot, "test", "fixtures", "dtcg-2025.10");
-  const manifest = JSON.parse(
-    readFileSync(join(suite, "manifest.json"), "utf8"),
-  ) as { tests: Array<{ id: string; type: string; input: string }> };
+  const manifest = JSON.parse(readFileSync(join(suite, "manifest.json"), "utf8")) as { tests: Array<{ id: string; type: string; input: string }> };
   const failures: string[] = [];
 
   for (const { id, type, input } of manifest.tests) {
-    const document = JSON.parse(
-      readFileSync(join(suite, input), "utf8"),
-    ) as unknown;
+    const document = JSON.parse(readFileSync(join(suite, input), "utf8")) as unknown;
     const schema = validateDocument(document);
     const graph = schema.valid ? resolveDocument(document, input) : undefined;
-    const again =
-      graph !== undefined && graph.problems.length === 0
-        ? validateDocument(graph.resolved)
-        : undefined;
+    const again = graph !== undefined && graph.problems.length === 0 ? validateDocument(graph.resolved) : undefined;
     const valid = schema.valid && graph!.problems.length === 0 && again!.valid;
 
     if (valid !== (type === "PositiveEvaluationTest")) {
-      failures.push(
-        `${id}: the validator says ${valid ? "valid" : "invalid"}, the suite says ${type}`,
-      );
+      failures.push(`${id}: the validator says ${valid ? "valid" : "invalid"}, the suite says ${type}`);
     }
   }
 
@@ -485,8 +376,7 @@ const tokens = (): Verification => {
     checked: manifest.tests.length,
     control: {
       wrong: 'a dimension written as "0.5rem"',
-      found: !validateDocument({ a: { $type: "dimension", $value: "0.5rem" } })
-        .valid,
+      found: !validateDocument({ a: { $type: "dimension", $value: "0.5rem" } }).valid,
     },
     failures,
   });
@@ -499,12 +389,7 @@ const sabotaged = (adapter: Adapter): Adapter => ({
   observe: async (key) => ({ ...(await adapter.observe(key))!, enabled: true }),
 });
 
-const vectors = async (
-  id: string,
-  title: string,
-  make: () => Promise<{ adapter: Adapter; close: () => void }>,
-  context: Context,
-): Promise<Verification> => {
+const vectors = async (id: string, title: string, make: () => Promise<{ adapter: Adapter; close: () => void }>, context: Context): Promise<Verification> => {
   const live = await make();
   const wrong = await make();
 
@@ -519,16 +404,13 @@ const vectors = async (
       id,
       title,
       tool: "@valancex/conformance",
-      standard:
-        "the primitive specifications (role, name, state, keys, events), through the five-operation adapter",
+      standard: "the primitive specifications (role, name, state, keys, events), through the five-operation adapter",
       checked: report.summary.pass + report.summary.fail,
       control: {
         wrong: "a PORT that ignores `disabled`",
         found: control.results.some((each) => each.result === "fail"),
       },
-      failures: report.results
-        .filter((each) => each.result === "fail")
-        .map((each) => `${each.primitive}/${each.case}: ${each.detail}`),
+      failures: report.results.filter((each) => each.result === "fail").map((each) => `${each.primitive}/${each.case}: ${each.detail}`),
       ...{},
     });
   } finally {
@@ -538,15 +420,7 @@ const vectors = async (
 };
 
 const terminal = async (): Promise<{ adapter: Adapter; close: () => void }> => {
-  const child = spawn(
-    process.execPath,
-    [
-      fileURLToPath(
-        new URL("../dist/adapters/terminal/main.js", import.meta.url),
-      ),
-    ],
-    { stdio: ["pipe", "pipe", "inherit"] },
-  );
+  const child = spawn(process.execPath, [fileURLToPath(new URL("../dist/adapters/terminal/main.js", import.meta.url))], { stdio: ["pipe", "pipe", "inherit"] });
 
   return {
     adapter: connect(child.stdout, child.stdin),
@@ -558,14 +432,8 @@ const terminal = async (): Promise<{ adapter: Adapter; close: () => void }> => {
 
 const replayLogs = async (): Promise<Verification> => {
   const { compile } = await import("@valancex/mesh-compiler");
-  const { programHash, parseLog, replay, sha256 } =
-    await import("@valancex/valance/replay");
-  const directory = join(
-    require_.resolve("@valancex/mesh-conformance/package.json"),
-    "..",
-    "conformance",
-    "replay",
-  );
+  const { programHash, parseLog, replay, sha256 } = await import("@valancex/valance/replay");
+  const directory = join(require_.resolve("@valancex/mesh-conformance/package.json"), "..", "conformance", "replay");
 
   if (!existsSync(directory)) {
     return {
@@ -585,20 +453,13 @@ const replayLogs = async (): Promise<Verification> => {
   let checked = 0;
   let control = false;
 
-  for (const name of readdirSync(directory).filter((each) =>
-    existsSync(join(directory, each, "scenario.json")),
-  )) {
-    const program = JSON.parse(
-      readFileSync(join(directory, name, "program.json"), "utf8"),
-    ) as { root: string; templates: string[] };
+  for (const name of readdirSync(directory).filter((each) => existsSync(join(directory, each, "scenario.json")))) {
+    const program = JSON.parse(readFileSync(join(directory, name, "program.json"), "utf8")) as { root: string; templates: string[] };
     const templates: string[] = [];
     const sources: string[] = [];
 
     for (const component of program.templates) {
-      const source = readFileSync(
-        join(directory, name, `${component}.mprx`),
-        "utf8",
-      );
+      const source = readFileSync(join(directory, name, `${component}.mprx`), "utf8");
       const compiled = await compile({
         source,
         path: `${component}.mprx`,
@@ -609,9 +470,7 @@ const replayLogs = async (): Promise<Verification> => {
       sources.push(source);
     }
 
-    const lines = parseLog(
-      readFileSync(join(directory, name, "log.jsonl"), "utf8"),
-    );
+    const lines = parseLog(readFileSync(join(directory, name, "log.jsonl"), "utf8"));
     const setup = {
       program: { root: program.root, templates },
       model,
@@ -637,9 +496,7 @@ const replayLogs = async (): Promise<Verification> => {
 
     if (!control) {
       const wrong = [...lines];
-      const at = wrong.findIndex(
-        (line, index) => index > 0 && line.line === "tree",
-      );
+      const at = wrong.findIndex((line, index) => index > 0 && line.line === "tree");
 
       wrong[at] = { line: "tree", sha256: "0".repeat(64) };
       control = !(await replay(wrong, setup)).ok;
@@ -650,8 +507,7 @@ const replayLogs = async (): Promise<Verification> => {
     id: "replay",
     title: "Session logs",
     tool: "@valancex/valance/replay",
-    standard:
-      "MESH's session-log vectors (replay/), by the three routes of the equivalence law",
+    standard: "MESH's session-log vectors (replay/), by the three routes of the equivalence law",
     checked,
     control: { wrong: "a log with a changed tree hash", found: control },
     failures,
@@ -667,19 +523,11 @@ const chromium = (): Verification => {
   const outputFile = join(directory, "result.json");
 
   try {
-    const result = spawnSync(
-      "pnpm",
-      [
-        "exec",
-        "vitest",
-        "run",
-        "-c",
-        "vitest.browser.config.ts",
-        "--reporter=json",
-        `--outputFile=${outputFile}`,
-      ],
-      { cwd: here, encoding: "utf8", env: { ...process.env, CI: "true" } },
-    );
+    const result = spawnSync("pnpm", ["exec", "vitest", "run", "-c", "vitest.browser.config.ts", "--reporter=json", `--outputFile=${outputFile}`], {
+      cwd: here,
+      encoding: "utf8",
+      env: { ...process.env, CI: "true" },
+    });
     const parsed = existsSync(outputFile)
       ? (JSON.parse(readFileSync(outputFile, "utf8")) as {
           testResults: Array<{
@@ -691,18 +539,14 @@ const chromium = (): Verification => {
           }>;
         })
       : undefined;
-    const tests =
-      parsed?.testResults.flatMap((each) => each.assertionResults) ?? [];
-    const control = tests.find((each) =>
-      each.title.includes("finds a PORT that ignores `disabled`"),
-    );
+    const tests = parsed?.testResults.flatMap((each) => each.assertionResults) ?? [];
+    const control = tests.find((each) => each.title.includes("finds a PORT that ignores `disabled`"));
 
     return settle({
       id: "chromium",
       title: "Primitive vectors in Chromium",
       tool: "Playwright 1.56, Chromium",
-      standard:
-        "the primitive specifications, with real clicks, real key presses and a real top layer",
+      standard: "the primitive specifications, with real clicks, real key presses and a real top layer",
       checked: tests.length,
       control: {
         wrong: "a PORT that ignores `disabled`",
@@ -710,17 +554,8 @@ const chromium = (): Verification => {
       },
       failures: tests
         .filter((each) => each.status !== "passed")
-        .map(
-          (each) =>
-            `${each.title}: ${(each.failureMessages[0] ?? "").split("\n")[0]}`,
-        )
-        .concat(
-          parsed === undefined
-            ? [
-                `the browser suite did not run: ${`${result.stderr}`.split("\n").slice(0, 2).join(" | ")}`,
-              ]
-            : [],
-        ),
+        .map((each) => `${each.title}: ${(each.failureMessages[0] ?? "").split("\n")[0]}`)
+        .concat(parsed === undefined ? [`the browser suite did not run: ${`${result.stderr}`.split("\n").slice(0, 2).join(" | ")}`] : []),
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -732,8 +567,7 @@ const desktop = (context: Context): Verification => {
     id: "desktop",
     title: "The Desktop's accessibility tree",
     tool: "accesskit_consumer, an invariant checker",
-    standard:
-      "AccessKit's tree (roles, names, focus, the nodes' parents), as its own consumer reads it",
+    standard: "AccessKit's tree (roles, names, focus, the nodes' parents), as its own consumer reads it",
     status: "skipped",
     checked: 0,
     control: {
@@ -743,31 +577,13 @@ const desktop = (context: Context): Verification => {
     detail,
   });
 
-  if (
-    context.portDir === undefined ||
-    !existsSync(join(context.portDir, "packages", "port-desktop", "Cargo.toml"))
-  ) {
-    return skipped(
-      "no checkout of the Desktop PORT (set PORT_DIR to one): its AccessKit tests run where its source is",
-    );
+  if (context.portDir === undefined || !existsSync(join(context.portDir, "packages", "port-desktop", "Cargo.toml"))) {
+    return skipped("no checkout of the Desktop PORT (set PORT_DIR to one): its AccessKit tests run where its source is");
   }
 
   const result = spawnSync(
     "cargo",
-    [
-      "test",
-      "--locked",
-      "--features",
-      "window",
-      "--test",
-      "spec_invariants",
-      "--test",
-      "accesskit_keys",
-      "--test",
-      "overlay_vectors",
-      "--test",
-      "accessibility",
-    ],
+    ["test", "--locked", "--features", "window", "--test", "spec_invariants", "--test", "accesskit_keys", "--test", "overlay_vectors", "--test", "accessibility"],
     {
       cwd: join(context.portDir, "packages", "port-desktop"),
       encoding: "utf8",
@@ -775,30 +591,18 @@ const desktop = (context: Context): Verification => {
     },
   );
   const out = `${result.stdout}${result.stderr}`;
-  const passed = [...out.matchAll(/test result: ok\. (\d+) passed/g)].reduce(
-    (sum, each) => sum + Number(each[1]),
-    0,
-  );
-  const controls = [
-    "corrupted_updates_are_caught",
-    "a_heading_without_a_level_would_be_caught",
-    "an_unnamed_control_is_reported",
-    "a_dialog_with_no_name_would_be_caught",
-  ];
+  const passed = [...out.matchAll(/test result: ok\. (\d+) passed/g)].reduce((sum, each) => sum + Number(each[1]), 0);
+  const controls = ["corrupted_updates_are_caught", "a_heading_without_a_level_would_be_caught", "an_unnamed_control_is_reported", "a_dialog_with_no_name_would_be_caught"];
 
   return settle({
     id: "desktop",
     title: "The Desktop's accessibility tree",
     tool: "accesskit_consumer 0.26, an invariant checker (valancex-port-desktop's tests)",
-    standard:
-      "AccessKit's tree (roles, names, focus, the nodes' parents), as its own consumer reads it",
+    standard: "AccessKit's tree (roles, names, focus, the nodes' parents), as its own consumer reads it",
     checked: passed,
     control: {
-      wrong:
-        "a corrupted update, an unnamed control, a heading with no level, a dialog with no name",
-      found: controls.every((name) =>
-        new RegExp(`${name} \\.\\.\\. ok`).test(out),
-      ),
+      wrong: "a corrupted update, an unnamed control, a heading with no level, a dialog with no name",
+      found: controls.every((name) => new RegExp(`${name} \\.\\.\\. ok`).test(out)),
     },
     failures:
       result.status === 0
@@ -821,9 +625,7 @@ export const verify = async (
     readonly skip?: ReadonlyArray<string>;
   },
 ): Promise<ReadonlyArray<Verification>> => {
-  const all: ReadonlyArray<
-    readonly [string, () => Promise<Verification> | Verification]
-  > = [
+  const all: ReadonlyArray<readonly [string, () => Promise<Verification> | Verification]> = [
     ["html", html],
     ["names", names],
     ["roles", rolesVerifier],
@@ -842,16 +644,7 @@ export const verify = async (
           context,
         ),
     ],
-    [
-      "vectors-terminal",
-      () =>
-        vectors(
-          "vectors-terminal",
-          "Primitive vectors: a terminal PORT in another process",
-          terminal,
-          context,
-        ),
-    ],
+    ["vectors-terminal", () => vectors("vectors-terminal", "Primitive vectors: a terminal PORT in another process", terminal, context)],
     ["replay", replayLogs],
     ["chromium", chromium],
     ["desktop", () => desktop(context)],
@@ -859,10 +652,7 @@ export const verify = async (
   const out: Verification[] = [];
 
   for (const [id, work] of all) {
-    if (
-      (choose?.only !== undefined && !choose.only.includes(id)) ||
-      choose?.skip?.includes(id) === true
-    ) {
+    if ((choose?.only !== undefined && !choose.only.includes(id)) || choose?.skip?.includes(id) === true) {
       continue;
     }
 

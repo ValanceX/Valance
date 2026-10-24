@@ -25,9 +25,7 @@ export interface Report {
   };
 }
 
-export const summarize = (
-  results: ReadonlyArray<Result>,
-): Report["summary"] => ({
+export const summarize = (results: ReadonlyArray<Result>): Report["summary"] => ({
   pass: results.filter((each) => each.result === "pass").length,
   fail: results.filter((each) => each.result === "fail").length,
   unsupported: results.filter((each) => each.result === "unsupported").length,
@@ -55,11 +53,7 @@ export const parity = (
   return [...cases.entries()].map(([id, found]) => ({
     ...found,
     by: Object.fromEntries(
-      reports.map((report) => [
-        `${report.port}/${report.adapter}`,
-        report.results.find((each) => `${each.primitive}/${each.case}` === id)
-          ?.result ?? "missing",
-      ]),
+      reports.map((report) => [`${report.port}/${report.adapter}`, report.results.find((each) => `${each.primitive}/${each.case}` === id)?.result ?? "missing"]),
     ),
   }));
 };

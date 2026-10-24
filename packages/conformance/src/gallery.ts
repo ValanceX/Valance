@@ -25,18 +25,12 @@ export interface Cell {
 
 /** The primitives whose cells are drawn in the page: a layer is not (it covers the page), and neither is a part that is only inside another's content. */
 const inline = (specification: Specification): boolean =>
-  specification.status === "portable" &&
-  specification.name !== "dialog" &&
-  specification.name !== "popover" &&
-  specification.within === undefined;
+  specification.status === "portable" && specification.name !== "dialog" && specification.name !== "popover" && specification.within === undefined;
 
 const STATES = ["disabled", "checked", "invalid", "pressed"];
 
 /** Every cell: for each primitive, its example, each member of each closed set, and each value of each state it carries. */
-export const cellsOf = (
-  specifications: Readonly<Record<string, Specification>>,
-  realizations: WebRealizations,
-): ReadonlyArray<Cell> => {
+export const cellsOf = (specifications: Readonly<Record<string, Specification>>, realizations: WebRealizations): ReadonlyArray<Cell> => {
   const out: Cell[] = [];
 
   for (const [tag, realization] of Object.entries(realizations.primitives)) {
@@ -47,13 +41,8 @@ export const cellsOf = (
     }
 
     const example = specification.example;
-    const first = Object.entries(realizations.primitives).find(
-      ([, each]) => each.primitive === specification.name,
-    )?.[0];
-    const add = (
-      made: string,
-      props: Record<string, unknown> | undefined,
-    ): void => {
+    const first = Object.entries(realizations.primitives).find(([, each]) => each.primitive === specification.name)?.[0];
+    const add = (made: string, props: Record<string, unknown> | undefined): void => {
       const key = `g${out.length}`;
       // a primitive with more than one tag (`list` and `olist`) has the cells of each, the later tags named by the tag
       const dimension = first === tag ? made : `${made}@${tag}`;
@@ -65,8 +54,7 @@ export const cellsOf = (
         dimension,
         props: props ?? {},
         key,
-        ...(typeof props?.["describedby"] === "string" &&
-        example.describedByText !== undefined
+        ...(typeof props?.["describedby"] === "string" && example.describedByText !== undefined
           ? {
               described: {
                 id: props["describedby"],
@@ -74,33 +62,16 @@ export const cellsOf = (
               },
             }
           : {}),
-        tree: treeOf(
-          realizations,
-          tag,
-          props,
-          example.text,
-          example.children,
-          key,
-        ),
+        tree: treeOf(realizations, tag, props, example.text, example.children, key),
       });
     };
 
     add("example", example.props);
 
     // every combination of the closed sets (the product of their members), then each state alone
-    const sets = Object.entries(specification.props).flatMap(
-      ([prop, definition]) =>
-        definition.type.kind === "enum"
-          ? [[prop, definition.type.values] as const]
-          : [],
-    );
-    const combinations = sets.reduce<
-      ReadonlyArray<ReadonlyArray<readonly [string, string]>>
-    >(
-      (so_far, [prop, values]) =>
-        so_far.flatMap((each) =>
-          values.map((value) => [...each, [prop, value] as const]),
-        ),
+    const sets = Object.entries(specification.props).flatMap(([prop, definition]) => (definition.type.kind === "enum" ? [[prop, definition.type.values] as const] : []));
+    const combinations = sets.reduce<ReadonlyArray<ReadonlyArray<readonly [string, string]>>>(
+      (so_far, [prop, values]) => so_far.flatMap((each) => values.map((value) => [...each, [prop, value] as const])),
       [[]],
     );
 
@@ -124,10 +95,7 @@ export const cellsOf = (
 };
 
 /** The gallery's page tree: one section for each mode of the theme (`shell` with its `theme`), and in it each cell under its name. */
-export const galleryTree = (
-  cells: ReadonlyArray<Cell>,
-  modes: ReadonlyArray<string>,
-): Tree => {
+export const galleryTree = (cells: ReadonlyArray<Cell>, modes: ReadonlyArray<string>): Tree => {
   const text = (key: string, words: string): unknown => ({
     type: "node",
     key,
@@ -169,10 +137,7 @@ export const galleryTree = (
                 ? []
                 : [
                     {
-                      ...(text(
-                        `${mode}.${cell.key}.described`,
-                        cell.described.text,
-                      ) as object),
+                      ...(text(`${mode}.${cell.key}.described`, cell.described.text) as object),
                       props: { id: `${mode}.${cell.key}-${cell.described.id}` },
                     },
                   ]),
@@ -195,13 +160,7 @@ const prefixed = (node: unknown, prefix: string, ids: string): unknown => {
     part.props === undefined
       ? undefined
       : Object.fromEntries(
-          Object.entries(part.props).map(([name, value]) => [
-            name,
-            (name === "id" || name === "describedby") &&
-            typeof value === "string"
-              ? `${ids}${value}`
-              : value,
-          ]),
+          Object.entries(part.props).map(([name, value]) => [name, (name === "id" || name === "describedby") && typeof value === "string" ? `${ids}${value}` : value]),
         );
 
   return {
@@ -217,21 +176,12 @@ const prefixed = (node: unknown, prefix: string, ids: string): unknown => {
 };
 
 /** What each cell is, as an adapter observes it: the structure snapshot. A cell the adapter declares unsupported is `null`, so a gap shows in the snapshot and does not hide. */
-export const structureOf = async (
-  adapter: Adapter,
-  cells: ReadonlyArray<Cell>,
-): Promise<Readonly<Record<string, ReadonlyArray<Observation> | null>>> => {
+export const structureOf = async (adapter: Adapter, cells: ReadonlyArray<Cell>): Promise<Readonly<Record<string, ReadonlyArray<Observation> | null>>> => {
   const capabilities = await adapter.capabilities();
   const out: Record<string, ReadonlyArray<Observation> | null> = {};
 
   for (const cell of cells) {
-    if (
-      capabilities.unsupported.some(
-        (each) =>
-          (each.primitive === "*" || each.primitive === cell.primitive) &&
-          each.case === "*",
-      )
-    ) {
+    if (capabilities.unsupported.some((each) => (each.primitive === "*" || each.primitive === cell.primitive) && each.case === "*")) {
       out[cell.id] = null;
       continue;
     }

@@ -11,12 +11,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import {
-  buildReport,
-  checkSignature,
-  render,
-  signReport,
-} from "../dist/signing.js";
+import { buildReport, checkSignature, render, signReport } from "../dist/signing.js";
 import { verify } from "../dist/verify.js";
 
 const args = process.argv.slice(2);
@@ -52,13 +47,7 @@ if (option("--verify") !== undefined) {
     process.exit(1);
   }
 
-  process.exit(
-    flag("--require-signed") && !signing.signed
-      ? 1
-      : report.result === "pass"
-        ? 0
-        : 1,
-  );
+  process.exit(flag("--require-signed") && !signing.signed ? 1 : report.result === "pass" ? 0 : 1);
 }
 
 const git = (...a) => {
@@ -71,16 +60,9 @@ const git = (...a) => {
     return null;
   }
 };
-const vectors = JSON.parse(
-  readFileSync(here("../vectors/primitives.vectors.json"), "utf8"),
-);
-const version = JSON.parse(
-  readFileSync(here("../../valance/package.json"), "utf8"),
-).version;
-const verifiers = await verify(
-  { vectors, portDir: option("--port-dir") ?? process.env.PORT_DIR },
-  { only: list("--only"), skip: list("--skip") },
-);
+const vectors = JSON.parse(readFileSync(here("../vectors/primitives.vectors.json"), "utf8"));
+const version = JSON.parse(readFileSync(here("../../valance/package.json"), "utf8")).version;
+const verifiers = await verify({ vectors, portDir: option("--port-dir") ?? process.env.PORT_DIR }, { only: list("--only"), skip: list("--skip") });
 const report = buildReport(verifiers, {
   subject: { name: "valance", version, commit: git("rev-parse", "HEAD") },
   environment: {

@@ -6,10 +6,5 @@ import { generate } from "../dist/vectors.js";
 
 const file = generate(loadSpecifications(), loadWeb());
 
-writeFileSync(
-  new URL("../vectors/primitives.vectors.json", import.meta.url),
-  `${JSON.stringify(file, null, 1)}\n`,
-);
-console.log(
-  `vectors/primitives.vectors.json: ${file.vectors.length} vectors for ${new Set(file.vectors.map((each) => each.primitive)).size} primitives`,
-);
+writeFileSync(new URL("../vectors/primitives.vectors.json", import.meta.url), `${JSON.stringify(file, null, 1)}\n`);
+console.log(`vectors/primitives.vectors.json: ${file.vectors.length} vectors for ${new Set(file.vectors.map((each) => each.primitive)).size} primitives`);

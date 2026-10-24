@@ -1,11 +1,6 @@
 // The conformance report (decision A15): the verifiers' results as data, regenerated for each release candidate and committed with the tag. A named accessibility maintainer signs it and can block a release;
 // who that is, is an open item of the project (decision X6), so the report is built to be signed, and until it is signed it says so, in its own text and in the data: the name is empty and visible as such.
-import {
-  createPrivateKey,
-  createPublicKey,
-  sign as cryptoSign,
-  verify as cryptoVerify,
-} from "node:crypto";
+import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 import { createHash } from "node:crypto";
 
 import type { Verification } from "./verify.js";
@@ -66,9 +61,7 @@ const canonical = (value: unknown): string => {
     .join(",")}}`;
 };
 
-const digestOf = (
-  report: Omit<ConformanceReport, "digest" | "signature">,
-): string => createHash("sha256").update(canonical(report)).digest("hex");
+const digestOf = (report: Omit<ConformanceReport, "digest" | "signature">): string => createHash("sha256").update(canonical(report)).digest("hex");
 
 export interface BuildOptions {
   readonly subject: ConformanceReport["subject"];
@@ -77,22 +70,16 @@ export interface BuildOptions {
 }
 
 /** Builds an unsigned report. A required verifier that was skipped, or one that failed, makes the result `fail`. */
-export const buildReport = (
-  verifiers: ReadonlyArray<Verification>,
-  options: BuildOptions,
-): ConformanceReport => {
+export const buildReport = (verifiers: ReadonlyArray<Verification>, options: BuildOptions): ConformanceReport => {
   const body = {
     version: 1 as const,
     kind: "conformance-report" as const,
     subject: options.subject,
     environment: options.environment,
     verifiers,
-    result: (verifiers.some((each) => each.status === "fail") ||
-    options.required.some(
-      (id) => verifiers.find((each) => each.id === id)?.status !== "pass",
-    )
-      ? "fail"
-      : "pass") as "pass" | "fail",
+    result: (verifiers.some((each) => each.status === "fail") || options.required.some((id) => verifiers.find((each) => each.id === id)?.status !== "pass") ? "fail" : "pass") as
+      | "pass"
+      | "fail",
     required: options.required,
     accessibilityMaintainer: { name: null, signedOn: null } as Maintainer,
   };
@@ -110,9 +97,7 @@ export const signReport = (
   },
 ): ConformanceReport => {
   if (maintainer.name.trim() === "") {
-    throw new Error(
-      "a signature names the accessibility maintainer who gives it",
-    );
+    throw new Error("a signature names the accessibility maintainer who gives it");
   }
 
   const { digest: _digest, signature: _signature, ...rest } = report;
@@ -136,9 +121,7 @@ export const signReport = (
     signature: {
       algorithm: "ed25519",
       publicKey,
-      value: cryptoSign(null, Buffer.from(digest, "hex"), key).toString(
-        "base64",
-      ),
+      value: cryptoSign(null, Buffer.from(digest, "hex"), key).toString("base64"),
     },
   };
 };
@@ -170,12 +153,7 @@ export const checkSignature = (report: ConformanceReport): Signing => {
     return { signed: false, valid: true, maintainer: null };
   }
 
-  const holds = cryptoVerify(
-    null,
-    Buffer.from(digest, "hex"),
-    createPublicKey(signature.publicKey),
-    Buffer.from(signature.value, "base64"),
-  );
+  const holds = cryptoVerify(null, Buffer.from(digest, "hex"), createPublicKey(signature.publicKey), Buffer.from(signature.value, "base64"));
 
   return {
     signed: true,

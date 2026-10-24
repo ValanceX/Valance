@@ -7,21 +7,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import type { VectorFile } from "../src/index.js";
-import {
-  buildReport,
-  checkSignature,
-  render,
-  settle,
-  signReport,
-  verify,
-} from "../src/index.js";
+import { buildReport, checkSignature, render, settle, signReport, verify } from "../src/index.js";
 
-const vectors = JSON.parse(
-  readFileSync(
-    new URL("../vectors/primitives.vectors.json", import.meta.url),
-    "utf8",
-  ),
-) as VectorFile;
+const vectors = JSON.parse(readFileSync(new URL("../vectors/primitives.vectors.json", import.meta.url), "utf8")) as VectorFile;
 const script = fileURLToPath(new URL("../scripts/report.mjs", import.meta.url));
 const options = {
   subject: { name: "valance", version: "0.0.0", commit: null },
@@ -31,27 +19,14 @@ const options = {
 
 describe("the verifiers", () => {
   it("each pass on the real output, and each found its deliberately wrong input (the control)", async () => {
-    const results = await verify(
-      { vectors },
-      { skip: ["chromium", "desktop", "replay"] },
-    );
+    const results = await verify({ vectors }, { skip: ["chromium", "desktop", "replay"] });
 
-    expect(results.map((each) => each.id)).toEqual([
-      "html",
-      "names",
-      "roles",
-      "css",
-      "tokens",
-      "vectors-jsdom",
-      "vectors-terminal",
-    ]);
+    expect(results.map((each) => each.id)).toEqual(["html", "names", "roles", "css", "tokens", "vectors-jsdom", "vectors-terminal"]);
 
     for (const each of results) {
       expect(each.detail, each.id).toBeUndefined();
       expect(each.status, each.id).toBe("pass");
-      expect(each.control.found, `${each.id}: ${each.control.wrong}`).toBe(
-        true,
-      );
+      expect(each.control.found, `${each.id}: ${each.control.wrong}`).toBe(true);
       expect(each.checked, each.id).toBeGreaterThan(0);
     }
 
@@ -91,20 +66,13 @@ describe("the verifiers", () => {
   });
 
   it("one that cannot run here says so, and does not pass: the Desktop's tree without a checkout of its PORT, and the session logs without MESH 0.16", async () => {
-    const skipped = await verify(
-      { vectors, portDir: undefined },
-      { only: ["desktop", "replay"] },
-    );
+    const skipped = await verify({ vectors, portDir: undefined }, { only: ["desktop", "replay"] });
 
     expect(skipped.find((each) => each.id === "desktop")).toMatchObject({
       status: "skipped",
     });
-    expect(skipped.find((each) => each.id === "desktop")!.detail).toContain(
-      "PORT_DIR",
-    );
-    expect(skipped.find((each) => each.id === "replay")!.status).toMatch(
-      /skipped|pass/,
-    );
+    expect(skipped.find((each) => each.id === "desktop")!.detail).toContain("PORT_DIR");
+    expect(skipped.find((each) => each.id === "replay")!.status).toMatch(/skipped|pass/);
   });
 });
 
@@ -133,12 +101,8 @@ describe("the report", () => {
     expect(buildReport([passing], options).result).toBe("pass");
     expect(buildReport([passing, failing], options).result).toBe("fail");
     expect(buildReport([passing, skipped], options).result).toBe("pass");
-    expect(
-      buildReport([passing, skipped], { ...options, required: ["c"] }).result,
-    ).toBe("fail");
-    expect(
-      buildReport([passing], { ...options, required: ["desktop"] }).result,
-    ).toBe("fail");
+    expect(buildReport([passing, skipped], { ...options, required: ["c"] }).result).toBe("fail");
+    expect(buildReport([passing], { ...options, required: ["desktop"] }).result).toBe("fail");
   });
 
   it("is unsigned while no one is named, and says so where a person reads it and in the data", () => {
@@ -149,9 +113,7 @@ describe("the report", () => {
       signedOn: null,
     });
     expect(report.signature).toBeNull();
-    expect(render(report)).toContain(
-      "UNSIGNED: no accessibility maintainer is named",
-    );
+    expect(render(report)).toContain("UNSIGNED: no accessibility maintainer is named");
     expect(checkSignature(report)).toMatchObject({
       signed: false,
       valid: true,
@@ -210,9 +172,7 @@ describe("the report", () => {
       privateKeyPem: pem,
     });
 
-    expect(
-      checkSignature({ ...signed, signature: other.signature }).valid,
-    ).toBe(false);
+    expect(checkSignature({ ...signed, signature: other.signature }).valid).toBe(false);
     expect(() =>
       signReport(buildReport([passing], options), {
         name: "  ",
@@ -224,8 +184,7 @@ describe("the report", () => {
 });
 
 describe("the release gate (--check)", () => {
-  const run = (...args: string[]) =>
-    spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
+  const run = (...args: string[]) => spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
 
   it("exits 0 when the verifiers it ran pass, and 1 when a required verifier did not run", () => {
     expect(run("--check", "--only", "roles,css").status).toBe(0);
@@ -259,21 +218,13 @@ describe("the release gate (--check)", () => {
   });
 
   it("verifies a written report: a changed one exits 1", () => {
-    const written = spawnSync(
-      process.execPath,
-      [script, "--only", "roles", "--out", "/tmp/vlx-report-test.json"],
-      { encoding: "utf8" },
-    );
+    const written = spawnSync(process.execPath, [script, "--only", "roles", "--out", "/tmp/vlx-report-test.json"], { encoding: "utf8" });
 
     expect(written.status).toBe(0);
     expect(run("--verify", "/tmp/vlx-report-test.json").status).toBe(0);
-    expect(
-      run("--verify", "/tmp/vlx-report-test.json", "--require-signed").status,
-    ).toBe(1);
+    expect(run("--verify", "/tmp/vlx-report-test.json", "--require-signed").status).toBe(1);
 
-    const report = JSON.parse(
-      readFileSync("/tmp/vlx-report-test.json", "utf8"),
-    ) as { result: string };
+    const report = JSON.parse(readFileSync("/tmp/vlx-report-test.json", "utf8")) as { result: string };
 
     report.result = "fail";
     spawnSync("sh", ["-c", `cat > /tmp/vlx-report-changed.json`], {

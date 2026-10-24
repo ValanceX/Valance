@@ -12,27 +12,13 @@ import { describe, expect, it } from "vitest";
 import { jsdomAdapter } from "../src/adapters/jsdom.js";
 import { terminalAdapter } from "../src/adapters/terminal/adapter.js";
 import type { Adapter, Capabilities } from "../src/index.js";
-import {
-  connect,
-  generate,
-  parity,
-  problemsOf,
-  run,
-  serve,
-  summarize,
-} from "../src/index.js";
+import { connect, generate, parity, problemsOf, run, serve, summarize } from "../src/index.js";
 import type { VectorFile } from "../src/index.js";
 
 const specifications = loadSpecifications();
 const realizations = loadWeb();
-const committed = JSON.parse(
-  readFileSync(
-    new URL("../vectors/primitives.vectors.json", import.meta.url),
-    "utf8",
-  ),
-) as VectorFile;
-const here = (path: string): string =>
-  fileURLToPath(new URL(path, import.meta.url));
+const committed = JSON.parse(readFileSync(new URL("../vectors/primitives.vectors.json", import.meta.url), "utf8")) as VectorFile;
+const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
 describe("the vectors", () => {
   it("are what the specifications and the web's realizations generate (the committed file is current)", () => {
@@ -43,34 +29,19 @@ describe("the vectors", () => {
     const ids = new Set(committed.vectors.map((each) => each.id));
 
     for (const specification of Object.values(specifications).filter(
-      (each) =>
-        each.status === "portable" &&
-        Object.values(realizations.primitives).some(
-          (tag) => tag.primitive === each.name,
-        ),
+      (each) => each.status === "portable" && Object.values(realizations.primitives).some((tag) => tag.primitive === each.name),
     )) {
-      expect(ids.has(`${specification.name}/example`), specification.name).toBe(
-        true,
-      );
+      expect(ids.has(`${specification.name}/example`), specification.name).toBe(true);
 
       for (const [prop, definition] of Object.entries(specification.props)) {
         if (definition.type.kind === "enum") {
           for (const value of definition.type.values) {
-            expect(
-              ids.has(`${specification.name}/variant:${prop}=${value}`),
-              `${specification.name} ${prop}=${value}`,
-            ).toBe(true);
+            expect(ids.has(`${specification.name}/variant:${prop}=${value}`), `${specification.name} ${prop}=${value}`).toBe(true);
           }
         }
 
-        if (
-          definition.controlled === true &&
-          specification.events["change"] !== undefined
-        ) {
-          expect(
-            ids.has(`${specification.name}/controlled:${prop}`),
-            `${specification.name} ${prop}`,
-          ).toBe(true);
+        if (definition.controlled === true && specification.events["change"] !== undefined) {
+          expect(ids.has(`${specification.name}/controlled:${prop}`), `${specification.name} ${prop}`).toBe(true);
         }
       }
     }
@@ -83,10 +54,7 @@ describe("the vectors", () => {
   });
 
   it("grow with a specification: a new member of a closed set, a new state, a new event add a vector with no one writing it", () => {
-    const grown = structuredClone(specifications) as Record<
-      string,
-      Specification
-    >;
+    const grown = structuredClone(specifications) as Record<string, Specification>;
     const button = grown["button"] as unknown as {
       props: Record<string, { type: { kind: string; values: string[] } }>;
       events: Record<string, object>;
@@ -97,9 +65,7 @@ describe("the vectors", () => {
     const before = new Set(committed.vectors.map((each) => each.id));
     const after = generate(grown, realizations).vectors.map((each) => each.id);
 
-    expect(after.filter((id) => !before.has(id))).toEqual([
-      "button/variant:intent=warning",
-    ]);
+    expect(after.filter((id) => !before.has(id))).toEqual(["button/variant:intent=warning"]);
   });
 });
 
@@ -111,24 +77,14 @@ describe("the Web PORT in jsdom", () => {
 
     expect(problemsOf(report)).toEqual([]);
     expect(report.results.filter((each) => each.result === "fail")).toEqual([]);
-    expect(
-      report.results
-        .filter((each) => each.result === "unsupported")
-        .every(
-          (each) => each.declared === true && (each.detail ?? "").length > 10,
-        ),
-    ).toBe(true);
+    expect(report.results.filter((each) => each.result === "unsupported").every((each) => each.declared === true && (each.detail ?? "").length > 10)).toBe(true);
     expect(report.summary.pass).toBeGreaterThan(80);
   });
 });
 
 describe("a PORT in another process (the terminal skeleton)", () => {
   it("passes every vector it does not declare unsupported, through the line-JSON protocol, and quickly", async () => {
-    const child = spawn(
-      process.execPath,
-      [here("../dist/adapters/terminal/main.js")],
-      { stdio: ["pipe", "pipe", "inherit"] },
-    );
+    const child = spawn(process.execPath, [here("../dist/adapters/terminal/main.js")], { stdio: ["pipe", "pipe", "inherit"] });
     const started = Date.now();
 
     try {
@@ -137,9 +93,7 @@ describe("a PORT in another process (the terminal skeleton)", () => {
       });
 
       expect(problemsOf(report)).toEqual([]);
-      expect(report.results.filter((each) => each.result === "fail")).toEqual(
-        [],
-      );
+      expect(report.results.filter((each) => each.result === "fail")).toEqual([]);
       expect(report.summary.pass).toBeGreaterThan(50);
       expect(report.summary.unsupported).toBeGreaterThan(0);
       // the kill criterion: no more than ten seconds for a thousand interactions (here: every step of every vector, with a process between)
@@ -150,12 +104,7 @@ describe("a PORT in another process (the terminal skeleton)", () => {
   });
 
   it("has an adapter of at most 300 lines (decision Q3): the measurement", () => {
-    const lines = readFileSync(
-      here("../src/adapters/terminal/adapter.ts"),
-      "utf8",
-    )
-      .trimEnd()
-      .split("\n").length;
+    const lines = readFileSync(here("../src/adapters/terminal/adapter.ts"), "utf8").trimEnd().split("\n").length;
 
     expect(lines).toBeLessThanOrEqual(300);
   });
@@ -183,13 +132,8 @@ const wrong = (change: (adapter: Adapter) => Partial<Adapter>): Adapter => {
 
   return { ...adapter, ...change(adapter) };
 };
-const failures = async (
-  adapter: Adapter,
-  only: ReadonlyArray<string>,
-): Promise<ReadonlyArray<string>> =>
-  (await run(adapter, committed, { adapter: "wrong", only })).results
-    .filter((each) => each.result === "fail")
-    .map((each) => `${each.primitive}/${each.case}`);
+const failures = async (adapter: Adapter, only: ReadonlyArray<string>): Promise<ReadonlyArray<string>> =>
+  (await run(adapter, committed, { adapter: "wrong", only })).results.filter((each) => each.result === "fail").map((each) => `${each.primitive}/${each.case}`);
 
 describe("a wrong PORT is found (each check shown failing)", () => {
   it("one that ignores `disabled`", async () => {
@@ -209,8 +153,7 @@ describe("a wrong PORT is found (each check shown failing)", () => {
   it("one that drops a payload", async () => {
     const found = await failures(
       wrong((adapter) => ({
-        interact: async (key, how) =>
-          (await adapter.interact(key, how)).map((each) => [each[0]] as const),
+        interact: async (key, how) => (await adapter.interact(key, how)).map((each) => [each[0]] as const),
       })),
       ["checkbox", "textfield"],
     );
@@ -290,11 +233,7 @@ describe("a gap counts only when the PORT declared it (decision Q6)", () => {
     expect(dialog.length).toBeGreaterThan(0);
     expect(dialog.every((each) => each.result === "fail")).toBe(true);
     expect(dialog[0]!.detail).toContain("does not declare");
-    expect(
-      report.results.find(
-        (each) => each.primitive === "textfield" && each.case === "key:Enter",
-      )?.result,
-    ).toBe("fail");
+    expect(report.results.find((each) => each.primitive === "textfield" && each.case === "key:Enter")?.result).toBe("fail");
   });
 
   it("and is `unsupported` with the reason when it does", async () => {
@@ -303,11 +242,7 @@ describe("a gap counts only when the PORT declared it (decision Q6)", () => {
       only: ["dialog"],
     });
 
-    expect(
-      report.results.every(
-        (each) => each.result === "unsupported" && each.declared === true,
-      ),
-    ).toBe(true);
+    expect(report.results.every((each) => each.result === "unsupported" && each.declared === true)).toBe(true);
   });
 });
 
@@ -347,8 +282,7 @@ describe("the report is data against a schema", () => {
       only: ["button", "dialog"],
     });
     const table = parity([a, b]);
-    const row = (id: string) =>
-      table.find((each) => `${each.primitive}/${each.case}` === id)!;
+    const row = (id: string) => table.find((each) => `${each.primitive}/${each.case}` === id)!;
 
     expect(row("button/example").by).toEqual({
       "port-web/jsdom": "pass",

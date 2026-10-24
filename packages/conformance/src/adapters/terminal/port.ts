@@ -142,9 +142,7 @@ export interface Part {
   readonly component: string;
   readonly props: Readonly<Record<string, unknown>>;
   readonly events: Readonly<Record<string, string>>;
-  readonly children: ReadonlyArray<
-    Part | { readonly key: string; readonly text: string }
-  >;
+  readonly children: ReadonlyArray<Part | { readonly key: string; readonly text: string }>;
 }
 
 export class Terminal {
@@ -153,9 +151,7 @@ export class Terminal {
   /** What the person has typed into a field, until the application renders: the application's value shows again then. */
   readonly typed = new Map<string, string>();
 
-  constructor(
-    private readonly report: (handler: string, payload?: unknown) => void,
-  ) {}
+  constructor(private readonly report: (handler: string, payload?: unknown) => void) {}
 
   /** Draws `tree`, or throws: a component, a prop or a value this PORT does not realize is refused, never drawn. */
   draw(tree: { readonly root: Part }): void {
@@ -169,14 +165,10 @@ export class Terminal {
 
       for (const [name, value] of Object.entries(part.props)) {
         const kind = def.props[name];
-        const fits = Array.isArray(kind)
-          ? kind.includes(value as string)
-          : typeof value === kind;
+        const fits = Array.isArray(kind) ? kind.includes(value as string) : typeof value === kind;
 
         if (kind === undefined || !fits) {
-          throw new Error(
-            `${part.component}.${name} cannot be ${JSON.stringify(value)}`,
-          );
+          throw new Error(`${part.component}.${name} cannot be ${JSON.stringify(value)}`);
         }
       }
 
@@ -198,21 +190,10 @@ export class Terminal {
       const text = this.text(part);
       const def = table[part.component]!;
 
-      if (def.act === "press")
-        out.push(`[ ${text || String(part.props["label"] ?? "")} ]`);
-      else if (def.act === "tick")
-        out.push(
-          `[${part.props["checked"] === true ? "x" : " "}] ${String(part.props["label"] ?? "")}`,
-        );
-      else if (def.act === "edit")
-        out.push(
-          `${String(part.props["label"] ?? "")}: ${this.typed.get(part.key) ?? String(part.props["value"] ?? "")}_`,
-        );
-      else if (
-        text !== "" &&
-        !part.children.some((child) => "component" in child)
-      )
-        out.push(text);
+      if (def.act === "press") out.push(`[ ${text || String(part.props["label"] ?? "")} ]`);
+      else if (def.act === "tick") out.push(`[${part.props["checked"] === true ? "x" : " "}] ${String(part.props["label"] ?? "")}`);
+      else if (def.act === "edit") out.push(`${String(part.props["label"] ?? "")}: ${this.typed.get(part.key) ?? String(part.props["value"] ?? "")}_`);
+      else if (text !== "" && !part.children.some((child) => "component" in child)) out.push(text);
 
       part.children.forEach((child) => "component" in child && walk(child));
     };
@@ -224,24 +205,15 @@ export class Terminal {
 
   /** The words of a part and its descendants. */
   text(part: Part): string {
-    return part.children
-      .map((child) => ("component" in child ? this.text(child) : child.text))
-      .join("");
+    return part.children.map((child) => ("component" in child ? this.text(child) : child.text)).join("");
   }
 
   /** The person acts on a part: press, tick, or type. Reports to the handler the tree gave. */
-  act(
-    key: string,
-    how: { readonly kind: string; readonly text?: string },
-  ): void {
+  act(key: string, how: { readonly kind: string; readonly text?: string }): void {
     const part = this.parts.get(key);
     const def = part === undefined ? undefined : table[part.component];
 
-    if (
-      part === undefined ||
-      def === undefined ||
-      part.props["disabled"] === true
-    ) {
+    if (part === undefined || def === undefined || part.props["disabled"] === true) {
       return;
     }
 
@@ -252,14 +224,8 @@ export class Terminal {
     };
 
     if (how.kind === "activate" && def.act === "press")
-      say(
-        part.component === "toggle" ? "change" : "click",
-        part.component === "toggle"
-          ? part.props["pressed"] !== true
-          : undefined,
-      );
-    else if (how.kind === "activate" && def.act === "tick")
-      say("change", part.props["checked"] !== true);
+      say(part.component === "toggle" ? "change" : "click", part.component === "toggle" ? part.props["pressed"] !== true : undefined);
+    else if (how.kind === "activate" && def.act === "tick") say("change", part.props["checked"] !== true);
     else if (how.kind === "type" && def.act === "edit") {
       this.typed.set(key, how.text ?? "");
       say("change", how.text ?? "");

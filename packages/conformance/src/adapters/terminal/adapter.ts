@@ -14,19 +14,12 @@ export const terminalAdapter = (): Adapter => {
     return terminal;
   };
   const draw = (tree: unknown): void => {
-    const next =
-      terminal ??
-      new Terminal((handler, payload) =>
-        reported.push(payload === undefined ? [handler] : [handler, payload]),
-      );
+    const next = terminal ?? new Terminal((handler, payload) => reported.push(payload === undefined ? [handler] : [handler, payload]));
 
     try {
       next.draw(tree as { root: Part });
     } catch (error) {
-      throw new Refused(
-        "refused",
-        error instanceof Error ? error.message : String(error),
-      );
+      throw new Refused("refused", error instanceof Error ? error.message : String(error));
     }
 
     terminal = next;
@@ -55,12 +48,7 @@ export const terminalAdapter = (): Adapter => {
       const label = part.props["label"];
       // ARIA 1.2: only a button and a heading are named by their words; a paragraph, a status and the rest have no name, or the author's
       const fromWords = def.role === "button" || def.role === "heading";
-      const name =
-        typeof label === "string" && label !== ""
-          ? label
-          : fromWords && text !== ""
-            ? text
-            : undefined;
+      const name = typeof label === "string" && label !== "" ? label : fromWords && text !== "" ? text : undefined;
 
       return {
         key,
@@ -70,23 +58,14 @@ export const terminalAdapter = (): Adapter => {
         text,
         ...(def.act === "edit"
           ? {
-              value:
-                drawn().typed.get(key) ?? String(part.props["value"] ?? ""),
+              value: drawn().typed.get(key) ?? String(part.props["value"] ?? ""),
             }
           : {}),
         enabled: part.props["disabled"] !== true,
-        ...(def.act === "tick"
-          ? { checked: part.props["checked"] === true }
-          : {}),
-        ...(part.component === "toggle"
-          ? { pressed: part.props["pressed"] === true }
-          : {}),
-        ...(typeof part.props["invalid"] === "boolean"
-          ? { invalid: part.props["invalid"] }
-          : {}),
-        children: part.children.flatMap((child) =>
-          "component" in child ? [child.key] : [],
-        ),
+        ...(def.act === "tick" ? { checked: part.props["checked"] === true } : {}),
+        ...(part.component === "toggle" ? { pressed: part.props["pressed"] === true } : {}),
+        ...(typeof part.props["invalid"] === "boolean" ? { invalid: part.props["invalid"] } : {}),
+        children: part.children.flatMap((child) => ("component" in child ? [child.key] : [])),
       };
     },
     interact: async (key, how) => {

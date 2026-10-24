@@ -2,7 +2,7 @@
 // fails is the PORT's, or the vector's, and the report says which.
 import { primitives } from "@valancex/common/internal";
 import { createWebPort } from "@valancex/port-web";
-import portPackage from "@valancex/port-web/package.json";
+import portPackage from "@valancex/port-web/package.json" with { type: "json" };
 import { userEvent } from "@vitest/browser/context";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -34,15 +34,11 @@ describe("the Web PORT, in Chromium", () => {
     const report = await run(adapter, vectors as unknown as VectorFile, {
       adapter: "chromium",
     });
-    const failing = report.results
-      .filter((each) => each.result === "fail")
-      .map((each) => `${each.primitive}/${each.case}: ${each.detail}`);
+    const failing = report.results.filter((each) => each.result === "fail").map((each) => `${each.primitive}/${each.case}: ${each.detail}`);
 
     expect(failing).toEqual([]);
     expect(report.summary.unsupported).toBe(0);
-    expect(report.summary.pass).toBe(
-      (vectors as unknown as VectorFile).vectors.length,
-    );
+    expect(report.summary.pass).toBe((vectors as unknown as VectorFile).vectors.length);
   });
 
   it("finds a PORT that ignores `disabled`, in the browser too", async () => {
@@ -64,10 +60,6 @@ describe("the Web PORT, in Chromium", () => {
       only: ["button"],
     });
 
-    expect(
-      report.results
-        .filter((each) => each.result === "fail")
-        .map((each) => each.case),
-    ).toContain("state:disabled=true");
+    expect(report.results.filter((each) => each.result === "fail").map((each) => each.case)).toContain("state:disabled=true");
   });
 });

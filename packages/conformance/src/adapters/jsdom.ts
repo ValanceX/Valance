@@ -11,20 +11,17 @@ const unsupported: ReadonlyArray<Declared> = [
   {
     primitive: "dialog",
     case: "*",
-    reason:
-      "jsdom has no top layer: a modal dialog is shown in a real browser (the Chromium run covers it)",
+    reason: "jsdom has no top layer: a modal dialog is shown in a real browser (the Chromium run covers it)",
   },
   {
     primitive: "popover",
     case: "*",
-    reason:
-      "jsdom has no top layer: a popover is shown in a real browser (the Chromium run covers it)",
+    reason: "jsdom has no top layer: a popover is shown in a real browser (the Chromium run covers it)",
   },
   {
     primitive: "*",
     case: "key:",
-    reason:
-      "jsdom runs no default action of a key press (Enter on a button, Space on a checkbox): the Chromium run presses real keys",
+    reason: "jsdom runs no default action of a key press (Enter on a button, Space on a checkbox): the Chromium run presses real keys",
   },
   {
     primitive: "textfield",
@@ -40,9 +37,7 @@ const unsupported: ReadonlyArray<Declared> = [
 
 /** A fresh jsdom document and the Web PORT's table for it, with the globals the PORT reads set as its own tests set them. */
 export const jsdomWorld = (): {
-  readonly create: (
-    report: (handler: string, payload?: unknown) => void,
-  ) => ReturnType<typeof createWebPort>;
+  readonly create: (report: (handler: string, payload?: unknown) => void) => ReturnType<typeof createWebPort>;
   readonly container: Element;
 } => {
   const dom = new JSDOM(`<!doctype html><body><div id="root"></div></body>`);

@@ -12,13 +12,7 @@
 // Adding a member to a closed set, or an event or a state to a specification, adds a vector with no one writing it.
 import type { Specification, WebRealizations } from "@valancex/primitives";
 
-import type {
-  Capability,
-  Interaction,
-  Observation,
-  Reported,
-  Tree,
-} from "./protocol.js";
+import type { Capability, Interaction, Observation, Reported, Tree } from "./protocol.js";
 
 export type Step =
   | { readonly op: "load"; readonly tree: Tree; readonly expect?: "refused" }
@@ -71,18 +65,9 @@ export const treeOf = (
   children: ReadonlyArray<Child> | undefined,
   prefix: string = ROOT,
 ): Tree => {
-  const tagOf = (primitive: string): string =>
-    Object.entries(realizations.primitives).find(
-      ([, each]) => each.primitive === primitive,
-    )?.[0] ?? primitive;
+  const tagOf = (primitive: string): string => Object.entries(realizations.primitives).find(([, each]) => each.primitive === primitive)?.[0] ?? primitive;
 
-  const node = (
-    name: string,
-    own: Props | undefined,
-    words: string | undefined,
-    inside: ReadonlyArray<Child> | undefined,
-    key: string,
-  ): unknown => {
+  const node = (name: string, own: Props | undefined, words: string | undefined, inside: ReadonlyArray<Child> | undefined, key: string): unknown => {
     const realization = realizations.primitives[name];
     const given: Record<string, unknown> = {};
     const propText: Record<string, string> = {};
@@ -96,11 +81,7 @@ export const treeOf = (
 
       given[web] = value;
 
-      if (
-        typeof value !== "string" &&
-        !Array.isArray(value) &&
-        (typeof value !== "object" || value === null)
-      ) {
+      if (typeof value !== "string" && !Array.isArray(value) && (typeof value !== "object" || value === null)) {
         propText[web] = String(value);
       }
     }
@@ -111,25 +92,10 @@ export const treeOf = (
       component: name,
       props: given,
       ...(Object.keys(propText).length === 0 ? {} : { propText }),
-      events: Object.fromEntries(
-        Object.keys(realization?.events ?? {}).map((event) => [
-          event,
-          `${name}.${event}`,
-        ]),
-      ),
+      events: Object.fromEntries(Object.keys(realization?.events ?? {}).map((event) => [event, `${name}.${event}`])),
       children: [
-        ...(words === undefined
-          ? []
-          : [{ type: "text", key: `${key}.t`, text: words }]),
-        ...(inside ?? []).map((child, index) =>
-          node(
-            tagOf(child.name),
-            child.props,
-            child.text,
-            child.children,
-            `${key}.${index}`,
-          ),
-        ),
+        ...(words === undefined ? [] : [{ type: "text", key: `${key}.t`, text: words }]),
+        ...(inside ?? []).map((child, index) => node(tagOf(child.name), child.props, child.text, child.children, `${key}.${index}`)),
       ],
     };
   };
@@ -141,22 +107,14 @@ export const treeOf = (
   };
 };
 
-const textOf = (example: Example): string =>
-  [
-    example.text ?? "",
-    ...(example.children ?? []).map((child) => childText(child)),
-  ].join("");
+const textOf = (example: Example): string => [example.text ?? "", ...(example.children ?? []).map((child) => childText(child))].join("");
 
 function childText(child: Child): string {
   return [child.text ?? "", ...(child.children ?? []).map(childText)].join("");
 }
 
 /** The accessible name the specification's rule gives for a use, or nothing when the rule gives none. */
-const nameOf = (
-  specification: Specification,
-  props: Props | undefined,
-  text: string,
-): string | undefined => {
+const nameOf = (specification: Specification, props: Props | undefined, text: string): string | undefined => {
   const rule = specification.accessibleName;
   const prop = rule.prop === undefined ? undefined : props?.[rule.prop];
 
@@ -164,11 +122,7 @@ const nameOf = (
     case "prop":
       return typeof prop === "string" ? prop : undefined;
     case "either":
-      return typeof prop === "string" && prop !== ""
-        ? prop
-        : text !== ""
-          ? text
-          : undefined;
+      return typeof prop === "string" && prop !== "" ? prop : text !== "" ? text : undefined;
     case "content":
       return text !== "" ? text : undefined;
     default:
@@ -177,35 +131,20 @@ const nameOf = (
 };
 
 /** What the specification says a node with these props is, as far as an observation can say it. */
-const expectation = (
-  specification: Specification,
-  props: Props | undefined,
-  text: string,
-  key: string,
-  children: ReadonlyArray<string>,
-): Partial<Observation> => {
+const expectation = (specification: Specification, props: Props | undefined, text: string, key: string, children: ReadonlyArray<string>): Partial<Observation> => {
   const role = specification.webRole ?? specification.role;
   const name = nameOf(specification, props, text);
-  const flag = (prop: string): boolean | undefined =>
-    typeof props?.[prop] === "boolean" ? (props[prop] as boolean) : undefined;
+  const flag = (prop: string): boolean | undefined => (typeof props?.[prop] === "boolean" ? (props[prop] as boolean) : undefined);
 
   return {
     key,
-    ...(role === null || role === undefined || role === "generic"
-      ? {}
-      : { role }),
+    ...(role === null || role === undefined || role === "generic" ? {} : { role }),
     ...(name === undefined ? {} : { name }),
     text,
     enabled: flag("disabled") !== true,
-    ...(flag("checked") === undefined
-      ? {}
-      : { checked: flag("checked") as boolean }),
-    ...(flag("pressed") === undefined || specification.name !== "toggle"
-      ? {}
-      : { pressed: flag("pressed") as boolean }),
-    ...(flag("invalid") === undefined
-      ? {}
-      : { invalid: flag("invalid") as boolean }),
+    ...(flag("checked") === undefined ? {} : { checked: flag("checked") as boolean }),
+    ...(flag("pressed") === undefined || specification.name !== "toggle" ? {} : { pressed: flag("pressed") as boolean }),
+    ...(flag("invalid") === undefined ? {} : { invalid: flag("invalid") as boolean }),
     children,
   };
 };
@@ -273,48 +212,28 @@ const raise = (
 const KEYS: Readonly<Record<string, string>> = { Space: " " };
 
 /** The vectors of one portable primitive. */
-const vectorsOf = (
-  specification: Specification,
-  tag: string,
-  realizations: WebRealizations,
-): ReadonlyArray<Vector> => {
+const vectorsOf = (specification: Specification, tag: string, realizations: WebRealizations): ReadonlyArray<Vector> => {
   const out: Vector[] = [];
-  const layers =
-    specification.name === "dialog" || specification.name === "popover";
+  const layers = specification.name === "dialog" || specification.name === "popover";
   // a primitive with more than one tag (`list` and `olist`) has the cases of each, the later tags named by the tag
-  const first = Object.entries(realizations.primitives).find(
-    ([, each]) => each.primitive === specification.name,
-  )?.[0];
-  const add = (
-    made: string,
-    requires: ReadonlyArray<Capability>,
-    steps: ReadonlyArray<Step>,
-  ): void => {
+  const first = Object.entries(realizations.primitives).find(([, each]) => each.primitive === specification.name)?.[0];
+  const add = (made: string, requires: ReadonlyArray<Capability>, steps: ReadonlyArray<Step>): void => {
     const name = first === tag ? made : `${made}@${tag}`;
 
     out.push({
       id: `${specification.name}/${name}`,
       primitive: specification.name,
       case: name,
-      requires: [
-        ...new Set([...requires, ...(layers ? (["layers"] as const) : [])]),
-      ],
+      requires: [...new Set([...requires, ...(layers ? (["layers"] as const) : [])])],
       steps,
     });
   };
   const example = specification.example;
-  const tree = (
-    props: Props | undefined = example.props,
-    text: string | undefined = example.text,
-    children: ReadonlyArray<Child> | undefined = example.children,
-  ): Tree => treeOf(realizations, tag, props, text, children);
+  const tree = (props: Props | undefined = example.props, text: string | undefined = example.text, children: ReadonlyArray<Child> | undefined = example.children): Tree =>
+    treeOf(realizations, tag, props, text, children);
   const words = textOf(example);
-  const childKeys = (example.children ?? []).map(
-    (_, index) => `${ROOT}.${index}`,
-  );
-  const hasRole =
-    (specification.webRole ?? specification.role) !== null &&
-    specification.role !== "generic";
+  const childKeys = (example.children ?? []).map((_, index) => `${ROOT}.${index}`);
+  const hasRole = (specification.webRole ?? specification.role) !== null && specification.role !== "generic";
 
   // the example: what the specification says it is
   add(
@@ -325,30 +244,19 @@ const vectorsOf = (
       {
         op: "observe",
         key: ROOT,
-        expect: expectation(
-          specification,
-          example.props,
-          words,
-          ROOT,
-          childKeys,
-        ),
+        expect: expectation(specification, example.props, words, ROOT, childKeys),
       },
-      ...(example.children ?? []).map(
-        (child, index): Step => ({
-          op: "observe",
-          key: `${ROOT}.${index}`,
-          expect: { key: `${ROOT}.${index}`, text: childText(child) },
-        }),
-      ),
+      ...(example.children ?? []).map((child, index): Step => ({
+        op: "observe",
+        key: `${ROOT}.${index}`,
+        expect: { key: `${ROOT}.${index}`, text: childText(child) },
+      })),
     ],
   );
 
   // each boolean state
   for (const [prop, definition] of Object.entries(specification.props)) {
-    if (
-      definition.type.kind === "boolean" &&
-      ["disabled", "checked", "invalid", "pressed"].includes(prop)
-    ) {
+    if (definition.type.kind === "boolean" && ["disabled", "checked", "invalid", "pressed"].includes(prop)) {
       for (const value of [true, false]) {
         const props = { ...example.props, [prop]: value };
 
@@ -360,10 +268,7 @@ const vectorsOf = (
             {
               op: "observe",
               key: ROOT,
-              expect: pick(
-                expectation(specification, props, words, ROOT, childKeys),
-                prop === "disabled" ? "enabled" : prop,
-              ),
+              expect: pick(expectation(specification, props, words, ROOT, childKeys), prop === "disabled" ? "enabled" : prop),
             },
           ],
         );
@@ -402,11 +307,7 @@ const vectorsOf = (
         key: ROOT,
         how: how.how,
         expect: {
-          reports: [
-            how.payload === undefined
-              ? [`${specification.name}.${event}`]
-              : [`${specification.name}.${event}`, how.payload],
-          ],
+          reports: [how.payload === undefined ? [`${specification.name}.${event}`] : [`${specification.name}.${event}`, how.payload]],
         },
       },
     ]);
@@ -414,16 +315,9 @@ const vectorsOf = (
 
   // each keyboard row that raises an event, with a real key
   for (const row of specification.keyboard) {
-    const raised =
-      row.raises === undefined
-        ? undefined
-        : raise(specification, row.raises, example.props);
+    const raised = row.raises === undefined ? undefined : raise(specification, row.raises, example.props);
 
-    if (
-      row.raises === undefined ||
-      specification.events[row.raises] === undefined ||
-      raised === undefined
-    ) {
+    if (row.raises === undefined || specification.events[row.raises] === undefined || raised === undefined) {
       continue;
     }
 
@@ -437,11 +331,7 @@ const vectorsOf = (
           key: ROOT,
           how: { kind: "key", key: KEYS[row.key] ?? row.key },
           expect: {
-            reports: [
-              raised.payload === undefined || row.raises === "click"
-                ? [`${specification.name}.${row.raises}`]
-                : [`${specification.name}.${row.raises}`, raised.payload],
-            ],
+            reports: [raised.payload === undefined || row.raises === "click" ? [`${specification.name}.${row.raises}`] : [`${specification.name}.${row.raises}`, raised.payload]],
           },
         },
       ],
@@ -454,13 +344,8 @@ const vectorsOf = (
       continue;
     }
 
-    const event = Object.keys(specification.events).find(
-      (each) => each === "change" || each === "select",
-    );
-    const how =
-      event === undefined
-        ? undefined
-        : raise(specification, event, example.props);
+    const event = Object.keys(specification.events).find((each) => each === "change" || each === "select");
+    const how = event === undefined ? undefined : raise(specification, event, example.props);
 
     if (event === undefined || how === undefined) {
       continue;
@@ -470,14 +355,8 @@ const vectorsOf = (
     const start: Props = { ...example.props, ...how.with };
     const before = start[prop];
     const after = typeof before === "boolean" ? !before : "rendered";
-    const key =
-      typeof before === "string"
-        ? "value"
-        : specification.name === "toggle"
-          ? "pressed"
-          : "checked";
-    const shown = (value: unknown): Partial<Observation> =>
-      ({ [key]: value }) as Partial<Observation>;
+    const key = typeof before === "string" ? "value" : specification.name === "toggle" ? "pressed" : "checked";
+    const shown = (value: unknown): Partial<Observation> => ({ [key]: value }) as Partial<Observation>;
 
     add(
       `controlled:${prop}`,
@@ -489,11 +368,7 @@ const vectorsOf = (
           key: ROOT,
           how: how.how,
           expect: {
-            reports: [
-              how.payload === undefined
-                ? [`${specification.name}.${event}`]
-                : [`${specification.name}.${event}`, how.payload],
-            ],
+            reports: [how.payload === undefined ? [`${specification.name}.${event}`] : [`${specification.name}.${event}`, how.payload]],
           },
         },
         // the application rendered the same: it refused the change
@@ -507,11 +382,7 @@ const vectorsOf = (
 
   // a value of the wrong kind is refused, never drawn
   for (const [prop, definition] of Object.entries(specification.props)) {
-    if (
-      definition.webOnly === true ||
-      !["string", "boolean", "number", "enum"].includes(definition.type.kind) ||
-      realizations.primitives[tag]?.props?.[prop] === undefined
-    ) {
+    if (definition.webOnly === true || !["string", "boolean", "number", "enum"].includes(definition.type.kind) || realizations.primitives[tag]?.props?.[prop] === undefined) {
       continue;
     }
 
@@ -531,25 +402,17 @@ const vectorsOf = (
   return out;
 };
 
-const pick = (
-  full: Partial<Observation>,
-  member: string,
-): Partial<Observation> =>
+const pick = (full: Partial<Observation>, member: string): Partial<Observation> =>
   ({
     key: full.key as string,
     [member]: (full as Record<string, unknown>)[member],
   }) as Partial<Observation>;
 
 /** The vectors of every portable primitive that has a tag, in the order of the realizations. */
-export const generate = (
-  specifications: Readonly<Record<string, Specification>>,
-  realizations: WebRealizations,
-): VectorFile => ({
+export const generate = (specifications: Readonly<Record<string, Specification>>, realizations: WebRealizations): VectorFile => ({
   version: 1,
   spec: "primitives@1",
   vectors: Object.entries(realizations.primitives)
     .filter(([, each]) => specifications[each.primitive]?.status === "portable")
-    .flatMap(([tag, each]) =>
-      vectorsOf(specifications[each.primitive]!, tag, realizations),
-    ),
+    .flatMap(([tag, each]) => vectorsOf(specifications[each.primitive]!, tag, realizations)),
 });
