@@ -26,7 +26,7 @@ import { ValanceError } from "./errors.js";
 import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
-import { SubscriptionRef, Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Equal, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export { isUnit, UNIT } from "./units.js";
@@ -504,7 +504,9 @@ export const start = <S, E, R extends Ambient, V extends string>(
     // The one NEXUS state is shared by all of them. A view is admitted by replacing its entry and bumping its generation, so a render made before is never `update`d into one made after.
     const views: Record<string, View<S>> = { ...app.views };
     const generations = new Map<string, number>();
-    const admissions = yield* SubscriptionRef.make(0);
+    // How many times a view that is being shown was admitted anew: part of what a render is made from, so a render is wanted when it changes (see `values`). A plain counter, not a stream: the
+    // wake is the state's own (an admission commits the state it finds, which `values` emits whether or not it differs).
+    let admissions = 0;
     const hosts = new Map<string, Nexus.Mesh.Host<E, R>>(
       Object.entries<View<S>>(views).map(([name, view]) => [name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands })]),
     );
@@ -597,17 +599,20 @@ export const start = <S, E, R extends Ambient, V extends string>(
         registry === undefined
           ? Stream.mapAccumEffect(
               Stream.changesWith(
-                Stream.mapEffect(Stream.merge(state.values, admissions.changes), () => Effect.zip(state.get, SubscriptionRef.get(admissions))),
-                (left, right) => left[0] === right[0] && left[1] === right[1],
+                Stream.mapEffect(state.values, () =>
+                  Effect.zip(
+                    state.get,
+                    Effect.sync(() => admissions),
+                  ),
+                ),
+                (left, right) => Equal.equals(left[0], right[0]) && left[1] === right[1],
               ),
               undefined as Viewed | undefined,
               (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
             )
           : Stream.mapAccumEffect(
               Stream.changesWith(
-                Stream.mapEffect(Stream.merge(Stream.merge(state.values, registry.epoch.values), admissions.changes), () =>
-                  Effect.all([state.get, registry.epoch.get, SubscriptionRef.get(admissions)]),
-                ),
+                Stream.mapEffect(Stream.merge(state.values, registry.epoch.values), () => Effect.all([state.get, registry.epoch.get, Effect.sync(() => admissions)])),
                 (left, right) => left[0] === right[0] && left[1] === right[1] && left[2] === right[2],
               ),
               undefined as Viewed | undefined,
@@ -662,7 +667,8 @@ export const start = <S, E, R extends Ambient, V extends string>(
 
           // A mount that shows this view draws the new program now; one that shows another has nothing to redraw.
           if (app.view(yield* state.get) === name) {
-            yield* SubscriptionRef.update(admissions, (count) => count + 1);
+            admissions += 1;
+            yield* state.update((current) => Effect.succeed(current));
           }
         }),
       state: state.get,

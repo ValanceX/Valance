@@ -7,10 +7,28 @@ Two tools for the same promise: what a PORT draws is a function of the program a
 ```
 vlx dev --record            # writes session.jsonl in the project
 vlx dev --record=run.jsonl  # or a file of your choice
-vlx replay run.jsonl        # replays it, exit 0 when it agrees
+vlx replay run.jsonl --allow-user-data   # replays it, exit 0 when it agrees
 ```
 
-`--record` is development only. The dev entry imports the recorder (`@valancex/common/record`) only in that mode; `vlx check` and `vlx build` write the entry without it, and a test builds a production bundle and shows it holds no recorder and no `/__vlx/record` route. **A log holds what was typed and drawn, that is, user data. Redaction (`sensitive`) is not built (decisions R9, R14): do not share a log.**
+`--record` is development only. The dev entry imports the recorder (`@valancex/common/record`) only in that mode; `vlx check` and `vlx build` write the entry without it, and a test builds a production bundle and shows it holds no recorder and no `/__vlx/record` route.
+
+### A recording holds what was typed (Tier 1: the guards; Tier 2: `record.redact`)
+
+A log holds what the person typed and saw. Three guards say so every time (decision R16):
+
+* `vlx dev --record` prints a warning when it starts: where the log is written, that it holds what is typed and shown, what the project redacts (or that nothing is), and, in a git work tree, whether git would commit the file.
+* The log's header says `"containsUserData": true`, always, whatever is redacted: the recorder cannot know every field is covered.
+* `vlx replay` refuses a log that says so until you pass `--allow-user-data` (a divergence prints what was typed and shown), and the conformance report refuses to attach one. The scaffolded `.gitignore` lists `.valance/sessions/` and `*.session.jsonl`.
+
+To keep a value out of the log, mark it in `valance.json` (Tier 2; nothing is marked by default):
+
+```json
+{ "name": "Notes", "record": { "redact": { "scope": [["password"], ["people", "*", "pin"]], "commands": ["login/type"] } } }
+```
+
+`scope` lists paths into the page's scope (`*` is any list index or field name); `commands` lists `component/name` commands whose payloads and parameters are not written. A marked value is **never written**: its place holds `redacted:` and 16 hexadecimal digits, a digest keyed with a random key that exists only in the recorder, so equal values have equal digests inside one log and nothing else can be learned from it (not even by guessing, which an unkeyed hash of a short secret would allow). Strings become digests, numbers `0`, booleans `false`; `null` stays. The tree hashes are taken from a **second render of the redacted snapshot**, and an event's recorded outcome is what the runtime makes of the redacted payload against that render, so the redacted log replays exactly as an ordinary one does.
+
+Keep a marked value opaque in the template: show it (`value={password}`) but do not branch on it (`{#if password == "x"}`). If a marked value decides which nodes or handlers the tree has, the recorder says so once and writes the finding into the log (`"redaction":"changed-the-tree"`), because the log would not replay at an event on those nodes. The secret is not written either way. A value derived by your own code before MESH sees it (a flag computed from a password's length) is not covered by a mark.
 
 `vlx replay` compiles the project's web program, checks the program hash of the log's header against it (a mismatch is refused, exit 2) and replays the log by three routes:
 
@@ -20,7 +38,7 @@ vlx replay run.jsonl        # replays it, exit 0 when it agrees
 | `update` | runs the runtime's `update` chain on the recorded states |
 | `render` | renders each recorded snapshot afresh |
 
-All three must give the recorded tree hash (SHA-256 of the compact JSON, keys sorted) at every tree line and the recorded outcome at every event line. The first line that differs is reported with the route (`--json` for tools; `--route changes` for one). Exit 0 agrees, 1 diverges, 2 cannot replay (bad log, wrong program, wrong arguments).
+All three must give the recorded tree hash (SHA-256 of the compact JSON, keys sorted) at every tree line and the recorded outcome at every event line. The first line that differs is reported with the route (`--json` for tools; `--route changes` for one). Exit 0 agrees, 1 diverges, 2 cannot replay (bad log, wrong program, wrong arguments, or a log that holds user data without `--allow-user-data`).
 
 The same checks are available as code, `import { replay, recorder, parseLog } from "@valancex/valance/replay"` (Tier 2: the library imports only `@valancex/mesh-runtime`, no PORT and no DOM; a boundary test enforces it). MESH's `@valancex/mesh-conformance` ships the same format as data (`replay/`: seven logs and 1,000 random sessions), so a runtime in any language is checked against the same lines.
 
