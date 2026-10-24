@@ -1,5 +1,6 @@
 // What the author's side may depend on: the types of VALANCE and effect, and nothing that runs on a machine. `src/main.ts` is loaded in the browser as well as at build time.
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -112,5 +113,33 @@ describe("the http entry", () => {
 
     expect(externals("http.ts").filter((name) => !allowed.includes(name))).toEqual([]);
     expect([...closure("index.ts")]).not.toContain("http.ts");
+  });
+});
+
+// The early-input shell and its replay (WP8; decision H6) are the composer's: the shell is a string of script that imports nothing, the replay needs only Effect to wait for a command, and neither
+// the core, the PORT nor the author's entry knows they exist. A PORT that draws a page does not know a tap was kept before it existed.
+describe("the early-input shell", () => {
+  const read = (path: string): string => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+  const codeOnly = (text: string): string => text.replace(/^\s*\/\/.*$/gm, "");
+
+  it("imports nothing, and its replay imports only effect", () => {
+    expect(codeOnly(read("../src/early.ts"))).not.toMatch(/\bimport\b/);
+    expect(Array.from(codeOnly(read("../src/early-replay.ts")).matchAll(/from\s+"([^"]+)"/g), (match) => match[1])).toEqual(["effect"]);
+  });
+
+  it("is used by the client and the server entries and by no other module of the author's side or the core", () => {
+    for (const file of ["../src/index.ts", "../src/form.ts", "../src/app.ts"]) {
+      expect(read(file)).not.toMatch(/early/);
+    }
+
+    for (const file of ["../../valance/src/index.ts", "../../valance/src/web.ts", "../../valance/src/internal.ts"]) {
+      expect(read(file)).not.toMatch(/__vlx|early-input|earlyShell/);
+    }
+  });
+
+  it("is unknown to the Web PORT: nothing in it refers to the shell's global", () => {
+    const port = createRequire(import.meta.url).resolve("@valancex/port-web");
+
+    expect(readFileSync(port.replace(/index\.js$/, "port.js"), "utf8")).not.toContain("__vlx");
   });
 });
