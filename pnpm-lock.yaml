@@ -6,6 +6,7 @@ settings:
 
 overrides:
   ignore: 7.0.12
+  '@valancex/mesh-conformance': file:local-packs/valancex-mesh-conformance-0.16.0.tgz
 
 importers:
 
@@ -325,8 +326,8 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       '@valancex/mesh-conformance':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: file:../../local-packs/valancex-mesh-conformance-0.16.0.tgz
+        version: file:local-packs/valancex-mesh-conformance-0.16.0.tgz
       '@valancex/mesh-runtime':
         specifier: ^0.15.0
         version: 0.15.0
@@ -1218,8 +1219,9 @@ packages:
     resolution: {integrity: sha512-abJtHvMzl/SwOTq0MblBrpOkIiatP5BV2cW9tg1STjD8ODFlcb77ABFhLc43Av400Z3WhNyPCkdiNztjZQiFNg==}
     engines: {node: '>=22'}
 
-  '@valancex/mesh-conformance@0.15.0':
-    resolution: {integrity: sha512-GsfIbGzlFeUGecrdGCznEyHgRqWFBS62Xq6boIr+CO2xNpv44zEqD0I7ri9bpt22IIvN+lKUIY4hH5FTCJY4fg==}
+  '@valancex/mesh-conformance@file:local-packs/valancex-mesh-conformance-0.16.0.tgz':
+    resolution: {integrity: sha512-3gz8x1JHwADjCbsQQUDhRXBr2yStl8aPhLjNZLesxfF2EO0ebstnE03sS8ZmPcopW2jXdcyeEvH9rUd+KF/Xuw==, tarball: file:local-packs/valancex-mesh-conformance-0.16.0.tgz}
+    version: 0.16.0
     engines: {node: '>=22'}
 
   '@valancex/mesh-lsp-darwin-arm64@0.11.0':
@@ -2727,7 +2729,7 @@ snapshots:
 
   '@valancex/mesh-compiler@0.15.0': {}
 
-  '@valancex/mesh-conformance@0.15.0': {}
+  '@valancex/mesh-conformance@file:local-packs/valancex-mesh-conformance-0.16.0.tgz': {}
 
   '@valancex/mesh-lsp-darwin-arm64@0.11.0':
     optional: true
