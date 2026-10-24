@@ -3,6 +3,7 @@ import { webStore } from "./store.js";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import type * as Valance from "@valancex/valance";
+import type { SessionRecorder } from "@valancex/valance/replay";
 import * as Web from "@valancex/valance/web";
 
 import { Effect } from "effect";
@@ -21,9 +22,11 @@ export interface ClientParts {
   readonly content: Content;
   readonly program: Valance.Program;
   readonly author?: DefinedApp | undefined;
+  /** A session recorder (`vlx dev --record` writes the entry that passes one): a development feature. */
+  readonly record?: SessionRecorder | undefined;
 }
 
-export const start = async ({ content, program, author }: ClientParts): Promise<void> => {
+export const start = async ({ content, program, author, record }: ClientParts): Promise<void> => {
   const container = document.getElementById("app")!;
 
   try {
@@ -39,6 +42,7 @@ export const start = async ({ content, program, author }: ClientParts): Promise<
       // What the application's commands may ask the page for: the backend (`Http`), at `api.base` of valance.web.json.
       platform: webPlatform({ base: content.site.api, interceptors: author?.http?.interceptors ?? [], store: webStore(content.site.name) }),
       shutdown: { grace: "250 millis" },
+      ...(record === undefined ? {} : { record }),
     });
 
     // The server rendered for a wide window; tell the application how wide this one is (and keep telling it).

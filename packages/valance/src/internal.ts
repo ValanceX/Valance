@@ -21,6 +21,8 @@ export type DispatchExit<E> = Exit.Exit<Nexus.Mesh.Dispatched, Nexus.Mesh.MeshDi
 
 /** A MESH render, and which view's program made it. Program continuity is "same view as the drawn one". */
 export interface Viewed {
+  /** The snapshot the render was made from: what a recorder (`MountOptions.record`) logs. */
+  readonly snapshot?: Record<string, unknown>;
   readonly view: string;
   readonly render: Nexus.Mesh.Render;
   /**

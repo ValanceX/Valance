@@ -32,6 +32,10 @@
       "types": "./dist/client.d.ts",
       "default": "./dist/client.js"
     },
+    "./record": {
+      "types": "./dist/record.d.ts",
+      "default": "./dist/record.js"
+    },
     "./desktop": {
       "types": "./dist/desktop.d.ts",
       "default": "./dist/desktop.js"

@@ -13,7 +13,8 @@
 // A mistake in any of them leaves the last good build serving, and is shown in the terminal and as an overlay in the page, naming the file and line. Fixing it reloads the page.
 import type { ViteDevServer } from "vite";
 import { createServer } from "vite";
-import { relative, sep } from "node:path";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname, relative, sep } from "node:path";
 
 import { loadAuthor } from "./author.js";
 import type { Config } from "./config.js";
@@ -31,6 +32,11 @@ export interface DevOptions {
   readonly target?: TargetId;
   readonly port?: number;
   readonly host?: string;
+  /**
+   * Record the session (`--record`): the file the page's log is appended to (`@valancex/valance/replay`; read it with `vlx replay`). A development feature, never uploaded: a log holds
+   * what the person typed. The generated page entry that records is rewritten without it by the next run that does not ask for it.
+   */
+  readonly record?: string;
   /** Called with each report (a rebuild, a mistake); defaults to the console. */
   readonly log?: (line: string) => void;
   /** Called with every mistake still open, after the first build and after each rebuild: empty when the project is sound. */
@@ -97,7 +103,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   const failed = new Map<string, ReadonlyArray<Diagnostic>>();
   let pending: Promise<void> = Promise.resolve();
 
-  generateEntries(root, config);
+  generateEntries(root, config, { record: options.record !== undefined });
 
   const base = baseConfig(root, config);
   const server = await createServer({
@@ -114,33 +120,52 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
       ...(base.plugins ?? []),
       {
         name: "valance",
-        configureServer: (vite) => () => {
-          // After Vite's own middleware: modules, styles, public files and the client have had their chance. What is left is a page.
-          vite.middlewares.use((request, response, next) => {
-            void (async () => {
-              // Vite has already removed the base from `request.url`; the application's addresses include it.
-              const url = new URL((request as { originalUrl?: string }).originalUrl ?? request.url ?? "/", "http://localhost");
+        configureServer: (vite) => {
+          if (options.record !== undefined) {
+            const file = options.record;
 
-              if ((request.method !== "GET" && request.method !== "HEAD") || !url.pathname.startsWith(config.web.base) || /\.[A-Za-z0-9]+$/.test(url.pathname)) {
-                next();
-                return;
-              }
+            mkdirSync(dirname(file), { recursive: true });
+            // the page's recorder posts each line of its log here, in order
+            vite.middlewares.use("/__vlx/record", (request, response) => {
+              const chunks: Buffer[] = [];
 
-              try {
-                const { render } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
-                  render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }) => Promise<{ status: number; html: string }>;
-                };
-                const { status, html } = await render(url.pathname, { script: `${config.web.base}${GENERATED_DIR}/client.ts`, styles: [] });
+              request.on("data", (chunk: Buffer) => chunks.push(chunk));
+              request.on("end", () => {
+                appendFileSync(file, `${Buffer.concat(chunks).toString("utf8")}\n`);
+                response.statusCode = 204;
+                response.end();
+              });
+            });
+          }
 
-                response.statusCode = status;
-                response.setHeader("content-type", "text/html; charset=utf-8");
-                response.end(await vite.transformIndexHtml(url.pathname, html));
-              } catch (error) {
-                vite.ssrFixStacktrace(error as Error);
-                next(error);
-              }
-            })();
-          });
+          return () => {
+            // After Vite's own middleware: modules, styles, public files and the client have had their chance. What is left is a page.
+            vite.middlewares.use((request, response, next) => {
+              void (async () => {
+                // Vite has already removed the base from `request.url`; the application's addresses include it.
+                const url = new URL((request as { originalUrl?: string }).originalUrl ?? request.url ?? "/", "http://localhost");
+
+                if ((request.method !== "GET" && request.method !== "HEAD") || !url.pathname.startsWith(config.web.base) || /\.[A-Za-z0-9]+$/.test(url.pathname)) {
+                  next();
+                  return;
+                }
+
+                try {
+                  const { render } = (await vite.ssrLoadModule(SERVER_ENTRY)) as {
+                    render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }) => Promise<{ status: number; html: string }>;
+                  };
+                  const { status, html } = await render(url.pathname, { script: `${config.web.base}${GENERATED_DIR}/client.ts`, styles: [] });
+
+                  response.statusCode = status;
+                  response.setHeader("content-type", "text/html; charset=utf-8");
+                  response.end(await vite.transformIndexHtml(url.pathname, html));
+                } catch (error) {
+                  vite.ssrFixStacktrace(error as Error);
+                  next(error);
+                }
+              })();
+            });
+          };
         },
       },
     ],
@@ -171,7 +196,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
     const wasFailing = failed.size > 0;
 
     if (stages.includes("entries")) {
-      generateEntries(root, config);
+      generateEntries(root, config, { record: options.record !== undefined });
     }
     if (stages.includes("content")) {
       await run("content", () => generateContent(root, config));

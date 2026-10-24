@@ -10,6 +10,7 @@ import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartO
 import * as PortWeb from "@valancex/port-web";
 import { attribute, controlled, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
+import type { SessionRecorder } from "./replay.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
 import { applyHead, cleanTitle, compose } from "./web-plugin.js";
@@ -436,6 +437,8 @@ export interface RunOptions<S> extends StartOptions<S> {
   readonly present: "mount" | "hydrate";
   /** How many of the most recent exits `mounted.dispatched` keeps: `MountOptions.ledger` (default 1,000; `Infinity` keeps every exit). */
   readonly ledger?: number;
+  /** A recorder for the session (`MountOptions.record`; `@valancex/valance/replay`). A development feature: `vlx dev --record` passes one. */
+  readonly record?: SessionRecorder;
   /** The application's own URL policy, handed to `history` unread. Absent: the URL is not kept in step. */
   readonly history?: HistoryOptions<S>;
   /**
@@ -499,7 +502,7 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
   const startup = Effect.gen(function* () {
     const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
     const web = target({ container: options.container, primitives: composed.primitives });
-    const mountOptions = options.ledger === undefined ? {} : { ledger: options.ledger };
+    const mountOptions = { ...(options.ledger === undefined ? {} : { ledger: options.ledger }), ...(options.record === undefined ? {} : { record: options.record }) };
     const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web, mountOptions) : yield* mount(handle, web, mountOptions);
 
     if (policy !== undefined) {

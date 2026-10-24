@@ -84,7 +84,7 @@ export const drawBuild = async (root: string, targets: ReadonlyArray<TargetId> =
 /** Mistakes that stopped a command, drawn the way `check` draws them. */
 export const drawDiagnostics = (diagnostics: ReadonlyArray<Diagnostic>): Promise<void> => leave(<Diagnostics diagnostics={diagnostics} />);
 
-export const drawDev = async (root: string, options: { readonly target?: TargetId; readonly port?: number; readonly host?: string }): Promise<void> => {
+export const drawDev = async (root: string, options: { readonly target?: TargetId; readonly port?: number; readonly host?: string; readonly record?: string }): Promise<void> => {
   let state: DevState = { open: [], lines: [], starting: true };
   const shown = show(<DevScreen state={state} />);
   const update = (patch: Partial<DevState>): void => {

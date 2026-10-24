@@ -38,7 +38,7 @@ describe("dependency boundary", () => {
     for (const file of readdirSync(here("../src/")).filter(
       (name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts" && name !== "units.ts",
     )) {
-      expect(file.startsWith("web") || file === "native.ts", file).toBe(true);
+      expect(file.startsWith("web") || file === "native.ts" || file === "replay.ts", file).toBe(true);
     }
   });
 
@@ -47,6 +47,19 @@ describe("dependency boundary", () => {
 
     expect(importsOf(native).filter((name) => name.includes("port") || name.includes("web"))).toEqual([]);
     expect([...new Set(importsOf(native))].sort()).toEqual(["./index.js", "@valancex/mesh-runtime", "effect", "node:readline", "node:stream"]);
+  });
+
+  it("the replay feature (the session log, its player and its recorder) names no PORT, nothing of the web and no Node module: only the MESH runtime; and the core knows it only as a type", () => {
+    const replay = source("replay.ts");
+
+    expect([...new Set(importsOf(replay))].sort()).toEqual(["@valancex/mesh-runtime"]);
+    expect(replay).not.toMatch(/\b(DOM|Element|document|window|HTML|port-web)\b/);
+
+    // the core reaches it through `import type` alone, so nothing of it is in a production bundle that does not record
+    const core = source("index.ts");
+    const imports = core.split("\n").filter((line) => line.includes('"./replay.js"'));
+
+    expect(imports).toEqual(['import type { SessionRecorder } from "./replay.js";']);
   });
 
   it("Valance depends on NEXUS, and on PORT Web only optionally", () => {

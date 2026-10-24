@@ -23,6 +23,7 @@ import type { BoundaryValue, DeclaredEvent, RenderTree, SourceSpan } from "@vala
 import { declaredEvents } from "@valancex/mesh-runtime";
 import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
+import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
@@ -510,20 +511,20 @@ export const start = <S, E, R extends Ambient, V extends string>(
     const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
       Effect.gen(function* () {
         const view = app.view(value);
-        const snapshot = app.views[view].scope(value);
+        const snapshot = app.views[view].scope(value) as Record<string, unknown>;
 
         if (registry === undefined) {
           const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
           const render = yield* Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render;
 
-          return { view, render, ...attended(value) };
+          return { view, render, snapshot, ...attended(value) };
         }
 
         const render = yield* renderWithUnits(app.views[view].program, snapshot, yield* registry.units);
 
         yield* registry.observe(render);
 
-        return { view, render, ...attended(value) };
+        return { view, render, snapshot, ...attended(value) };
       });
 
     // The render of `value` after `previous`: the same view is MESH's update of the previous render (the new render and the patches that turn the one into the other), anything else
@@ -544,7 +545,7 @@ export const start = <S, E, R extends Ambient, V extends string>(
           yield* registry.observe(render);
         }
 
-        return { view, render, patches, ...attended(value) } satisfies Viewed;
+        return { view, render, snapshot, patches, ...attended(value) } satisfies Viewed;
       });
 
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
@@ -732,6 +733,11 @@ export interface MountOptions {
    * for the life of the `Mounted` value); `0` records none (each exit counts as dropped, and a failure or defect is logged).
    */
   readonly ledger?: number;
+  /**
+   * A recorder (`recorder` of `@valancex/valance/replay`) for the session this mount follows: it is told each render presented and each event the target reports. A development feature
+   * (Provisional): `vlx dev --record` passes one; the application's own code and a production build do not. A log holds the user's data, so it is never on by default.
+   */
+  readonly record?: SessionRecorder;
 }
 
 /** The ledger's default bound: the most recent exits kept. */
@@ -790,6 +796,8 @@ const connect = <S, E, T extends Target, A>(
       if (render === undefined) {
         throw new ValanceError("target-not-drawn", "the target reported an interaction before anything was drawn");
       }
+
+      options?.record?.event({ handler, payload, render: render.render });
 
       // `dispatch` runs inside the application (its platform's FiberRefs apply) and nothing flows back (NEXUS I44).
       const fiber = Effect.runFork(
@@ -851,6 +859,7 @@ const connect = <S, E, T extends Target, A>(
           const previous = drawn.current;
 
           drawn.current = viewed;
+          options?.record?.presented({ view: viewed.view, snapshot: viewed.snapshot ?? {}, render: viewed.render });
           previous.render.release();
 
           // A rise in the application's count takes the person to the first field in error: after the render that shows it is applied, as a call on the target.
@@ -870,6 +879,7 @@ const connect = <S, E, T extends Target, A>(
         // Draw or hydrate, and retain the render, in one synchronous step: no event can be reported in between.
         const result = first(target, viewed.render.tree);
         drawn.current = viewed;
+        options?.record?.presented({ view: viewed.view, snapshot: viewed.snapshot ?? {}, render: viewed.render });
         attention = viewed.attention;
 
         return Deferred.succeed(firstDone, result);

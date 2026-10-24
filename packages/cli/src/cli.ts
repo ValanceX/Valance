@@ -10,6 +10,7 @@
 //   vlx help [command]              what a command does
 //
 // In a terminal, `init`, `dev`, `build` and `check` draw an interface (Ink, `ui/`). Anywhere else (a pipe, CI, `--json`, `--plain`) they print the plain text they always have.
+import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
@@ -24,6 +25,7 @@ import { themeReport } from "./theme.js";
 import { findRoot } from "./config.js";
 import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
+import { defaultRecording, replayFile } from "./replay.js";
 import { AppError, format } from "./diagnostics.js";
 import { detectPackageManager, directoryFor, directoryProblem, execute, nameProblem, runCommand, titleOf } from "./init.js";
 import type { TargetId } from "./targets.js";
@@ -33,7 +35,8 @@ import { canAsk, canDraw } from "./tty.js";
 const HELP = `vlx <command>
 
   init [name] [--web]              make a new application
-  dev [--port N] [--host H]        serve it and rebuild as it changes
+  dev [--port N] [--host H]        serve it and rebuild as it changes (--record [file]: write a session log)
+  replay <log> [--route R]         play a session log against this project and find where it differs
   build                            write the site to dist/web/
   check [--json]                   find mistakes in your files without building
   theme check [--json]             check the theme: tokens, recipes, contrast, and what each target applies
@@ -65,7 +68,9 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   init: INIT_HELP,
   generate: GENERATE_HELP,
   g: GENERATE_HELP,
-  dev: "vlx dev [--web|--desktop] [--port N] [--host H]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
+  replay:
+    "vlx replay <log> [--route changes,update,render] [--json]\n\nPlay a session log (written by vlx dev --record, or one of MESH's conformance logs) against this project's templates by the three routes of the equivalence law, and find the first line where one differs from the log: a tree, an event's outcome, a program or manifest that is not the one recorded. It runs no command and reads no clock. Exits 0 when every route gave what the log recorded, 1 when one did not.\n",
+  dev: "vlx dev [--web|--desktop] [--port N] [--host H] [--record [file]]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page. --record writes the web page's session as a log (default .valance/sessions/<time>.jsonl) for vlx replay: development only, never uploaded, and it holds what the person typed.\n",
   build:
     "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/web/; any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
@@ -96,6 +101,20 @@ const option = (args: ReadonlyArray<string>, name: string): string | undefined =
   const at = args.indexOf(name);
 
   return at < 0 ? undefined : args[at + 1];
+};
+
+/** `--record` alone, `--record file` or `--record=file`: the file, `""` for the default, nothing when it is not there. A word after it that is another flag is not its file. */
+const recordOption = (args: ReadonlyArray<string>): string | undefined => {
+  const joined = args.find((each) => each.startsWith("--record="));
+
+  if (joined !== undefined) {
+    return joined.slice("--record=".length);
+  }
+
+  const at = args.indexOf("--record");
+  const next = at < 0 ? undefined : args[at + 1];
+
+  return at < 0 ? undefined : next === undefined || next.startsWith("-") ? "" : next;
 };
 
 const version = (): string => (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { readonly version: string }).version;
@@ -176,6 +195,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
   // A global `vlx` runs the project's own (see `delegate.ts`).
   if (
     command === "dev" ||
+    command === "replay" ||
     command === "build" ||
     command === "package" ||
     command === "check" ||
@@ -226,11 +246,14 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         const target = picked[0];
+        const asked = recordOption(rest);
+        const record = asked === undefined ? undefined : asked === "" ? defaultRecording(findRoot(cwd)) : resolve(cwd, asked);
 
         if (draws) {
           const { drawDev } = await import("./ui/run.js");
 
           await drawDev(findRoot(cwd), {
+            ...(record === undefined ? {} : { record }),
             ...(target === undefined ? {} : { target }),
             ...(port === undefined ? {} : { port: Number(port) }),
             ...(host === undefined ? {} : { host }),
@@ -240,12 +263,17 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         const running = await dev(findRoot(cwd), {
+          ...(record === undefined ? {} : { record }),
           ...(target === undefined ? {} : { target }),
           ...(port === undefined ? {} : { port: Number(port) }),
           ...(host === undefined ? {} : { host }),
         });
 
         console.log(`vlx dev: ${running.url}`);
+
+        if (record !== undefined) {
+          console.log(`vlx dev: recording the session to ${record} (it holds what is typed: keep it local; replay it with vlx replay)`);
+        }
 
         // Until interrupted (or, for a desktop project, until the window is closed).
         await new Promise<void>((resolve) => {
@@ -256,6 +284,25 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         await running.close();
 
         return 0;
+      }
+      case "replay": {
+        const file = rest.find((each, index) => !each.startsWith("-") && rest[index - 1] !== "--route");
+
+        if (file === undefined) {
+          console.error("vlx replay: name a log: vlx replay <log> [--route changes,update,render] [--json]");
+
+          return 2;
+        }
+
+        const routes = option(rest, "--route");
+        const replayed = await replayFile(findRoot(cwd), resolve(cwd, file), {
+          ...(routes === undefined ? {} : { routes: routes.split(",") }),
+          json: rest.includes("--json"),
+        });
+
+        (replayed.code === 0 ? console.log : console.error)(replayed.output);
+
+        return replayed.code;
       }
       case "build": {
         if (draws) {
