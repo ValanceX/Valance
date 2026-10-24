@@ -107,6 +107,15 @@ describe("a tag the web renamed (P7)", () => {
     expect(messages.some((message) => message.includes("`para` is now `paragraph`"))).toBe(true);
   });
 
+  it.each([
+    ["item", "listitem", '<column><list class="l"><item>x</item></list></column>'],
+    ["quote", "blockquote", '<column><quote class="q">x</quote></column>'],
+  ])("says what `%s` is now: `%s`", async (old, now, layout) => {
+    const result = await check(project({ "content/index.md": PAGE(), "src/main.ts": MAIN, "src/layout.mprx": layout }));
+
+    expect(result.diagnostics.some((each) => each.message.includes(`\`${old}\` is now \`${now}\``))).toBe(true);
+  });
+
   it("accepts the new names", async () => {
     expect(await codes('<column><paragraph class="p">x</paragraph><blockquote class="q">y</blockquote></column>')).toEqual([]);
   });

@@ -1,6 +1,6 @@
 {
   "name": "@valancex/cli",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "vlx, the VALANCE command: make an application (vlx init), serve it as you edit (vlx dev), build it to a static site (vlx build), check it (vlx check). Content, layout, components and styles in, a website out.",
   "keywords": [
     "valance",

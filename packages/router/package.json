@@ -1,6 +1,6 @@
 {
   "name": "@valancex/router",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Routing for VALANCE applications: route definitions with typed path and query parameters, matching conditions, guards for entering and leaving a route, programmatic navigation, and a title per route. Plugs into Web.run as the URL policy.",
   "keywords": [
     "valance",
@@ -49,7 +49,7 @@
     "@valancex/nexus": "^0.14.0 || ^0.15.0 || ^0.16.0"
   },
   "peerDependencies": {
-    "@valancex/valance": "^0.12.0",
+    "@valancex/valance": "^0.14.0",
     "effect": "^3.10.0"
   },
   "devDependencies": {

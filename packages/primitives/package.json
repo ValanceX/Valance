@@ -34,7 +34,7 @@
     "test:browser": "vitest run -c vitest.browser.config.ts"
   },
   "peerDependencies": {
-    "@valancex/valance": "^0.12.0"
+    "@valancex/valance": "^0.14.0"
   },
   "devDependencies": {
     "@types/aria-query": "^5.0.4",
