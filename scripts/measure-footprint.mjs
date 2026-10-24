@@ -493,6 +493,8 @@ const measureBrowser = async (browser, root, probe) => {
     measured[label] = {
       firstPaintMs: median(paint),
       interactiveAtMs: median(interactive),
+      // The dead zone (Bet 14): from the page being painted to a click being handled. Early taps in it are kept by the shell and done once the application is ready (WP8).
+      deadZoneMs: median(interactive) - median(paint),
       clickToDomMs: median(click),
       bytesTransferredBrotli: median(transferred),
       atStart: { jsHeapUsedBytes: median(startHeap), wasmMemoryBytes: median(startWasm) },
