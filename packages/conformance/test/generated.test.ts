@@ -19,16 +19,20 @@ const copy = (): string => {
 afterEach(() => copies.splice(0).forEach((each) => rmSync(each, { recursive: true, force: true })));
 
 describe("the generated-UI cases", () => {
-  it("pass on the data: every page streams to its last preview, close() is the batch check, every planted mistake is heard in time and nothing is drawn after it", { timeout: 120_000 }, async () => {
-    const run = await runGenerated();
+  it(
+    "pass on the data: every page streams to its last preview, close() is the batch check, every planted mistake is heard in time and nothing is drawn after it",
+    { timeout: 120_000 },
+    async () => {
+      const run = await runGenerated();
 
-    expect(run.failures).toEqual([]);
-    expect(run.pages.map((each) => each.name)).toEqual(["branches", "form", "greeting", "list"]);
-    expect(run.previews.length).toBeGreaterThan(80);
-    expect(run.mistakes.length).toBe(6);
-    expect(run.heard).toBe(true);
-    expect(run.refusesUnchecked).toBe(true);
-  });
+      expect(run.failures).toEqual([]);
+      expect(run.pages.map((each) => each.name)).toEqual(["branches", "form", "greeting", "list"]);
+      expect(run.previews.length).toBeGreaterThan(80);
+      expect(run.mistakes.length).toBe(6);
+      expect(run.heard).toBe(true);
+      expect(run.refusesUnchecked).toBe(true);
+    },
+  );
 
   it("find a planted mistake that is given the wrong code (the control: the case reports it)", { timeout: 120_000 }, async () => {
     const directory = copy();

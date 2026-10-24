@@ -90,7 +90,9 @@ export const runGenerated = async (directory: string = dataDirectory): Promise<G
 
   const modelOf = given.manifest;
 
-  for (const file of readdirSync(join(directory, "pages")).filter((each) => each.endsWith(".mprx")).sort()) {
+  for (const file of readdirSync(join(directory, "pages"))
+    .filter((each) => each.endsWith(".mprx"))
+    .sort()) {
     const name = file.replace(/\.mprx$/, "");
     const source = readFileSync(join(directory, "pages", file), "utf8");
     const run = await generation(given);

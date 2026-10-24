@@ -533,7 +533,9 @@ const generatedUi = async (): Promise<Verification> => {
   const directory = mkdtempSync(join(tmpdir(), "vlx-generated-"));
 
   try {
-    run.previews.forEach((each, index) => writeFileSync(join(directory, `${String(index).padStart(4, "0")}-${each.name.replace(/[^A-Za-z0-9#-]/g, "_")}.html`), documentOf(each.html)));
+    run.previews.forEach((each, index) =>
+      writeFileSync(join(directory, `${String(index).padStart(4, "0")}-${each.name.replace(/[^A-Za-z0-9#-]/g, "_")}.html`), documentOf(each.html)),
+    );
 
     const jar = join(require_.resolve("vnu-jar/package.json"), "..", "build", "dist", "vnu.jar");
     const result = spawnSync("java", ["-jar", jar, "--format", "json", directory], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
@@ -580,9 +582,14 @@ const generatedUi = async (): Promise<Verification> => {
     id: "generated",
     title: "Generated UI",
     tool: `@valancex/valance/generate; Nu Html Checker (vnu-jar ${version("vnu-jar")}); dom-accessibility-api ${version("dom-accessibility-api")}`,
-    standard: "HTML Standard; ARIA in HTML; Accessible Name and Description Computation 1.2; the streaming laws of MESH 0.17 (close() is the batch check; a mistake is heard within 20 bytes; nothing unchecked is drawn)",
+    standard:
+      "HTML Standard; ARIA in HTML; Accessible Name and Description Computation 1.2; the streaming laws of MESH 0.17 (close() is the batch check; a mistake is heard within 20 bytes; nothing unchecked is drawn)",
     checked: run.checked + named,
-    control: { wrong: "a button inside a button in a generated page, a checkbox with no label, a preview of a tag the profile does not offer, and a planted mistake that must be heard in time", found },
+    control: {
+      wrong:
+        "a button inside a button in a generated page, a checkbox with no label, a preview of a tag the profile does not offer, and a planted mistake that must be heard in time",
+      found,
+    },
     failures,
   });
 };

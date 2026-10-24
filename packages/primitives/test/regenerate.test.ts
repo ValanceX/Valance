@@ -138,7 +138,13 @@ describe("a popover's mode (decision I29)", () => {
     expect(Object.keys(generated["popover"]?.props ?? { mode: 0 })).not.toContain("kind");
     // the textfield's `kind` (its input type) is unchanged
     expect(Object.keys(specifications["textfield"]!.props)).toContain("kind");
-    expect(loadWeb().renamedProps).toEqual({ popover: { kind: "mode" } });
+    expect(loadWeb().renamedProps).toEqual({
+      button: { replay: "earlyInput" },
+      checkbox: { replay: "earlyInput" },
+      popover: { kind: "mode" },
+      radio: { replay: "earlyInput" },
+      toggle: { replay: "earlyInput" },
+    });
   });
 
   it("is `auto` or `manual`", () => {

@@ -1,10 +1,13 @@
 // What Valance costs to ship, start, update and keep in memory, measured from the packages published on npm and built the way an application is built, with `vlx build` (Vite). Anyone can reproduce a number,
 // and numbers can be compared between releases.
 //
-//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--mesh-runtime 0.14.0|path.tgz] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree] [--runs 7] [--only counter]
+//   node scripts/measure-footprint.mjs [--json results.json] [--skip-browser] [--mesh-runtime 0.14.0|path.tgz] [--runtime 0.13.0] [--updates 200] [--pages 20] [--docs-app examples/docs-app] [--chromium /path/to/chrome] [--tree] [--packs dir] [--runs 7] [--only counter]
 //
 // By default the packages are the PUBLISHED ones, so a release is measured as a user gets it. With `--tree` the workspace's own packages (`@valancex/cli`, `common`, `valance`, `router`) are built and packed, and
 // their tarballs are installed instead, so a change that is not released yet (the release `connect` makes of the render it replaces, W21; the aligned MESH runtime range, W20) can be measured.
+//
+// With `--packs dir`, the tarballs in that directory (`valancex-<name>-<version>.tgz`) stand in for packages of the same name wherever a build asks for them, for a release that is prepared and not out (the
+// DO NOT MERGE commit's `local-packs/` is such a directory).
 //
 // It installs published packages into temporary directories (it never touches the repository, and never measures the working tree by accident), builds two applications with `vlx build --web`, and measures:
 //
@@ -108,11 +111,23 @@ if (TREE) {
 /** What a project installs to build with, as `dependencies`: the published tooling, or the workspace's tarballs for `cli` and `common`, and `effect`. */
 const BUILD_WITH = TREE ? { "@valancex/cli": `file:${PACKED["@valancex/cli"]}`, "@valancex/common": `file:${PACKED["@valancex/common"]}`, effect: "3" } : PUBLISHED;
 /** `overrides` that make every other workspace package, wherever the tree asks for it, the tarball (the direct ones are not overridden: npm refuses a second spelling of a direct dependency). */
-const TREE_OVERRIDES = Object.fromEntries(
-  Object.entries(PACKED)
-    .filter(([name]) => !(name in BUILD_WITH))
-    .map(([name, path]) => [name, `file:${path}`]),
+const PACKS = option("--packs");
+/** The prepared releases that are not published: `valancex-mesh-runtime-0.17.0.tgz` is `@valancex/mesh-runtime`. */
+const LOCAL = Object.fromEntries(
+  PACKS === undefined
+    ? []
+    : readdirSync(resolve(PACKS))
+        .filter((name) => /^valancex-.+-\d+\.\d+\.\d+\.tgz$/.test(name))
+        .map((name) => [`@valancex/${name.replace(/^valancex-/, "").replace(/-\d+\.\d+\.\d+\.tgz$/, "")}`, `file:${join(resolve(PACKS), name)}`]),
 );
+const TREE_OVERRIDES = {
+  ...Object.fromEntries(Object.entries(LOCAL).filter(([name]) => !(name in BUILD_WITH))),
+  ...Object.fromEntries(
+    Object.entries(PACKED)
+      .filter(([name]) => !(name in BUILD_WITH))
+      .map(([name, path]) => [name, `file:${path}`]),
+  ),
+};
 
 const results = {
   measuredAt: new Date().toISOString(),
