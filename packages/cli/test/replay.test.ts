@@ -37,6 +37,26 @@ const LAYOUT = `<shell class="x" theme="light">
 </shell>
 `;
 const FILES: Record<string, string> = { "content/index.md": PAGE("Home", "Text."), "src/main.ts": MAIN, "src/layout.mprx": LAYOUT };
+/** The kind of the last line written to a log, or undefined while there is none. */
+const lastKind = (file: string): string | undefined => {
+  try {
+    const last = readFileSync(file, "utf8").trim().split("\n").at(-1);
+
+    return last === undefined || last === "" ? undefined : (JSON.parse(last) as { line: string }).line;
+  } catch {
+    return undefined;
+  }
+};
+/** Polls until `done`, for at most `ms`: a slow machine is waited for, and a log that never arrives fails the test saying so. */
+const until = async (done: () => boolean, ms = 30_000): Promise<void> => {
+  for (const start = Date.now(); !done();) {
+    if (Date.now() - start > ms) {
+      throw new Error(`the recording did not reach its expected end within ${ms} ms`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+};
 const port = (): number => 6200 + Math.floor(Math.random() * 600);
 
 describe("vlx replay", () => {
@@ -106,9 +126,9 @@ describe.runIf(browserAvailable)("vlx dev --record", () => {
       await page.getByLabel("Name").fill("Ada");
       await page.click('button:text-is("Add")');
       await page.waitForSelector("text=Count 2");
-      // the page is hidden: the recorder writes the last tree
+      // the page is hidden: the recorder writes the last tree. Wait for that line, not for a time
       await page.goto("about:blank");
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await until(() => lastKind(file) === "tree");
     } finally {
       await browser.close();
       await running.close();
@@ -120,8 +140,8 @@ describe.runIf(browserAvailable)("vlx dev --record", () => {
       .split("\n")
       .map((line) => (JSON.parse(line) as { line: string }).line);
 
-    expect(kinds[0]).toBe("header");
-    expect(kinds.filter((kind) => kind === "event").length).toBeGreaterThanOrEqual(3);
+    expect(kinds[0], kinds.join(",")).toBe("header");
+    expect(kinds.filter((kind) => kind === "event").length, kinds.join(",")).toBeGreaterThanOrEqual(3);
     expect(kinds.filter((kind) => kind === "changes").length).toBeGreaterThanOrEqual(2);
     expect(text).not.toMatch(/"base"/);
 
@@ -131,7 +151,7 @@ describe.runIf(browserAvailable)("vlx dev --record", () => {
 
     const replayed = await replayFile(root, file, { allowUserData: true });
 
-    expect(replayed.output).toContain("every route gave the recorded trees and the routes agree");
+    expect(replayed.output, `${kinds.join(",")}\n${replayed.output}`).toContain("every route gave the recorded trees and the routes agree");
     expect(replayed.code).toBe(0);
 
     // a log whose tree hash was changed is found, at its line
@@ -183,8 +203,9 @@ describe.runIf(browserAvailable)("vlx dev --record", () => {
       await page.getByLabel("Name").fill(secret);
       await page.click('button:text-is("Add")');
       await page.waitForSelector("text=Count 1");
+      // the page is hidden: the recorder writes the last tree. Wait for that line, not for a time
       await page.goto("about:blank");
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await until(() => lastKind(file) === "tree");
     } finally {
       await browser.close();
       await running.close();
