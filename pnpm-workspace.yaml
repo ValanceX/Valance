@@ -20,7 +20,3 @@ minimumReleaseAgeExclude:
   - "@valancex/mesh-lsp@0.11.0"
 overrides:
   ignore: 7.0.12
-  # DO NOT MERGE BEFORE THE RELEASES: NEXUS 0.15.0 and PORT 0.13.0 are not published yet; these three lines (and local-packs/) go when they are.
-  "@valancex/nexus": file:local-packs/valancex-nexus-0.15.0.tgz
-  "@valancex/port-web": file:local-packs/valancex-port-web-0.13.0.tgz
-  "@valancex/port-desktop-vocabulary": file:local-packs/valancex-port-desktop-vocabulary-0.13.0.tgz
