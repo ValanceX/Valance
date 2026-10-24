@@ -99,7 +99,7 @@ const text = async (cdp: CDPSession, value: string): Promise<void> => {
 /** Builds the page, holds its script, does `work` in the dead zone, lets the script go, and says what the page shows once it is running. */
 const session = async (
   work: (cdp: CDPSession, page: Page) => Promise<void>,
-  options: { readonly cut?: boolean; readonly then?: (cdp: CDPSession, page: Page) => Promise<void> } = {},
+  options: { readonly cut?: boolean; readonly afterwards?: (cdp: CDPSession, page: Page) => Promise<void> } = {},
 ) => {
   const root = project(FILES);
 
@@ -141,7 +141,7 @@ const session = async (
       field: (document.querySelector("input") as HTMLInputElement).value,
     }));
 
-    await options.then?.(cdp, page);
+    await options.afterwards?.(cdp, page);
 
     return { starting, before, after, errors, page, cdp };
   } finally {
@@ -208,7 +208,7 @@ describe.runIf(browserAvailable)("a tap in the dead zone", () => {
         await tap(cdp, page, 'button:text-is("Add")');
       },
       {
-        then: async (cdp, page) => {
+        afterwards: async (cdp, page) => {
           await tap(cdp, page, 'button:text-is("Add")');
           await page.waitForSelector("text=Count 2");
           await new Promise((resolve) => setTimeout(resolve, 300));

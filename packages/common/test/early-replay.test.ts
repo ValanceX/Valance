@@ -30,7 +30,11 @@ const node = (name: string, connected = true): Fake => ({
   isConnected: connected,
   value: "",
   click: () => void log.push(`click ${name}`),
-  dispatchEvent: (event) => void log.push(`${event.type} ${name}${event.type === "input" ? ` ${(node_ as Record<string, Fake>)[name]?.value}` : ""}`) ?? true,
+  dispatchEvent: (event) => {
+    log.push(`${event.type} ${name}${event.type === "input" ? ` ${(node_ as Record<string, Fake>)[name]?.value}` : ""}`);
+
+    return true;
+  },
   focus: () => void log.push(`focus ${name}`),
   setSelectionRange: (a, b) => void log.push(`caret ${name} ${a}-${b}`),
   removeAttribute: () => void log.push(`unbusy ${name}`),
