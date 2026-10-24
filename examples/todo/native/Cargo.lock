@@ -3418,8 +3418,8 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "valancex-port-desktop"
-version = "0.1.0"
-source = "git+https://github.com/ValanceX/Port?rev=7a7d9e7fe1213ab3d9dd6bb19e1591bc198e30ee#7a7d9e7fe1213ab3d9dd6bb19e1591bc198e30ee"
+version = "0.6.0"
+source = "git+https://github.com/ValanceX/Port?tag=desktop-v0.6.0#58caf37600635c969e2d33e97ec41e50750aa014"
 dependencies = [
  "eframe",
  "egui",

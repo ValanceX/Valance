@@ -10,8 +10,8 @@ name = "todo-desktop"
 path = "src/main.rs"
 
 [dependencies]
-# The Desktop PORT is its own package in the PORT repository. Until it is published to crates.io the build takes it from there, at a fixed revision (Cargo.lock records it too).
-valancex-port-desktop = { git = "https://github.com/ValanceX/Port", rev = "7a7d9e7fe1213ab3d9dd6bb19e1591bc198e30ee" }
+# The Desktop PORT is its own package in the PORT repository. Until it is published to crates.io the build takes it from there, at a released tag (crate 0.6.0; Cargo.lock records the commit too).
+valancex-port-desktop = { git = "https://github.com/ValanceX/Port", tag = "desktop-v0.6.0" }
 eframe = { version = "0.31", default-features = false }
 serde_json = "1"
 

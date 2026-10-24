@@ -28,13 +28,26 @@
       "scope": {}
     },
     "text": {
-      "props": {},
+      "props": {
+        "id": {
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      },
       "events": {},
       "commands": {},
       "scope": {}
     },
     "button": {
       "props": {
+        "id": {
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
         "disabled": {
           "type": {
             "kind": "boolean"
@@ -44,6 +57,28 @@
         "label": {
           "type": {
             "kind": "string"
+          },
+          "required": false
+        },
+        "intent": {
+          "type": {
+            "kind": "enum",
+            "values": [
+              "neutral",
+              "primary",
+              "danger"
+            ]
+          },
+          "required": false
+        },
+        "size": {
+          "type": {
+            "kind": "enum",
+            "values": [
+              "sm",
+              "md",
+              "lg"
+            ]
           },
           "required": false
         }
@@ -63,6 +98,18 @@
           "required": true
         },
         "label": {
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        "invalid": {
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        },
+        "describedby": {
           "type": {
             "kind": "string"
           },
@@ -98,6 +145,24 @@
             "kind": "string"
           },
           "required": false
+        },
+        "kind": {
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        "invalid": {
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        },
+        "describedby": {
+          "type": {
+            "kind": "string"
+          },
+          "required": false
         }
       },
       "events": {
@@ -107,7 +172,9 @@
           }
         },
         "submit": {},
-        "cancel": {}
+        "cancel": {},
+        "blur": {},
+        "focus": {}
       },
       "commands": {},
       "scope": {}
