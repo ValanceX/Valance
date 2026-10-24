@@ -2,7 +2,7 @@
 
 The exact behavior of every public name. The reference itself is the [**V1 contract**](../V1_CONTRACT.md); this page is the index to it by name. New to VALANCE? Start with [Learn](../learn/README.md).
 
-Looks and themes: [Themes](themes.md). State for one occurrence of a component: [Units](units.md). Forms from the schema: [Forms](forms.md). Dialogs and popovers: [Layers](layers.md).
+Looks and themes: [Themes](themes.md). State for one occurrence of a component: [Units](units.md). Forms from the schema: [Forms](forms.md). Dialogs and popovers: [Layers](layers.md). Recording a session and replaying it, and the conformance report: [Replay and conformance](replay.md).
 
 Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser target, history, host), `@valancex/valance/web/server` (server rendering), `@valancex/valance/web/build` (the manifest from a definition). What each promises: [API stability](../stability.md). `@valancex/valance/internal` is outside the contract.
 
