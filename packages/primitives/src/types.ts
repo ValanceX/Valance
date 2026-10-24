@@ -80,10 +80,10 @@ export interface Specification {
   readonly accessibleName: AccessibleName;
   readonly keyboard: ReadonlyArray<KeyRow>;
   /**
-   * Whether an early press of the control (before the application has started) may be replayed once it has: `safe` (the default for a control that changes only what the application holds),
-   * or `never` (the control is not idempotent). Declared here as the control's default; the per-use choice and the early-input shell that reads it are WP8 (decision H9).
+   * Whether an early press of the control (before the application has started) is kept and done once it has: `keep` (the default for a control that changes only what the application holds),
+   * or `drop` (the control is not idempotent). Declared here as the control's default; the per-use choice and the early-input shell that reads it are WP8 (decisions H9, R18).
    */
-  readonly replay?: "safe" | "never";
+  readonly earlyInput?: "keep" | "drop";
   /** The style variants this primitive takes (the style contract defines each one's values and default): each is a prop here whose enum is those values. */
   readonly variants?: ReadonlyArray<string>;
   /** ARIA state or property to the prop that supplies it. */

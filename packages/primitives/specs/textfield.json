@@ -83,7 +83,6 @@
       "raises": "cancel"
     }
   ],
-  "replay": "safe",
   "states": {
     "invalid": "invalid"
   },
@@ -98,5 +97,6 @@
       "describedby": "hint"
     },
     "describedByText": "Say something"
-  }
+  },
+  "earlyInput": "keep"
 }

@@ -134,10 +134,10 @@
         }
       }
     },
-    "replay": {
+    "earlyInput": {
       "enum": [
-        "safe",
-        "never"
+        "keep",
+        "drop"
       ]
     },
     "states": {

@@ -202,7 +202,7 @@ describe("the events and keys", () => {
   });
 });
 
-describe("the replay declaration", () => {
+describe("the early-input declaration", () => {
   it("is on every control the person acts on, and only there (a control with an event raised by a key)", () => {
     const acted = Object.values(specifications)
       .filter((each) => each.status === "portable" && each.keyboard.some((row) => row.raises !== undefined) && Object.keys(each.events).length > 0)
@@ -211,7 +211,7 @@ describe("the replay declaration", () => {
 
     expect(
       Object.values(specifications)
-        .filter((each) => each.replay !== undefined)
+        .filter((each) => each.earlyInput !== undefined)
         .map((each) => each.name)
         .sort(),
     ).toEqual(acted);

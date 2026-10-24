@@ -34,12 +34,12 @@
       "required": false,
       "webOnly": true
     },
-    "replay": {
+    "earlyInput": {
       "type": {
         "kind": "enum",
         "values": [
-          "safe",
-          "never"
+          "keep",
+          "drop"
         ]
       },
       "required": false,
@@ -69,7 +69,6 @@
       "raises": "change"
     }
   ],
-  "replay": "safe",
   "states": {
     "pressed": "pressed",
     "disabled": "disabled"
@@ -79,5 +78,6 @@
       "pressed": true
     },
     "text": "Bold"
-  }
+  },
+  "earlyInput": "keep"
 }

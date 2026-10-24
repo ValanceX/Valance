@@ -35,8 +35,8 @@ const plain = (value: unknown): unknown => {
 /** Props and events the generated table has that the hand table did not: the primitives' new states and relations (WP3), each declared by its specification. */
 const additions: Record<string, ReadonlyArray<string>> = {
   textfield: ["kind", "invalid", "describedby"], // `id` on `text` is what a `describedby` points at
-  checkbox: ["invalid", "describedby", "replay"], // `replay` (WP8): the early-input shell skips a control marked "never"
-  button: ["id", "label", "intent", "size", "replay"], // `id` is what a popover's `anchor` names
+  checkbox: ["invalid", "describedby", "earlyInput"], // `earlyInput` (WP8, R18): the early-input shell drops a tap on a control marked "drop"
+  button: ["id", "label", "intent", "size", "earlyInput"], // `id` is what a popover's `anchor` names
   text: ["id"],
   paragraph: ["id"],
   list: Web.elementWhen === undefined ? [] : ["ordered"], // the element it chooses (PORT Web 0.11)

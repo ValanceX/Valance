@@ -61,12 +61,12 @@
       },
       "required": false
     },
-    "replay": {
+    "earlyInput": {
       "type": {
         "kind": "enum",
         "values": [
-          "safe",
-          "never"
+          "keep",
+          "drop"
         ]
       },
       "required": false,
@@ -93,7 +93,6 @@
       "raises": "click"
     }
   ],
-  "replay": "safe",
   "states": {
     "disabled": "disabled"
   },
@@ -103,5 +102,6 @@
   "variants": [
     "intent",
     "size"
-  ]
+  ],
+  "earlyInput": "keep"
 }

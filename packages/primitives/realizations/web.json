@@ -331,9 +331,9 @@
           "kind": "attribute",
           "name": "aria-describedby"
         },
-        "replay": {
+        "earlyInput": {
           "kind": "attribute",
-          "name": "data-replay",
+          "name": "data-early-input",
           "optional": true
         }
       },
@@ -451,9 +451,9 @@
           "name": "data-size",
           "optional": true
         },
-        "replay": {
+        "earlyInput": {
           "kind": "attribute",
-          "name": "data-replay",
+          "name": "data-early-input",
           "optional": true
         }
       },
@@ -493,9 +493,9 @@
           "name": "class",
           "optional": true
         },
-        "replay": {
+        "earlyInput": {
           "kind": "attribute",
-          "name": "data-replay",
+          "name": "data-early-input",
           "optional": true
         }
       },
@@ -553,9 +553,9 @@
           "kind": "boolean-attribute",
           "name": "disabled"
         },
-        "replay": {
+        "earlyInput": {
           "kind": "attribute",
-          "name": "data-replay",
+          "name": "data-early-input",
           "optional": true
         }
       },
@@ -659,6 +659,18 @@
   "renamedProps": {
     "popover": {
       "kind": "mode"
+    },
+    "button": {
+      "replay": "earlyInput"
+    },
+    "toggle": {
+      "replay": "earlyInput"
+    },
+    "checkbox": {
+      "replay": "earlyInput"
+    },
+    "radio": {
+      "replay": "earlyInput"
     }
   }
 }

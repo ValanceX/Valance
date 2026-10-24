@@ -30,8 +30,8 @@ export const manifestEntry = (specifications: Readonly<Record<string, Specificat
     const declared = specification.props[portablePropOf(realization, name)];
 
     props[name] =
-      declared === undefined || declared.webOnly === true
-        ? // a hook of the web's: typed by how it is realized, required unless the realization says it need not be (a boolean attribute is never required)
+      declared === undefined || (declared.webOnly === true && declared.type.kind !== "enum")
+        ? // a hook of the web's (a closed set it declares keeps its members: `earlyInput` is "keep" or "drop", not any string): typed by how it is realized, required unless the realization says it need not be (a boolean attribute is never required)
           {
             type: typeOfRealization(how),
             required: how.optional !== true && typeOfRealization(how).kind !== "boolean",

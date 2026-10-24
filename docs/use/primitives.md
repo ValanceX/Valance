@@ -126,7 +126,7 @@ Something to press. Its name is its content, or `label` for a button that is an 
 - **Accessible name**: its `label` when given, otherwise the text inside it
 - **Content**: text
 - **States**: disabled (`disabled`)
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Enter raises `click`; Space raises `click`
 
 | Prop | Type | Required | |
@@ -138,7 +138,7 @@ Something to press. Its name is its content, or `label` for a button that is an 
 | `pressed` | string | no | web only |
 | `intent` | "neutral" | "primary" | "danger" | no |  |
 | `size` | "sm" | "md" | "lg" | no |  |
-| `replay` | "safe" | "never" | no | web only |
+| `earlyInput` | "keep" | "drop" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |
@@ -162,7 +162,7 @@ A box that is ticked or not. The application owns the value.
 - **Accessible name**: its `label`, or a `label` around it
 - **Content**: none
 - **States**: checked (`checked`), invalid (`invalid`)
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Space raises `change`
 
 | Prop | Type | Required | |
@@ -171,7 +171,7 @@ A box that is ticked or not. The application owns the value.
 | `label` | string | no | name |
 | `invalid` | boolean | no | state |
 | `describedby` | string | no | relationship |
-| `replay` | "safe" | "never" | no | web only |
+| `earlyInput` | "keep" | "drop" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |
@@ -216,7 +216,7 @@ A modal layer: while it is open the page behind it is inert, and focus stays ins
 - **Role**: `dialog`
 - **Accessible name**: its `label`
 - **Content**: anything
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Escape raises `dismiss`
 
 | Prop | Type | Required | |
@@ -443,7 +443,7 @@ A layer placed at an element, not modal: the page behind it stays usable. The ap
 - **Role**: `group`
 - **Accessible name**: its `label`
 - **Content**: anything
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Escape raises `dismiss`
 
 | Prop | Type | Required | |
@@ -481,7 +481,7 @@ One option of a radio group. The application decides which one is selected.
 - **Accessible name**: its `label`, or a `label` around it
 - **Content**: none
 - **States**: checked (`checked`), disabled (`disabled`)
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Space raises `select`; ArrowDown moves to the next; ArrowRight moves to the next; ArrowUp moves to the previous; ArrowLeft moves to the previous
 
 | Prop | Type | Required | |
@@ -490,7 +490,7 @@ One option of a radio group. The application decides which one is selected.
 | `value` | string | yes |  |
 | `label` | string | no | name |
 | `disabled` | boolean | no | state |
-| `replay` | "safe" | "never" | no | web only |
+| `earlyInput` | "keep" | "drop" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |
@@ -647,7 +647,7 @@ A line of text the person edits. The application owns the value.
 - **Accessible name**: its `label`, or a `label` around it
 - **Content**: none
 - **States**: invalid (`invalid`)
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Enter raises `submit`; Escape raises `cancel`
 
 | Prop | Type | Required | |
@@ -676,7 +676,7 @@ A button that stays pressed or not. The application owns the value; a press repo
 - **Accessible name**: its `label` when given, otherwise the text inside it
 - **Content**: text
 - **States**: pressed (`pressed`), disabled (`disabled`)
-- **Early press**: replayed once the application has started (the default)
+- **Early press**: kept and done once the application has started (the default)
 - **Keys**: Enter raises `change`; Space raises `change`
 
 | Prop | Type | Required | |
@@ -685,7 +685,7 @@ A button that stays pressed or not. The application owns the value; a press repo
 | `label` | string | no | name |
 | `disabled` | boolean | no | state |
 | `class` | string | no | web only |
-| `replay` | "safe" | "never" | no | web only |
+| `earlyInput` | "keep" | "drop" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |

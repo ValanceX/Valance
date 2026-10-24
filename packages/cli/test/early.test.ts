@@ -34,7 +34,7 @@ export default defineApp({
 `;
 const LAYOUT = `<shell class="x" theme="light">
 <button on.click={add()}>Add</button>
-<button on.click={pay()} replay="never">Pay</button>
+<button on.click={pay()} earlyInput="drop">Pay</button>
 <textfield label="Name" value={name} on.change={rename($event)} />
 <text>Count {n}</text>
 <text>Paid {paid}</text>
@@ -222,7 +222,7 @@ describe.runIf(browserAvailable)("a tap in the dead zone", () => {
     expect(later).not.toContain("Count 3");
   });
 
-  it("is dropped, and the control shows it is busy, when the control is marked replay=never (`Pay` is not to be tapped twice)", { timeout: 120_000 }, async () => {
+  it("is dropped, and the control shows it is busy, when the control is marked earlyInput="drop" (`Pay` is not to be tapped twice)", { timeout: 120_000 }, async () => {
     let busyBefore = "";
     const result = await session(async (cdp, page) => {
       await tap(cdp, page, 'button:text-is("Pay")');

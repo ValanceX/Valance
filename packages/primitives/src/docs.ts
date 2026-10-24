@@ -74,8 +74,8 @@ export const generateDocs = (specifications: Readonly<Record<string, Specificati
       );
     }
 
-    if (specification.replay !== undefined) {
-      lines.push(`- **Early press**: ${specification.replay === "safe" ? "replayed once the application has started (the default)" : "dropped, not replayed"}`);
+    if (specification.earlyInput !== undefined) {
+      lines.push(`- **Early press**: ${specification.earlyInput === "keep" ? "kept and done once the application has started (the default)" : "dropped, not done"}`);
     }
 
     if (specification.live !== undefined) {

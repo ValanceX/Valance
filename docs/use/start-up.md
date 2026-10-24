@@ -52,10 +52,10 @@ When the application is ready, **once**, after hydration has kept the server's n
 A control that must not be done twice, such as *Pay*, says so (Tier 2, the web only):
 
 ```html
-<button on.click={pay()} replay="never">Pay</button>
+<button on.click={pay()} earlyInput="drop">Pay</button>
 ```
 
-A tap on it before the application is ready is dropped, and the control shows `aria-busy` until the application starts. `replay` is `"safe"` (the default) or `"never"`, on `button`, `toggle`, `checkbox` and `radio`. `replay` is a web-only prop, like `class`: a desktop target has no dead zone, and its compile says `unknown-prop` for it, so a project of both targets writes it in the web layout. PORTs do not know any of this: the page dispatches ordinary events.
+A tap on it before the application is ready is dropped, and the control shows `aria-busy` until the application starts. `earlyInput` is `"keep"` (the default) or `"drop"`, on `button`, `toggle`, `checkbox` and `radio`. It is a web-only prop, like `class`: a desktop target has no dead zone, and its compile says `unknown-prop` for it, so a project of both targets writes it in the web layout. PORTs do not know any of this: the page dispatches ordinary events.
 
 ## Late admission (Tier 2)
 
