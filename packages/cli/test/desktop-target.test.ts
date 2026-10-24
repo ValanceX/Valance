@@ -25,11 +25,10 @@ describe("the built engine", () => {
 
     const engine = readFileSync(join(root, "dist/desktop/engine.mjs"), "utf8");
 
-    // The unminified engine of this project was 753 kB; a minified one is under 450 kB and (but for template literals) has no indented lines.
+    // The unminified engine of this project was 753 kB; a minified one is under 450 kB in under 200 lines.
     expect(engine.length).toBeLessThan(450_000);
-    const lines = engine.split("\n");
-
-    expect(lines.filter((line) => line.startsWith("  ")).length / lines.length).toBeLessThan(0.01); // a template literal may keep its indentation
+    // an unminified engine is some twenty thousand lines
+    expect(engine.split("\n").length).toBeLessThan(200);
     expect(engine).toContain("ValanceError");
   });
 });
