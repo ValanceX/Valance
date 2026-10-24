@@ -138,6 +138,7 @@ Something to press. Its name is its content, or `label` for a button that is an 
 | `pressed` | string | no | web only |
 | `intent` | "neutral" | "primary" | "danger" | no |  |
 | `size` | "sm" | "md" | "lg" | no |  |
+| `replay` | "safe" | "never" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |
@@ -170,6 +171,7 @@ A box that is ticked or not. The application owns the value.
 | `label` | string | no | name |
 | `invalid` | boolean | no | state |
 | `describedby` | string | no | relationship |
+| `replay` | "safe" | "never" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |
@@ -488,6 +490,7 @@ One option of a radio group. The application decides which one is selected.
 | `value` | string | yes |  |
 | `label` | string | no | name |
 | `disabled` | boolean | no | state |
+| `replay` | "safe" | "never" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |
@@ -682,6 +685,7 @@ A button that stays pressed or not. The application owns the value; a press repo
 | `label` | string | no | name |
 | `disabled` | boolean | no | state |
 | `class` | string | no | web only |
+| `replay` | "safe" | "never" | no | web only |
 
 | Event | Payload | |
 | --- | --- | --- |

@@ -14,6 +14,8 @@ import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import type { Content } from "@valancex/common/internal";
 import { OUTPUT_DIR } from "./project.js";
 import type { TargetId } from "./targets.js";
+import type { BudgetResult, SizeReport } from "./size.js";
+import { check, DEFAULT_BUDGETS, failure, lines, measure } from "./size.js";
 import { assertOneRuntime } from "./runtime-guard.js";
 import { baseConfig, createLoader, SERVER_ENTRY, templates } from "./vite.js";
 import { GENERATED_DIR } from "./project.js";
@@ -22,12 +24,20 @@ export interface Built {
   readonly dir: string;
   readonly files: ReadonlyArray<string>;
   readonly pages: ReadonlyArray<string>;
+  /** The web build's start-up and after-start sets, measured, and each budget it was held to (a production build only). */
+  readonly size?: SizeReport;
+  readonly budgets?: ReadonlyArray<BudgetResult>;
+  /** The size report as the lines a terminal prints. */
+  readonly report?: ReadonlyArray<string>;
 }
 
 interface ManifestChunk {
   readonly file: string;
   readonly isEntry?: boolean;
+  readonly imports?: ReadonlyArray<string>;
+  readonly dynamicImports?: ReadonlyArray<string>;
   readonly css?: ReadonlyArray<string>;
+  readonly assets?: ReadonlyArray<string>;
 }
 
 /** The file a pathname is written to in the site: `/` → `index.html`, `/guide/x` → `guide/x/index.html`, relative to the base. */
@@ -48,6 +58,8 @@ export interface BuildOptions {
   readonly onStage?: (stage: BuildStage) => void;
   /** Which of the project's targets to build; all of them by default. */
   readonly targets?: ReadonlyArray<TargetId>;
+  /** Called with the size report as soon as the bundle is measured, before a budget error stops the build (a terminal prints it). */
+  readonly onReport?: (lines: ReadonlyArray<string>) => void;
 }
 
 /** The MESH runtime's module, found the way the project's own dependency would be: through `@valancex/common`, which depends on it. */
@@ -77,7 +89,6 @@ const buildDesktop = async (root: string): Promise<Built> => {
       emptyOutDir: true,
       target: "node22",
       minify: false,
-      chunkSizeWarningLimit: 4000,
       rollupOptions: {
         output: {
           format: "es",
@@ -108,6 +119,7 @@ const buildWeb = async (
   out: string,
   prefix: string,
   stage: (stage: BuildStage) => void,
+  onReport: (lines: ReadonlyArray<string>) => void,
 ): Promise<Built> => {
   // The browser bundle first: it empties its directory, and the documents are written into it after.
   stage("bundle");
@@ -130,7 +142,26 @@ const buildWeb = async (
 
     rmSync(join(dist, ".vite"), { recursive: true, force: true }); // the bundler's bookkeeping is not part of the site
 
-    const built = { script: `${config.web.base}${entry.file}`, styles: (entry.css ?? []).map((file) => `${config.web.base}${file}`) };
+    // The WebAssembly runtime is in the start-up set (H7): the head starts compiling it while the page's script downloads (W11).
+    const wasm = Object.values(manifest).find((chunk) => chunk.file.endsWith(".wasm"))?.file;
+    const built = {
+      script: `${config.web.base}${entry.file}`,
+      styles: (entry.css ?? []).map((file) => `${config.web.base}${file}`),
+      ...(wasm === undefined ? {} : { wasm: `${config.web.base}${wasm}` }),
+    };
+
+    // The size report: the start-up set and the after-start set, held to the project's budgets or the framework's (W9, W14). Production only.
+    const size = measure(dist, manifest, wasm);
+    const budgets = check(size, config.budgets ?? DEFAULT_BUDGETS);
+    const report = lines(size, budgets);
+
+    onReport(report);
+
+    const over = failure(budgets);
+
+    if (over !== undefined) {
+      throw over;
+    }
     const files: Array<string> = [];
     const write = (relative: string, text: string): void => {
       mkdirSync(dirname(join(dist, relative)), { recursive: true });
@@ -157,7 +188,7 @@ const buildWeb = async (
       write("_headers", headersFile(config));
     }
 
-    return { dir: dist, files: files.map((file) => `${prefix}${file}`), pages };
+    return { dir: dist, files: files.map((file) => `${prefix}${file}`), pages, size, budgets, report };
   }
 };
 
@@ -199,7 +230,7 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
 
     // Each target writes to a directory of its own, whatever else the project has: dist/web/ and dist/desktop/.
     if (selected.includes("web")) {
-      built.push(await buildWeb(root, config, loader, content, `${OUTPUT_DIR}/web`, "web/", stage));
+      built.push(await buildWeb(root, config, loader, content, `${OUTPUT_DIR}/web`, "web/", stage, options.onReport ?? (() => undefined)));
     }
 
     if (selected.includes("desktop")) {
@@ -210,5 +241,12 @@ export const build = async (root: string, options: BuildOptions = {}): Promise<B
     await loader.close();
   }
 
-  return { dir: join(root, OUTPUT_DIR), files: built.flatMap((each) => each.files), pages: built.flatMap((each) => each.pages) };
+  const web = built.find((each) => each.size !== undefined);
+
+  return {
+    dir: join(root, OUTPUT_DIR),
+    files: built.flatMap((each) => each.files),
+    pages: built.flatMap((each) => each.pages),
+    ...(web?.size === undefined ? {} : { size: web.size, budgets: web.budgets!, report: web.report! }),
+  };
 };

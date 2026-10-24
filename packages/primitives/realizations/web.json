@@ -330,6 +330,11 @@
         "describedby": {
           "kind": "attribute",
           "name": "aria-describedby"
+        },
+        "replay": {
+          "kind": "attribute",
+          "name": "data-replay",
+          "optional": true
         }
       },
       "events": {
@@ -445,6 +450,11 @@
           "kind": "attribute",
           "name": "data-size",
           "optional": true
+        },
+        "replay": {
+          "kind": "attribute",
+          "name": "data-replay",
+          "optional": true
         }
       },
       "events": {
@@ -481,6 +491,11 @@
         "class": {
           "kind": "attribute",
           "name": "class",
+          "optional": true
+        },
+        "replay": {
+          "kind": "attribute",
+          "name": "data-replay",
           "optional": true
         }
       },
@@ -537,6 +552,11 @@
         "disabled": {
           "kind": "boolean-attribute",
           "name": "disabled"
+        },
+        "replay": {
+          "kind": "attribute",
+          "name": "data-replay",
+          "optional": true
         }
       },
       "events": {

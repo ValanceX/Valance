@@ -4,6 +4,8 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+import type { Budget } from "./size.js";
+import { budgetProblems } from "./size.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic, lineOf } from "./diagnostics.js";
 import { DEFAULT_TITLE } from "@valancex/common/internal";
@@ -31,6 +33,8 @@ export interface Config {
   };
   /** The application's backend: the address its requests are made to (a path on the site's own origin, or an absolute https address), and, for `vlx dev`, where a path is proxied to. */
   readonly api: { readonly base: string; readonly proxy: string };
+  /** The size budgets a production build is held to (Tier 2): the project's own, or none, in which case the framework's start-up budgets apply (W14). Never checked by `vlx dev`. */
+  readonly budgets: ReadonlyArray<Budget> | undefined;
   /** What `vlx dev --record` leaves out of a session log (Tier 2; R9, R14): nothing, unless the project says. */
   readonly record: { readonly redact: { readonly scope: ReadonlyArray<ReadonlyArray<string>>; readonly commands: ReadonlyArray<string> } };
 }
@@ -189,7 +193,7 @@ export const loadConfig = (root: string): Config => {
   const desktop = read(root, DESKTOP_FILE);
   const problems = [
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
-    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title, record }, ["name"]),
+    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title, record, budgets: budgetProblems }, ["name"]),
     ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
   ];
 
@@ -208,6 +212,7 @@ export const loadConfig = (root: string): Config => {
     readonly name: string;
     readonly title?: string;
     readonly record?: { readonly redact: { readonly scope?: string[][]; readonly commands?: string[] } };
+    readonly budgets?: ReadonlyArray<Budget>;
   };
 
   return {
@@ -216,6 +221,7 @@ export const loadConfig = (root: string): Config => {
     title: named.title ?? DEFAULT_TITLE,
     web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },
+    budgets: named.budgets,
     record: { redact: { scope: named.record?.redact.scope ?? [], commands: named.record?.redact.commands ?? [] } },
   };
 };

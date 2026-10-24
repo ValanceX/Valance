@@ -65,16 +65,29 @@ export const drawCheck = async (root: string): Promise<Checked> => {
 export const drawBuild = async (root: string, targets: ReadonlyArray<TargetId> = []): Promise<Built> => {
   const started = Date.now();
   const shown = show(<BuildProgress current="configuration" />);
+  let measured: ReadonlyArray<string> = [];
 
   try {
     const built = await runBuild(root, {
       ...(targets.length === 0 ? {} : { targets }),
+      onReport: (report) => {
+        measured = report;
+      },
       onStage: ((stage) => shown.rerender(<BuildProgress current={stage} />)) satisfies BuildOptions["onStage"],
     });
 
     shown.rerender(<BuildResult built={built} seconds={(Date.now() - started) / 1000} />);
 
     return built;
+  } catch (error) {
+    // A budget error stops the build after the bundle is measured: the report says by how much.
+    if (measured.length > 0) {
+      shown.unmount();
+      await shown.waitUntilExit();
+      measured.forEach((line) => console.error(line));
+    }
+
+    throw error;
   } finally {
     shown.unmount();
     await shown.waitUntilExit();

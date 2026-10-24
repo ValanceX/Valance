@@ -142,7 +142,6 @@ export const packageDesktop = async (root: string, options: PackageOptions = {})
       emptyOutDir: false,
       target: "node22",
       minify: false,
-      chunkSizeWarningLimit: 4000,
       rollupOptions: { output: { format: "cjs", entryFileNames: "engine.cjs" } },
     },
   });

@@ -29,7 +29,7 @@ import zlib from "node:zlib";
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
-const RUNTIME = option("--runtime", "0.13.0");
+const RUNTIME = option("--runtime", "0.15.0");
 const JSON_OUT = option("--json");
 const UPDATES = Number(option("--updates", "200"));
 const PAGES = Number(option("--pages", "20"));
@@ -45,7 +45,7 @@ const ONLY_COUNTER = option("--only") === "counter";
 const PUBLISHED = { "@valancex/cli": "0.13.0", "@valancex/common": "0.13.0", effect: "3" };
 /** The workspace packages `--tree` packs: tarball paths by package name, filled in below. */
 const PACKED = {};
-const WORKSPACE_PACKAGES = ["cli", "common", "valance", "router"];
+const WORKSPACE_PACKAGES = ["cli", "common", "valance", "router", "style"];
 const LATEST = ["effect@3", "@valancex/mesh-runtime", "@valancex/mesh-compiler", "@valancex/nexus", "@valancex/valance", "@valancex/port-web"];
 const made = [];
 
@@ -128,18 +128,33 @@ const results = {
   const dir = scratch("latest");
 
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "latest", private: true, type: "module" }));
-  run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...LATEST], dir);
 
-  const installed = JSON.parse(run("npm", ["ls", "--depth=0", "--json"], dir)).dependencies;
   const newest = Object.fromEntries(
     LATEST.filter((spec) => spec.startsWith("@valancex/")).map((spec) => [spec.replace(/@\d.*$/, ""), run("npm", ["view", spec.replace(/@\d.*$/, ""), "version"], dir).trim()]),
   );
 
-  results.newestInstallsTogether = {
-    installed: Object.fromEntries(Object.keys(newest).map((name) => [name, installed[name]?.version])),
-    newest,
-    behind: Object.keys(newest).filter((name) => installed[name]?.version !== newest[name]),
-  };
+  try {
+    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...LATEST], dir);
+
+    const installed = JSON.parse(run("npm", ["ls", "--depth=0", "--json"], dir)).dependencies;
+
+    results.newestInstallsTogether = {
+      installs: true,
+      installed: Object.fromEntries(Object.keys(newest).map((name) => [name, installed[name]?.version])),
+      newest,
+      behind: Object.keys(newest).filter((name) => installed[name]?.version !== newest[name]),
+    };
+  } catch (error) {
+    // npm refuses the newest set (a peer range that does not admit a newer package): that is the answer, not a crash of the harness.
+    const text = String(error?.stderr ?? error?.message ?? error);
+
+    results.newestInstallsTogether = {
+      installs: false,
+      newest,
+      behind: Object.keys(newest),
+      refusal: text.split("\n").filter((line) => /npm error (code|Found|peer|Conflicting)/.test(line)).slice(0, 8),
+    };
+  }
 }
 
 // 2. Two applications, built with `vlx build --web`.
@@ -170,7 +185,7 @@ export default defineApp({
 // Installing the published set as it resolves puts two copies of `@valancex/mesh-runtime` in the tree (valance accepts 0.11 and 0.12, common brings 0.11), and a build ships both WebAssembly files and the browser
 // fetches both. `DEDUPED` forces one, the one that `@valancex/valance` accepts (0.14.0), which is what a careful author gets and what the ceilings are set from.
 // `--mesh-runtime <version or tarball>` measures another runtime in its place (a tarball from `npm pack` of a MESH checkout measures a build that is not published).
-const MESH_RUNTIME = option("--mesh-runtime", "0.14.0");
+const MESH_RUNTIME = option("--mesh-runtime", "0.15.0");
 const DEDUPED = { "@valancex/mesh-runtime": MESH_RUNTIME.endsWith(".tgz") ? `file:${resolve(MESH_RUNTIME)}` : MESH_RUNTIME };
 
 /** A project directory with the build tooling installed, holding `tree`. */

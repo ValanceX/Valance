@@ -35,12 +35,12 @@ export const primitives: Web.WebPrimitives = {
   image: { element: "img", props: { class: Web.attribute("class"), src: Web.attribute("src"), alt: Web.attribute("alt"), loading: Web.attribute("loading") } },
   a: { element: "a", props: { href: Web.attribute("href") } },
   link: { element: "a", props: { href: Web.attribute("href"), class: Web.attribute("class"), current: Web.attribute("aria-current") } },
-  checkbox: { element: "input", attributes: {"type":"checkbox","data-vlx":"checkbox"}, props: { checked: Web.controlledBoolean("checked"), label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) } },
+  checkbox: { element: "input", attributes: {"type":"checkbox","data-vlx":"checkbox"}, props: { checked: Web.controlledBoolean("checked"), label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby"), replay: Web.attribute("data-replay") }, events: { change: Web.event("change", { kind: "boolean", of: (_event, element) => (element as HTMLInputElement).checked }) } },
   textfield: { element: "input", attributes: {"data-vlx":"textfield"}, props: { value: Web.controlled("value"), placeholder: Web.attribute("placeholder"), label: Web.attribute("aria-label"), kind: Web.attribute("type"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") }, events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }), submit: Web.event("keydown", undefined, { key: "Enter" }), cancel: Web.event("keydown", undefined, { key: "Escape" }), focus: Web.event("focus"), blur: Web.event("blur") } },
-  button: { element: "button", attributes: {"data-vlx":"button"}, props: { id: Web.attribute("id"), class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), intent: Web.attribute("data-intent"), size: Web.attribute("data-size") }, events: { click: Web.event("click") } },
-  toggle: { element: "button", props: { pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), class: Web.attribute("class") }, events: { change: Web.event("click", { kind: "boolean", of: (_event, element) => element.getAttribute("aria-pressed") !== "true" }) } },
+  button: { element: "button", attributes: {"data-vlx":"button"}, props: { id: Web.attribute("id"), class: Web.attribute("class"), pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), intent: Web.attribute("data-intent"), size: Web.attribute("data-size"), replay: Web.attribute("data-replay") }, events: { click: Web.event("click") } },
+  toggle: { element: "button", props: { pressed: Web.attribute("aria-pressed"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), class: Web.attribute("class"), replay: Web.attribute("data-replay") }, events: { change: Web.event("click", { kind: "boolean", of: (_event, element) => element.getAttribute("aria-pressed") !== "true" }) } },
   radiogroup: { element: "div", attributes: {"role":"radiogroup"}, props: { label: Web.attribute("aria-label"), invalid: Web.attribute("aria-invalid"), describedby: Web.attribute("aria-describedby") } },
-  radio: { element: "input", attributes: {"type":"radio"}, props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled") }, events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) }, ...({ group: {"within":"radiogroup","attribute":"name"} } as object) },
+  radio: { element: "input", attributes: {"type":"radio"}, props: { checked: Web.controlledBoolean("checked"), value: Web.attribute("value"), label: Web.attribute("aria-label"), disabled: Web.booleanAttribute("disabled"), replay: Web.attribute("data-replay") }, events: { select: Web.event("change", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) }, ...({ group: {"within":"radiogroup","attribute":"name"} } as object) },
   status: { element: "div", attributes: {"role":"status"} },
   alert: { element: "div", attributes: {"role":"alert"} },
   label: { element: "label" },
@@ -404,6 +404,12 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
           "kind": "string"
         },
         "required": false
+      },
+      "replay": {
+        "type": {
+          "kind": "string"
+        },
+        "required": false
       }
     },
     "events": {
@@ -518,6 +524,12 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
           ]
         },
         "required": false
+      },
+      "replay": {
+        "type": {
+          "kind": "string"
+        },
+        "required": false
       }
     },
     "events": {
@@ -545,6 +557,12 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "required": false
       },
       "class": {
+        "type": {
+          "kind": "string"
+        },
+        "required": false
+      },
+      "replay": {
         "type": {
           "kind": "string"
         },
@@ -605,6 +623,12 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
       "disabled": {
         "type": {
           "kind": "boolean"
+        },
+        "required": false
+      },
+      "replay": {
+        "type": {
+          "kind": "string"
         },
         "required": false
       }

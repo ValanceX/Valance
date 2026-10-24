@@ -60,6 +60,17 @@
         ]
       },
       "required": false
+    },
+    "replay": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "safe",
+          "never"
+        ]
+      },
+      "required": false,
+      "webOnly": true
     }
   },
   "events": {
