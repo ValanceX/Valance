@@ -79,9 +79,10 @@ describe("admit", () => {
     expect(b.seen[1]!.tree.root.key).not.toBe(b.seen[0]!.tree.root.key);
     expect(JSON.stringify(b.seen[1]!.tree)).toContain("Go t");
 
-    const button = b.seen[1]!.tree.root.children?.find((child) => child.events?.["click"] !== undefined) ?? b.seen[1]!.tree.root;
+    const root = b.seen[1]!.tree.root as unknown as { events?: Record<string, string>; children?: Array<{ events?: Record<string, string> }> };
+    const button = [root, ...(root.children ?? [])].find((node) => node.events?.["click"] !== undefined)!;
 
-    b.report((button.events ?? (b.seen[1]!.tree.root as { events?: Record<string, string> }).events)!["click"]!);
+    b.report(button.events!["click"]!);
     await wait(60);
     expect((await Effect.runPromise(b.handle.state)).went).toBe(1);
 

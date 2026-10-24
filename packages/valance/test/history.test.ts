@@ -147,6 +147,7 @@ const scenario = <A>(
           render: Effect.die("unused"),
           values: Stream.empty,
           dispatch: () => Effect.die("unused"),
+          admit: () => Effect.void,
           state: state.get,
           states: state.values,
           invoke: (key, args) => {
