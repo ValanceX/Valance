@@ -37,8 +37,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/cli
       '@valancex/mesh-lsp':
-        specifier: 0.11.0
-        version: 0.11.0
+        specifier: 0.17.0
+        version: 0.17.0
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -151,8 +151,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/cli
       '@valancex/mesh-lsp':
-        specifier: 0.11.0
-        version: 0.11.0
+        specifier: 0.17.0
+        version: 0.17.0
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -1225,33 +1225,33 @@ packages:
     resolution: {integrity: sha512-csbh6Gpm2vcvU3c2ed+EehPTWn3AeOVtummcajXcs09WCXCc8NXUY7BBWpmyNdteBziQJPqf5VExUhoZIerApw==}
     engines: {node: '>=22'}
 
-  '@valancex/mesh-lsp-darwin-arm64@0.11.0':
-    resolution: {integrity: sha512-NbGbU1uz5d16S2mCKuO38Y337yvJ+3UOXvAhvYUr1vul8WBnM1ay9P8pMXSIFQdK8kxFLGDD8yYER5XTFJ7onw==}
+  '@valancex/mesh-lsp-darwin-arm64@0.17.0':
+    resolution: {integrity: sha512-Opi78CO3omQ8aGZbShLw90SQXDI0SUlh+7Jql3DZarkfC+X3h4qz63U8fZSZI5Bpbq/f3FzNRSvQKbK9FACgEA==}
     cpu: [arm64]
     os: [darwin]
 
-  '@valancex/mesh-lsp-darwin-x64@0.11.0':
-    resolution: {integrity: sha512-p7ZaIr1jO+P6UxPcXOHW/8F7qmVWmgD3yAXkshP8SlL6a3/jt/IAY3wTweZwEbnWt4DzabrEeIYJSvF3DQyapQ==}
+  '@valancex/mesh-lsp-darwin-x64@0.17.0':
+    resolution: {integrity: sha512-OO0WyS+B89QvRiC0GLAasULZ8I/jqJXAnJUvwl6YxdINBOGwHz2Q11kZmfjOmdUKjx1rE0GhoYwzc/hw/6lwxw==}
     cpu: [x64]
     os: [darwin]
 
-  '@valancex/mesh-lsp-linux-arm64@0.11.0':
-    resolution: {integrity: sha512-MXE0ul8w14fnmZv/M9zk+dzwci+MrtTenY4In/yIQVJpkQln2L/goj8KEa4aseEcvzoaBKeR8e3y6UfaS9g7jw==}
+  '@valancex/mesh-lsp-linux-arm64@0.17.0':
+    resolution: {integrity: sha512-TuTiPi2m+InE7ACZK8m32XKrrYnkHEoQlGBg+T/t4aj99POZIMWc3c1N+dvQktazNO+pfMhhnAcVXkfEMgd/rA==}
     cpu: [arm64]
     os: [linux]
 
-  '@valancex/mesh-lsp-linux-x64@0.11.0':
-    resolution: {integrity: sha512-5qfP3G4FEj9BfYb4EVr5szFTHjd/xGauuOKzluQk9iEHdAaYIaEoYNQrCGINopB5NjHV0zpJlahwW2sukbwsiw==}
+  '@valancex/mesh-lsp-linux-x64@0.17.0':
+    resolution: {integrity: sha512-SByQFHWQFsA8FKi6RmhLz86tmnp/W2HSV/91FOUkc/Tla1HN8QZa0bsSOnf/kMW8uAa+q8nFruCaqtCiOPhIEA==}
     cpu: [x64]
     os: [linux]
 
-  '@valancex/mesh-lsp-win32-x64@0.11.0':
-    resolution: {integrity: sha512-paBNwa0P+rx0CJK7xLhOB7As9lmXucoRLa09SS3eP+ofXXlAqBwg4XHLxOKvzQciLv1tcQPOt1u6pJa/1KXYww==}
+  '@valancex/mesh-lsp-win32-x64@0.17.0':
+    resolution: {integrity: sha512-/ljfyJ7tMLillgERcgLpNcHhiUogw3rtUEVW5Q5w44/RxoA3nkH/HVckGszzIXyOmsr51GlRkqodMQaA6IsmIw==}
     cpu: [x64]
     os: [win32]
 
-  '@valancex/mesh-lsp@0.11.0':
-    resolution: {integrity: sha512-5ANlSe/tEMDrbcsVgFPOAdqK54KI99WLvRjTihEvnx5oM1UwbVryw9hzByu68AnPz1Zn0XsXj6n3yt0mBPDduw==}
+  '@valancex/mesh-lsp@0.17.0':
+    resolution: {integrity: sha512-GktvGRaINOvfgCzmHFqBJ8vYYd4xd9ntB/uS+oBkXfGx956KwHgq/KYiRfAM7lCkhVl/hH2A2327oUa4sl6wWg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -2732,28 +2732,28 @@ snapshots:
 
   '@valancex/mesh-conformance@0.17.0': {}
 
-  '@valancex/mesh-lsp-darwin-arm64@0.11.0':
+  '@valancex/mesh-lsp-darwin-arm64@0.17.0':
     optional: true
 
-  '@valancex/mesh-lsp-darwin-x64@0.11.0':
+  '@valancex/mesh-lsp-darwin-x64@0.17.0':
     optional: true
 
-  '@valancex/mesh-lsp-linux-arm64@0.11.0':
+  '@valancex/mesh-lsp-linux-arm64@0.17.0':
     optional: true
 
-  '@valancex/mesh-lsp-linux-x64@0.11.0':
+  '@valancex/mesh-lsp-linux-x64@0.17.0':
     optional: true
 
-  '@valancex/mesh-lsp-win32-x64@0.11.0':
+  '@valancex/mesh-lsp-win32-x64@0.17.0':
     optional: true
 
-  '@valancex/mesh-lsp@0.11.0':
+  '@valancex/mesh-lsp@0.17.0':
     optionalDependencies:
-      '@valancex/mesh-lsp-darwin-arm64': 0.11.0
-      '@valancex/mesh-lsp-darwin-x64': 0.11.0
-      '@valancex/mesh-lsp-linux-arm64': 0.11.0
-      '@valancex/mesh-lsp-linux-x64': 0.11.0
-      '@valancex/mesh-lsp-win32-x64': 0.11.0
+      '@valancex/mesh-lsp-darwin-arm64': 0.17.0
+      '@valancex/mesh-lsp-darwin-x64': 0.17.0
+      '@valancex/mesh-lsp-linux-arm64': 0.17.0
+      '@valancex/mesh-lsp-linux-x64': 0.17.0
+      '@valancex/mesh-lsp-win32-x64': 0.17.0
 
   '@valancex/mesh-runtime@0.17.0': {}
 

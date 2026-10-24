@@ -114,7 +114,8 @@ describe("the real language server on a real project", () => {
     const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: lineOf(broken, "theme-toggle") });
 
     expect(hover.result.contents.value).toContain("component theme-toggle");
-    expect(hover.result.contents.value).toContain("theme: string");
+    // the prop is `Schema.Literal("light", "dark")`: an enum in the manifest since MESH 0.14 (T7), shown as its members by a server that reads it
+    expect(hover.result.contents.value).toContain(`theme: "light" | "dark"`);
 
     const names = await client.request("textDocument/completion", { textDocument: { uri }, position: lineOf(broken, "sitee") });
 
