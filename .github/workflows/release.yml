@@ -55,8 +55,48 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
-  pack:
+  # The conformance report (decision A15), regenerated for this release candidate: the specification verifiers
+  # (vnu, the name rule, aria-query, stylelint, DTCG, the Web PORT in jsdom and Chromium, a terminal PORT, the
+  # Desktop's accessibility tree through accesskit_consumer, the session logs) each run, each must find its
+  # deliberately wrong input, and the step FAILS when a verifier fails or a required one did not run. The
+  # report is uploaded; it is signed by the accessibility maintainer, not here.
+  conformance:
     needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ValanceX/Port
+          path: port
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm --filter @valancex/conformance exec playwright install --with-deps chromium
+      - name: Conformance report
+        env:
+          PORT_DIR: ${{ github.workspace }}/port
+        run: |
+          node packages/conformance/scripts/report.mjs --check \
+            --require html,names,roles,css,tokens,vectors-jsdom,vectors-terminal,chromium,desktop \
+            --out conformance-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conformance-report
+          path: conformance-report.json
+
+  pack:
+    needs: [ci, conformance]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

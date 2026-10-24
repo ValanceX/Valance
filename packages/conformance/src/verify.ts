@@ -27,7 +27,7 @@ import { computeAccessibleName, getRole } from "dom-accessibility-api";
 import { elementRoles, roles } from "aria-query";
 import { JSDOM } from "jsdom";
 import stylelint from "stylelint";
-import { loadSpecifications, loadWeb } from "@valancex/primitives";
+import { loadSpecifications } from "@valancex/primitives";
 import {
   compileWeb,
   defaultInputs,
@@ -38,7 +38,6 @@ import {
 } from "@valancex/style";
 
 import { jsdomAdapter, jsdomWorld } from "./adapters/jsdom.js";
-import { terminalAdapter } from "./adapters/terminal/adapter.js";
 import { connect } from "./lines.js";
 import type { Adapter } from "./protocol.js";
 import { run } from "./run.js";
