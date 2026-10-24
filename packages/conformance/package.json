@@ -57,7 +57,7 @@
     "@types/node": "^22.0.0",
     "@valancex/common": "workspace:^",
     "@valancex/mesh-compiler": "^0.15.0",
-    "@valancex/mesh-conformance": "^0.16.0",
+    "@valancex/mesh-conformance": "^0.15.0",
     "@valancex/mesh-runtime": "^0.15.0",
     "@valancex/port-web": "^0.12.0",
     "@valancex/primitives": "workspace:^",

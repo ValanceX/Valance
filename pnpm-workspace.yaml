@@ -11,7 +11,6 @@ minimumReleaseAgeExclude:
   - "@valancex/port-desktop-vocabulary@0.10.0 || 0.11.0 || 0.12.0"
   - "@valancex/mesh-runtime@0.10.0 || 0.11.0 || 0.15.0"
   - "@valancex/mesh-compiler@0.10.0 || 0.11.0 || 0.15.0"
-  - "@valancex/mesh-conformance@0.15.0 || 0.16.0"
   - "@valancex/mesh-lsp-darwin-arm64@0.11.0"
   - "@valancex/mesh-lsp-darwin-x64@0.11.0"
   - "@valancex/mesh-lsp-linux-arm64@0.11.0"
@@ -20,5 +19,3 @@ minimumReleaseAgeExclude:
   - "@valancex/mesh-lsp@0.11.0"
 overrides:
   ignore: 7.0.12
-  # DO NOT MERGE BEFORE THE RELEASES: MESH 0.16.0 is not published yet; this line (and local-packs/) goes when it is.
-  "@valancex/mesh-conformance": file:local-packs/valancex-mesh-conformance-0.16.0.tgz
