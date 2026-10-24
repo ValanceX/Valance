@@ -1,0 +1,8 @@
+[
+  { "name": "variant-not-in-the-set", "code": "unknown-variant", "source": "<column>\n  <text>Hello</text>\n  <button intent=\"loud\">Add</button>\n</column>\n" },
+  { "name": "tag-the-profile-does-not-offer", "code": "unknown-component", "source": "<column>\n  <text>Hello</text>\n  <banner>Sale</banner>\n</column>\n" },
+  { "name": "text-where-a-number-is-wanted", "code": "type-mismatch", "source": "<column>\n  <text>Hello</text>\n  <heading level=\"big\">{title}</heading>\n</column>\n" },
+  { "name": "command-the-page-does-not-have", "code": "unknown-command", "source": "<column>\n  <text>Hello</text>\n  <button on.click={launch()}>Go</button>\n</column>\n" },
+  { "name": "reference-to-nothing", "code": "unknown-reference", "source": "<column>\n  <text>Hello</text>\n  <text>{missing}</text>\n</column>\n" },
+  { "name": "command-left-out-of-the-profile", "code": "unknown-command", "source": "<column>\n  <text>Hello</text>\n  <button on.click={wipe()}>Wipe</button>\n</column>\n" }
+]

@@ -38,7 +38,7 @@ describe("dependency boundary", () => {
     for (const file of readdirSync(here("../src/")).filter(
       (name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts" && name !== "units.ts",
     )) {
-      expect(file.startsWith("web") || file === "native.ts" || file === "replay.ts", file).toBe(true);
+      expect(file.startsWith("web") || file === "native.ts" || file === "replay.ts" || file === "generate.ts", file).toBe(true);
     }
   });
 
@@ -60,6 +60,25 @@ describe("dependency boundary", () => {
     const imports = core.split("\n").filter((line) => line.includes('"./replay.js"'));
 
     expect(imports).toEqual(['import type { SessionRecorder } from "./replay.js";']);
+  });
+
+  it("the generated-UI feature names no PORT, nothing of the web and no Node module: only the MESH compiler and the replay hashes; nothing else in the package, in the CLI or in the common package imports it, so no page's start-up set holds it", () => {
+    const generate = source("generate.ts");
+
+    expect([...new Set(importsOf(generate))].sort()).toEqual(["./index.js", "./replay.js", "@valancex/mesh-compiler"]);
+    expect(generate).not.toMatch(/\b(DOM|Element|document|window|HTML|port-web)\b/);
+    // the one import of the application's own module is a type
+    expect(generate.split("\n").filter((line) => line.includes('"./index.js"'))).toEqual(['import type { Program } from "./index.js";']);
+
+    const others = readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "generate.ts");
+
+    expect(others.filter((name) => source(name).includes("generate.js"))).toEqual([]);
+
+    for (const dir of ["../../cli/src/", "../../common/src/", "../../router/src/", "../../style/src/"]) {
+      for (const name of readdirSync(here(dir)).filter((each) => each.endsWith(".ts"))) {
+        expect(readFileSync(here(dir + name), "utf8"), dir + name).not.toMatch(/@valancex\/valance\/generate/);
+      }
+    }
   });
 
   it("Valance depends on NEXUS, and on PORT Web only optionally", () => {

@@ -1,0 +1,11 @@
+<column>
+  {#if count > 0}
+    <text>{count} left</text>
+  {:else}
+    <text>Nothing left</text>
+  {/if}
+  <row>
+    <checkbox label="Done" checked={done} on.change={setDone($event)} />
+    <button on.click={add(title)}>Add</button>
+  </row>
+</column>

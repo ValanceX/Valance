@@ -1,0 +1,5 @@
+<column>
+  <textfield label="Name" value={draft} on.change={setDraft($event)} />
+  <checkbox label="Done" checked={done} on.change={setDone($event)} />
+  <text>Draft: {draft}</text>
+</column>

@@ -87,7 +87,7 @@ jobs:
           PORT_DIR: ${{ github.workspace }}/port
         run: |
           node packages/conformance/scripts/report.mjs --check \
-            --require html,names,roles,css,tokens,vectors-jsdom,vectors-terminal,chromium,desktop \
+            --require html,names,roles,css,tokens,vectors-jsdom,vectors-terminal,replay,generated,chromium,desktop \
             --out conformance-report.json
       - uses: actions/upload-artifact@v4
         if: always()

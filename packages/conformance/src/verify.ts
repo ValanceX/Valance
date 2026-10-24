@@ -8,6 +8,7 @@
 //   tokens    the Design Tokens Community Group's format, by its official JSON Schema and its 220 tests
 //   vectors   the primitive vectors through each PORT: the Web PORT in jsdom and a terminal PORT in another process
 //   replay    MESH's session logs, by the three routes
+//   generated what a model may write, as data: every preview of a streamed page is HTML for the Nu Html Checker and has the names the standard computes; a planted mistake is heard in time and nothing is drawn after it
 //   chromium  the primitive vectors through the Web PORT in a real browser
 //   desktop   the Desktop's AccessKit tree, by accesskit_consumer and an invariant checker (the PORT's own tests, run where its source is)
 import { spawn, spawnSync } from "node:child_process";
@@ -24,6 +25,7 @@ import { loadSpecifications } from "@valancex/primitives";
 import { compileWeb, defaultInputs, loadTheme, resolveDocument, root as styleRoot, validateDocument } from "@valancex/style";
 
 import { jsdomAdapter, jsdomWorld } from "./adapters/jsdom.js";
+import { documentOf, runGenerated } from "./generated.js";
 import { connect } from "./lines.js";
 import type { Adapter } from "./protocol.js";
 import { run } from "./run.js";
@@ -520,6 +522,71 @@ const replayLogs = async (): Promise<Verification> => {
   });
 };
 
+// ---- generated UI ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+const generatedUi = async (): Promise<Verification> => {
+  const run = await runGenerated();
+  const failures = [...run.failures];
+  const NAMED = new Set(["button", "checkbox", "textbox", "radio", "link"]);
+
+  // every preview, drawn, is HTML by the Nu Html Checker (one run over all of them: each is a file)
+  const directory = mkdtempSync(join(tmpdir(), "vlx-generated-"));
+
+  try {
+    run.previews.forEach((each, index) => writeFileSync(join(directory, `${String(index).padStart(4, "0")}-${each.name.replace(/[^A-Za-z0-9#-]/g, "_")}.html`), documentOf(each.html)));
+
+    const jar = join(require_.resolve("vnu-jar/package.json"), "..", "build", "dist", "vnu.jar");
+    const result = spawnSync("java", ["-jar", jar, "--format", "json", directory], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+
+    if (result.error !== undefined) {
+      throw new Error(`the Nu Html Checker needs Java: ${result.error.message}`);
+    }
+
+    const report = JSON.parse(result.stderr.slice(result.stderr.indexOf("{"))) as { messages: Array<{ type: string; subType?: string; message: string; url?: string }> };
+
+    for (const each of report.messages.filter((message) => (message.subType ?? message.type) === "error")) {
+      failures.push(`${(each.url ?? "").split("/").pop()}: ${each.message}`);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+
+  // and each page that was finished has the names the standard computes for its controls
+  let named = 0;
+
+  for (const page of run.pages) {
+    const dom = new JSDOM(documentOf(page.html)).window.document;
+
+    for (const element of dom.querySelectorAll("button, input, a[href], [role]")) {
+      const role = getRole(element);
+
+      if (role !== null && NAMED.has(role)) {
+        named += 1;
+
+        if (computeAccessibleName(element) === "") {
+          failures.push(`${page.name}: <${element.localName}> (${role}) has no accessible name`);
+        }
+      }
+    }
+  }
+
+  // the controls: a wrong value in each of the three checks, which must be found
+  const body = run.pages[0]?.html ?? "";
+  const wrongHtml = vnu(documentOf(body.replace("<button", "<button><button>x</button></button><button")));
+  const unnamed = new JSDOM(`<!doctype html><body><input type="checkbox"></body>`).window.document.querySelector("input")!;
+  const found = wrongHtml.length > 0 && computeAccessibleName(unnamed) === "" && run.refusesUnchecked && run.heard && run.mistakes.length > 0;
+
+  return settle({
+    id: "generated",
+    title: "Generated UI",
+    tool: `@valancex/valance/generate; Nu Html Checker (vnu-jar ${version("vnu-jar")}); dom-accessibility-api ${version("dom-accessibility-api")}`,
+    standard: "HTML Standard; ARIA in HTML; Accessible Name and Description Computation 1.2; the streaming laws of MESH 0.17 (close() is the batch check; a mistake is heard within 20 bytes; nothing unchecked is drawn)",
+    checked: run.checked + named,
+    control: { wrong: "a button inside a button in a generated page, a checkbox with no label, a preview of a tag the profile does not offer, and a planted mistake that must be heard in time", found },
+    failures,
+  });
+};
+
 // ---- chromium and the desktop (other processes) -----------------------------------------------------------------------------------------------------------------------------
 
 const here = fileURLToPath(new URL("..", import.meta.url));
@@ -652,6 +719,7 @@ export const verify = async (
     ],
     ["vectors-terminal", () => vectors("vectors-terminal", "Primitive vectors: a terminal PORT in another process", terminal, context)],
     ["replay", replayLogs],
+    ["generated", generatedUi],
     ["chromium", chromium],
     ["desktop", () => desktop(context)],
   ];

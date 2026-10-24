@@ -21,7 +21,7 @@ describe("the verifiers", () => {
   it("each pass on the real output, and each found its deliberately wrong input (the control)", async () => {
     const results = await verify({ vectors }, { skip: ["chromium", "desktop", "replay"] });
 
-    expect(results.map((each) => each.id)).toEqual(["html", "names", "roles", "css", "tokens", "vectors-jsdom", "vectors-terminal"]);
+    expect(results.map((each) => each.id)).toEqual(["html", "names", "roles", "css", "tokens", "vectors-jsdom", "vectors-terminal", "generated"]);
 
     for (const each of results) {
       expect(each.detail, each.id).toBeUndefined();
