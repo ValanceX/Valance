@@ -26,7 +26,7 @@ import { ValanceError } from "./errors.js";
 import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
-import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
+import { SubscriptionRef, Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export { isUnit, UNIT } from "./units.js";
@@ -500,9 +500,13 @@ export const start = <S, E, R extends Ambient, V extends string>(
       return yield* Effect.fail<ConformanceViolation>({ _tag: "ConformanceViolation", missing });
     }
 
-    // One host per view, used to dispatch (render, handler) → intent → command. The one NEXUS state is shared by all of them.
+    // The views the application has, by name: those it was defined with, and those admitted since (`admit`). One host per view, used to dispatch (render, handler) → intent → command.
+    // The one NEXUS state is shared by all of them. A view is admitted by replacing its entry and bumping its generation, so a render made before is never `update`d into one made after.
+    const views: Record<string, View<S>> = { ...app.views };
+    const generations = new Map<string, number>();
+    const admissions = yield* SubscriptionRef.make(0);
     const hosts = new Map<string, Nexus.Mesh.Host<E, R>>(
-      Object.entries<View<S>>(app.views).map(([name, view]) => [name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands })]),
+      Object.entries<View<S>>(views).map(([name, view]) => [name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands })]),
     );
     // The count `focusFirstInvalid` reads from a state, for the render of that state: absent when the application has no such function.
     const attended = (value: S): { readonly attention?: number } => (app.focusFirstInvalid === undefined ? {} : { attention: app.focusFirstInvalid(value) });
@@ -511,20 +515,21 @@ export const start = <S, E, R extends Ambient, V extends string>(
     const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
       Effect.gen(function* () {
         const view = app.view(value);
-        const snapshot = app.views[view].scope(value) as Record<string, unknown>;
+        const snapshot = views[view]!.scope(value) as Record<string, unknown>;
+        const generation = generations.get(view) ?? 0;
 
         if (registry === undefined) {
           const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
-          const render = yield* Nexus.Mesh.host<never, never>({ program: app.views[view].program, scope, commands: {} }).render;
+          const render = yield* Nexus.Mesh.host<never, never>({ program: views[view]!.program, scope, commands: {} }).render;
 
-          return { view, render, snapshot, ...attended(value) };
+          return { view, render, snapshot, generation, ...attended(value) };
         }
 
-        const render = yield* renderWithUnits(app.views[view].program, snapshot, yield* registry.units);
+        const render = yield* renderWithUnits(views[view]!.program, snapshot, yield* registry.units);
 
         yield* registry.observe(render);
 
-        return { view, render, snapshot, ...attended(value) };
+        return { view, render, snapshot, generation, ...attended(value) };
       });
 
     // The render of `value` after `previous`: the same view is MESH's update of the previous render (the new render and the patches that turn the one into the other), anything else
@@ -533,11 +538,12 @@ export const start = <S, E, R extends Ambient, V extends string>(
       Effect.gen(function* () {
         const view = app.view(value);
 
-        if (previous === undefined || previous.view !== view) {
+        // Another view, or the same view admitted anew since (its program is not the one the previous render was made from): rendered afresh, with the keys of the new program.
+        if (previous === undefined || previous.view !== view || previous.generation !== (generations.get(view) ?? 0)) {
           return yield* renderOf(value);
         }
 
-        const snapshot = app.views[view].scope(value) as Record<string, unknown>;
+        const snapshot = views[view]!.scope(value) as Record<string, unknown>;
         const { render, patches } =
           registry === undefined ? yield* Nexus.Mesh.update(previous.render, snapshot) : yield* updateWithUnits(previous.render, snapshot, yield* registry.units);
 
@@ -545,7 +551,7 @@ export const start = <S, E, R extends Ambient, V extends string>(
           yield* registry.observe(render);
         }
 
-        return { view, render, snapshot, patches, ...attended(value) } satisfies Viewed;
+        return { view, render, snapshot, generation: generations.get(view) ?? 0, patches, ...attended(value) } satisfies Viewed;
       });
 
     // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
@@ -589,13 +595,20 @@ export const start = <S, E, R extends Ambient, V extends string>(
       // With units, a change in any occurrence's state wakes a render too, and a render is wanted when either the application's state or the units' state is not the one last rendered.
       values:
         registry === undefined
-          ? Stream.mapAccumEffect(Stream.changes(Stream.mapEffect(state.values, () => state.get)), undefined as Viewed | undefined, (previous, value) =>
-              advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
+          ? Stream.mapAccumEffect(
+              Stream.changesWith(
+                Stream.mapEffect(Stream.merge(state.values, admissions.changes), () => Effect.zip(state.get, SubscriptionRef.get(admissions))),
+                (left, right) => left[0] === right[0] && left[1] === right[1],
+              ),
+              undefined as Viewed | undefined,
+              (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
             )
           : Stream.mapAccumEffect(
               Stream.changesWith(
-                Stream.mapEffect(Stream.merge(state.values, registry.epoch.values), () => Effect.zip(state.get, registry.epoch.get)),
-                (left, right) => left[0] === right[0] && left[1] === right[1],
+                Stream.mapEffect(Stream.merge(Stream.merge(state.values, registry.epoch.values), admissions.changes), () =>
+                  Effect.all([state.get, registry.epoch.get, SubscriptionRef.get(admissions)]),
+                ),
+                (left, right) => left[0] === right[0] && left[1] === right[1] && left[2] === right[2],
               ),
               undefined as Viewed | undefined,
               (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
@@ -605,6 +618,53 @@ export const start = <S, E, R extends Ambient, V extends string>(
 
         return host === undefined ? Effect.die(new ValanceError("unknown-view", `no view named ${viewed.view}`)) : inApplication(host.dispatch(viewed.render, handler, payload));
       },
+      admit: (name, view) =>
+        Effect.gen(function* () {
+          if (admissionClosed) {
+            return yield* Effect.die(new ValanceError("admission-closed", "VALANCE: admission is closed (draining)"));
+          }
+
+          // The same invariant as `start`, for this program alone: what MESH says it declares must all be in the table. Nothing is changed unless it holds.
+          const result = yield* Effect.promise(() => declaredEvents({ program: { root: view.program.root, templates: view.program.templates }, model: view.program.model }));
+
+          if (result.diagnostics !== undefined) {
+            return yield* Effect.fail<Nexus.Mesh.MeshDiagnostics>({ _tag: "MeshDiagnostics", diagnostics: result.diagnostics });
+          }
+
+          const bound = (event: DeclaredEvent): Nexus.Mesh.Binding<E, R> | undefined => {
+            const key = `${event.component}/${event.command}`;
+
+            return Object.hasOwn(commands, key) ? commands[key] : named.get(event.command);
+          };
+          const unmapped = result.events.filter((event) => bound(event) === undefined);
+
+          if (unmapped.length > 0) {
+            return yield* Effect.fail<ConformanceViolation>({
+              _tag: "ConformanceViolation",
+              missing: unmapped.map((event) => ({
+                view: name,
+                component: event.component,
+                event: event.event,
+                command: event.command,
+                key: `${event.component}/${event.command}`,
+                span: event.span,
+              })),
+            });
+          }
+
+          for (const event of result.events) {
+            commands[`${event.component}/${event.command}`] ??= bound(event)!;
+          }
+
+          views[name] = view;
+          hosts.set(name, Nexus.Mesh.host<E, R>({ program: view.program, scope: Nexus.Selector.define(state, view.scope), commands }));
+          generations.set(name, (generations.get(name) ?? 0) + 1);
+
+          // A mount that shows this view draws the new program now; one that shows another has nothing to redraw.
+          if (app.view(yield* state.get) === name) {
+            yield* SubscriptionRef.update(admissions, (count) => count + 1);
+          }
+        }),
       state: state.get,
       states: state.values,
       invoke: (key, args) => {
@@ -666,6 +726,22 @@ export const start = <S, E, R extends Ambient, V extends string>(
 
     return handleOf(running);
   });
+
+/**
+ * Late admission (Tier 2, Provisional; decision W19): puts a view's program into a running application, under `name`, and draws it. For code that arrives after the application has
+ * started (a route's program in a chunk loaded once the page is running): the application shows a placeholder view while it loads, and admits the real one when it has.
+ *
+ * - The program is held to the invariant `start` holds every view to: what MESH says it declares must be in the command table. If not, this fails with the same `ConformanceViolation`
+ *   (naming the view) and **nothing changes**. A program MESH rejects fails with its diagnostics.
+ * - A `name` the application already has is replaced (the placeholder gives way); a new one is added. Either way a mount that is showing it draws it **afresh**, with the keys of the new
+ *   program, never `update`d from the old render (the keys of a program are derived from it; MESH's `update` of another program's render is not defined). A mount showing another view is
+ *   not redrawn.
+ * - The state is not touched: which view the state selects is still `view(state)`, so a view named by `view` must have been admitted (or defined) by the time the state selects it.
+ *
+ * It is the loading that is the application's: an ordinary waiting command whose busy and failed states are application state (Bet 3, W13). `admit` is only the step that makes what arrived usable.
+ */
+export const admit = <S, E>(handle: ApplicationHandle<S, E>, name: string, view: View<S>): Effect.Effect<void, ConformanceViolation | Nexus.Mesh.MeshDiagnostics> =>
+  Effect.suspend(() => runningOf(handle).admit(name, view));
 
 /** Reports what the user did: PORT's handler identifier and payload. */
 export type Report = (handler: string, payload?: BoundaryValue) => void;

@@ -2,8 +2,8 @@
 //   loading    obtaining a program/impl asynchronously      -> an ordinary application-owned command (here the `start` command); nothing new
 //   admission  proving it may participate                   -> D ⊆ B for the loaded program, asked of MESH (`declaredEvents`) against the command table's keys
 //   use        executing it                                 -> MESH `render` of the admitted program, called by a command
-// Part 2 is a CHARACTERIZATION of unsupported, out-of-contract behavior (dynamic views): it forces a loaded program into `views` after `start` to record what stops it.
-// It documents today's failure mode; it is NOT a requirement. A future late-admission design may change every assertion in it, and that is allowed.
+// Part 2 was a CHARACTERIZATION of unsupported behavior (a loaded program forced into `views` after `start`); WP8 built the late admission it said a future design could change every assertion of
+// (decision W19: `Valance.admit`), and it is now a test of that.
 import type { Mesh } from "@valancex/nexus";
 
 import { compileProgram } from "@valancex/mesh-compiler";
@@ -300,25 +300,30 @@ describe("part 1: loading, admission and use, inside the existing contract", () 
   });
 });
 
-describe("part 2: characterization of UNSUPPORTED behavior (not a contract): a loaded program forced in as a VIEW", () => {
-  it("6: forcing it into `views` after start: an event-free program renders (render reads `views` live); an event-bearing one draws but its event is a defect, no host was built for it at start", async () => {
+describe("part 2: a loaded program is admitted as a VIEW, after start (decision W19: Valance.admit)", () => {
+  it("6: an event-free program renders once admitted; an event-bearing one draws and its event reaches its command; one that declares an event the table lacks is refused, and nothing changes", async () => {
     const b = await boot({ mount: true });
+    const view = (program: Mesh.Program): Valance.View<State> => ({ program, scope: (s: State) => ({ title: s.phase }) });
 
-    b.a.views.quiet = { program: programs.quiet, scope: (s: State) => ({ title: s.phase }) };
-    b.a.views.extra = { program: programs.extra, scope: (s: State) => ({ title: s.phase }) };
-
+    // before admission there is no such view: the host is not asked to draw what it does not have, and the failure is the application's to avoid (its state names no view that is not admitted)
+    await Effect.runPromise(Valance.admit(b.handle, "quiet", view(programs.quiet)));
     await b.invoke("app/showQuiet");
-    await wait(() => b.target().screen().includes("quiet")); // D = ∅, so nothing needed admission: it simply renders
+    await wait(() => b.target().screen().includes("quiet")); // D = ∅: nothing needed the table, and it renders
 
+    // an event-bearing program: admission checks D ⊆ B (extra/go IS in the table), builds its host, and its event reaches the command
+    await Effect.runPromise(Valance.admit(b.handle, "extra", view(programs.extra)));
     await b.invoke("app/showExtra");
-    await wait(() => b.target().screen().includes("Go")); // drawn: no conformance ran, `start` was the only time it did
+    await wait(() => b.target().screen().includes("Go"));
     b.target().activate("Go");
     await wait(() => b.mounted!.dispatched.length === 1);
+    expect(Exit.isSuccess(b.mounted!.dispatched[0]!)).toBe(true);
+    expect((await b.state()).detail).toBe("went");
 
-    const exit = b.mounted!.dispatched[0]!;
+    // one that declares rogue/nope, which the table lacks, is refused with the violation, and the application goes on as it was
+    const refused = await Effect.runPromise(Effect.exit(Valance.admit(b.handle, "rogue", view(programs.rogue))));
 
-    expect(Exit.isFailure(exit) && Cause.isDie(exit.cause) && String(Cause.squash(exit.cause))).toContain("no view named extra"); // fails CLOSED, as a defect, never reaching the command `extra/go`
-    expect((await b.state()).detail).not.toBe("went");
+    expect(Exit.isFailure(refused) && JSON.stringify(refused)).toContain("rogue/nope");
+    expect(b.target().screen()).toContain("Go");
     await b.close();
   });
 });

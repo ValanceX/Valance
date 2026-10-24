@@ -10,7 +10,7 @@
 import type * as Nexus from "@valancex/nexus";
 import type { Effect, Exit, Stream } from "effect";
 import { ValanceError } from "./errors.js";
-import type { ApplicationHandle } from "./index.js";
+import type { ApplicationHandle, ConformanceViolation, View } from "./index.js";
 
 /**
  * How one event dispatch ended, as `Mounted.dispatched` records it: what MESH dispatched, or why it did not (a MESH diagnostic, an unmapped
@@ -32,6 +32,8 @@ export interface Viewed {
   readonly patches?: Nexus.Mesh.RenderPatches;
   /** The application's `focusFirstInvalid` count for the state this render shows. Absent when the application has none. */
   readonly attention?: number;
+  /** How many times the view had been admitted anew (`admit`) when this render was made: a render is `update`d only into one of the same generation. */
+  readonly generation?: number;
 }
 
 export interface Running<S, E> {
@@ -58,6 +60,8 @@ export interface Running<S, E> {
   readonly state: Effect.Effect<S>;
   /** The state current at subscription, then every later commit, with no gap (NEXUS `State.values`). Read only. */
   readonly states: Stream.Stream<S>;
+  /** Admits `view` under `name` (see `admit`). */
+  readonly admit: (name: string, view: View<S>) => Effect.Effect<void, ConformanceViolation | Nexus.Mesh.MeshDiagnostics>;
   /** Runs the command bound to `key`, in the application's own context (see `ApplicationHandle.invoke`). */
   readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
 }
