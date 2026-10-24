@@ -6,12 +6,12 @@ allowBuilds:
   esbuild: false
   vnu-jar: false
 minimumReleaseAgeExclude:
-  - "@valancex/nexus@0.10.3 || 0.12.0 || 0.13.0 || 0.14.0 || 0.15.0"
-  - "@valancex/port-web@0.3.0 || 0.4.0 || 0.10.0 || 0.11.0 || 0.12.0 || 0.13.0"
-  - "@valancex/port-desktop-vocabulary@0.10.0 || 0.11.0 || 0.12.0 || 0.13.0"
-  - "@valancex/mesh-runtime@0.10.0 || 0.11.0 || 0.15.0 || 0.16.0"
-  - "@valancex/mesh-compiler@0.10.0 || 0.11.0 || 0.15.0 || 0.16.0"
-  - "@valancex/mesh-conformance@0.15.0 || 0.16.0"
+  - "@valancex/nexus@0.10.3 || 0.12.0 || 0.13.0 || 0.14.0 || 0.15.0 || 0.16.0"
+  - "@valancex/port-web@0.3.0 || 0.4.0 || 0.10.0 || 0.11.0 || 0.12.0 || 0.13.0 || 0.14.0"
+  - "@valancex/port-desktop-vocabulary@0.10.0 || 0.11.0 || 0.12.0 || 0.13.0 || 0.14.0"
+  - "@valancex/mesh-runtime@0.10.0 || 0.11.0 || 0.15.0 || 0.16.0 || 0.17.0"
+  - "@valancex/mesh-compiler@0.10.0 || 0.11.0 || 0.15.0 || 0.16.0 || 0.17.0"
+  - "@valancex/mesh-conformance@0.15.0 || 0.16.0 || 0.17.0"
   - "@valancex/mesh-lsp-darwin-arm64@0.11.0"
   - "@valancex/mesh-lsp-darwin-x64@0.11.0"
   - "@valancex/mesh-lsp-linux-arm64@0.11.0"
@@ -20,3 +20,10 @@ minimumReleaseAgeExclude:
   - "@valancex/mesh-lsp@0.11.0"
 overrides:
   ignore: 7.0.12
+  # DO NOT MERGE BEFORE THE RELEASES: MESH 0.17.0, NEXUS 0.16.0 and PORT 0.14.0 are not published yet; these lines (and local-packs/) go when they are.
+  "@valancex/mesh-runtime": file:local-packs/valancex-mesh-runtime-0.17.0.tgz
+  "@valancex/mesh-compiler": file:local-packs/valancex-mesh-compiler-0.17.0.tgz
+  "@valancex/mesh-conformance": file:local-packs/valancex-mesh-conformance-0.17.0.tgz
+  "@valancex/nexus": file:local-packs/valancex-nexus-0.16.0.tgz
+  "@valancex/port-web": file:local-packs/valancex-port-web-0.14.0.tgz
+  "@valancex/port-desktop-vocabulary": file:local-packs/valancex-port-desktop-vocabulary-0.14.0.tgz
