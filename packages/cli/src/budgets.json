@@ -164,10 +164,10 @@
       },
       {
         "id": "installability",
-        "what": "The newest published @valancex set installs together",
+        "what": "The newest published @valancex set, with the release being measured, installs together",
         "path": "newestInstallsTogether.installs",
         "expect": true,
-        "reason": "NEXUS 0.14.0 and PORT 0.12.0 stop their MESH peer range at 0.15; MESH 0.16 is out. Fixed by NEXUS 0.15, PORT 0.13 and VALANCE 0.14 (WP8), and green once they are published. MESH 0.17 (WP9) widens it again: NEXUS 0.16 and PORT 0.14 admit it, so the set stays green only if they are published with MESH 0.17",
+        "reason": "Was red from MESH 0.16 until VALANCE 0.14: NEXUS 0.14 and PORT 0.12 stopped their MESH peer range at 0.15. With --tree the release candidate's own tarballs stand in for the published VALANCE packages, so a release is held to installing beside the newest of the others before it is published (a published VALANCE, the previous release, would gate a release on its predecessor)",
         "owner": "WP8"
       }
     ]

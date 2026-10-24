@@ -84,10 +84,19 @@ const workspace = (name, packages) => {
 };
 const files = (dir, base = dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? files(join(dir, entry.name), base) : [relative(base, join(dir, entry.name))]));
+// The published tooling before 0.14 has the web's old tag names (decision P7 renamed them in 0.14): the same fixtures are written with them, so the previous release builds the same pages.
+const OLD_TAGS = [
+  ["paragraph", "para"],
+  ["listitem", "item"],
+  ["blockquote", "quote"],
+];
+const NEEDS_OLD_TAGS = !TREE && Number(PUBLISHED["@valancex/cli"].split(".")[1]) < 14;
+const forPublished = (path, text) =>
+  NEEDS_OLD_TAGS && path.endsWith(".mprx") ? OLD_TAGS.reduce((out, [now, old]) => out.replace(new RegExp(`<(/?)${now}\\b`, "g"), `<$1${old}`), text) : text;
 const write = (dir, tree) => {
   for (const [path, text] of Object.entries(tree)) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
-    writeFileSync(join(dir, path), text);
+    writeFileSync(join(dir, path), forPublished(path, text));
   }
 };
 
@@ -144,12 +153,18 @@ const results = {
 
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "latest", private: true, type: "module" }));
 
-  const newest = Object.fromEntries(
-    LATEST.filter((spec) => spec.startsWith("@valancex/")).map((spec) => [spec.replace(/@\d.*$/, ""), run("npm", ["view", spec.replace(/@\d.*$/, ""), "version"], dir).trim()]),
-  );
+  // With `--tree` the question is whether the release about to be published installs beside the newest of the others: a published `@valancex/valance` is the previous release, and a release that is gated
+  // on its own predecessor's peer ranges could never pass (the tag run's budgets job precedes the publish).
+  const treeVersion = (name) => JSON.parse(readFileSync(join(here, "..", "packages", name.replace("@valancex/", ""), "package.json"), "utf8")).version;
+  const released = (spec) => TREE && spec in PACKED;
+  const specs = [...LATEST.filter((spec) => !released(spec)), ...Object.keys(PACKED).map((name) => `file:${PACKED[name]}`)];
+  const newest = Object.fromEntries([
+    ...LATEST.filter((spec) => spec.startsWith("@valancex/") && !released(spec)).map((spec) => [spec, run("npm", ["view", spec, "version"], dir).trim()]),
+    ...Object.keys(PACKED).map((name) => [name, treeVersion(name)]),
+  ]);
 
   try {
-    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...LATEST], dir);
+    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...specs], dir);
 
     const installed = JSON.parse(run("npm", ["ls", "--depth=0", "--json"], dir)).dependencies;
 
