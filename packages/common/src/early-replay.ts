@@ -123,4 +123,7 @@ export const finishStarting = (container: HTMLElement): void => {
   window.__vlx?.busy.splice(0).forEach((node) => node.removeAttribute("aria-busy"));
 };
 
-export const settleOf = (mounted: { readonly settled: Effect.Effect<void> }): (() => Promise<void>) => () => Effect.runPromise(mounted.settled);
+export const settleOf =
+  (mounted: { readonly settled: Effect.Effect<void> }): (() => Promise<void>) =>
+  () =>
+    Effect.runPromise(mounted.settled);

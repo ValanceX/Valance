@@ -152,7 +152,10 @@ const results = {
       installs: false,
       newest,
       behind: Object.keys(newest),
-      refusal: text.split("\n").filter((line) => /npm error (code|Found|peer|Conflicting)/.test(line)).slice(0, 8),
+      refusal: text
+        .split("\n")
+        .filter((line) => /npm error (code|Found|peer|Conflicting)/.test(line))
+        .slice(0, 8),
     };
   }
 }

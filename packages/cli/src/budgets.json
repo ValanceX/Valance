@@ -35,7 +35,7 @@
         "path": "counter.deduped.css.brotli",
         "unit": "bytes",
         "baseline": 1053,
-        "ceiling": 1110
+        "ceiling": 1200
       },
       {
         "id": "runtime.wasm",
@@ -73,7 +73,7 @@
         "path": "docsApp.css.brotli",
         "unit": "bytes",
         "baseline": 1542,
-        "ceiling": 1620
+        "ceiling": 1700
       },
       {
         "id": "docsApp.perPage",

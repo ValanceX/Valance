@@ -39,7 +39,8 @@ export interface ManifestEntry {
   readonly assets?: ReadonlyArray<string>;
 }
 
-const kindOf = (file: string): FileKind => (file.endsWith(".js") || file.endsWith(".mjs") ? "javascript" : file.endsWith(".css") ? "css" : file.endsWith(".wasm") ? "wasm" : "other");
+const kindOf = (file: string): FileKind =>
+  file.endsWith(".js") || file.endsWith(".mjs") ? "javascript" : file.endsWith(".css") ? "css" : file.endsWith(".wasm") ? "wasm" : "other";
 
 const sized = (dist: string, file: string): SizedFile => {
   const bytes = readFileSync(join(dist, file));
@@ -73,7 +74,12 @@ const reach = (manifest: Readonly<Record<string, ManifestEntry>>, starts: Readon
 /** Splits the build in `dist` into the start-up and after-start sets, from the bundler's manifest. The WebAssembly runtime is in the start-up set whenever the entry names it. */
 export const measure = (dist: string, manifest: Readonly<Record<string, ManifestEntry>>, wasm?: string): SizeReport => {
   const entries = Object.entries(manifest).filter(([, entry]) => entry.isEntry === true);
-  const startup = new Set(reach(manifest, entries.map(([key]) => key)));
+  const startup = new Set(
+    reach(
+      manifest,
+      entries.map(([key]) => key),
+    ),
+  );
 
   if (wasm !== undefined) {
     startup.add(wasm);
@@ -138,7 +144,8 @@ export const bytesOf = (value: string | number): number | undefined => {
 
 const measuredFor = (type: BudgetType, report: SizeReport): number => {
   const startup = report.startup.files;
-  const sum = (files: ReadonlyArray<SizedFile>, kinds: ReadonlyArray<FileKind>): number => files.filter((each) => kinds.includes(each.kind)).reduce((total, each) => total + each.brotli, 0);
+  const sum = (files: ReadonlyArray<SizedFile>, kinds: ReadonlyArray<FileKind>): number =>
+    files.filter((each) => kinds.includes(each.kind)).reduce((total, each) => total + each.brotli, 0);
 
   switch (type) {
     case "initial":
@@ -228,7 +235,9 @@ export const lines = (report: SizeReport, results: ReadonlyArray<BudgetResult>):
   return [
     "Size report (brotli, what travels):",
     ...set("start-up (what the page cannot start without)", report.startup),
-    ...(report.afterStart.files.length === 0 ? ["  after-start: nothing (no chunk is loaded after the application has started)"] : set("after-start (loaded once the application is running)", report.afterStart)),
+    ...(report.afterStart.files.length === 0
+      ? ["  after-start: nothing (no chunk is loaded after the application has started)"]
+      : set("after-start (loaded once the application is running)", report.afterStart)),
     ...results.map(
       (each) =>
         `  ${each.status === "ok" ? "ok     " : each.status === "warning" ? "WARNING" : "ERROR  "} ${label[each.type]}: ${kB(each.measured)}${

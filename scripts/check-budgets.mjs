@@ -58,7 +58,15 @@ export const check = (budgets, results, options = {}) => {
     const measured = at(results, each.path);
 
     if (measured === undefined) {
-      row("ceiling", each.id, each.what, undefined, each.ceiling, skipped(each.path) ? "skipped" : "missing", skipped(each.path) ? "browser rows are not measured" : `no ${each.path} in the results`);
+      row(
+        "ceiling",
+        each.id,
+        each.what,
+        undefined,
+        each.ceiling,
+        skipped(each.path) ? "skipped" : "missing",
+        skipped(each.path) ? "browser rows are not measured" : `no ${each.path} in the results`,
+      );
     } else {
       row("ceiling", each.id, each.what, measured, each.ceiling, measured <= each.ceiling ? "ok" : "over");
     }
@@ -75,7 +83,15 @@ export const check = (budgets, results, options = {}) => {
     const earlier = options.against === undefined ? undefined : at(options.against, each.path);
 
     if (measured === undefined || earlier === undefined) {
-      row("ratio", each.id, each.what, measured, each.max, skipped(each.path) ? "skipped" : options.against === undefined ? "reported" : "missing", options.against === undefined ? "no --against: reported, not gated (W4)" : undefined);
+      row(
+        "ratio",
+        each.id,
+        each.what,
+        measured,
+        each.max,
+        skipped(each.path) ? "skipped" : options.against === undefined ? "reported" : "missing",
+        options.against === undefined ? "no --against: reported, not gated (W4)" : undefined,
+      );
     } else {
       const ratio = measured / earlier;
 
@@ -97,7 +113,10 @@ export const check = (budgets, results, options = {}) => {
 
 const render = ({ rows, problems, ok }) =>
   [
-    ...rows.map((each) => `${each.status.padEnd(9)} ${each.id.padEnd(26)} ${String(each.measured ?? "-").padStart(12)}  ${each.kind === "ratio" ? "at most " : each.kind === "known" ? "" : "<= "}${each.limit}  ${each.what}${each.note === undefined ? "" : `  (${each.note})`}`),
+    ...rows.map(
+      (each) =>
+        `${each.status.padEnd(9)} ${each.id.padEnd(26)} ${String(each.measured ?? "-").padStart(12)}  ${each.kind === "ratio" ? "at most " : each.kind === "known" ? "" : "<= "}${each.limit}  ${each.what}${each.note === undefined ? "" : `  (${each.note})`}`,
+    ),
     ...problems.map((each) => `RULE      ${each}`),
     ok ? "budgets: ok" : "budgets: OVER",
   ].join("\n");
