@@ -18,8 +18,9 @@ The VALANCE extension for VS Code (`editors/vscode`) is not part of this set; it
 
 1. Merge the release branch; CI is green on it.
 2. `npm view @valancex/valance@0.14.0 version` is a 404 for each of the five (the workflow refuses a version already on npm when publishing).
-3. Run the workflow as a dry run from the branch (Actions > Release > Run workflow, `publish` unticked) and read `conformance` and `budgets`: a failure there is a defect to fix before the tag, not a reason to skip them.
-4. The npm token is current and may create `@valancex/style`.
+3. **Check `PORT_REF` in `.github/workflows/release.yml` (the `env` at the top) names the PORT release this one depends on** (`v0.14.0` today; the tag of the npm packages `@valancex/port-web` and `@valancex/port-desktop-vocabulary`, whose `packages/port-desktop` is the crate's). The `conformance` job checks that tag out for the Desktop's accessibility step; raise it with the release, and the tag must exist in `ValanceX/Port` (`git ls-remote --tags https://github.com/ValanceX/Port <tag>`).
+4. Run the workflow as a dry run from the branch (Actions > Release > Run workflow, `publish` unticked) and read `conformance` and `budgets`: a failure there is a defect to fix before the tag, not a reason to skip them.
+5. The npm token is current and may create `@valancex/style`.
 
 ## After the tag
 
