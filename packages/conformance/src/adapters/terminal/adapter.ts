@@ -7,7 +7,6 @@ import { table, Terminal, unsupported } from "./port.js";
 export const terminalAdapter = (): Adapter => {
   let reported: Array<readonly [string, unknown?]> = [];
   let terminal: Terminal | undefined;
-  let root: Part | undefined;
 
   const drawn = (): Terminal => {
     if (terminal === undefined) throw new Error("nothing is drawn");
@@ -24,7 +23,6 @@ export const terminalAdapter = (): Adapter => {
     }
 
     terminal = next;
-    root = (tree as { root: Part }).root;
   };
 
   return {
@@ -69,7 +67,6 @@ export const terminalAdapter = (): Adapter => {
     },
     unmount: async () => {
       terminal = undefined;
-      root = undefined;
       reported = [];
     },
   };
