@@ -136,12 +136,14 @@ export const packageDesktop = async (root: string, options: PackageOptions = {})
     plugins: [templates(root)],
     cacheDir: join(root, GENERATED_DIR, "cache"),
     ssr: { noExternal: true, target: "node" },
+    esbuild: { keepNames: true },
     build: {
       ssr: join(root, GENERATED_DIR, "desktop.sea.ts"),
       outDir: work,
       emptyOutDir: false,
       target: "node22",
-      minify: false,
+      // W10: the engine is minified (half the bytes; start-up measured no worse, 2026-10-24). Names are kept: errors and their `_tag` are read by name.
+      minify: "esbuild",
       rollupOptions: { output: { format: "cjs", entryFileNames: "engine.cjs" } },
     },
   });

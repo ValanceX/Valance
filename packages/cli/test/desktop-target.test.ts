@@ -17,6 +17,23 @@ const answers = { name: "Notes", dir: "/unused", web: { base: "", url: "" }, pac
 const scaffolded = (): string =>
   project(Object.fromEntries([...plan({ ...answers, targets: ["desktop"] }).files].filter(([name]) => name !== "package.json" && name !== "valance.json")));
 
+describe("the built engine", () => {
+  it("is minified (W10) and keeps its names: half the bytes of the unminified bundle, and the errors it throws are still called what they are", async () => {
+    const root = scaffolded();
+
+    await build(root);
+
+    const engine = readFileSync(join(root, "dist/desktop/engine.mjs"), "utf8");
+
+    // The unminified engine of this project was 753 kB; a minified one is under 450 kB and (but for template literals) has no indented lines.
+    expect(engine.length).toBeLessThan(450_000);
+    const lines = engine.split("\n");
+
+    expect(lines.filter((line) => line.startsWith("  ")).length / lines.length).toBeLessThan(0.01); // a template literal may keep its indentation
+    expect(engine).toContain("ValanceError");
+  });
+});
+
 describe("vlx init --desktop", () => {
   it("makes a project with the desktop's marker file, its own layout and no web files", () => {
     const { files } = plan({ ...answers, targets: ["desktop"] });

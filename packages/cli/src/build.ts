@@ -83,12 +83,14 @@ const buildDesktop = async (root: string): Promise<Built> => {
     plugins: [templates(root)],
     cacheDir: join(root, GENERATED_DIR, "cache"),
     ssr: { noExternal: true, target: "node" },
+    esbuild: { keepNames: true },
     build: {
       ssr: join(root, GENERATED_DIR, "desktop.ts"),
       outDir: out,
       emptyOutDir: true,
       target: "node22",
-      minify: false,
+      // W10: the engine is minified (half the bytes; start-up measured no worse, 2026-10-24). Names are kept: errors and their `_tag` are read by name.
+      minify: "esbuild",
       rollupOptions: {
         output: {
           format: "es",
