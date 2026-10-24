@@ -5,37 +5,63 @@ import type { Page } from "playwright";
 import type { ForcedState } from "./protocol.js";
 
 /** The pseudo-class each forced state is. */
-export const PSEUDO: Readonly<Record<ForcedState, string>> = { hover: "hover", pressed: "active", focus: "focus", "focus-visible": "focus-visible" };
+export const PSEUDO: Readonly<Record<ForcedState, string>> = {
+  hover: "hover",
+  pressed: "active",
+  focus: "focus",
+  "focus-visible": "focus-visible",
+};
 
 /** Forces `states` on the first element `selector` matches, until `release` is called. */
-export const force = async (page: Page, selector: string, states: ReadonlyArray<ForcedState>): Promise<() => Promise<void>> => {
+export const force = async (
+  page: Page,
+  selector: string,
+  states: ReadonlyArray<ForcedState>,
+): Promise<() => Promise<void>> => {
   const session = await page.context().newCDPSession(page);
 
   await session.send("DOM.enable");
   await session.send("CSS.enable");
 
-  const { root } = (await session.send("DOM.getDocument")) as { root: { nodeId: number } };
-  const { nodeId } = (await session.send("DOM.querySelector", { nodeId: root.nodeId, selector })) as { nodeId: number };
+  const { root } = (await session.send("DOM.getDocument")) as {
+    root: { nodeId: number };
+  };
+  const { nodeId } = (await session.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  })) as { nodeId: number };
 
   if (nodeId === 0) {
     throw new Error(`nothing matches ${selector}`);
   }
 
-  await session.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: states.map((state) => PSEUDO[state]) });
+  await session.send("CSS.forcePseudoState", {
+    nodeId,
+    forcedPseudoClasses: states.map((state) => PSEUDO[state]),
+  });
 
   return async () => {
-    await session.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] });
+    await session.send("CSS.forcePseudoState", {
+      nodeId,
+      forcedPseudoClasses: [],
+    });
     await session.detach();
   };
 };
 
 /** The computed values of `properties` on the first element `selector` matches. */
-export const computed = (page: Page, selector: string, properties: ReadonlyArray<string>): Promise<Readonly<Record<string, string>>> =>
+export const computed = (
+  page: Page,
+  selector: string,
+  properties: ReadonlyArray<string>,
+): Promise<Readonly<Record<string, string>>> =>
   page.evaluate(
     ([where, names]) => {
       const style = getComputedStyle(document.querySelector(where as string)!);
 
-      return Object.fromEntries((names as string[]).map((name) => [name, style.getPropertyValue(name)]));
+      return Object.fromEntries(
+        (names as string[]).map((name) => [name, style.getPropertyValue(name)]),
+      );
     },
     [selector, [...properties]] as const,
   );

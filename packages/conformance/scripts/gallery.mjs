@@ -9,6 +9,12 @@ import { gallerySite } from "../dist/site.js";
 const cells = cellsOf(loadSpecifications(), loadWeb());
 const structure = await structureOf(jsdomAdapter("snapshot"), cells);
 
-writeFileSync(new URL("../gallery/structure.web.json", import.meta.url), `${JSON.stringify(structure, null, 1)}\n`);
-writeFileSync(new URL("../gallery/index.html", import.meta.url), gallerySite().html);
+writeFileSync(
+  new URL("../gallery/structure.web.json", import.meta.url),
+  `${JSON.stringify(structure, null, 1)}\n`,
+);
+writeFileSync(
+  new URL("../gallery/index.html", import.meta.url),
+  gallerySite().html,
+);
 console.log(`gallery/structure.web.json: ${cells.length} cells`);

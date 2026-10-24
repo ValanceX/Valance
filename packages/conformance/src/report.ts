@@ -18,10 +18,16 @@ export interface Report {
   /** Which adapter drove the PORT (the same PORT through jsdom and through Chromium is two reports). */
   readonly adapter: string;
   readonly results: ReadonlyArray<Result>;
-  readonly summary: { readonly pass: number; readonly fail: number; readonly unsupported: number };
+  readonly summary: {
+    readonly pass: number;
+    readonly fail: number;
+    readonly unsupported: number;
+  };
 }
 
-export const summarize = (results: ReadonlyArray<Result>): Report["summary"] => ({
+export const summarize = (
+  results: ReadonlyArray<Result>,
+): Report["summary"] => ({
   pass: results.filter((each) => each.result === "pass").length,
   fail: results.filter((each) => each.result === "fail").length,
   unsupported: results.filter((each) => each.result === "unsupported").length,
@@ -30,19 +36,30 @@ export const summarize = (results: ReadonlyArray<Result>): Report["summary"] => 
 /** The parity table: for each primitive and case, what each PORT's report says. A case a report does not have is `missing`: a PORT that was not run on it. */
 export const parity = (
   reports: ReadonlyArray<Report>,
-): ReadonlyArray<{ readonly primitive: string; readonly case: string; readonly by: Readonly<Record<string, Outcome | "missing">> }> => {
+): ReadonlyArray<{
+  readonly primitive: string;
+  readonly case: string;
+  readonly by: Readonly<Record<string, Outcome | "missing">>;
+}> => {
   const cases = new Map<string, { primitive: string; case: string }>();
 
   for (const report of reports) {
     for (const each of report.results) {
-      cases.set(`${each.primitive}/${each.case}`, { primitive: each.primitive, case: each.case });
+      cases.set(`${each.primitive}/${each.case}`, {
+        primitive: each.primitive,
+        case: each.case,
+      });
     }
   }
 
   return [...cases.entries()].map(([id, found]) => ({
     ...found,
     by: Object.fromEntries(
-      reports.map((report) => [`${report.port}/${report.adapter}`, report.results.find((each) => `${each.primitive}/${each.case}` === id)?.result ?? "missing"]),
+      reports.map((report) => [
+        `${report.port}/${report.adapter}`,
+        report.results.find((each) => `${each.primitive}/${each.case}` === id)
+          ?.result ?? "missing",
+      ]),
     ),
   }));
 };

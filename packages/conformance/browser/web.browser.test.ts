@@ -31,11 +31,43 @@ describe("the Web PORT, in Chromium", () => {
       press: (key) => userEvent.keyboard(keyName(key)),
       can: ["layers"],
     });
-    const report = await run(adapter, vectors as unknown as VectorFile, { adapter: "chromium" });
-    const failing = report.results.filter((each) => each.result === "fail").map((each) => `${each.primitive}/${each.case}: ${each.detail}`);
+    const report = await run(adapter, vectors as unknown as VectorFile, {
+      adapter: "chromium",
+    });
+    const failing = report.results
+      .filter((each) => each.result === "fail")
+      .map((each) => `${each.primitive}/${each.case}: ${each.detail}`);
 
     expect(failing).toEqual([]);
     expect(report.summary.unsupported).toBe(0);
-    expect(report.summary.pass).toBe((vectors as unknown as VectorFile).vectors.length);
+    expect(report.summary.pass).toBe(
+      (vectors as unknown as VectorFile).vectors.length,
+    );
+  });
+
+  it("finds a PORT that ignores `disabled`, in the browser too", async () => {
+    const real = webAdapter({
+      create: (report) => createWebPort({ container, primitives, report }),
+      container,
+      version: "control",
+      press: (key) => userEvent.keyboard(keyName(key)),
+    });
+    const wrong = {
+      ...real,
+      observe: async (key: string) => ({
+        ...(await real.observe(key))!,
+        enabled: true,
+      }),
+    };
+    const report = await run(wrong, vectors as unknown as VectorFile, {
+      adapter: "chromium-control",
+      only: ["button"],
+    });
+
+    expect(
+      report.results
+        .filter((each) => each.result === "fail")
+        .map((each) => each.case),
+    ).toContain("state:disabled=true");
   });
 });

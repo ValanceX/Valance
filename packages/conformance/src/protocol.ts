@@ -10,7 +10,13 @@
 // and, where a target can, `force(key, state)`: put a node in a state a person puts it in by hovering, pressing or tabbing (Q10).
 
 /** A render-v1 tree, as the kit builds and a PORT draws it. */
-export type Tree = { readonly format: "mesh-render"; readonly version: 1; readonly root: unknown; readonly events?: unknown; readonly children?: unknown };
+export type Tree = {
+  readonly format: "mesh-render";
+  readonly version: 1;
+  readonly root: unknown;
+  readonly events?: unknown;
+  readonly children?: unknown;
+};
 
 /** What a node is, as a person or a tool can observe it. Only members that apply are present. */
 export interface Observation {

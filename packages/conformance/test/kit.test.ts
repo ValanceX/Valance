@@ -12,13 +12,27 @@ import { describe, expect, it } from "vitest";
 import { jsdomAdapter } from "../src/adapters/jsdom.js";
 import { terminalAdapter } from "../src/adapters/terminal/adapter.js";
 import type { Adapter, Capabilities } from "../src/index.js";
-import { connect, generate, parity, problemsOf, run, serve, summarize } from "../src/index.js";
+import {
+  connect,
+  generate,
+  parity,
+  problemsOf,
+  run,
+  serve,
+  summarize,
+} from "../src/index.js";
 import type { VectorFile } from "../src/index.js";
 
 const specifications = loadSpecifications();
 const realizations = loadWeb();
-const committed = JSON.parse(readFileSync(new URL("../vectors/primitives.vectors.json", import.meta.url), "utf8")) as VectorFile;
-const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
+const committed = JSON.parse(
+  readFileSync(
+    new URL("../vectors/primitives.vectors.json", import.meta.url),
+    "utf8",
+  ),
+) as VectorFile;
+const here = (path: string): string =>
+  fileURLToPath(new URL(path, import.meta.url));
 
 describe("the vectors", () => {
   it("are what the specifications and the web's realizations generate (the committed file is current)", () => {
@@ -29,19 +43,34 @@ describe("the vectors", () => {
     const ids = new Set(committed.vectors.map((each) => each.id));
 
     for (const specification of Object.values(specifications).filter(
-      (each) => each.status === "portable" && Object.values(realizations.primitives).some((tag) => tag.primitive === each.name),
+      (each) =>
+        each.status === "portable" &&
+        Object.values(realizations.primitives).some(
+          (tag) => tag.primitive === each.name,
+        ),
     )) {
-      expect(ids.has(`${specification.name}/example`), specification.name).toBe(true);
+      expect(ids.has(`${specification.name}/example`), specification.name).toBe(
+        true,
+      );
 
       for (const [prop, definition] of Object.entries(specification.props)) {
         if (definition.type.kind === "enum") {
           for (const value of definition.type.values) {
-            expect(ids.has(`${specification.name}/variant:${prop}=${value}`), `${specification.name} ${prop}=${value}`).toBe(true);
+            expect(
+              ids.has(`${specification.name}/variant:${prop}=${value}`),
+              `${specification.name} ${prop}=${value}`,
+            ).toBe(true);
           }
         }
 
-        if (definition.controlled === true && specification.events["change"] !== undefined) {
-          expect(ids.has(`${specification.name}/controlled:${prop}`), `${specification.name} ${prop}`).toBe(true);
+        if (
+          definition.controlled === true &&
+          specification.events["change"] !== undefined
+        ) {
+          expect(
+            ids.has(`${specification.name}/controlled:${prop}`),
+            `${specification.name} ${prop}`,
+          ).toBe(true);
         }
       }
     }
@@ -54,39 +83,63 @@ describe("the vectors", () => {
   });
 
   it("grow with a specification: a new member of a closed set, a new state, a new event add a vector with no one writing it", () => {
-    const grown = structuredClone(specifications) as Record<string, Specification>;
-    const button = grown["button"] as unknown as { props: Record<string, { type: { kind: string; values: string[] } }>; events: Record<string, object> };
+    const grown = structuredClone(specifications) as Record<
+      string,
+      Specification
+    >;
+    const button = grown["button"] as unknown as {
+      props: Record<string, { type: { kind: string; values: string[] } }>;
+      events: Record<string, object>;
+    };
 
     button.props["intent"]!.type.values.push("warning");
 
     const before = new Set(committed.vectors.map((each) => each.id));
     const after = generate(grown, realizations).vectors.map((each) => each.id);
 
-    expect(after.filter((id) => !before.has(id))).toEqual(["button/variant:intent=warning"]);
+    expect(after.filter((id) => !before.has(id))).toEqual([
+      "button/variant:intent=warning",
+    ]);
   });
 });
 
 describe("the Web PORT in jsdom", () => {
   it("passes every vector it does not declare unsupported, and declares each gap with a reason", async () => {
-    const report = await run(jsdomAdapter("test"), committed, { adapter: "jsdom" });
+    const report = await run(jsdomAdapter("test"), committed, {
+      adapter: "jsdom",
+    });
 
     expect(problemsOf(report)).toEqual([]);
     expect(report.results.filter((each) => each.result === "fail")).toEqual([]);
-    expect(report.results.filter((each) => each.result === "unsupported").every((each) => each.declared === true && (each.detail ?? "").length > 10)).toBe(true);
+    expect(
+      report.results
+        .filter((each) => each.result === "unsupported")
+        .every(
+          (each) => each.declared === true && (each.detail ?? "").length > 10,
+        ),
+    ).toBe(true);
     expect(report.summary.pass).toBeGreaterThan(80);
   });
 });
 
 describe("a PORT in another process (the terminal skeleton)", () => {
   it("passes every vector it does not declare unsupported, through the line-JSON protocol, and quickly", async () => {
-    const child = spawn(process.execPath, [here("../dist/adapters/terminal/main.js")], { stdio: ["pipe", "pipe", "inherit"] });
+    const child = spawn(
+      process.execPath,
+      [here("../dist/adapters/terminal/main.js")],
+      { stdio: ["pipe", "pipe", "inherit"] },
+    );
     const started = Date.now();
 
     try {
-      const report = await run(connect(child.stdout, child.stdin), committed, { adapter: "stdio" });
+      const report = await run(connect(child.stdout, child.stdin), committed, {
+        adapter: "stdio",
+      });
 
       expect(problemsOf(report)).toEqual([]);
-      expect(report.results.filter((each) => each.result === "fail")).toEqual([]);
+      expect(report.results.filter((each) => each.result === "fail")).toEqual(
+        [],
+      );
       expect(report.summary.pass).toBeGreaterThan(50);
       expect(report.summary.unsupported).toBeGreaterThan(0);
       // the kill criterion: no more than ten seconds for a thousand interactions (here: every step of every vector, with a process between)
@@ -97,7 +150,12 @@ describe("a PORT in another process (the terminal skeleton)", () => {
   });
 
   it("has an adapter of at most 300 lines (decision Q3): the measurement", () => {
-    const lines = readFileSync(here("../src/adapters/terminal/adapter.ts"), "utf8").trimEnd().split("\n").length;
+    const lines = readFileSync(
+      here("../src/adapters/terminal/adapter.ts"),
+      "utf8",
+    )
+      .trimEnd()
+      .split("\n").length;
 
     expect(lines).toBeLessThanOrEqual(300);
   });
@@ -108,8 +166,12 @@ describe("a PORT in another process (the terminal skeleton)", () => {
 
     serve(terminalAdapter(), request, response);
 
-    const over = await run(connect(response, request), committed, { adapter: "memory" });
-    const direct = await run(terminalAdapter(), committed, { adapter: "memory" });
+    const over = await run(connect(response, request), committed, {
+      adapter: "memory",
+    });
+    const direct = await run(terminalAdapter(), committed, {
+      adapter: "memory",
+    });
 
     expect(over.results).toEqual(direct.results);
   });
@@ -121,13 +183,23 @@ const wrong = (change: (adapter: Adapter) => Partial<Adapter>): Adapter => {
 
   return { ...adapter, ...change(adapter) };
 };
-const failures = async (adapter: Adapter, only: ReadonlyArray<string>): Promise<ReadonlyArray<string>> =>
-  (await run(adapter, committed, { adapter: "wrong", only })).results.filter((each) => each.result === "fail").map((each) => `${each.primitive}/${each.case}`);
+const failures = async (
+  adapter: Adapter,
+  only: ReadonlyArray<string>,
+): Promise<ReadonlyArray<string>> =>
+  (await run(adapter, committed, { adapter: "wrong", only })).results
+    .filter((each) => each.result === "fail")
+    .map((each) => `${each.primitive}/${each.case}`);
 
 describe("a wrong PORT is found (each check shown failing)", () => {
   it("one that ignores `disabled`", async () => {
     const found = await failures(
-      wrong((adapter) => ({ observe: async (key) => ({ ...(await adapter.observe(key))!, enabled: true }) })),
+      wrong((adapter) => ({
+        observe: async (key) => ({
+          ...(await adapter.observe(key))!,
+          enabled: true,
+        }),
+      })),
       ["button"],
     );
 
@@ -136,7 +208,10 @@ describe("a wrong PORT is found (each check shown failing)", () => {
 
   it("one that drops a payload", async () => {
     const found = await failures(
-      wrong((adapter) => ({ interact: async (key, how) => (await adapter.interact(key, how)).map((each) => [each[0]] as const) })),
+      wrong((adapter) => ({
+        interact: async (key, how) =>
+          (await adapter.interact(key, how)).map((each) => [each[0]] as const),
+      })),
       ["checkbox", "textfield"],
     );
 
@@ -169,11 +244,21 @@ describe("a wrong PORT is found (each check shown failing)", () => {
 
   it("one that names the wrong thing, and one with the wrong role", async () => {
     const named = await failures(
-      wrong((adapter) => ({ observe: async (key) => ({ ...(await adapter.observe(key))!, name: "wrong" }) })),
+      wrong((adapter) => ({
+        observe: async (key) => ({
+          ...(await adapter.observe(key))!,
+          name: "wrong",
+        }),
+      })),
       ["button", "checkbox"],
     );
     const roled = await failures(
-      wrong((adapter) => ({ observe: async (key) => ({ ...(await adapter.observe(key))!, role: "link" }) })),
+      wrong((adapter) => ({
+        observe: async (key) => ({
+          ...(await adapter.observe(key))!,
+          role: "link",
+        }),
+      })),
       ["button"],
     );
 
@@ -188,45 +273,90 @@ describe("a gap counts only when the PORT declared it (decision Q6)", () => {
 
     return {
       ...adapter,
-      capabilities: async (): Promise<Capabilities> => ({ ...(await adapter.capabilities()), unsupported: [] }),
+      capabilities: async (): Promise<Capabilities> => ({
+        ...(await adapter.capabilities()),
+        unsupported: [],
+      }),
     };
   };
 
   it("is a failure when the data does not say it", async () => {
-    const report = await run(silent(), committed, { adapter: "silent", only: ["dialog", "textfield"] });
+    const report = await run(silent(), committed, {
+      adapter: "silent",
+      only: ["dialog", "textfield"],
+    });
     const dialog = report.results.filter((each) => each.primitive === "dialog");
 
     expect(dialog.length).toBeGreaterThan(0);
     expect(dialog.every((each) => each.result === "fail")).toBe(true);
     expect(dialog[0]!.detail).toContain("does not declare");
-    expect(report.results.find((each) => each.primitive === "textfield" && each.case === "key:Enter")?.result).toBe("fail");
+    expect(
+      report.results.find(
+        (each) => each.primitive === "textfield" && each.case === "key:Enter",
+      )?.result,
+    ).toBe("fail");
   });
 
   it("and is `unsupported` with the reason when it does", async () => {
-    const report = await run(terminalAdapter(), committed, { adapter: "declared", only: ["dialog"] });
+    const report = await run(terminalAdapter(), committed, {
+      adapter: "declared",
+      only: ["dialog"],
+    });
 
-    expect(report.results.every((each) => each.result === "unsupported" && each.declared === true)).toBe(true);
+    expect(
+      report.results.every(
+        (each) => each.result === "unsupported" && each.declared === true,
+      ),
+    ).toBe(true);
   });
 });
 
 describe("the report is data against a schema", () => {
   it("accepts a report, and refuses one whose gap is not declared, whose failure has no detail, or whose spec is another", async () => {
-    const report = await run(terminalAdapter(), committed, { adapter: "schema", only: ["button", "dialog"] });
+    const report = await run(terminalAdapter(), committed, {
+      adapter: "schema",
+      only: ["button", "dialog"],
+    });
 
     expect(problemsOf(report)).toEqual([]);
-    expect(problemsOf({ ...report, results: [{ primitive: "x", case: "y", result: "unsupported" }], summary: summarize([]) })).not.toEqual([]);
-    expect(problemsOf({ ...report, results: [{ primitive: "x", case: "y", result: "fail" }], summary: summarize([]) })).not.toEqual([]);
+    expect(
+      problemsOf({
+        ...report,
+        results: [{ primitive: "x", case: "y", result: "unsupported" }],
+        summary: summarize([]),
+      }),
+    ).not.toEqual([]);
+    expect(
+      problemsOf({
+        ...report,
+        results: [{ primitive: "x", case: "y", result: "fail" }],
+        summary: summarize([]),
+      }),
+    ).not.toEqual([]);
     expect(problemsOf({ ...report, spec: "primitives@2" })).not.toEqual([]);
     expect(problemsOf({ version: 1 })).not.toEqual([]);
   });
 
   it("makes the parity table: what each PORT says of each case, and `missing` where it was not run", async () => {
-    const a = await run(jsdomAdapter("test"), committed, { adapter: "jsdom", only: ["button"] });
-    const b = await run(terminalAdapter(), committed, { adapter: "stdio", only: ["button", "dialog"] });
+    const a = await run(jsdomAdapter("test"), committed, {
+      adapter: "jsdom",
+      only: ["button"],
+    });
+    const b = await run(terminalAdapter(), committed, {
+      adapter: "stdio",
+      only: ["button", "dialog"],
+    });
     const table = parity([a, b]);
-    const row = (id: string) => table.find((each) => `${each.primitive}/${each.case}` === id)!;
+    const row = (id: string) =>
+      table.find((each) => `${each.primitive}/${each.case}` === id)!;
 
-    expect(row("button/example").by).toEqual({ "port-web/jsdom": "pass", "port-terminal/stdio": "pass" });
-    expect(row("dialog/example").by).toEqual({ "port-web/jsdom": "missing", "port-terminal/stdio": "unsupported" });
+    expect(row("button/example").by).toEqual({
+      "port-web/jsdom": "pass",
+      "port-terminal/stdio": "pass",
+    });
+    expect(row("dialog/example").by).toEqual({
+      "port-web/jsdom": "missing",
+      "port-terminal/stdio": "unsupported",
+    });
   });
 });

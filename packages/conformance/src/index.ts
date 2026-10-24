@@ -6,3 +6,5 @@ export * from "./report.js";
 export * from "./run.js";
 export * from "./adapters/web.js";
 export * from "./gallery.js";
+export * from "./signing.js";
+export * from "./verify.js";

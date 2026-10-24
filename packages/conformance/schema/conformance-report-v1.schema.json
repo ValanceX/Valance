@@ -4,7 +4,15 @@
   "title": "A PORT's report against the primitive vectors (conformance-report-v1)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "port", "portVersion", "spec", "adapter", "results", "summary"],
+  "required": [
+    "version",
+    "port",
+    "portVersion",
+    "spec",
+    "adapter",
+    "results",
+    "summary"
+  ],
   "properties": {
     "version": { "const": 1 },
     "port": { "type": "string", "minLength": 1 },
@@ -25,8 +33,20 @@
           "detail": { "type": "string" }
         },
         "allOf": [
-          { "if": { "properties": { "result": { "const": "unsupported" } }, "required": ["result"] }, "then": { "required": ["declared"] } },
-          { "if": { "properties": { "result": { "const": "fail" } }, "required": ["result"] }, "then": { "required": ["detail"] } }
+          {
+            "if": {
+              "properties": { "result": { "const": "unsupported" } },
+              "required": ["result"]
+            },
+            "then": { "required": ["declared"] }
+          },
+          {
+            "if": {
+              "properties": { "result": { "const": "fail" } },
+              "required": ["result"]
+            },
+            "then": { "required": ["detail"] }
+          }
         ]
       }
     },
@@ -34,7 +54,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["pass", "fail", "unsupported"],
-      "properties": { "pass": { "type": "integer", "minimum": 0 }, "fail": { "type": "integer", "minimum": 0 }, "unsupported": { "type": "integer", "minimum": 0 } }
+      "properties": {
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 }
+      }
     }
   }
 }

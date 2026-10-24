@@ -1,15 +1,30 @@
 // The Web PORT's adapter: the five operations over `createWebPort`, in whatever DOM the caller gives (jsdom in Node, or a real page in Chromium). It observes through the platform's own
 // computations: the role from ARIA in HTML (`dom-accessibility-api`, then `aria-query`'s element table), the name and description by the Accessible Name and Description Computation.
-import { computeAccessibleDescription, computeAccessibleName, getRole } from "dom-accessibility-api";
+import {
+  computeAccessibleDescription,
+  computeAccessibleName,
+  getRole,
+} from "dom-accessibility-api";
 import { elementRoles, roles } from "aria-query";
 import type { WebPort, WebPrimitives } from "@valancex/port-web";
 
-import type { Adapter, Capabilities, Capability, Declared, Interaction, Observation, Reported, Tree } from "../protocol.js";
+import type {
+  Adapter,
+  Capabilities,
+  Capability,
+  Declared,
+  Interaction,
+  Observation,
+  Reported,
+  Tree,
+} from "../protocol.js";
 import { Refused } from "../protocol.js";
 
 export interface WebEnvironment {
   /** Makes the PORT, reporting to `report`. The caller owns the container and the table. */
-  readonly create: (report: (handler: string, payload?: unknown) => void) => WebPort;
+  readonly create: (
+    report: (handler: string, payload?: unknown) => void,
+  ) => WebPort;
   /** The element the PORT draws into. */
   readonly container: Element;
   /** Presses a key as a person does, to the focused element (a real keyboard). Without it the adapter cannot do `key`. */
@@ -19,7 +34,10 @@ export interface WebEnvironment {
   readonly can?: ReadonlyArray<Capability>;
   readonly unsupported?: ReadonlyArray<Declared>;
   /** Forces a state on an element (Chromium's DevTools protocol). */
-  readonly force?: (element: Element, state: "hover" | "pressed" | "focus" | "focus-visible") => Promise<void>;
+  readonly force?: (
+    element: Element,
+    state: "hover" | "pressed" | "focus" | "focus-visible",
+  ) => Promise<void>;
 }
 
 const rolesByElement = (element: Element): string | undefined => {
@@ -34,7 +52,11 @@ const rolesByElement = (element: Element): string | undefined => {
 
     if (
       description.name === element.localName &&
-      attributes.every((each) => (each.value === undefined ? element.hasAttribute(each.name) : element.getAttribute(each.name) === String(each.value)))
+      attributes.every((each) =>
+        each.value === undefined
+          ? element.hasAttribute(each.name)
+          : element.getAttribute(each.name) === String(each.value),
+      )
     ) {
       return [...names][0];
     }
@@ -43,7 +65,8 @@ const rolesByElement = (element: Element): string | undefined => {
   return undefined;
 };
 
-const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+const tick = (): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, 0));
 
 export const webAdapter = (environment: WebEnvironment): Adapter => {
   let reports: Reported[] = [];
@@ -54,7 +77,11 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
   const index = (made: Tree): void => {
     keys = new Map();
 
-    const walk = (node: { readonly type: string; readonly key: string; readonly children?: ReadonlyArray<unknown> }): void => {
+    const walk = (node: {
+      readonly type: string;
+      readonly key: string;
+      readonly children?: ReadonlyArray<unknown>;
+    }): void => {
       const found = port?.inspect(node.key);
 
       if (found !== undefined) {
@@ -88,17 +115,27 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
   ];
 
   return {
-    capabilities: async (): Promise<Capabilities> => ({ port: "port-web", version: environment.version, can: [...new Set(can)], unsupported: environment.unsupported ?? [] }),
+    capabilities: async (): Promise<Capabilities> => ({
+      port: "port-web",
+      version: environment.version,
+      can: [...new Set(can)],
+      unsupported: environment.unsupported ?? [],
+    }),
     load: async (made) => {
       port?.unmount();
       reports = [];
-      port = environment.create((handler, payload) => reports.push(payload === undefined ? [handler] : [handler, payload]));
+      port = environment.create((handler, payload) =>
+        reports.push(payload === undefined ? [handler] : [handler, payload]),
+      );
 
       try {
         port.draw(made as never);
       } catch (error) {
         port = undefined;
-        throw new Refused((error as { code?: string }).code ?? "refused", error instanceof Error ? error.message : String(error));
+        throw new Refused(
+          (error as { code?: string }).code ?? "refused",
+          error instanceof Error ? error.message : String(error),
+        );
       }
 
       tree = made;
@@ -112,7 +149,10 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
       try {
         port.update(made as never);
       } catch (error) {
-        throw new Refused((error as { code?: string }).code ?? "refused", error instanceof Error ? error.message : String(error));
+        throw new Refused(
+          (error as { code?: string }).code ?? "refused",
+          error instanceof Error ? error.message : String(error),
+        );
       }
 
       tree = made;
@@ -125,15 +165,31 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
         return undefined;
       }
 
-      const el = found as HTMLElement & { value?: string; checked?: boolean; disabled?: boolean };
+      const el = found as HTMLElement & {
+        value?: string;
+        checked?: boolean;
+        disabled?: boolean;
+      };
       const role = rolesByElement(el);
       // a role that prohibits a name (paragraph, generic, …) has none, whatever a computation over its words would say: ARIA 1.2 names which roles may be named
-      const prohibited = role !== undefined && ((roles.get(role as never) as unknown as { nameFrom?: ReadonlyArray<string> } | undefined)?.nameFrom ?? []).includes("prohibited");
+      const prohibited =
+        role !== undefined &&
+        (
+          (
+            roles.get(role as never) as unknown as
+              | { nameFrom?: ReadonlyArray<string> }
+              | undefined
+          )?.nameFrom ?? []
+        ).includes("prohibited");
       const name = prohibited ? "" : computeAccessibleName(el);
       const description = computeAccessibleDescription(el);
       const input = el.localName === "input" || el.localName === "textarea";
-      const checkable = el.localName === "input" && ["checkbox", "radio"].includes((el as HTMLInputElement).type);
-      const component = (tree?.root as { component?: string } | undefined)?.component ?? el.localName;
+      const checkable =
+        el.localName === "input" &&
+        ["checkbox", "radio"].includes((el as HTMLInputElement).type);
+      const component =
+        (tree?.root as { component?: string } | undefined)?.component ??
+        el.localName;
 
       return {
         key,
@@ -143,11 +199,18 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
         ...(description === "" ? {} : { description }),
         text: el.textContent ?? "",
         ...(input ? { value: el.value ?? "" } : {}),
-        enabled: el.disabled !== true && el.getAttribute("aria-disabled") !== "true",
+        enabled:
+          el.disabled !== true && el.getAttribute("aria-disabled") !== "true",
         ...(checkable ? { checked: el.checked === true } : {}),
-        ...(el.hasAttribute("aria-pressed") ? { pressed: el.getAttribute("aria-pressed") === "true" } : {}),
-        ...(el.hasAttribute("aria-invalid") ? { invalid: el.getAttribute("aria-invalid") === "true" } : {}),
-        children: [...el.children].map((child) => keys.get(child)).filter((each): each is string => each !== undefined),
+        ...(el.hasAttribute("aria-pressed")
+          ? { pressed: el.getAttribute("aria-pressed") === "true" }
+          : {}),
+        ...(el.hasAttribute("aria-invalid")
+          ? { invalid: el.getAttribute("aria-invalid") === "true" }
+          : {}),
+        children: [...el.children]
+          .map((child) => keys.get(child))
+          .filter((each): each is string => each !== undefined),
       };
     },
     interact: async (key, how: Interaction) => {
@@ -164,7 +227,11 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
           // coming to the field is not what is being asked about: its focus is reported by the `focus` interaction
           reports = [];
           el.value = how.text;
-          el.dispatchEvent(new (el.ownerDocument.defaultView as Window & typeof globalThis).Event("input", { bubbles: true }));
+          el.dispatchEvent(
+            new (
+              el.ownerDocument.defaultView as Window & typeof globalThis
+            ).Event("input", { bubbles: true }),
+          );
           break;
         case "key":
           if (environment.press === undefined) {
@@ -184,7 +251,11 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
           el.blur();
           break;
         case "pointer-hover":
-          el.dispatchEvent(new (el.ownerDocument.defaultView as Window & typeof globalThis).MouseEvent("mouseover", { bubbles: true }));
+          el.dispatchEvent(
+            new (
+              el.ownerDocument.defaultView as Window & typeof globalThis
+            ).MouseEvent("mouseover", { bubbles: true }),
+          );
           break;
       }
 
@@ -192,7 +263,14 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
 
       return reports.splice(0);
     },
-    ...(environment.force === undefined ? {} : { force: (key: string, state: "hover" | "pressed" | "focus" | "focus-visible") => environment.force!(element(key), state) }),
+    ...(environment.force === undefined
+      ? {}
+      : {
+          force: (
+            key: string,
+            state: "hover" | "pressed" | "focus" | "focus-visible",
+          ) => environment.force!(element(key), state),
+        }),
     unmount: async () => {
       port?.unmount();
       port = undefined;
@@ -203,9 +281,20 @@ export const webAdapter = (environment: WebEnvironment): Adapter => {
   };
 };
 
-const findComponent = (made: Tree | undefined, key: string): string | undefined => {
-  const walk = (node: { readonly key?: string; readonly component?: string; readonly children?: ReadonlyArray<unknown> }): string | undefined =>
-    node.key === key ? node.component : (node.children ?? []).map((child) => walk(child as never)).find((found) => found !== undefined);
+const findComponent = (
+  made: Tree | undefined,
+  key: string,
+): string | undefined => {
+  const walk = (node: {
+    readonly key?: string;
+    readonly component?: string;
+    readonly children?: ReadonlyArray<unknown>;
+  }): string | undefined =>
+    node.key === key
+      ? node.component
+      : (node.children ?? [])
+          .map((child) => walk(child as never))
+          .find((found) => found !== undefined);
 
   return made === undefined ? undefined : walk(made.root as never);
 };

@@ -4,6 +4,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["browser/**/*.browser.test.ts"],
-    browser: { enabled: true, provider: "playwright", headless: true, instances: [{ browser: "chromium" }] },
+    browser: {
+      enabled: true,
+      provider: "playwright",
+      headless: true,
+      instances: [{ browser: "chromium" }],
+    },
   },
 });
