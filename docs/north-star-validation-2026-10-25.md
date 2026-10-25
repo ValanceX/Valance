@@ -1,0 +1,124 @@
+# North star measurement: ecosystem compliance on 2026-10-25
+
+A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
+
+**Method and limits.** A static read of `main` in all four repos (Valance, Nexus, Mesh, Port), re-checking the 10-19 results and the audits the refinements plan §1 names. **Nothing was executed**, so no result was reproduced. Each `file:line` cited below was opened again on 2026-10-25 and holds. Results not named in §1 are carried from the baseline unchanged, and the † marks of 10-19 that §1 did not revisit are dropped only where this pass re-checked them (Nexus E3). Results are judgments against the scorecard's definitions, not measurements.
+
+## Scores
+
+| | 10-19 | 10-25 | Band |
+|---|---|---|---|
+| **Ecosystem (weakest link)** | 59 | **63** | Needs improvement |
+| Port | 87 | 88 | Needs improvement |
+| Mesh | 85 | 82 | Needs improvement |
+| Valance | 73 | 78 | Needs improvement |
+| Nexus | 72 | 75 | Needs improvement |
+
+No repo is in the Good band; none is Poor. The plan's §1 estimate for the ecosystem is "~61"; it keeps Valance X1 at Partial. This record takes the brief's X1 Pass for Valance (see the disagreement below), which gives 63. With X1 at Partial the ecosystem is 61. Arithmetic is in the [appendix](#appendix-arithmetic).
+
+### By category (applicable audits only)
+
+| Category | Weight | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| Tier 1: minimal surface | 20 | 50 | 85 | 50 | 100 | 85 |
+| Encapsulation | 20 | 70 | 88 | 100 | 83 | 83 |
+| Intention and contracts | 15 | 67 | 83 | 67 | 83 | 100 |
+| Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
+| Data boundary | 10 | 80 | 80 | 100 | 100 | 100 |
+| Context | 10 | **0** | 0 | n/a | 0 | n/a |
+| Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
+| Tier 3: hatches | 7 | 50 | 71 | n/a | n/a | 50 |
+
+## Audit results
+
+P = Pass, ◐ = Partial, F = Fail, – = N/A. Ecosystem = the lowest result among repos that own the audit. Cells that differ from 10-19 are in **bold**.
+
+| ID | Audit | Eco | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| T1.1 | Zero-config path | ◐ | P | ◐ | P | P |
+| T1.2 | Nothing required with a default | ◐ | ◐ | ◐ | P | ◐ |
+| T1.3 | Docs lead with Tier 1 | ◐ | P | ◐ | P | P |
+| E1 | Boundaries enforced by a test | P | P | P | P | P |
+| E2 | No lifecycle step at Tier 1 | ◐ | P | P | ◐ | ◐ |
+| E3 | Every export tiered | ◐ | ◐ | **P** | P | P |
+| I1 | Names say what | ◐ | P | ◐† | ◐ | P |
+| I2 | Typed, no stringly or positional coupling | ◐ | ◐ | ◐† | P | P |
+| I3 | Command/query separation | P | P | P | P | P |
+| M1 | One source of truth, `UI = f(state)` | P | P (at risk) | P | P | P |
+| M2 | One term per concept | ◐ | ◐ | ◐† | **◐** | P |
+| D1 | View models, not entities | P | P | P | P | P |
+| D2 | Wire data can be masked | ◐ | ◐ | – | – | – |
+| C1 | Value reaches a deep component without threading | F | F | – | F | – |
+| C2 | Channel explicit and checkable | – | – | – | – | – |
+| X1 | Opt-in knobs, behavior and performance | P | **P** | – | P | P |
+| X2 | Defaults correct without knobs | P | P | – | P | P |
+| H1 | Documented way down to the platform | ◐ | **◐** | – | – | **◐** |
+| H2 | Hatch marked and safe | ◐ | **P** | – | – | **◐** |
+
+The brief lists Valance X1 as "P", which is a change from 10-19's ◐; it is in bold above because it is the one Valance cell that moves besides H1 and H2.
+
+## What moved since 10-19, with evidence
+
+**Valance**
+- X1 ◐→P (judgment). Behavior knobs were already counted. For performance: `admit` (`packages/valance/src/index.ts:626`, with the admission note at `:503`), the start-up `budgets` (`docs/use/start-up.md:1`, `:32`) and `Target.patch` (`packages/valance/src/index.ts:759-763`), which lets a target apply patches instead of redrawing. Whole-tree render is still the default (V16). This is a judgment that these count as performance knobs.
+- H1 ◐ (was F): the CSS hatch `escape.web.css` in a recipe, or the `vlx-app` layer's own CSS (`docs/use/themes.md:28-30`). It reaches the web only, so it is a partial way down to the platform, not a general one.
+- H2 P (was N/A): the same section says it "is outside the contract, is not checked for the Desktop and is reported as such in the coverage table" (`docs/use/themes.md:30`): visibly leaves the portable layer, and CSS cannot write the state cell.
+- M1 P, at risk: unit state is kept outside the single state cell (`packages/valance/src/units.ts:1-8`, one NEXUS `State` per occurrence), while `docs/V1_CONTRACT.md:45` says "The application's single state cell is the only source of truth" and does not mention units. Scored P because the units file calls itself mechanism, not API; it moves to ◐ if units are judged to be state an author owns.
+- E3 ◐ is unchanged. The exports with no `stability.md` row are listed in the plan §1 (`snippet`, `isSnippet`, the brands, `controlled*`, `textField`, `ManifestError`, native `PROTOCOL`/`MAX_LINE`, cli `./schemas/*`).
+- M2 ◐ is unchanged. Collisions: `start` (`Valance.start`, `define.start`, `History.start`), `Host` (`packages/valance/src/web.ts:453`, `native.ts:117`), `scope`.
+- X1 and the by-category row: Tier 2 for Valance becomes 100.
+
+**Nexus**
+- E3 ◐†→P. The tiering table in `nexus/docs/stability.md:16-24` covers `Application`, `Runtime`, `Service`, `State`, `Selector`, `Command`, `Capability`, `Resource`, `Event`, `Mesh`, `Semantic` (Provisional), `EventBusShape`/`EventBusLive` (Internal) and everything under `dist/` not exported (Internal). The 10-19 note about `Semantic`, `Mesh` and `EventBusShape` "beside the stable primitives" was stale: each now has a tier. No public API changed since the baseline.
+- Doc drift found (does not move an audit): README says version 0.14.0 and a peer range of `^0.12.0` (the version is 0.16.0); shutdown wording at README:18 and `semantic.md:358` contradicts 0.12's grace-then-interrupt; `stability.md:21` calls the MESH runtime an "optional peer" while the README (`:107`) says it is a peer dependency; "nine primitives" against 11 namespaces.
+
+**Mesh**
+- M2 P→◐ (judgment). Units add a third meaning of "instance": a repeated site's key (`docs/manual/runtime.md:133`), a unit occurrence (`:58`, `:297-305`, `Render.instances`, `instance` on the intent), and a class instance (`:57`).
+- E3 stays P, with doc drift: units are "Unreleased (0.15.0)" in `docs/manual/stability.md:21`, "0.15.0 (released)" in `README.md:122`, and the release note `docs/releases/v0.15.md:3` says "Released 2026-10-23 as v0.15.0". These disagree on release state; the tier (Provisional) is stated in all.
+
+**Port**
+- H1 F→◐: `inspect(key)` (`port-web/src/port.ts:131-137`) returns the DOM node a part realized, "for devtools", a read that is "not part of the contract". It is a way down to the platform, partial because it is read-only and aimed at devtools.
+- H2 N/A→◐: marked (not part of the contract) but a returned `Node` can be mutated, and the doc only asks that it not be. One of the two.
+- M2 P stays, with a collision to record: `port/README.md:49` uses "Tier 3" for a primitive author's `layer` entry, which collides with the north star's Tier 3.
+
+## Evidence carried from 10-19, unchanged
+
+T1.1 to T1.3, E1, E2, I1 to I3, D1, D2, C1, C2, X2 and the rest of E3 are as in the [10-19 evidence](./north-star-validation-2026-10-19.md#evidence). The open items inherited from the earlier review (N2, N7, N8, N9, V6, V7, V11, V16, G3) were not re-checked here and still bear on the † results.
+
+## Disagreements between documents (recorded, not resolved)
+
+- Plan §1 gives the ecosystem as "~61" and Valance X1 as "◐→P, judgment"; the weakest-link rule with Valance X1 P makes the ecosystem X1 P (Valance, Mesh, Port all P) and the total 63. Both numbers are stated above.
+- Plan §1's Mesh range "82–85" is the M2 judgment call; the P column here takes M2 ◐, so 82.
+- The Mesh release state of units (stability page, README, release note) is inconsistent, as above.
+
+## Next measurement
+
+Recompute with the [scorecard](./NORTH_STAR_SCORECARD.md) whenever a change touches an audit, and update this file in the same change.
+
+## Appendix: arithmetic
+
+Score = 100 × Σ(weight × result) ÷ Σ(weights of applicable audits). P = 1, ◐ = 0.5, F = 0.
+
+Weights: T1.1 8, T1.2 6, T1.3 6, E1 8, E2 7, E3 5, I1 5, I2 5, I3 5, M1 5, M2 5, D1 6, D2 4, C1 7, C2 3, X1 4, X2 4, H1 4, H2 3.
+
+**Valance.** Not applicable: C2 (3), so the divisor is 97.
+T1: 8 + 3 + 6 = 17. Encapsulation: 8 + 7 + 2.5 = 17.5. Intention: 5 + 2.5 + 5 = 12.5. Mental model: 5 + 2.5 = 7.5. Data: 6 + 2 = 8. Context: C1 0. Tier 2: 4 + 4 = 8. Tier 3: H1 2 + H2 3 = 5.
+Sum 17 + 17.5 + 12.5 + 7.5 + 8 + 0 + 8 + 5 = 75.5. 75.5 ÷ 97 = 0.778, so **78**.
+
+**Nexus.** Owns T1.x, E1 to E3, I1 to I3, M1, M2, D1; divisor 8 + 6 + 6 + 8 + 7 + 5 + 5 + 5 + 5 + 5 + 5 + 6 = 71.
+T1: 4 + 3 + 3 = 10. Encapsulation: 8 + 7 + 5 = 20. Intention: 2.5 + 2.5 + 5 = 10. Mental model: 5 + 2.5 = 7.5. Data: D1 6.
+Sum 53.5. 53.5 ÷ 71 = 0.754, so **75**. (10-19: E3 at 2.5 gives 51 ÷ 71 = 0.718, 72.)
+
+**Mesh.** Not applicable: D2 (4), C2 (3), H1 (4), H2 (3); divisor 86.
+T1: 8 + 6 + 6 = 20. Encapsulation: 8 + 3.5 + 5 = 16.5. Intention: 2.5 + 5 + 5 = 12.5. Mental model: 5 + 2.5 = 7.5. Data: D1 6. Context: C1 0. Tier 2: 8.
+Sum 20 + 16.5 + 12.5 + 7.5 + 6 + 0 + 8 = 70.5. 70.5 ÷ 86 = 0.820, so **82**. (10-19: M2 P gives 73 ÷ 86 = 0.849, 85.)
+
+**Port.** Not applicable: D2 (4), C1 (7), C2 (3); divisor 86.
+T1: 8 + 3 + 6 = 17. Encapsulation: 8 + 3.5 + 5 = 16.5. Intention: 15. Mental model: 10. Data: D1 6. Tier 2: 8. Tier 3: H1 2 + H2 1.5 = 3.5.
+Sum 17 + 16.5 + 15 + 10 + 6 + 8 + 3.5 = 76. 76 ÷ 86 = 0.884, so **88**.
+
+**Ecosystem (lowest result per audit).** Not applicable: C2 (3), divisor 97.
+T1: 4 + 3 + 3 = 10 (all ◐ through Nexus). Encapsulation: 8 + 3.5 + 2.5 = 14. Intention: I1 2.5, I2 2.5, I3 5 = 10. Mental model: 5 + 2.5 = 7.5. Data: 6 + 2 = 8. Context: 0. Tier 2: 4 + 4 = 8. Tier 3: H1 ◐ 2, H2 ◐ (Port) 1.5 = 3.5.
+Sum 10 + 14 + 10 + 7.5 + 8 + 0 + 8 + 3.5 = 61. 61 ÷ 97 = 0.629, so **63**. With X1 at ◐ (the plan's reading) the sum is 59 and 59 ÷ 97 = 0.608, so 61.
+
+**Category percentages** are category points ÷ category weight over applicable audits, rounded half up (for example Valance Encapsulation 17.5 ÷ 20 = 88; Port Tier 3 3.5 ÷ 7 = 50; Valance Tier 3 5 ÷ 7 = 71; Valance Context 0 ÷ 7 = 0 because C2 is N/A).
