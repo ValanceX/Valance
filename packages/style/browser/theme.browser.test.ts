@@ -3,7 +3,7 @@
 // The same comparison is run on a stylesheet with three deliberate wrong values, and must find them.
 import { primitives } from "@valancex/common/internal";
 import { createWebPort } from "@valancex/port-web";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, inject, it } from "vitest";
 
 const { css, wrong, tokens } = inject("style");

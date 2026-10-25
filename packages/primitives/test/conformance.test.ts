@@ -85,6 +85,10 @@ describe.each(tags)("the web tag %s", (tag, realization: WebRealization) => {
 
   it("has the accessible name its rule gives", () => {
     const drawn = element();
+
+    // jsdom 30's default style sheet hides a closed popover (`display: none`), which has no accessible name, and it has no `showPopover` to open one. The name does not depend on whether it is open.
+    drawn.removeAttribute("popover");
+
     const rule = specification.accessibleName;
     const prop = rule.prop === undefined ? undefined : specification.example.props?.[rule.prop];
     const text = specification.example.text;

@@ -53,8 +53,8 @@
   },
   "devDependencies": {
     "@types/aria-query": "^5.0.4",
-    "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.0.0",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.5",
     "@valancex/common": "workspace:^",
     "@valancex/mesh-compiler": "^0.17.0",
     "@valancex/mesh-conformance": "^0.17.0",
@@ -63,15 +63,15 @@
     "@valancex/primitives": "workspace:^",
     "@valancex/style": "workspace:^",
     "@valancex/valance": "workspace:^",
-    "@vitest/browser": "3.2.7",
+    "@vitest/browser-playwright": "5.0.5",
     "ajv": "^8.17.1",
     "aria-query": "^5.3.2",
     "dom-accessibility-api": "^0.7.0",
-    "jsdom": "^26.0.0",
-    "playwright": "1.56.1",
+    "jsdom": "^30.1.3",
+    "playwright": "1.64.1",
     "stylelint": "^17.16.0",
-    "typescript": "^5.6.0",
-    "vitest": "^3.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
     "vnu-jar": "^26.10.12"
   }
 }

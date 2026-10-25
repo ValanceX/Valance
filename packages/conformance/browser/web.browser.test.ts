@@ -3,7 +3,7 @@
 import { primitives } from "@valancex/common/internal";
 import { createWebPort } from "@valancex/port-web";
 import portPackage from "@valancex/port-web/package.json" with { type: "json" };
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import vectors from "../vectors/primitives.vectors.json" with { type: "json" };

@@ -72,16 +72,16 @@ jobs:
     # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           repository: ValanceX/Port
           ref: ${{ env.PORT_REF }}
           path: port
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -98,7 +98,7 @@ jobs:
           node packages/conformance/scripts/report.mjs --check \
             --require html,names,roles,css,tokens,vectors-jsdom,vectors-terminal,replay,generated,chromium,desktop \
             --out conformance-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: conformance-report
@@ -112,11 +112,11 @@ jobs:
     # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -136,7 +136,7 @@ jobs:
       - name: Hold the tree to its budgets
         run: |
           node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json --json budgets-report.json ${{ github.event_name == 'push' && '--strict-known' || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: budgets
@@ -149,11 +149,11 @@ jobs:
     needs: [ci, conformance, budgets]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -168,7 +168,7 @@ jobs:
           pnpm --filter @valancex/router pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/common pack --pack-destination "$PWD/out"
           pnpm --filter @valancex/cli pack --pack-destination "$PWD/out"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-packages
           path: out/
@@ -183,12 +183,12 @@ jobs:
     env:
       PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-packages
           path: out

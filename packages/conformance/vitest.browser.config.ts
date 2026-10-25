@@ -1,3 +1,4 @@
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 // The vectors in a real browser (Chromium, through Playwright): the web adapter drives real events and real key presses.
@@ -6,7 +7,7 @@ export default defineConfig({
     include: ["browser/**/*.browser.test.ts"],
     browser: {
       enabled: true,
-      provider: "playwright",
+      provider: playwright(),
       headless: true,
       instances: [{ browser: "chromium" }],
     },

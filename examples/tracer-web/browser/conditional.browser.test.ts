@@ -5,7 +5,7 @@ import * as Web from "@valancex/valance/web";
 import type { HydrationResult } from "@valancex/port-web";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Effect, Schema, Scope } from "effect";
 import { beforeAll, expect, inject, it } from "vitest";
 

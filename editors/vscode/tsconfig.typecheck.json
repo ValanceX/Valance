@@ -1,1 +1,1 @@
-{ "extends": "./tsconfig.json", "compilerOptions": { "noEmit": true, "rootDir": "." }, "include": ["src", "test", "host", "vitest.config.ts"] }
+{ "extends": "./tsconfig.json", "compilerOptions": { "module": "esnext", "moduleResolution": "bundler", "noEmit": true, "rootDir": "." }, "include": ["src", "test", "host", "vitest.config.ts"] }

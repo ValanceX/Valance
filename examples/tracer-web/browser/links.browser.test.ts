@@ -4,7 +4,7 @@
 import * as Web from "@valancex/valance/web";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { beforeAll, expect, inject, it } from "vitest";
 
 import { application, primitives, stateOf, urlOf } from "../test/links-fixture.js";

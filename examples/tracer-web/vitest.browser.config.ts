@@ -1,3 +1,4 @@
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 import { renderDocument } from "./src/document.js";
@@ -49,6 +50,6 @@ export default defineConfig({
       "browser/docs-benchmark-setup.ts",
       "browser/links-setup.ts",
     ],
-    browser: { enabled: true, provider: "playwright", headless: true, instances: [{ browser: "chromium" }] },
+    browser: { enabled: true, provider: playwright(), headless: true, instances: [{ browser: "chromium" }] },
   },
 });

@@ -10,16 +10,21 @@ on:
   # The release workflow runs all of CI on the tagged commit first.
   workflow_call:
 
+# A newer push to a branch or pull request supersedes the run in progress. A tag (a release) is never cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
+
 jobs:
   # Lint and format with OXC (oxlint, oxfmt): fast, and it needs nothing built.
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -35,11 +40,11 @@ jobs:
       matrix:
         node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -61,11 +66,11 @@ jobs:
       matrix:
         vscode: ["1.90.0", "stable"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -84,7 +89,7 @@ jobs:
       - name: Package (the .vsix the release publishes)
         working-directory: editors/vscode
         run: pnpm package
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: editors/vscode/.vscode-test
           key: vscode-${{ matrix.vscode }}-${{ hashFiles('editors/vscode/pnpm-lock.yaml') }}
@@ -110,11 +115,11 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -123,7 +128,7 @@ jobs:
         run: pnpm --filter "@valancex/todo..." build
       - name: Test the application (headless, through a text target)
         run: pnpm --filter @valancex/todo test
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -146,7 +151,7 @@ jobs:
       - name: Gather the app
         working-directory: examples/todo
         run: cp native/target/release/todo-desktop${{ matrix.os == 'windows-latest' && '.exe' || '' }} out/${{ matrix.platform }}/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: todo-${{ matrix.platform }}
           path: examples/todo/out/${{ matrix.platform }}/
