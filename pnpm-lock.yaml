@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@valancex/port-web': file:./local-packs/valancex-port-web-0.14.0.tgz
   ignore: 7.0.12
 
 importers:
@@ -53,7 +54,7 @@ importers:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.17.0)(@valancex/port-web@0.14.0(@valancex/mesh-runtime@0.17.0))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@0.17.0)(@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -68,8 +69,8 @@ importers:
         specifier: ^0.10.3
         version: 0.10.3(@valancex/mesh-runtime@0.17.0)
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -114,8 +115,8 @@ importers:
         specifier: ^0.16.0
         version: 0.16.0(@valancex/mesh-runtime@0.17.0)
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -185,8 +186,8 @@ importers:
         specifier: ^0.16.0
         version: 0.16.0(@valancex/mesh-runtime@0.17.0)
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       '@vitest/browser-playwright':
         specifier: 5.0.5
         version: 5.0.5(playwright@1.64.1)(vite@7.3.6(@types/node@26.6.5))(vitest@5.0.5)
@@ -285,8 +286,8 @@ importers:
         specifier: ^0.14.0 || ^0.15.0 || ^0.16.0
         version: 0.16.0(@valancex/mesh-runtime@0.17.0)
       '@valancex/port-web':
-        specifier: ^0.12.0 || ^0.13.0 || ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       '@valancex/router':
         specifier: workspace:^
         version: link:../router
@@ -331,8 +332,8 @@ importers:
         specifier: ^0.17.0
         version: 0.17.0
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       '@valancex/primitives':
         specifier: workspace:^
         version: link:../primitives
@@ -394,8 +395,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -446,8 +447,8 @@ importers:
         specifier: ^0.17.0
         version: 0.17.0
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -483,8 +484,8 @@ importers:
         specifier: ^0.17.0
         version: 0.17.0
       '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -509,6 +510,9 @@ importers:
       '@valancex/nexus':
         specifier: ^0.14.0 || ^0.15.0 || ^0.16.0
         version: 0.16.0(@valancex/mesh-runtime@0.17.0)
+      '@valancex/port-web':
+        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
+        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -519,9 +523,6 @@ importers:
       '@valancex/mesh-runtime':
         specifier: ^0.17.0
         version: 0.17.0
-      '@valancex/port-web':
-        specifier: ^0.14.0
-        version: 0.14.0(@valancex/mesh-runtime@0.17.0)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -814,6 +815,7 @@ packages:
     engines: {node: ^22.20 || ^24.12 || >=25}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1108,66 +1110,79 @@ packages:
     resolution: {integrity: sha512-J/6xhutJPtFyIkmHdf4olOdHHKH5kOJNumojdWn+Elv5ICEYTVOa362Vw27TxsK0BLzb1le3EDlO3UbvFK1lnQ==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.64.0':
     resolution: {integrity: sha512-G4L/Nnx59d2LvDoV/P4S5lZ7oVLT6hodOHMacqjiq2LL2gts86KbkEBTYL53+fBt0odhf7XPIbIATGoYiJctxg==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.64.0':
     resolution: {integrity: sha512-zF16pvJDEUksGYRbfnXne7pdklAyj2XDmJeYKgP93oq0cUyX9Y8O7lUo1R+IY1GagP/YBvCEDCe7eEcAKpw//g==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.64.0':
     resolution: {integrity: sha512-nIggWn8n+w12+R5lsV+PYYoUY8vuObxPAQqJI7WES+9v0qspYuAHoZMfYM0yLxlipasT5BY9ht5W8t5c/rSCkg==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.64.0':
     resolution: {integrity: sha512-WLOTiHPzszP0dxIMsHpFeDSOSB5I49Mj8K4+yKE3H1X/D0JRG5XZ5jrctJLMjnUc/LUzaKiwq6EHWNJ8pup8PA==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.64.0':
     resolution: {integrity: sha512-35RK9aRhh7g7Pmeu5gQ01aCvrhXzj9LoBE6xtUcEH1ns+nyTaSzxSpADmBQINu4QiTDGvmQYwo1j5hlg1rRXFw==}
     cpu: [loong64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.64.0':
     resolution: {integrity: sha512-RqTfnpoTjuWfPAmqK5p2edt2AMCDJWm6oTn7sKfmyx+6tRga0ip05SJ977o6udTcIiDeF/CJMUfkaN4gtWt6Aw==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.64.0':
     resolution: {integrity: sha512-RQjZPigjxFvFZDijG6rjlSXxhRaTf9zLYVpGK+lVcga64oMqP1GbgVqCb46eHTTceSIgp89Ja0y5aPe3GFBYHg==}
     cpu: [ppc64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.64.0':
     resolution: {integrity: sha512-tjL58mgQcTRnDRpeky+Sth1MKQeYi2Ct6r3Luq9E5aTSjnM/i/JbozqZkKqp9thM5+oDSZxo+05f9kdQedfTGA==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.64.0':
     resolution: {integrity: sha512-ictoRyVaoZ8C67myHef+8hhCa6IplXJJ/xUCkVCxziV4zxMZh+jvhkhGsPBLqj1S72fnqD0QH5zL4lcaa4X7DQ==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.64.0':
     resolution: {integrity: sha512-8aVvZ2hfr9RLFzBQkQNmYeHLDja8fLeQAmLt757zdKN/B+8L809KlLJKctQjS22wZotptV8G6o7fVPuAs8S1tQ==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.64.0':
     resolution: {integrity: sha512-2dEF8GAcDKwshUfydD+GhosppNyBzhVUHkdFF3CXd3FpOkzj/RZzF5aoEtzklujklT5qFVRU2GK/cFeLaTNKVg==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.64.0':
     resolution: {integrity: sha512-3XHTvoo2hKkh0MiOfS7SkhHjMaaWF7P4F3drocZZaho/Z8w7h/jpnuBHm91BOQLfvrKHs1yR+zir4E8RI3XzTQ==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.64.0':
     resolution: {integrity: sha512-HKtkzodL4a3KFWDXDoO61cRynAWTR3LnAE0oGtfG9lcNFpNuVYUFOByxDgNqEvic9rvaQbAj+SFwTEWDptRaIw==}
@@ -1408,14 +1423,16 @@ packages:
     resolution: {integrity: sha512-jN703BXg8S49UVD8Ih3x7Q3/2lvONDFIMDSoHmyVLdlhKksHVtBjFU4iXXd0km0im/T93h85shSfRAv8U2gDZw==}
     engines: {node: '>=22'}
 
-  '@valancex/port-web@0.14.0':
-    resolution: {integrity: sha512-IurW29Py9fNA+ykNyU2D6Nle67t5HuCOP303nhvP1oihJ8pPwmGRyvs1mMsqKGwOFucmxFWe6nV6tSRMud8KWA==}
+  '@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz':
+    resolution: {integrity: sha512-KXhf52SG2oOjML9NwpEcP4UdeoUdrCOEw5f0JnWejdaCKn3FQh080CfVu1AGaRJbJxQO9mKlt6bKg1XXc4G65A==, tarball: file:local-packs/valancex-port-web-0.14.0.tgz}
+    version: 0.14.0
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0 || ^0.16.0 || ^0.17.0
 
   '@valancex/valance@0.5.0':
     resolution: {integrity: sha512-yq9rNKRL3W6+SMUs3g9jDv8LOGOpQ8Q8Hk+kV1PR60mb+108g0GgYww+e9S1N9YPM/kBV9Sl9MOQvN77w9cVsQ==}
+    version: 0.5.0
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
@@ -2881,17 +2898,17 @@ snapshots:
 
   '@valancex/port-desktop-vocabulary@0.14.0': {}
 
-  '@valancex/port-web@0.14.0(@valancex/mesh-runtime@0.17.0)':
+  '@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.17.0
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.17.0)(@valancex/port-web@0.14.0(@valancex/mesh-runtime@0.17.0))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.17.0)(@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0))(effect@3.22.2)':
     dependencies:
       '@valancex/mesh-runtime': 0.17.0
       '@valancex/nexus': 0.10.3(@valancex/mesh-runtime@0.17.0)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': 0.14.0(@valancex/mesh-runtime@0.17.0)
+      '@valancex/port-web': file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@0.17.0)
 
   '@vitest/browser-playwright@5.0.5(playwright@1.64.1)(vite@7.3.6(@types/node@26.6.5))(vitest@5.0.5)':
     dependencies:
