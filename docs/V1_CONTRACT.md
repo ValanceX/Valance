@@ -44,6 +44,8 @@ const handle = yield* Valance.start(app, { platform, state });   // inside the c
 
 **State is authoritative.** The application's single state cell is the only source of truth. Nothing a mount, a history or a target does feeds back into it.
 
+**Unit state is not application state.** The state of a unit (`@valancex/common`'s `unit`, [Units](use/units.md)) is kept outside the single state cell, by the framework, for each occurrence of a component. It is an input to the render, like a scope value, and never application state: it is not in `handle.state` (so not in the `state` a server embeds), and a command of the application does not read it. It starts again with the occurrence ([Units](use/units.md)). Anything the application must keep or act on belongs in the state cell.
+
 - `handle.state` reads the current committed state. A read creates no subscription and no obligation for anyone to present it. A commit is readable as soon as it completes.
 - `start` (§18.2) takes either key form: an exact key, or a bare name, which means `"app/name"`.
 - Asynchronous work is an ordinary command that waits; §18 states what it owns, how it ends, and who sees its failure.
@@ -176,6 +178,8 @@ Closing the application and a mount at the same time breaks neither boundary; no
 | Mount Scope closes | that mount unmounted | that mount only |
 
 A failure is local to its owner. Only closing the application's Scope is application-wide.
+
+**Error identity.** A **typed failure** (one in the Effect error channel, listed above) carries a `_tag` and is matched on it. A **refusal or defect** (a thrown or dying error) carries a `code` (`ValanceError`'s `ValanceErrorCode`; `isRefusal` is true for work turned away at close) and is matched on that. A name is never both, so code that handles failures never reads `code`, and code that handles defects never reads `_tag`. Messages are for people and are not a contract.
 
 ## 11. Intentional non-guarantees
 
@@ -313,7 +317,7 @@ const host = await Web.run(app, { container, primitives, present: "mount" /* or 
 
 - It uses `start`, so a `platform` is acquired and released for that one render (§4). Every failure of `start` (§2), conformance included, is its failure: a page is never served from an application that cannot start.
 - **No event command runs, but the application's start-time work does begin.** If the application declares `start` (§18), that command is admitted by `start` like anywhere else. The render does not wait for it. It then runs concurrently with the render, and when the render ends the application ends, so work still waiting is interrupted (a work item may be interrupted before it has done anything). Only a commit that lands before the render reads the state is in the HTML; one that lands after that read but before `state` is read is in `state` only (below). Declaring no `start` means no command runs.
-- `html` is the render written as HTML (use the same `primitives` as the client, so hydration can adopt it). `state` is the application's state **read after the render**. Without start-time work it is the state the HTML was rendered from. With start-time work that commits between the render's read and the final read, `state` is newer than the HTML; hydrating that pair draws the client's render afresh, which is a mismatch and not a failure (§6). Embedding `state` in the page is the application's job.
+- `html` is the render written as HTML (use the same `primitives` as the client, so hydration can adopt it). `state` is the application's state **read after the render**. Without start-time work it is the state the HTML was rendered from. With start-time work that commits between the render's read and the final read, `state` is newer than the HTML; hydrating that pair draws the client's render afresh, which is a mismatch and not a failure (§6). Embedding `state` in the page is the application's job. **The whole state is embedded**: `state` is the application's entire state, and whatever the application puts in the page is readable by anyone who can read the page. State that must not reach a browser is kept out of the state cell, or is not rendered on a server (until a masking option exists).
 - Nothing skips start-time work for a server. An application that must not do it on a server decides in the command: from the state it is given, or from a capability the server's platform does not provide (the command then fails, unobserved, as §18 states).
 - The client takes the markup over with `present: "hydrate"` and that `state` (§6, §16).
 - Failure is the same typed failures as `start` and a render's `MeshDiagnostics`.

@@ -15,33 +15,60 @@ A view description says what the view looks like and which command an event runs
 </page>
 ```
 
-It may only use building blocks the application declares, and say which values and commands each has. That declaration is the component manifest, `components.json`:
+It may only use building blocks the application declares, and say which values and commands each has. You do not write that declaration: `manifest` (from `@valancex/valance/web/build`) derives it from three things the application states anyway. Write them once, in one file the build and the page both import (`counter.ts`):
 
-```json
-{
-  "version": 1,
-  "types": {},
-  "components": {
-    "page":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
-    "text":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
-    "button":  { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
-    "counter": { "props": {}, "events": {}, "commands": { "increment": { "parameters": [] } }, "scope": { "count": { "kind": "number" } } }
-  }
-}
+```ts
+import * as Valance from "@valancex/valance";
+import * as Web from "@valancex/valance/web";
+import { Schema } from "effect";
+
+// Which page element each building block becomes (it belongs to where the application is drawn, not to the application).
+export const primitives: Web.WebPrimitives = {
+  page: { element: "main" },
+  text: { element: "p" },
+  button: { element: "button", events: { click: { type: "click" } } },
+};
+
+// What the view may read: `counter`'s scope.
+export const CounterScope = Schema.Struct({ count: Schema.Number });
+
+// What the view may run: the command table. `define` takes this same function (step 3).
+export const commands = (state: Valance.StateHandle<{ readonly count: number }>) => {
+  const command = Valance.command(state);
+
+  return { increment: command((current) => ({ count: current.count + 1 })) };
+};
 ```
 
-This tutorial writes the file by hand so you see it once. A real application derives it: `manifest` from `@valancex/valance/web/build` builds it from the primitives table, each view's scope schema and the command table, so it is never written twice (the [docs-site example](../../examples/docs-site) does).
-
 `counter` is the view itself: its `scope` is the values the description may use (`count`), and its `commands` are the ones it may run (`increment`).
+
+> **Aside: the manifest by hand.** `manifest` returns the declaration MESH checks templates against, as data (`components.json`, manifest format 1). For the counter it is the file below. Writing it yourself is possible, and shows what is derived, but a hand-written file can drift from the primitives and commands; derive it. ([Contract §15.1](../V1_CONTRACT.md#151-the-manifest-can-be-derived) says what comes from where; the [docs-site example](../../examples/docs-site) derives its own.)
+>
+> ```json
+> {
+>   "version": 1,
+>   "types": {},
+>   "components": {
+>     "page":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
+>     "text":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
+>     "button":  { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
+>     "counter": { "props": {}, "events": {}, "commands": { "increment": { "parameters": [] } }, "scope": { "count": { "kind": "number" } } }
+>   }
+> }
+> ```
 
 ## 2. Compile it, before the application runs
 
 ```ts
 import { compileProgram } from "@valancex/mesh-compiler";   // build time only
+import { manifest } from "@valancex/valance/web/build";
 import { readFileSync } from "node:fs";
+import { commands, CounterScope, primitives } from "./counter.js";
+
+const derived = JSON.stringify(manifest({ primitives, scopes: { counter: CounterScope }, commands }));
 
 const built = await compileProgram({
-  model: { manifest: readFileSync("components.json", "utf8"), path: "components.json" },
+  model: { manifest: derived, path: "derived-manifest.json" },
   root: "counter",
   components: [{ component: "counter", source: readFileSync("counter.mprx", "utf8"), path: "counter.mprx" }],
 });
@@ -58,6 +85,7 @@ if (built.program === undefined) {
 ```ts
 import * as Valance from "@valancex/valance";
 import { Schema } from "effect";
+import { commands } from "./counter.js";
 
 const State = Schema.Struct({ count: Schema.Number });
 
@@ -66,17 +94,13 @@ const app = Valance.define({
   state: { schema: State, initial: { count: 0 } },
   views: { counter: { program: built.program, scope: ({ count }) => ({ count }) } },
   view: () => "counter",
-  commands: (state) => {
-    const command = Valance.command(state);
-
-    return { increment: command((current) => ({ count: current.count + 1 })) };
-  },
+  commands,
 });
 ```
 
 Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`. A **command** is how the application changes: `increment` takes the current state and returns the next one. Its name is how the screen finds it: the button's `increment()` in the description runs the command called `increment`.
 
-A command that needs input says what it takes, and the event's arguments fill that in order:
+A command that needs input says what it takes (put it in the table in `counter.ts`), and the event's arguments fill that in order:
 
 ```ts
 add: command(
@@ -91,19 +115,14 @@ The input is checked before the command runs, so a wrong argument changes nothin
 
 ```ts
 import * as Web from "@valancex/valance/web";
-
-const primitives: Web.WebPrimitives = {
-  page: { element: "main" },
-  text: { element: "p" },
-  button: { element: "button", events: { click: { type: "click" } } },
-};
+import { primitives } from "./counter.js";
 
 const host = await Web.run(app, { container: document.getElementById("root")!, primitives, present: "mount" });
 // the page shows "Count: 0"; clicking "Add one" shows "Count: 1"
 // await host.stop();   // ends the screen, then the application
 ```
 
-`primitives` says which page element each building block becomes. It belongs to where the application is drawn, not to the application.
+`primitives` is the table from step 1: the same one the manifest was derived from.
 
 ## 5. The same application, elsewhere
 
@@ -132,7 +151,7 @@ A server-rendered page is taken over in the browser with `present: "hydrate"` an
 | You wrote | It is | Learn more |
 |---|---|---|
 | `State` + `initial` | the single state | [State, views and events](state-views-events.md) |
-| `counter.mprx` + `components.json` | a view description | [Contract §15](../V1_CONTRACT.md#15-building-a-view-description) |
+| `counter.mprx` + `manifest(...)` | a view description and the declaration it is checked against | [Contract §15](../V1_CONTRACT.md#15-building-a-view-description) |
 | `Valance.command` and the name `increment` | a command, found by its name | [Contract §14](../V1_CONTRACT.md#14-authoring-helpers-command-and-entry) |
 | `Valance.define` | the application, as data | [Contract §2](../V1_CONTRACT.md#2-application) |
 | `Web.run` | one page, one lifetime | [Contract §16](../V1_CONTRACT.md#16-the-browser-host-webrun) |
