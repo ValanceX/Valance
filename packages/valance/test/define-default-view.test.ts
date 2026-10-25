@@ -25,6 +25,19 @@ describe("define without `view`", () => {
 
   it("requires `view` with more than one view", () => {
     // @ts-expect-error `view` is required when `views` has two keys
-    Valance.define({ ...base, views: { a: view, b: view } });
+    expect(() => Valance.define({ ...base, views: { a: view, b: view } })).toThrow();
+  });
+
+  it("throws a ValanceError for a call that gets past the types: no `view` with zero or several views", () => {
+    for (const views of [{}, { a: view, b: view }]) {
+      const call = () => (Valance.define as (d: unknown) => unknown)({ ...base, views });
+
+      expect(call).toThrow("`view` is required unless `views` has exactly one entry");
+      try {
+        call();
+      } catch (error) {
+        expect(Valance.isValanceError(error)).toBe(true);
+      }
+    }
   });
 });

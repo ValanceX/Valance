@@ -13,7 +13,7 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 
 | Entry | Tier |
 |---|---|
-| `@valancex/valance` (`define` (`view` optional with exactly one view, since 0.15.0), `start`, `mount`, `hydrate`, `command`, `entry` and their types) | Stable |
+| `@valancex/valance` (`define` (`view` optional with exactly one view, since 0.16.0), `start`, `mount`, `hydrate`, `command`, `entry` and their types) | Stable |
 | `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, `Web.link`, `Web.event`, the PORT table helpers) | Stable |
 | `@valancex/valance/web/server` (`renderToHtml`) | Stable |
 | `@valancex/valance/web/build` (`manifest` and its helpers) | Stable |

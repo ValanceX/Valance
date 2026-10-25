@@ -128,7 +128,11 @@ export function define(definition: { readonly views: Record<string, unknown>; re
   // Same rule as `defineApp`'s: the one view is the default. The runtime, which cannot see the types, defaults whenever `view` is absent and there is one key.
   const keys = Object.keys(definition.views);
 
-  return definition.view === undefined && keys.length === 1 ? { ...definition, view: () => keys[0] } : definition;
+  if (definition.view !== undefined) return definition;
+  // A JS caller (or a cast) can omit `view` with no views or several: say so here, not later as "app.view is not a function".
+  if (keys.length !== 1) throw new ValanceError("missing-view", "define: `view` is required unless `views` has exactly one entry");
+
+  return { ...definition, view: () => keys[0] };
 }
 
 /** True for a union of two or more literals (`"a" | "b"`), false for a single one. */

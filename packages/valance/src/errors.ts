@@ -19,7 +19,9 @@ export type ValanceErrorCode =
   /** A head tag carries a value the head refuses (a script-bearing URL). A mistake in the data. */
   | "invalid-head"
   /** `MountOptions.ledger` is not a number of at least 0. A mistake in the call. */
-  | "invalid-ledger";
+  | "invalid-ledger"
+  /** `define` got no `view` and its `views` do not have exactly one entry. A mistake in the definition. */
+  | "missing-view";
 
 /**
  * The defect VALANCE dies with for misuse and for work refused because the application is closing. It is a defect, never a typed
@@ -45,6 +47,7 @@ const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>([
   "plugin-conflict",
   "invalid-head",
   "invalid-ledger",
+  "missing-view",
 ]);
 
 /** Whether `value` is a `ValanceError`, by its shape and not its class, so it works across two installed copies of the package. */
