@@ -4,6 +4,7 @@ A library is an npm package of components, or of a theme, that an application in
 
 * [Use a library](#use-a-library) (Tier 1: nothing to configure)
 * [Make a library](#make-a-library) (`vlx init library`)
+* [Write a component](#write-a-component) (props, events, snippets, a component's own state)
 * [What a library declares](#what-a-library-declares) (the `valance` condition and field)
 * [Targets](#targets), [styles](#styles), [themes](#theme-packages)
 * [Names, collisions and overrides](#names-collisions-and-overrides) (Tier 2)
@@ -82,6 +83,50 @@ Add a component by writing `src/<name>.mprx` and `src/<name>.ts` (a `component(t
 
 Every target the package declares is checked by building the playground for it. A target you do not declare is not claimed.
 
+## Write a component
+
+A component is a template and a contract, as in an application:
+
+```ts
+// src/data-list.ts
+import { component, snippet } from "@valancex/common";
+import { Schema } from "effect";
+import template from "./data-list.mprx";
+
+export const Row = Schema.Struct({ id: Schema.String, label: Schema.String, detail: Schema.String });
+
+export const dataList = component(template, {
+  props: { items: Schema.Array(Row), row: snippet(Row) },
+  events: {},
+});
+```
+
+```
+<!-- src/data-list.mprx -->
+<ul>{#each items as item (item.id)}<li>{@render row(item)}</li>{/each}</ul>
+```
+
+* A **prop** is a schema; an optional one is `Schema.UndefinedOr(…)`, or `field(schema, default)` when it has a default. An **event** names the payload it carries (`change: Schema.String`).
+* **A part the caller draws** is a snippet prop: `snippet(Row)` declares `row`, the template writes `{@render row(item)}`, and the caller passes `{#snippet row(r)}…{/snippet}` inside the tag. Content between the tags is `children: snippet()`, rendered with `{@render children()}`.
+* **State the component keeps for itself** (an open panel, the chosen tab) is a `unit`, one per occurrence. A field the caller may also hold is `controllable`: it needs an optional prop of the same name, and the unit then follows the prop when it is written (`open={…}` with `on.change`). The state type of a command is **annotated** (`run: (state: State, …) => …`); TypeScript does not infer it through `unit()`.
+
+```ts
+type State = { readonly open: boolean };
+
+export const disclosure = component(template, {
+  props: { label: Schema.String, open: Schema.UndefinedOr(Schema.Boolean), children: snippet() },
+  events: { change: Schema.Boolean },
+  unit: unit({
+    state: { open: field(Schema.Boolean, false) },
+    controllable: ["open"],
+    commands: { toggle: unitCommand({ params: {}, run: (state: State) => ({ open: !state.open }), raises: { change: (next: State) => next.open } }) },
+  }),
+});
+```
+
+* The template writes only what the targets share (the portable core) unless the package says `targets: ["web"]`; `vlx library check` finds the rest.
+* There is no index in `{#each}` and no way to take a list's length in a template: a component that needs either takes it as a prop.
+
 ## What a library declares
 
 Two things in `package.json`:
@@ -142,6 +187,8 @@ A package whose `valance` field has `"kind": "theme"` ships a theme as source: t
 }
 ```
 
+Write the package's `theme/` directory as [Themes](themes.md) describes it for a project (`vlx init` does not write one: a project with none uses the default theme), add the `valance` field above and an `index.js` that exports nothing (`export {};`; the condition needs an entry), and list `theme` and `index.js` in `files`. `vlx library check` holds it to the same rules as a component library (it checks the files the theme names, not a playground).
+
 `vlx theme check` reports it as the project's theme (its contrast, and what each target applies and ignores); a project with both this setting and a `theme/` directory is refused (`theme-conflict`), and one that names a package that is not an installed theme package is told so (`theme-package`). Recipes are for the primitives ([Themes](themes.md)); a theme package cannot add a recipe for a library's own component.
 
 ## Names, collisions and overrides
@@ -165,6 +212,7 @@ The others of that name are left out of the program; a library template that wri
 ## What a library cannot do yet
 
 * **A recipe for its own component.** A theme maps a primitive's parts and variants to values; a library component takes its look from the primitives it composes and, on the web, from its stylesheet. A theme package styles the primitives.
+* **Roles a primitive does not have.** A disclosure is a `button` and tabs are `toggle`s: the portable core has no `aria-expanded`, `tab`, `tablist` or `tabpanel`, so a screen reader hears a button and pressed buttons. Closing this takes primitives or hooks in the specification, not a library.
 * **Windowed lists.** The `window` clause and the `scroller` primitive ([Bet 10](../direction/bets/collections.md)) are not built, so a virtualized list cannot be written from the public seams.
 * **A library of primitives.** See Targets.
 * **The desktop window's stylesheet.** `styles` are the web's.

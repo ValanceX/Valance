@@ -71,6 +71,9 @@ describe("vlx init library", () => {
     expect(pkg["sideEffects"]).toEqual(["**/*.css"]);
     expect(pkg["valance"]).toEqual({ kind: "components", targets: ["web", "desktop"] });
     expect(Object.keys(pkg["peerDependencies"])).toContain("@valancex/common");
+
+    // pnpm 11 stops an install on a dependency's build script nobody approved; esbuild's is optional, so the workspace says so
+    expect(planLibrary({ name: "acme-ui", dir: "/x/ui", packageManager: "pnpm" }).get("pnpm-workspace.yaml")).toContain("allowBuilds:\n  esbuild: false");
   });
 
   it("refuses a directory that has something in it", () => {

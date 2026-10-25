@@ -66,7 +66,7 @@ export const planLibrary = (answers: LibraryAnswers): ReadonlyMap<string, string
   );
 
   if (manager === "pnpm") {
-    out.set("pnpm-workspace.yaml", `packages:\n  - "packages/*"\n  - playground\n`);
+    out.set("pnpm-workspace.yaml", `packages:\n  - "packages/*"\n  - playground\nallowBuilds:\n  esbuild: false\n`);
   }
 
   out.set(".gitignore", "node_modules\ndist\n.valance\n");
