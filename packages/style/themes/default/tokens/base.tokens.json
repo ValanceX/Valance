@@ -1,0 +1,193 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "The tokens that do not change with the mode.",
+  "space": {
+    "$type": "dimension",
+    "1": {
+      "$value": {
+        "value": 0.25,
+        "unit": "rem"
+      }
+    },
+    "2": {
+      "$value": {
+        "value": 0.5,
+        "unit": "rem"
+      }
+    },
+    "3": {
+      "$value": {
+        "value": 0.75,
+        "unit": "rem"
+      }
+    },
+    "4": {
+      "$value": {
+        "value": 1,
+        "unit": "rem"
+      }
+    },
+    "5": {
+      "$value": {
+        "value": 1.5,
+        "unit": "rem"
+      }
+    },
+    "6": {
+      "$value": {
+        "value": 2,
+        "unit": "rem"
+      }
+    }
+  },
+  "radius": {
+    "$type": "dimension",
+    "1": {
+      "$value": {
+        "value": 0.25,
+        "unit": "rem"
+      }
+    },
+    "2": {
+      "$value": {
+        "value": 0.5,
+        "unit": "rem"
+      }
+    },
+    "3": {
+      "$value": {
+        "value": 999,
+        "unit": "px"
+      }
+    }
+  },
+  "border": {
+    "$type": "dimension",
+    "1": {
+      "$value": {
+        "value": 1,
+        "unit": "px"
+      }
+    },
+    "2": {
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      }
+    }
+  },
+  "size": {
+    "$type": "dimension",
+    "target": {
+      "$value": {
+        "value": 2.5,
+        "unit": "rem"
+      },
+      "$description": "The least height of a control a finger or a pointer must hit."
+    },
+    "target-touch": {
+      "$value": {
+        "value": 3,
+        "unit": "rem"
+      },
+      "$description": "The least height of a control on a compact screen, where a finger is the pointer."
+    },
+    "line": {
+      "$value": {
+        "value": 1.5,
+        "unit": "rem"
+      },
+      "$description": "The height of one line of body text (its line height): the room a message that comes and goes keeps, so what is below it does not move."
+    }
+  },
+  "type": {
+    "$type": "typography",
+    "body": {
+      "$value": {
+        "fontFamily": [
+          "system-ui",
+          "sans-serif"
+        ],
+        "fontSize": {
+          "value": 1,
+          "unit": "rem"
+        },
+        "fontWeight": 400,
+        "letterSpacing": {
+          "value": 0,
+          "unit": "px"
+        },
+        "lineHeight": 1.5
+      }
+    },
+    "label": {
+      "$value": {
+        "fontFamily": [
+          "system-ui",
+          "sans-serif"
+        ],
+        "fontSize": {
+          "value": 0.9375,
+          "unit": "rem"
+        },
+        "fontWeight": 500,
+        "letterSpacing": {
+          "value": 0,
+          "unit": "px"
+        },
+        "lineHeight": 1.25
+      }
+    },
+    "heading": {
+      "$value": {
+        "fontFamily": [
+          "system-ui",
+          "sans-serif"
+        ],
+        "fontSize": {
+          "value": 1.5,
+          "unit": "rem"
+        },
+        "fontWeight": 700,
+        "letterSpacing": {
+          "value": 0,
+          "unit": "px"
+        },
+        "lineHeight": 1.2
+      }
+    }
+  },
+  "elevation": {
+    "$type": "shadow",
+    "1": {
+      "$value": {
+        "color": {
+          "colorSpace": "srgb",
+          "components": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "hex": "#000000",
+          "alpha": 0.18
+        },
+        "offsetX": {
+          "value": 0,
+          "unit": "px"
+        },
+        "offsetY": {
+          "value": 1,
+          "unit": "px"
+        },
+        "blur": {
+          "value": 3,
+          "unit": "px"
+        },
+        "spread": {
+          "value": 0,
+          "unit": "px"
+        }
+      }
+    }
+  }
+}

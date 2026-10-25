@@ -163,6 +163,30 @@ describe("the window's colors", () => {
   });
 });
 
+describe("the look the host gives the window", () => {
+  it("is sent once, with the first appearance and before the screen, and not again when the appearance changes", async () => {
+    const w = wire();
+    const look = { version: 1, modes: { light: { button: { base: { radius: 8 } } } } };
+    const served = Effect.runPromise(serve(await app(), { input: w.toEngine, output: w.fromEngine }, { appearanceOf: (state) => (state.n > 0 ? "dark" : "system"), theme: look }));
+
+    await until(() => w.seen.some((message) => message.op === "draw"));
+    expect(w.seen.map((message) => message.op)).toEqual(["hello", "appearance", "draw"]);
+    expect(w.seen[1]).toEqual({ op: "appearance", appearance: "system", theme: look });
+    w.send({ op: "close" });
+    await served;
+  });
+
+  it("is not sent when the host gives none", async () => {
+    const w = wire();
+    const served = Effect.runPromise(serve(await app(), { input: w.toEngine, output: w.fromEngine }, { appearanceOf: () => "system" }));
+
+    await until(() => w.seen.some((message) => message.op === "draw"));
+    expect(w.seen[1]).toEqual({ op: "appearance", appearance: "system" });
+    w.send({ op: "close" });
+    await served;
+  });
+});
+
 describe("Back and Forward from the window", () => {
   it("tells the application which way the person asked to go, and ignores a direction it does not know", async () => {
     const w = wire();

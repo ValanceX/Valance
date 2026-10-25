@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "code",
+  "status": "portable",
+  "role": "code",
+  "summary": "Text that is code, shown in a monospace face. The role is ARIA 1.2's and HTML-AAM's for `code`; it is outside version 1's role set, so a Desktop that draws it as a label is a listed difference.",
+  "props": {},
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "x = 1"
+  }
+}

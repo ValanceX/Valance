@@ -1,0 +1,58 @@
+{
+  "name": "@valancex/primitives",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The primitive specification: what each primitive of the portable core (and the web's own) is, as data (role, accessible-name rule, states, keyboard, props, events), with the web's realization beside it, and what is generated or checked from them (the web table and manifest, the parity report with the Desktop's vocabulary, the documentation). Private until the Spec Gate.",
+  "license": "MIT",
+  "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "specs",
+    "realizations",
+    "schema"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "generate": "pnpm build && node scripts/generate.mjs",
+    "docs": "pnpm build && node scripts/docs.mjs",
+    "parity": "node scripts/parity.mjs",
+    "test:browser": "vitest run -c vitest.browser.config.ts"
+  },
+  "peerDependencies": {
+    "@valancex/valance": "^0.14.0"
+  },
+  "devDependencies": {
+    "@types/aria-query": "^5.0.4",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.0.0",
+    "@valancex/mesh-compiler": "^0.17.0",
+    "@valancex/mesh-runtime": "^0.17.0",
+    "@valancex/port-desktop-vocabulary": "^0.14.0",
+    "@valancex/port-web": "^0.14.0",
+    "@valancex/valance": "workspace:^",
+    "@vitest/browser": "3.2.7",
+    "ajv": "^8.17.1",
+    "aria-query": "^5.3.2",
+    "dom-accessibility-api": "^0.7.0",
+    "jsdom": "^26.0.0",
+    "playwright": "1.56.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "vnu-jar": "^26.10.12"
+  }
+}

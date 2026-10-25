@@ -27,6 +27,77 @@
       "pattern": "^[^{}]*(\\{page\\}|\\{site\\})[^{}]*(\\{page\\}|\\{site\\}|[^{}])*$",
       "maxLength": 120,
       "description": "How a document's title is written: \"{page}\" is the page's title and \"{site}\" the name above. Must contain \"{page}\". A page whose title is the site's name is that name alone."
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redact"
+      ],
+      "description": "What `vlx dev --record` leaves out of a session log. A log holds what was typed and seen; a value marked here is never written (its place holds a digest) and the log still replays.",
+      "properties": {
+        "redact": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "type": "array",
+              "description": "Paths into the page's scope whose values are replaced by a digest; \"*\" is any list index or field name.",
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "commands": {
+              "type": "array",
+              "description": "Commands (\"component/name\") whose parameters are not recorded.",
+              "items": {
+                "type": "string",
+                "pattern": "^[\\w-]+/[\\w-]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "budgets": {
+      "type": "array",
+      "description": "The size budgets `vlx build` holds the production build to (never `vlx dev`). A type, a warning and an error threshold in bytes: 500000, \"500kB\" or \"1MB\" (1 kB is 1,000 bytes). With none, the framework's start-up budgets apply.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "initial",
+              "runtime",
+              "startup",
+              "afterStart",
+              "anyChunk"
+            ],
+            "description": "initial: the start-up JavaScript and CSS; runtime: the WebAssembly runtime; startup: the whole start-up set; afterStart: what loads once the application runs; anyChunk: the largest JavaScript chunk. Brotli bytes."
+          },
+          "warning": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        }
+      }
     }
   }
 }

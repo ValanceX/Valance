@@ -120,6 +120,8 @@ describe("a vocabulary without the web's styling and accessibility hooks", () =>
         { ...each, props: Object.fromEntries(Object.entries(each.props ?? {}).filter(([name]) => !WEB_ONLY.includes(name))) },
       ]),
     ) as WebVocabulary["tags"],
+    // the specifications' declarations (a prop is optional, a variant's values are a closed set) are the web's as well as the table
+    ...(webVocabulary.declared === undefined ? {} : { declared: webVocabulary.declared }),
   };
 
   it("rejects the built-in views and the scaffolded layout where they use those hooks, and nowhere else", async () => {
@@ -139,8 +141,8 @@ describe("a vocabulary without the web's styling and accessibility hooks", () =>
     const leaks = new Set(found.flatMap((line) => [...line.matchAll(/no prop "(\w+)"/g)].map((match) => match[1]!)));
     expect(found.length).toBeGreaterThan(0);
     // Every complaint is one of the web's own hooks: nothing about state, commands, slots, content or the component model.
-    expect([...leaks].every((name) => WEB_ONLY.includes(name))).toBe(true);
-    expect(found.every((line) => line.startsWith("unknown-prop:"))).toBe(true);
+    expect([...leaks].filter((name) => !WEB_ONLY.includes(name))).toEqual([]);
+    expect(found.filter((line) => !line.startsWith("unknown-prop:"))).toEqual([]);
     // Measured: eight props, all hooks for styling (`class`, `theme`), focus (`tabindex`), accessibility (`label`, `current`, `pressed`, `id`) or loading (`loading`).
     expect([...leaks].sort()).toEqual(["class", "current", "id", "label", "loading", "pressed", "tabindex", "theme"]);
   }, 120_000);
@@ -148,7 +150,7 @@ describe("a vocabulary without the web's styling and accessibility hooks", () =>
   it("rejects even a layout written without them, while the built-in views still use them: a built-in is part of the target's side", async () => {
     const root = project({
       "content/index.md": "---\ntitle: Home\n---\n\n# Home\n",
-      "src/layout.mprx": "<div><para>{site}</para><blocks items={blocks} /></div>",
+      "src/layout.mprx": "<div><paragraph>{site}</paragraph><blocks items={blocks} /></div>",
     });
     const files = readdirSync(join(root, "src")).map((name) => relative(root, join(root, "src", name)));
 

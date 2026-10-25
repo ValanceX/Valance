@@ -308,7 +308,8 @@ export const renderHead = (head: HeadTags): string => {
 
 /**
  * Makes `document`'s head say `head`: the title is set when there is one, and the metas and links this function wrote before are replaced by these. Elements it did not write
- * (no `data-valance-head`) are never touched, so a stylesheet the server linked stays. Mutates the document it is given and nothing else.
+ * (no `data-valance-head`) are never touched, so a stylesheet the server linked stays. An element it wrote that already says the same is left where it is: removing and adding
+ * a `<link rel="stylesheet">` again would reload it, and the page would be unstyled until it arrived. Mutates the document it is given and nothing else.
  */
 export const applyHead = (document: Document, head: HeadTags): void => {
   const { title, meta = [], links = [] } = checked(head);
@@ -317,11 +318,34 @@ export const applyHead = (document: Document, head: HeadTags): void => {
     document.title = title;
   }
 
+  const wanted: Array<{ readonly tag: string; readonly attributes: Readonly<Record<string, string | undefined>> }> = [
+    ...meta.map((tag) => ({ tag: "meta", attributes: "name" in tag ? { name: tag.name, content: tag.content } : { property: tag.property, content: tag.content } })),
+    ...links.map((tag) => ({ tag: "link", attributes: { rel: tag.rel, href: tag.href, as: tag.as, type: tag.type, hreflang: tag.hreflang, title: tag.title } })),
+  ];
+
+  const says = (element: Element, tag: string, attributes: Readonly<Record<string, string | undefined>>): boolean => {
+    const given = Object.entries(attributes).filter((entry): entry is [string, string] => entry[1] !== undefined);
+
+    return element.localName === tag && element.attributes.length === given.length + 1 && given.every(([name, value]) => element.getAttribute(name) === value);
+  };
+
+  const kept = new Set<number>();
+
   for (const stale of Array.from(document.head.querySelectorAll(`[${HEAD_MARK}]`))) {
-    stale.remove();
+    const same = wanted.findIndex((each, index) => !kept.has(index) && says(stale, each.tag, each.attributes));
+
+    if (same === -1) {
+      stale.remove();
+    } else {
+      kept.add(same);
+    }
   }
 
-  const add = (tag: string, attributes: Readonly<Record<string, string | undefined>>): void => {
+  wanted.forEach(({ tag, attributes }, index) => {
+    if (kept.has(index)) {
+      return;
+    }
+
     const element = document.createElement(tag);
 
     for (const [name, value] of Object.entries(attributes)) {
@@ -332,13 +356,5 @@ export const applyHead = (document: Document, head: HeadTags): void => {
 
     element.setAttribute(HEAD_MARK, "");
     document.head.append(element);
-  };
-
-  for (const tag of meta) {
-    add("meta", "name" in tag ? { name: tag.name, content: tag.content } : { property: tag.property, content: tag.content });
-  }
-
-  for (const tag of links) {
-    add("link", { rel: tag.rel, href: tag.href, as: tag.as, type: tag.type, hreflang: tag.hreflang, title: tag.title });
-  }
+  });
 };

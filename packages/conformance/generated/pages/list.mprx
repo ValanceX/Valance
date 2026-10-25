@@ -1,0 +1,9 @@
+<column>
+  <heading level={2}>{title}</heading>
+  {#each items as item (item.id)}
+    <row>
+      <text>{item.label}</text>
+      <button label="Delete" intent="danger" on.click={remove(item.id)}>Delete</button>
+    </row>
+  {/each}
+</column>

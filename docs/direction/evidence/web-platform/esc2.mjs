@@ -1,0 +1,21 @@
+import { chromium } from "/opt/node-tools/node_modules/playwright-core/index.mjs";
+const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const run = async (name, steps) => {
+  const p = await b.newPage(); const ev = (f,a) => p.evaluate(f,a);
+  await p.setContent(`<body><button id=open>open</button><dialog id=d><button id=in>in</button><input id=t></dialog></body>`);
+  await ev(() => { window.log = []; const d = document.getElementById("d"); d.addEventListener("cancel", e => { log.push("cancel:cancelable=" + e.cancelable); e.preventDefault(); }); d.addEventListener("close", () => log.push("close")); });
+  await p.click("#open"); await ev(() => document.getElementById("d").showModal());
+  await steps(p);
+  await p.waitForTimeout(150);
+  console.log(name, "open=", await ev(()=>document.getElementById("d").open), JSON.stringify(await ev(()=>log)));
+  await p.close();
+};
+const E = (p)=>p.keyboard.press("Escape");
+await run("A Esc,Esc", async p=>{await E(p);await E(p);});
+await run("A3 Esc,Esc,Esc", async p=>{await E(p);await E(p);await E(p);});
+await run("B Esc,click-in,Esc", async p=>{await E(p);await p.click("#in");await E(p);});
+await run("C Esc,key a,Esc", async p=>{await E(p);await p.keyboard.press("a");await E(p);});
+await run("D Esc,wait1s,Esc", async p=>{await E(p);await p.waitForTimeout(1000);await E(p);});
+await run("E Esc,type in input,Esc", async p=>{await E(p);await p.focus("#t");await p.keyboard.type("hi");await E(p);});
+await run("F no prior click: first Esc", async p=>{await E(p);});
+await b.close();

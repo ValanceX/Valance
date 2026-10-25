@@ -1,0 +1,68 @@
+{
+  "name": "@valancex/style",
+  "version": "0.14.0",
+  "description": "The style contract for VALANCE: tokens (Design Tokens format), recipes for a primitive's root part, states, variants and conditions, as data; and what is generated or checked from them (a layered stylesheet for the web, resolved values for the Desktop, the contrast of declared pairs, the coverage of a theme).",
+  "keywords": [
+    "valance",
+    "theme",
+    "design-tokens",
+    "style"
+  ],
+  "homepage": "https://github.com/ValanceX/Valance/tree/main/packages/style#readme",
+  "bugs": {
+    "url": "https://github.com/ValanceX/Valance/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ValanceX/Valance.git",
+    "directory": "packages/style"
+  },
+  "license": "MIT",
+  "author": "Jack Miller <jackmiller0899@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "contract",
+    "schema",
+    "themes"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "test:browser": "vitest run -c vitest.browser.config.ts",
+    "prepack": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/common": "workspace:^",
+    "@valancex/mesh-runtime": "^0.17.0",
+    "@valancex/port-web": "^0.14.0",
+    "@valancex/valance": "workspace:^",
+    "@vitest/browser": "3.2.7",
+    "playwright": "1.56.1",
+    "stylelint": "^17.16.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

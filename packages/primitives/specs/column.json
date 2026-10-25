@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "column",
+  "status": "portable",
+  "role": null,
+  "summary": "Lays its children out in a vertical stack. It has no role: it is layout, not meaning.",
+  "props": {},
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "a"
+  }
+}

@@ -13,3 +13,4 @@ export * from "./store.js";
 export * from "./open.js";
 export * from "./navigation.js";
 export * from "./platform.js";
+export { earlyHead, earlyShell, earlyShellLimit } from "./early.js";

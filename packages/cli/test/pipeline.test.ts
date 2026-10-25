@@ -46,7 +46,7 @@ describe("vlx check", () => {
 
   it("points a template error at the line and column of the template", async () => {
     const result = await check(
-      project({ ...BASIC, "src/main.ts": entry(), "src/layout.mprx": '<shell class="x" theme="light">\n  <para class="y">{missingName}</para>\n</shell>\n' }),
+      project({ ...BASIC, "src/main.ts": entry(), "src/layout.mprx": '<shell class="x" theme="light">\n  <paragraph class="y">{missingName}</paragraph>\n</shell>\n' }),
     );
     const found = result.diagnostics.find((each) => each.file === "src/layout.mprx");
 
@@ -55,14 +55,85 @@ describe("vlx check", () => {
   });
 
   it("refuses a template that is not in the tree, and a name that is already a tag", async () => {
-    expect(await codes({ ...BASIC, "src/orphan.mprx": '<para class="x">x</para>' })).toEqual(["src/orphan.mprx:0 template-unused"]);
+    expect(await codes({ ...BASIC, "src/orphan.mprx": '<paragraph class="x">x</paragraph>' })).toEqual(["src/orphan.mprx:0 template-unused"]);
     expect(
       await codes({
         ...BASIC,
         "src/main.ts": 'import { component, defineApp } from "@valancex/common";\nimport link from "./link.mprx";\nexport default defineApp({ override: [component(link)] });\n',
-        "src/link.mprx": "<para />",
+        "src/link.mprx": "<paragraph />",
       }),
     ).toContain("src/main.ts:3 template-primitive");
+  });
+
+  describe("a name two templates share", () => {
+    const main = (imports: string, rest: string): string => `import { component, defineApp } from "@valancex/common";\n${imports}\nexport default defineApp({ ${rest} });\n`;
+
+    it("is an error between two components of different files (neither silently wins)", async () => {
+      const found = await codes({
+        ...BASIC,
+        "src/main.ts": main('import first from "./a/disclosure.mprx";\nimport second from "./b/disclosure.mprx";', "components: [component(first), component(second)]"),
+        "src/a/disclosure.mprx": "<paragraph>a</paragraph>",
+        "src/b/disclosure.mprx": "<paragraph>b</paragraph>",
+      });
+
+      expect(found).toEqual(["src/main.ts:4 template-duplicate"]);
+    });
+
+    it("names both files and says how to resolve it", async () => {
+      const result = await check(
+        project({
+          ...BASIC,
+          "src/main.ts": main('import first from "./a/disclosure.mprx";\nimport second from "./b/disclosure.mprx";', "components: [component(first), component(second)]"),
+          "src/a/disclosure.mprx": "<paragraph>a</paragraph>",
+          "src/b/disclosure.mprx": "<paragraph>b</paragraph>",
+        }),
+      );
+
+      expect(result.diagnostics[0]!.message).toMatch(/src\/a\/disclosure\.mprx.*src\/b\/disclosure\.mprx|src\/b\/disclosure\.mprx.*src\/a\/disclosure\.mprx/);
+      expect(result.diagnostics[0]!.message).toMatch(/rename/);
+    });
+
+    it("is not an error when one component is listed twice", async () => {
+      expect(
+        await codes({
+          ...BASIC,
+          "src/main.ts": main('import first from "./disclosure.mprx";', "components: [component(first), component(first)]"),
+          "src/disclosure.mprx": "<paragraph>a</paragraph>",
+        }),
+      ).not.toContain("src/main.ts:4 template-duplicate");
+    });
+
+    it("is an error between a component and a built-in, unless it is listed in override", async () => {
+      const files = { ...BASIC, "src/runs.mprx": "<mesh-fragment>{#each spans as s (s.id)}<em>{s.text}</em>{/each}</mesh-fragment>" };
+
+      expect(await codes({ ...files, "src/main.ts": main('import runs from "./runs.mprx";', "components: [component(runs)]") })).toEqual(["src/main.ts:3 template-builtin"]);
+      expect(await codes({ ...files, "src/main.ts": main('import runs from "./runs.mprx";', "override: [component(runs)]") })).toEqual([]);
+    });
+
+    it("is not hidden by a component also listed in override with another file", async () => {
+      const found = await codes({
+        ...BASIC,
+        "src/main.ts": main('import mine from "./runs.mprx";\nimport theirs from "./lib/runs.mprx";', "override: [component(mine)], components: [component(theirs)]"),
+        "src/runs.mprx": "<mesh-fragment>{#each spans as s (s.id)}<em>{s.text}</em>{/each}</mesh-fragment>",
+        "src/lib/runs.mprx": "<paragraph />",
+      });
+
+      expect(found).toContain("src/main.ts:4 template-duplicate");
+    });
+  });
+
+  it("says where to register a component an override is not for", async () => {
+    const result = await check(
+      project({
+        ...BASIC,
+        "src/main.ts": 'import { component, defineApp } from "@valancex/common";\nimport mine from "./mine.mprx";\nexport default defineApp({ override: [component(mine)] });\n',
+        "src/mine.mprx": "<paragraph />",
+      }),
+    );
+    const found = result.diagnostics.find((each) => each.code === "override-unknown");
+
+    expect(found?.message).toMatch(/components/);
+    expect(found?.message).not.toMatch(/uses/);
   });
 
   it("reads src/main.ts: state fields become names a layout may read, and a clash is an error", async () => {
@@ -77,7 +148,7 @@ describe("vlx check", () => {
           project({
             ...BASIC,
             "src/main.ts": main("count: field(Schema.Number, 0)", true),
-            "src/layout.mprx": '<shell class="x" theme="light"><para class="y">{count}</para></shell>',
+            "src/layout.mprx": '<shell class="x" theme="light"><paragraph class="y">{count}</paragraph></shell>',
           }),
         )
       ).diagnostics,
@@ -118,7 +189,7 @@ describe("vlx build", () => {
       readdirSync(join(root, ".valance"))
         .filter((name) => name !== "cache")
         .sort(),
-    ).toEqual([".gitignore", "client.ts", "content.json", "core.css", "editor.json", "manifest.json", "program.json", "server.ts", "wiring.json"]);
+    ).toEqual([".gitignore", "client.ts", "content.json", "core.css", "editor.json", "manifest.json", "program.json", "server.ts", "theme.css", "wiring.json"]);
     expect(readFileSync(join(root, ".valance/.gitignore"), "utf8")).toContain("*");
   });
 
@@ -193,12 +264,12 @@ describe("the component tree declared in src/main.ts", () => {
   });
 
   it("allows a registered component that no template writes yet: it is not part of the program until one does", async () => {
-    expect(await codes({ ...BASIC, "src/main.ts": entry({ badge: "" }), "src/layout.mprx": LAYOUT('<para class="y">x</para>'), "src/badge.mprx": BADGE })).toEqual([]);
+    expect(await codes({ ...BASIC, "src/main.ts": entry({ badge: "" }), "src/layout.mprx": LAYOUT('<paragraph class="y">x</paragraph>'), "src/badge.mprx": BADGE })).toEqual([]);
   });
 
   it("lets a component place its caller's children, in a default slot and in named ones", async () => {
     const card = '<div class="c"><mesh-slot name="head" /><mesh-slot /></div>';
-    const layout = LAYOUT('<card><mesh-fill slot="head"><para class="h">title</para></mesh-fill><para class="y">body</para></card>');
+    const layout = LAYOUT('<card><mesh-fill slot="head"><paragraph class="h">title</paragraph></mesh-fill><paragraph class="y">body</paragraph></card>');
 
     expect(await codes({ ...BASIC, "src/main.ts": entry({ card: "" }), "src/layout.mprx": layout, "src/card.mprx": card })).toEqual([]);
   });
@@ -317,7 +388,7 @@ describe("a component's contract: declared once, in types, where it is defined",
 });
 
 describe("state declared field by field", () => {
-  const layout = '<shell class="x" theme="light"><para class="y">{count} {theme}</para></shell>';
+  const layout = '<shell class="x" theme="light"><paragraph class="y">{count} {theme}</paragraph></shell>';
   const files = (main: string) => ({ ...BASIC, "src/main.ts": main, "src/layout.mprx": layout });
 
   it("builds the schema and the initial value from the fields, which a layout reads and a command changes", async () => {
@@ -331,7 +402,7 @@ describe("state declared field by field", () => {
 
     const content = readFileSync(join(root, "dist/web/index.html"), "utf8");
 
-    expect(content).toContain("0light");
+    expect(content).toContain("0 light");
   });
 
   it("checks a default against its field's type", async () => {
@@ -366,7 +437,8 @@ describe("state declared field by field", () => {
 
   it("reports a state field the model cannot hold at the field, not as a crash", async () => {
     const main = entry({}, "  state: { when: field(Schema.DateFromSelf, new Date()) },\n");
-    const found = (await check(project({ ...BASIC, "src/main.ts": main, "src/layout.mprx": '<shell class="x" theme="light"><para class="y">x</para></shell>' }))).diagnostics;
+    const found = (await check(project({ ...BASIC, "src/main.ts": main, "src/layout.mprx": '<shell class="x" theme="light"><paragraph class="y">x</paragraph></shell>' })))
+      .diagnostics;
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ file: "src/main.ts", code: "state-type" });

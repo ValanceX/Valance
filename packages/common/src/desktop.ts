@@ -2,7 +2,7 @@
 // content, the compiled program and the author's definition, run; the window itself is the Desktop PORT's, a separate program that starts this one.
 import * as Native from "@valancex/valance/native";
 import { init } from "@valancex/mesh-runtime";
-import type { RenderTree } from "@valancex/mesh-runtime";
+import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
 import { Effect } from "effect";
 import { statSync } from "node:fs";
 import { resolve, sep } from "node:path";
@@ -27,6 +27,8 @@ export interface DesktopParts {
   readonly author?: DefinedApp | undefined;
   /** Where the project's `public/` files are on this machine: an image whose address is a file there is drawn from it. Absent: images are drawn as their descriptions. */
   readonly assets?: string | undefined;
+  /** The theme, resolved for the window (`@valancex/style`'s `resolveForDesktop`): data the engine does not read, given to the window once. Absent: the window keeps its own look. */
+  readonly theme?: BoundaryValue | undefined;
   /** The MESH runtime's module, when the host reads it (the generated entry reads the copy beside the engine). */
   readonly wasm?: Uint8Array | undefined;
 }
@@ -67,7 +69,7 @@ export const withAssets = (tree: RenderTree, assets: string): RenderTree => {
   return { ...tree, root: walk(tree.root as unknown as Node) } as unknown as RenderTree;
 };
 
-export const start = async ({ content, program, author, wasm, assets }: DesktopParts): Promise<void> => {
+export const start = async ({ content, program, author, wasm, assets, theme }: DesktopParts): Promise<void> => {
   if (wasm !== undefined) {
     await init(wasm);
   }
@@ -78,6 +80,7 @@ export const start = async ({ content, program, author, wasm, assets }: DesktopP
   await Native.run(application(content, program, author), {
     // The window follows the system's colors unless the application asks otherwise (`appearance` in `defineApp`), and the application learns the system's (`colorScheme`).
     appearanceOf: (state) => author?.appearance?.(state as never) ?? "system",
+    ...(theme === undefined ? {} : { theme }),
     onScheme: (scheme, handle) => handle.invoke("app/colorScheme", [{ value: scheme }]),
     // Back and Forward, as the window's keys and mouse buttons ask for them: the framework's own commands, which the author's `guard` may refuse.
     onNavigate: (direction, handle) => handle.invoke(direction === "back" ? "app/back" : "app/forward", []),

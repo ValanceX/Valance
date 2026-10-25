@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "dialog",
+  "status": "portable",
+  "modal": true,
+  "role": "dialog",
+  "summary": "A modal layer: while it is open the page behind it is inert, and focus stays inside it. The application owns `open`; when the person asks to close it (Escape, or a press outside it) the dialog raises `dismiss`, and the application decides whether it closes.",
+  "props": {
+    "open": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": true
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "a11y": "name"
+    }
+  },
+  "events": {
+    "dismiss": {
+      "payload": {
+        "kind": "string"
+      },
+      "meaning": "The person asked to close it: the payload is `escape` or `outside`. Nothing closes until the application sets `open` to false."
+    }
+  },
+  "content": "any",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label",
+    "required": true
+  },
+  "keyboard": [
+    {
+      "key": "Escape",
+      "raises": "dismiss"
+    }
+  ],
+  "example": {
+    "props": {
+      "open": true,
+      "label": "Delete this?"
+    },
+    "children": [
+      {
+        "name": "text",
+        "text": "This cannot be undone."
+      },
+      {
+        "name": "button",
+        "text": "Delete"
+      }
+    ]
+  },
+  "earlyInput": "keep"
+}

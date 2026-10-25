@@ -239,18 +239,37 @@ describe("the head", () => {
 
   /** The few members of a document that `applyHead` uses. */
   const fakeDocument = () => {
-    type Element = { readonly tag: string; readonly attributes: Map<string, string>; setAttribute: (name: string, value: string) => void; remove: () => void };
+    type Element = {
+      readonly tag: string;
+      readonly localName: string;
+      readonly attrs: Map<string, string>;
+      readonly attributes: { readonly length: number };
+      setAttribute: (name: string, value: string) => void;
+      getAttribute: (name: string) => string | null;
+      remove: () => void;
+    };
     const children: Array<Element> = [];
-    const element = (tag: string): Element => ({
-      tag,
-      attributes: new Map(),
-      setAttribute(name, value) {
-        this.attributes.set(name, value);
-      },
-      remove() {
-        children.splice(children.indexOf(this), 1);
-      },
-    });
+    const element = (tag: string): Element => {
+      const attrs = new Map<string, string>();
+
+      return {
+        tag,
+        localName: tag,
+        attrs,
+        attributes: {
+          get length() {
+            return attrs.size;
+          },
+        },
+        setAttribute(name, value) {
+          attrs.set(name, value);
+        },
+        getAttribute: (name) => attrs.get(name) ?? null,
+        remove() {
+          children.splice(children.indexOf(this), 1);
+        },
+      };
+    };
     const document = {
       title: "",
       createElement: element,
@@ -258,7 +277,7 @@ describe("the head", () => {
         append: (child: Element) => {
           children.push(child);
         },
-        querySelectorAll: (selector: string) => children.filter((child) => child.attributes.has(selector.slice(1, -1))),
+        querySelectorAll: (selector: string) => children.filter((child) => child.attrs.has(selector.slice(1, -1))),
       },
     };
 
@@ -282,12 +301,31 @@ describe("the head", () => {
     applyHead(page.document, { title: "two", meta: [{ name: "description", content: "2" }] });
 
     expect(page.document.title).toBe("two");
-    expect(page.children.map((child) => [child.tag, child.attributes.get("content") ?? child.attributes.get("rel")])).toEqual([
+    expect(page.children.map((child) => [child.tag, child.attrs.get("content") ?? child.attrs.get("rel")])).toEqual([
       ["link", "stylesheet"],
       ["meta", "2"],
     ]);
     expect(page.children).toContain(foreign);
-    expect(page.children.every((child) => child === foreign || child.attributes.has(HEAD_MARK))).toBe(true);
+    expect(page.children.every((child) => child === foreign || child.attrs.has(HEAD_MARK))).toBe(true);
+  });
+
+  it("leaves an element it wrote that already says the same where it is: a stylesheet link removed and added again would reload, and the page would be unstyled meanwhile", () => {
+    const page = fakeDocument();
+    const head = { meta: [{ name: "description", content: "1" }], links: [{ rel: "stylesheet", href: "/a.css" }] };
+
+    applyHead(page.document, head);
+
+    const before = [...page.children];
+
+    applyHead(page.document, head);
+    expect(page.children).toHaveLength(2);
+    expect(page.children.every((child, index) => child === before[index])).toBe(true);
+
+    applyHead(page.document, { ...head, links: [{ rel: "stylesheet", href: "/b.css" }] });
+    expect(page.children).toHaveLength(2);
+    expect(page.children).toContain(before[0]);
+    expect(page.children).not.toContain(before[1]);
+    expect(page.children.map((child) => child.attrs.get("href") ?? child.attrs.get("content"))).toEqual(["1", "/b.css"]);
   });
 
   it("leaves the document as it was when the head is refused, and leaves the title alone when there is none", () => {

@@ -1,6 +1,6 @@
 {
   "name": "@valancex/cli",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "vlx, the VALANCE command: make an application (vlx init), serve it as you edit (vlx dev), build it to a static site (vlx build), check it (vlx check). Content, layout, components and styles in, a website out.",
   "keywords": [
     "valance",
@@ -49,15 +49,16 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-data.mjs",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "test": "vitest run",
-    "prepack": "tsc -p tsconfig.json"
+    "prepack": "tsc -p tsconfig.json && node scripts/copy-data.mjs"
   },
   "dependencies": {
     "@valancex/common": "workspace:^",
-    "@valancex/mesh-compiler": "^0.11.0",
-    "@valancex/port-desktop-vocabulary": "^0.6.0",
+    "@valancex/mesh-compiler": "^0.15.0 || ^0.16.0 || ^0.17.0",
+    "@valancex/port-desktop-vocabulary": "^0.12.0 || ^0.13.0 || ^0.14.0",
+    "@valancex/style": "workspace:^",
     "@valancex/valance": "workspace:^",
     "effect": "^3.10.0",
     "ink": "7.1.1",
@@ -66,12 +67,16 @@
     "vite": "7.3.6"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^22.0.0",
     "@types/react": "19.2.18",
-    "@valancex/mesh-runtime": "^0.11.0",
+    "@valancex/mesh-runtime": "^0.17.0",
+    "dom-accessibility-api": "^0.7.0",
     "ink-testing-library": "4.0.0",
+    "jsdom": "^26.0.0",
     "playwright": "1.56.1",
     "typescript": "^5.6.0",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "vnu-jar": "^26.10.12"
   }
 }

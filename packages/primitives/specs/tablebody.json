@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "tablebody",
+  "status": "desktop-only",
+  "role": "rowgroup",
+  "summary": "The body rows of a table.",
+  "props": {},
+  "events": {},
+  "content": {
+    "only": ["tablerow"]
+  },
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "within": ["table"],
+  "example": {}
+}

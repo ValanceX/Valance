@@ -129,6 +129,15 @@ describe("the interface is for a terminal", () => {
 });
 
 describe("the scaffold", () => {
+  it("keeps session recordings out of the repository (R16): the web and the desktop templates list them", () => {
+    for (const target of ["web", "desktop"]) {
+      const text = readFileSync(join(PACKAGE, "templates", target, "gitignore"), "utf8");
+
+      expect(text).toContain(".valance/sessions/");
+      expect(text).toContain("*.session.jsonl");
+    }
+  });
+
   it("writes the web template, the project files and a package.json that runs vlx", () => {
     const dir = scratch();
     const written = scaffold(answers(join(dir, "my-notes"), { cli: "^1.2.3" }));

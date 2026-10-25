@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "text",
+  "status": "portable",
+  "role": "generic",
+  "summary": "A run of text. Text is text: nothing in it is markup. Its `id` is what a control's `describedby` points at.",
+  "props": {
+    "id": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "description-target"
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "id": "hint"
+    },
+    "text": "Say something"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "section",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "A section of the content. HTML-AAM: a region landmark when it has a name, generic when it has none.",
+  "props": {},
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "x"
+  }
+}

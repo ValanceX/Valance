@@ -27,7 +27,7 @@ describe("what the application package depends on", () => {
         .map((name) => (name.startsWith("node:") ? "node" : name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0]!)),
     );
 
-    expect([...names].sort()).toEqual(["@valancex/common", "@valancex/mesh-compiler", "@valancex/valance", "effect", "node", "vite"]);
+    expect([...names].sort()).toEqual(["@valancex/common", "@valancex/mesh-compiler", "@valancex/style", "@valancex/valance", "effect", "node", "vite"]);
   });
 
   it("draws with Ink only from src/ui, which nothing but the command loads, and only when it is going to draw", () => {

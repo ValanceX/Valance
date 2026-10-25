@@ -1,0 +1,182 @@
+// The source of `@valancex/common`'s `primitives.ts`, generated from the specifications and the web's realizations: the table `createWebPort` is given (what each tag is on the web), and the
+// declarations of its manifest (the type and whether it is required of each prop, as the specification says). The file is committed, and a test fails when it is not what this writes, so a change to
+// a specification or a realization reaches the table only by being generated (`pnpm --filter @valancex/primitives generate`).
+import { manifestEntry } from "./manifest.js";
+import type { EventRealization, PropRealization, Specification, WebRealizations } from "./types.js";
+
+const key = (name: string): string => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name));
+
+const extract = {
+  checked: "(_event, element) => (element as HTMLInputElement).checked",
+  value: "(_event, element) => (element as HTMLInputElement).value",
+  notPressed: '(_event, element) => element.getAttribute("aria-pressed") !== "true"',
+} as const;
+
+const propSource = (realization: PropRealization): string => {
+  switch (realization.kind) {
+    case "attribute":
+      return `Web.attribute(${JSON.stringify(realization.name)})`;
+    case "boolean-attribute":
+      return `Web.booleanAttribute(${JSON.stringify(realization.name)})`;
+    case "controlled":
+      return `Web.controlled(${JSON.stringify(realization.name)})`;
+    case "controlled-boolean":
+      return `Web.controlledBoolean(${JSON.stringify(realization.name)})`;
+    case "element":
+      return `Web.elementWhen!(${JSON.stringify(realization.name)})`;
+    case "layer":
+      return `Web.layerProp!(${JSON.stringify(realization.name)})`;
+    case "text-property":
+      return `Web.textProperty(${JSON.stringify(realization.name)})`;
+    case "property":
+      return `Web.property(${JSON.stringify(realization.name)}, ${JSON.stringify(realization.holds)})`;
+  }
+};
+
+const eventSource = (realization: EventRealization): string => {
+  if (realization.raised === true) {
+    return "Web.layerDismiss!";
+  }
+
+  const payload = realization.payload === undefined ? "undefined" : `{ kind: ${JSON.stringify(realization.payload.kind)}, of: ${extract[realization.payload.of]} }`;
+  const key_ = realization.key === undefined ? "" : `, { key: ${JSON.stringify(realization.key)} }`;
+
+  return realization.payload === undefined && realization.key === undefined
+    ? `Web.event(${JSON.stringify(realization.type)})`
+    : `Web.event(${JSON.stringify(realization.type)}, ${payload}${key_})`;
+};
+
+export const generatePrimitives = (specifications: Readonly<Record<string, Specification>>, realizations: WebRealizations): string => {
+  const tags: string[] = [];
+  const declared: Record<string, unknown> = {};
+
+  for (const [tag, each] of Object.entries(realizations.primitives)) {
+    const parts = [`element: ${JSON.stringify(each.element)}`];
+
+    if (each.attributes !== undefined) {
+      parts.push(`attributes: ${JSON.stringify(each.attributes)}`);
+    }
+
+    if (each.props !== undefined) {
+      parts.push(
+        `props: { ${Object.entries(each.props)
+          // A prop that chooses the element needs PORT Web 0.11: without it the prop is left out (and a template that writes it is refused as an unrealized prop), and everything else works.
+          .map(([name, how]) => (how.kind === "element" ? `...(Web.elementWhen === undefined ? {} : { ${key(name)}: ${propSource(how)} })` : `${key(name)}: ${propSource(how)}`))
+          .join(", ")} }`,
+      );
+    }
+
+    if (each.events !== undefined) {
+      parts.push(
+        `events: { ${Object.entries(each.events)
+          .map(([name, how]) => `${key(name)}: ${eventSource(how)}`)
+          .join(", ")} }`,
+      );
+    }
+
+    if (each.group !== undefined) {
+      // `group` is PORT Web 0.11's; spread from an untyped object so that the table builds against a PORT whose `WebPrimitive` does not have it (which ignores it).
+      parts.push(`...({ group: ${JSON.stringify(each.group)} } as object)`);
+    }
+
+    if (each.layer !== undefined) {
+      // `layer` is PORT Web 0.12's; as with `group`, the table builds against a PORT whose `WebPrimitive` does not have it, and then a layer is left out (a template that writes it is refused as an unknown component).
+      parts.push(`...({ layer: ${JSON.stringify(each.layer)} } as object)`);
+      tags.push(`  ...(Web.layerProp === undefined ? {} : { ${key(tag)}: { ${parts.join(", ")} } }),`);
+    } else {
+      tags.push(`  ${key(tag)}: { ${parts.join(", ")} },`);
+    }
+
+    const entry = manifestEntry(specifications, tag, each);
+
+    declared[tag] = { props: entry.props, events: entry.events };
+  }
+
+  const tagOf = (primitive: string): string => Object.entries(realizations.primitives).find(([, each]) => each.primitive === primitive)?.[0] ?? primitive;
+  const rules = { named: [] as string[], modal: [] as string[], only: {} as Record<string, string[]>, within: {} as Record<string, string[]> };
+
+  for (const [tag, each] of Object.entries(realizations.primitives)) {
+    const specification = specifications[each.primitive]!;
+
+    if (specification.accessibleName.required === true) {
+      rules.named.push(tag);
+    }
+
+    if (specification.modal === true) {
+      rules.modal.push(tag);
+    }
+
+    if (typeof specification.content === "object") {
+      rules.only[tag] = specification.content.only.map(tagOf);
+    }
+
+    if (specification.within !== undefined) {
+      rules.within[tag] = specification.within.flatMap((primitive) =>
+        Object.entries(realizations.primitives)
+          .filter(([, other]) => other.primitive === primitive)
+          .map(([name]) => name),
+      );
+    }
+  }
+
+  return `// GENERATED by @valancex/primitives from its specifications (specs/) and the web's realizations (realizations/web.json): do not edit; \`pnpm --filter @valancex/primitives generate\` writes it.
+//
+// The tags a layout or component may use, and the element each becomes. This is the vocabulary of the application model: a template says \`<nav>\`, \`<link>\`, \`<paragraph>\`, and this table says what they
+// are on the web. It is also what the MESH manifest is derived from (and \`declared\` below says what the specification adds to the derivation: a prop's type and whether a use must write it), so a tag
+// that is not here is a compile error that names it.
+import * as Web from "@valancex/valance/web";
+
+export const primitives: Web.WebPrimitives = {
+${tags.join("\n")}
+};
+
+/** What each tag's props and events are, as the specification states them (the derivation from the table alone cannot say whether a prop is required, nor type one realized as text). */
+export const declared: Readonly<Record<string, { readonly props: Readonly<Record<string, { readonly type: Readonly<Record<string, unknown>>; readonly required: boolean }>>; readonly events: Readonly<Record<string, { readonly payload?: Readonly<Record<string, unknown>> }>> }>> = ${JSON.stringify(declared, null, 2)};
+
+/** The tags that were renamed (decision P7), old to new: a template that writes the old one is told the new. */
+export const renamed: Readonly<Record<string, string>> = ${JSON.stringify(realizations.renamed ?? {}, null, 2)};
+
+/** The props that were renamed (decision I29), by tag, old to new: a template that writes the old one is told the new. */
+export const renamedProps: Readonly<Record<string, Readonly<Record<string, string>>>> = ${JSON.stringify(realizations.renamedProps ?? {}, null, 2)};
+
+/** What a use of a tag must satisfy besides its props (\`vlx\` checks it): the tags that need a name (a \`label\` prop, or a \`label\` around them), the tags a tag may contain only, and the tags a tag must be inside. */
+export const rules: { readonly named: ReadonlyArray<string>; readonly modal: ReadonlyArray<string>; readonly only: Readonly<Record<string, ReadonlyArray<string>>>; readonly within: Readonly<Record<string, ReadonlyArray<string>>> } = ${JSON.stringify(rules, null, 2)};
+`;
+};
+
+/**
+ * What the style contract needs to know of the primitives, as the source of `@valancex/style`'s `primitives.ts`: for each primitive, whether a person acts on it, the semantic states it declares, the style
+ * variants it takes and the attribute the web realizes each as, the hook a stylesheet reaches its root by, and the selector of each state. A projection of the specifications and the web realization:
+ * `@valancex/style` knows nothing of the specification files, so it can be published without them, and a test fails when this file is not what this writes.
+ */
+export const generateStylePrimitives = (specifications: Readonly<Record<string, Specification>>, realizations: WebRealizations): string => {
+  const out: Record<string, unknown> = {};
+
+  for (const specification of Object.values(specifications)) {
+    const tags = Object.entries(realizations.primitives).filter(([, each]) => each.primitive === specification.name);
+    const realized = tags.map(([, each]) => each);
+    const hook = realized.map((each) => each.attributes?.["data-vlx"]).find((value) => value !== undefined);
+    const first = realized[0];
+
+    out[specification.name] = {
+      status: specification.status,
+      interactive: specification.keyboard.length > 0,
+      states: Object.keys(specification.states ?? {}),
+      variants: (specification.variants ?? []).map((name) => {
+        const realization = first?.props?.[name];
+
+        return { name, attribute: realization !== undefined && "name" in realization ? realization.name : `data-${name}` };
+      }),
+      ...(hook === undefined ? {} : { hook }),
+      stateSelectors: first?.style?.states ?? {},
+    };
+  }
+
+  return `// GENERATED by @valancex/primitives from its specifications and the web's realizations: do not edit; \`pnpm --filter @valancex/primitives generate\` writes it.
+//
+// What the style contract needs to know of each primitive (see \`generateStylePrimitives\` in @valancex/primitives). \`@valancex/style\` reads this, never the specification files.
+import type { PrimitiveInfo } from "./types.js";
+
+export const primitives: Readonly<Record<string, PrimitiveInfo>> = ${JSON.stringify(out, null, 2)};
+`;
+};

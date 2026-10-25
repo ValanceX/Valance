@@ -25,7 +25,7 @@ describe("dependency boundary", () => {
   });
 
   it("Valance's core (index, internal, errors) names no PORT package and nothing Web; only the ./web entries do", () => {
-    for (const file of ["index.ts", "internal.ts", "errors.ts"]) {
+    for (const file of ["index.ts", "internal.ts", "errors.ts", "units.ts"]) {
       const core = source(file);
 
       expect(
@@ -35,8 +35,10 @@ describe("dependency boundary", () => {
       expect(core, file).not.toMatch(/\b(DOM|Element|document|window|HTML|Web)\b/);
     }
 
-    for (const file of readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts")) {
-      expect(file.startsWith("web") || file === "native.ts", file).toBe(true);
+    for (const file of readdirSync(here("../src/")).filter(
+      (name) => name.endsWith(".ts") && name !== "index.ts" && name !== "internal.ts" && name !== "errors.ts" && name !== "units.ts",
+    )) {
+      expect(file.startsWith("web") || file === "native.ts" || file === "replay.ts" || file === "generate.ts", file).toBe(true);
     }
   });
 
@@ -45,6 +47,38 @@ describe("dependency boundary", () => {
 
     expect(importsOf(native).filter((name) => name.includes("port") || name.includes("web"))).toEqual([]);
     expect([...new Set(importsOf(native))].sort()).toEqual(["./index.js", "@valancex/mesh-runtime", "effect", "node:readline", "node:stream"]);
+  });
+
+  it("the replay feature (the session log, its player and its recorder) names no PORT, nothing of the web and no Node module: only the MESH runtime; and the core knows it only as a type", () => {
+    const replay = source("replay.ts");
+
+    expect([...new Set(importsOf(replay))].sort()).toEqual(["@valancex/mesh-runtime"]);
+    expect(replay).not.toMatch(/\b(DOM|Element|document|window|HTML|port-web)\b/);
+
+    // the core reaches it through `import type` alone, so nothing of it is in a production bundle that does not record
+    const core = source("index.ts");
+    const imports = core.split("\n").filter((line) => line.includes('"./replay.js"'));
+
+    expect(imports).toEqual(['import type { SessionRecorder } from "./replay.js";']);
+  });
+
+  it("the generated-UI feature names no PORT, nothing of the web and no Node module: only the MESH compiler and the replay hashes; nothing else in the package, in the CLI or in the common package imports it, so no page's start-up set holds it", () => {
+    const generate = source("generate.ts");
+
+    expect([...new Set(importsOf(generate))].sort()).toEqual(["./index.js", "./replay.js", "@valancex/mesh-compiler"]);
+    expect(generate).not.toMatch(/\b(DOM|Element|document|window|HTML|port-web)\b/);
+    // the one import of the application's own module is a type
+    expect(generate.split("\n").filter((line) => line.includes('"./index.js"'))).toEqual(['import type { Program } from "./index.js";']);
+
+    const others = readdirSync(here("../src/")).filter((name) => name.endsWith(".ts") && name !== "generate.ts");
+
+    expect(others.filter((name) => source(name).includes("generate.js"))).toEqual([]);
+
+    for (const dir of ["../../cli/src/", "../../common/src/", "../../router/src/", "../../style/src/"]) {
+      for (const name of readdirSync(here(dir)).filter((each) => each.endsWith(".ts"))) {
+        expect(readFileSync(here(dir + name), "utf8"), dir + name).not.toMatch(/@valancex\/valance\/generate/);
+      }
+    }
   });
 
   it("Valance depends on NEXUS, and on PORT Web only optionally", () => {

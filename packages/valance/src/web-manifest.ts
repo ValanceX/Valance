@@ -41,9 +41,12 @@ export class ManifestError extends Error {
 /** A MESH type (manifest format 1). */
 export type MeshType =
   | { readonly kind: "string" | "number" | "boolean" | "null" | "any" }
+  | { readonly kind: "enum"; readonly values: ReadonlyArray<string> }
   | { readonly kind: "list"; readonly element: MeshType }
   | { readonly kind: "record"; readonly fields: Readonly<Record<string, { readonly type: MeshType; readonly required: boolean }>> }
-  | { readonly kind: "optional"; readonly type: MeshType };
+  | { readonly kind: "optional"; readonly type: MeshType }
+  /** A piece of template with these parameters (MESH 0.14): the type of a composite's prop or scope name, and nowhere else. */
+  | { readonly kind: "snippet"; readonly params: ReadonlyArray<MeshType> };
 
 export interface Manifest {
   readonly version: 1;
@@ -52,7 +55,7 @@ export interface Manifest {
     Record<
       string,
       {
-        readonly props: Readonly<Record<string, { readonly type: MeshType; readonly required: boolean }>>;
+        readonly props: Readonly<Record<string, { readonly type: MeshType; readonly required: boolean; readonly default?: unknown }>>;
         readonly events: Readonly<Record<string, { readonly payload?: MeshType }>>;
         readonly commands: Readonly<Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }>>;
         readonly scope: Readonly<Record<string, MeshType>>;
@@ -92,11 +95,31 @@ const typeOf = (ast: AST.AST, path: string): MeshType => {
         return { kind: "null" };
       }
 
-      return { kind: typeof ast.literal === "number" ? "number" : typeof ast.literal === "boolean" ? "boolean" : "string" };
+      // A string literal is a closed set of one (the model keeps what the schema says); a number or boolean literal is its primitive.
+      return typeof ast.literal === "string"
+        ? { kind: "enum", values: [ast.literal] }
+        : { kind: typeof ast.literal === "number" ? "number" : typeof ast.literal === "boolean" ? "boolean" : "string" };
     case "Refinement":
       return typeOf(ast.from, path);
     case "Union": {
       const members = ast.types.filter((member) => member._tag !== "UndefinedKeyword");
+      // A union made only of string literals (however nested) is a closed set, an `enum`; mixed with `string` it is just a string.
+      const literals = (member: AST.AST): ReadonlyArray<string> | undefined =>
+        member._tag === "Literal" && typeof member.literal === "string"
+          ? [member.literal]
+          : member._tag === "Union"
+            ? member.types.every((each) => each._tag === "UndefinedKeyword" || literals(each) !== undefined)
+              ? member.types.filter((each) => each._tag !== "UndefinedKeyword").flatMap((each) => literals(each)!)
+              : undefined
+            : undefined;
+      const closed = members.length > 0 ? members.map(literals) : undefined;
+
+      if (closed !== undefined && closed.every((each) => each !== undefined)) {
+        const only: MeshType = { kind: "enum", values: [...new Set(closed.flat() as ReadonlyArray<string>)] };
+
+        return members.length === ast.types.length ? only : { kind: "optional", type: only };
+      }
+
       const kinds = new Set(members.map((member) => typeOf(member, path)).map((type) => JSON.stringify(type)));
 
       if (kinds.size !== 1) {
@@ -151,6 +174,16 @@ const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.Typ
 // ---- the three sources ---------------------------------------------------------------------------------------------------------------------------------------------
 
 const propOf = (name: string, realization: NonNullable<WebPrimitives[string]["props"]>[string], path: string): Field => {
+  // A prop that chooses the element (PORT Web 0.11) is a boolean the template may leave out; compared as text so that this builds against a PORT whose kinds do not have it.
+  if ((realization as { readonly kind: string }).kind === "element") {
+    return { type: { kind: "boolean" }, required: false };
+  }
+
+  // A layer's prop (PORT Web 0.12): its `open` is a boolean, its `anchor` and `placement` are text; the specification says which a use must write.
+  if ((realization as { readonly kind: string }).kind === "layer") {
+    return { type: { kind: (realization as unknown as { readonly name: string }).name === "open" ? "boolean" : "string" }, required: false };
+  }
+
   switch (realization.kind) {
     case "attribute":
     case "controlled":
@@ -170,6 +203,11 @@ const tagOf = (tag: string, primitive: WebPrimitives[string]): Manifest["compone
   props: Object.fromEntries(Object.entries(primitive.props ?? {}).map(([name, realization]) => [name, propOf(name, realization, `${tag}.${name}`)])),
   events: Object.fromEntries(
     Object.entries(primitive.events ?? {}).map(([name, realization]) => {
+      // a layer's dismissal is raised by the PORT with the reason as its payload
+      if ((realization as { readonly raised?: boolean }).raised === true) {
+        return [name, { payload: { kind: "string" } as MeshType }];
+      }
+
       if (realization.payload === undefined) {
         return [name, {}];
       }

@@ -2,6 +2,7 @@
 // `<callout>`), and the framework's own (`views/` in this package) fill in what the author did not write. A template with the same name as a built-in replaces it. The manifest MESH checks
 // the templates against is derived (Valance's `manifest`) from the tag table, the layout's scope and the command table, so there is no manifest file to keep in step.
 import { compileProgram } from "@valancex/mesh-compiler";
+import type { Template as CompiledTemplate } from "@valancex/mesh-compiler";
 import type * as Valance from "@valancex/valance";
 import { manifest } from "@valancex/valance/web/build";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -13,13 +14,14 @@ import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { DefinedApp } from "@valancex/common";
 import type { Node, Place } from "./tree.js";
-import { declarationsOf, linked, nameOf, treeOf } from "./tree.js";
+import { declarationsOf, declaredOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
 import { locateKey } from "./wiring.js";
 import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
-import { ENTRY_FILE } from "./project.js";
+import { checkReferences, checkTemplate } from "./rules.js";
+import { ENTRY_FILE, GENERATED_DIR } from "./project.js";
 
 export const SOURCE_DIR = "src";
 /** The component the page is drawn by. */
@@ -106,10 +108,33 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
     const name = nameOf(each.template.mprx);
 
     if (!builtInNames.has(name) && name !== ROOT) {
+      problem(at(each.template.mprx), "override-unknown", `<${name}> is not a built-in component, so there is nothing to override; register it in \`components\` instead`);
+    }
+  }
+
+  // A name is one component. Two files of one name, from anywhere in the definition (two libraries', or a library's and the application's), are an error: the first listed must not win silently
+  // (decision K14). A component that is not listed in `override` and is named like a built-in is the same collision, with the built-in.
+  // TODO(K14): qualified ids (`acme-ui/disclosure`) will let a library's component be named and overridden without renaming a file; until then the way out of a collision is to rename one.
+  const listed = declaredOf(layout, overrides, author?.components ?? []);
+  const firstOf = new Map<string, string>();
+
+  for (const each of listed) {
+    const first = firstOf.get(each.name);
+
+    if (first === undefined) {
+      firstOf.set(each.name, each.file);
+      if (each.role === "component" && builtInNames.has(each.name) && !listed.some((other) => other.role !== "component" && other.name === each.name)) {
+        problem(
+          at(each.file),
+          "template-builtin",
+          `${each.file} is <${each.name}>, which is also a built-in component: list it in \`override\` to replace the built-in, or rename the file so both can be used`,
+        );
+      }
+    } else if (first !== each.file) {
       problem(
-        at(each.template.mprx),
-        "override-unknown",
-        `<${name}> is not a built-in component, so there is nothing to override; list it in the \`uses\` of the component that uses it`,
+        at(each.file),
+        "template-duplicate",
+        `${each.file} is also <${each.name}>, like ${first}: a component is named by its file, so the name must be unique; rename one of the files`,
       );
     }
   }
@@ -119,10 +144,6 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   for (const node of declared) {
     const place = at(node.file);
 
-    if (files.has(node.name) && files.get(node.name) !== node.file) {
-      problem(place, "template-duplicate", `${files.get(node.name)} is also <${node.name}>: a component is named by its file, so the name must be unique`);
-      continue;
-    }
     if (namesOf(vocabulary).includes(node.name)) {
       problem(place, "template-primitive", `<${node.name}> is already a tag the framework draws as an element; name the file something else`);
       continue;
@@ -146,7 +167,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   const whole = ((author as unknown as Record<symbol, DefinedApp | undefined> | undefined)?.[WHOLE] ?? author) as DefinedApp | undefined;
 
   for (const parts of [whole, ...Object.values(whole?.targets ?? {})]) {
-    for (const node of treeOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
+    for (const node of declaredOf(parts?.layout, parts?.override ?? [], parts?.components ?? [])) {
       claimed.add(node.file);
     }
   }
@@ -212,8 +233,24 @@ export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabular
     return { ...derived, components: { ...vocabulary.components, ...derived.components } };
   }
 
-  // The props the vocabulary says a template may leave out.
+  // What the vocabulary declares of a tag's props and events (the specification's) settles what the table alone derived.
   const components = { ...derived.components } as Record<string, (typeof derived.components)[string]>;
+
+  for (const [tag, declared] of Object.entries(vocabulary.declared ?? {})) {
+    const entry = components[tag];
+
+    if (entry !== undefined) {
+      components[tag] = {
+        ...entry,
+        props: Object.fromEntries(Object.entries(entry.props).map(([name, prop]) => [name, declared.props[name] === undefined ? prop : { ...prop, ...declared.props[name] }])),
+        events: Object.fromEntries(
+          Object.entries(entry.events).map(([name, event]) => [name, declared.events[name] === undefined ? event : { ...event, ...declared.events[name] }]),
+        ),
+      } as never;
+    }
+  }
+
+  // The props the vocabulary says a template may leave out.
 
   for (const [tag, names] of Object.entries(vocabulary.optional ?? {})) {
     const entry = components[tag];
@@ -276,14 +313,16 @@ const modelOf = (root: string, author: DefinedApp | undefined, tree: ReadonlyArr
     const site = declarations.get(node.file);
 
     for (const each of bad) {
-      const place = site?.member(each.kind, each.name) ?? site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
+      const place = site?.member(each.kind === "unit" ? "props" : each.kind, each.name) ?? site?.call ?? site?.imported ?? { file: ENTRY_FILE, line: 1, column: 1 };
 
       problems.push(
         diagnostic(
           place.file,
           place.line,
           "component-schema",
-          `${node.name}'s ${each.kind === "props" ? "prop" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`,
+          each.message === undefined
+            ? `${node.name}'s ${each.kind === "props" ? "prop" : each.kind === "unit" ? "unit field or command" : "event"} "${each.name}" has no type the model can hold: ${each.reason}`
+            : `${node.name}: ${each.message}`,
           place.column,
         ),
       );
@@ -316,6 +355,45 @@ export interface Compiled {
   readonly templates: ReadonlyArray<{ readonly component: string; readonly file: string; readonly source: string; readonly builtIn: boolean }>;
 }
 
+/** The anchors of the content's headings: the ids the built-in views give them (the generated `content.json`, which the content stage wrote before this one). */
+const anchorsOf = (root: string): ReadonlySet<string> => {
+  try {
+    const content = JSON.parse(readFileSync(join(root, GENERATED_DIR, "content.json"), "utf8")) as {
+      readonly pages?: ReadonlyArray<{ readonly blocks?: ReadonlyArray<{ readonly anchor?: string }> }>;
+    };
+
+    return new Set((content.pages ?? []).flatMap((page) => (page.blocks ?? []).flatMap((block) => (block.anchor === undefined ? [] : [block.anchor]))));
+  } catch {
+    return new Set();
+  }
+};
+
+/** A tag the web renamed (decision P7: `para` is `paragraph`): said where a template still writes the old one. */
+const renamedHint = (
+  vocabulary: Vocabulary,
+  used: ReadonlyArray<{ readonly path: string; readonly source: string }>,
+  at: { readonly path: string; readonly message?: string; readonly span: { readonly start: { readonly line: number; readonly column: number } } },
+): string => {
+  // a prop the web renamed (decision I29: a popover's `kind` is `mode`): the diagnostic names the tag and the prop
+  const prop = /component "([^"]+)" has no prop "([^"]+)"/.exec(at.message ?? "");
+  const renamedProp = prop === null || !("tags" in vocabulary) ? undefined : vocabulary.renamedProps?.[prop[1]!]?.[prop[2]!];
+
+  if (renamedProp !== undefined) {
+    return ` (\`${prop![2]}\` on \`${prop![1]}\` is now \`${renamedProp}\`)`;
+  }
+
+  const renamed = "tags" in vocabulary ? vocabulary.renamed : undefined;
+  const line = used.find((template) => template.path === at.path)?.source.split("\n")[at.span.start.line - 1];
+
+  if (renamed === undefined || line === undefined) {
+    return "";
+  }
+
+  const tag = /<\/?([A-Za-z][\w-]*)/.exec(line.slice(Math.max(0, at.span.start.column - 2)))?.[1];
+
+  return tag !== undefined && Object.hasOwn(renamed, tag) ? ` (\`${tag}\` is now \`${renamed[tag]}\`)` : "";
+};
+
 /** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
 export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
   const { all, tree } = templatesOf(root, author, vocabulary, views);
@@ -342,7 +420,9 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
               each.path,
               each.span.start.line,
               each.code,
-              each.message + (each.suggestions.length > 0 ? ` (did you mean ${each.suggestions.map((suggestion) => `"${suggestion.replacement}"`).join(" or ")}?)` : ""),
+              each.message +
+                (each.suggestions.length > 0 ? ` (did you mean ${each.suggestions.map((suggestion) => `"${suggestion.replacement}"`).join(" or ")}?)` : "") +
+                renamedHint(vocabulary, used, each),
               each.span.start.column,
             ),
           ),
@@ -367,6 +447,35 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
   }
 
   const program = result.program as unknown as Valance.Program;
+  const rules = "tags" in vocabulary ? vocabulary.rules : undefined;
+
+  if (rules !== undefined) {
+    const texts = (program as unknown as { readonly templates: ReadonlyArray<string> }).templates;
+    const known = new Set(namesOf(vocabulary));
+    const broken = used.flatMap((template, index) =>
+      checkTemplate(
+        template.path,
+        template.source,
+        JSON.parse(texts[index] ?? "{}") as CompiledTemplate,
+        rules,
+        known,
+        tree.find((node) => node.name === template.component)?.interface?.name,
+      ),
+    );
+
+    const compiled = used.map((template, index) => ({
+      file: template.path,
+      source: template.source,
+      template: JSON.parse(texts[index] ?? "{}") as CompiledTemplate,
+      builtIn: template.builtIn,
+    }));
+    broken.push(...checkReferences(compiled, anchorsOf(root)));
+
+    if (broken.length > 0) {
+      throw new AppError(broken.map((each) => relocate(each, root)));
+    }
+  }
+
   const enriched = (program as unknown as { readonly model: unknown }).model;
   const manifestOfProgram = typeof enriched === "string" ? JSON.parse(enriched) : enriched;
 

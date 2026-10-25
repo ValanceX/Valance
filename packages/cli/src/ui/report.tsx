@@ -108,6 +108,11 @@ export const BuildResult = ({ built, seconds }: { readonly built: Built; readonl
         · {plural(built.files.length, "file")} → {built.dir} · {seconds.toFixed(1)}s
       </Text>
     </Text>
+    {(built.report ?? []).map((line, index) => (
+      <Text key={index} dimColor={!/WARNING|ERROR/.test(line)} {...(/WARNING/.test(line) ? { color: "yellow" } : /ERROR/.test(line) ? { color: "red" } : {})}>
+        {line}
+      </Text>
+    ))}
   </Box>
 );
 

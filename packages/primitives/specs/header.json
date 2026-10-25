@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "header",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "The introductory content of a page or section. HTML-AAM: a banner landmark when it is the page's header, otherwise generic; landmarks are outside version 1's role set.",
+  "props": {
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "props": {
+      "class": "x"
+    },
+    "text": "x"
+  },
+  "webRole": "banner"
+}

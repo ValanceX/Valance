@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "strong",
+  "status": "portable",
+  "role": "strong",
+  "summary": "Text of strong importance.",
+  "props": {},
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "Careful"
+  }
+}

@@ -15,7 +15,7 @@ afterEach(() => {
 const read = (root: string, file: string): string => readFileSync(join(root, file), "utf8");
 const BASE = { "content/index.md": PAGE("Home") };
 const MAIN = 'import { component, defineApp } from "@valancex/common";\nimport layout from "./layout.mprx";\n\nexport default defineApp({\n  layout: component(layout),\n});\n';
-const LAYOUT = '<shell class="x" theme="light"><para class="p">hi</para></shell>';
+const LAYOUT = '<shell class="x" theme="light"><paragraph class="p">hi</paragraph></shell>';
 
 describe("vlx generate page", () => {
   it("writes the page with its front matter, from whatever form of the path was typed", () => {
@@ -93,7 +93,7 @@ describe("vlx generate component", () => {
 
     expect(componentProblem("Callout")).toMatch(/cannot be a tag/);
     expect(componentProblem("layout")).toMatch(/page's shell/);
-    expect(componentProblem("para")).toMatch(/already a tag/);
+    expect(componentProblem("paragraph")).toMatch(/already a tag/);
     expect(componentProblem("blocks")).toMatch(/built-in/);
     expect(() => generateComponent(root, "layout")).toThrow();
     generateComponent(root, "callout");
@@ -107,7 +107,7 @@ describe("vlx generate component", () => {
     generateComponent(root, "callout");
     expect((await check(root)).components).not.toContain("callout");
 
-    writeFileSync(join(root, "src/layout.mprx"), '<shell class="x" theme="light"><callout><para class="p">hi</para></callout></shell>');
+    writeFileSync(join(root, "src/layout.mprx"), '<shell class="x" theme="light"><callout><paragraph class="p">hi</paragraph></callout></shell>');
 
     const checked = await check(root);
 
@@ -134,7 +134,7 @@ describe("the command", () => {
   });
 
   it("syncs by itself after generate: the new component's types are there, with no other command run", async () => {
-    const root = project({ ...BASE, "src/main.ts": MAIN, "src/layout.mprx": '<shell class="x" theme="light"><callout><para class="p">hi</para></callout></shell>' });
+    const root = project({ ...BASE, "src/main.ts": MAIN, "src/layout.mprx": '<shell class="x" theme="light"><callout><paragraph class="p">hi</paragraph></callout></shell>' });
     const { out } = quiet();
 
     expect(await main(["generate", "component", "callout"], root)).toBe(0);

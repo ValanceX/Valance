@@ -2,6 +2,8 @@
 
 The exact behavior of every public name. The reference itself is the [**V1 contract**](../V1_CONTRACT.md); this page is the index to it by name. New to VALANCE? Start with [Learn](../learn/README.md).
 
+Looks and themes: [Themes](themes.md). State for one occurrence of a component: [Units](units.md). Forms from the schema: [Forms](forms.md). Dialogs and popovers: [Layers](layers.md). Recording a session and replaying it, and the conformance report: [Replay and conformance](replay.md). Letting a model write the interface, checked as it arrives: [Generated UI](generate.md).
+
 Package entries: `@valancex/valance` (core), `@valancex/valance/web` (browser target, history, host), `@valancex/valance/web/server` (server rendering), `@valancex/valance/web/build` (the manifest from a definition). What each promises: [API stability](../stability.md). `@valancex/valance/internal` is outside the contract.
 
 ## Core: `@valancex/valance`
@@ -97,4 +99,4 @@ The contract names NEXUS and MESH types where they appear in a signature (`Comma
 
 ## The desktop vocabulary
 
-What a template may write for a native window: [the desktop vocabulary](desktop-vocabulary.md).
+What a template may write: [the primitives](primitives.md) (role, name, states, props and events of each), and for a native window [the desktop vocabulary](desktop-vocabulary.md).

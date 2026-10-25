@@ -1,0 +1,6221 @@
+{
+ "version": 1,
+ "spec": "primitives@1",
+ "vectors": [
+  {
+   "id": "column/example",
+   "primitive": "column",
+   "case": "example",
+   "requires": [
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "column",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "a"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "a",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "row/example",
+   "primitive": "row",
+   "case": "example",
+   "requires": [
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "row",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "a"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "a",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "heading/example",
+   "primitive": "heading",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "heading",
+       "props": {
+        "level": 3
+       },
+       "propText": {
+        "level": "3"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Title"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "heading",
+      "name": "Title",
+      "text": "Title",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "heading/hostile:level",
+   "primitive": "heading",
+   "case": "hostile:level",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "heading",
+       "props": {
+        "level": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Title"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "text/example",
+   "primitive": "text",
+   "case": "example",
+   "requires": [
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "text",
+       "props": {
+        "id": "hint"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Say something"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Say something",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "text/hostile:id",
+   "primitive": "text",
+   "case": "hostile:id",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "text",
+       "props": {
+        "id": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Say something"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "paragraph/example",
+   "primitive": "paragraph",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "paragraph",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Some text."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "paragraph",
+      "text": "Some text.",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "paragraph/hostile:id",
+   "primitive": "paragraph",
+   "case": "hostile:id",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "paragraph",
+       "props": {
+        "id": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Some text."
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "blockquote/example",
+   "primitive": "blockquote",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "blockquote",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Quoted."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "blockquote",
+      "text": "Quoted.",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "list/example",
+   "primitive": "list",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "list",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "listitem",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "One"
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "listitem",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Two"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "list",
+      "text": "OneTwo",
+      "enabled": true,
+      "children": [
+       "k0.0",
+       "k0.1"
+      ]
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.0",
+     "expect": {
+      "key": "k0.0",
+      "text": "One"
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.1",
+     "expect": {
+      "key": "k0.1",
+      "text": "Two"
+     }
+    }
+   ]
+  },
+  {
+   "id": "list/hostile:ordered",
+   "primitive": "list",
+   "case": "hostile:ordered",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "list",
+       "props": {
+        "ordered": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "listitem",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "One"
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "listitem",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Two"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "list/example@olist",
+   "primitive": "list",
+   "case": "example@olist",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "olist",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "listitem",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "One"
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "listitem",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Two"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "list",
+      "text": "OneTwo",
+      "enabled": true,
+      "children": [
+       "k0.0",
+       "k0.1"
+      ]
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.0",
+     "expect": {
+      "key": "k0.0",
+      "text": "One"
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.1",
+     "expect": {
+      "key": "k0.1",
+      "text": "Two"
+     }
+    }
+   ]
+  },
+  {
+   "id": "listitem/example",
+   "primitive": "listitem",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "listitem",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "One"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "listitem",
+      "text": "One",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "code/example",
+   "primitive": "code",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "code",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "x = 1"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "code",
+      "text": "x = 1",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "strong/example",
+   "primitive": "strong",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "strong",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Careful"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "strong",
+      "text": "Careful",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "emphasis/example",
+   "primitive": "emphasis",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "em",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "really"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "emphasis",
+      "text": "really",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "image/example",
+   "primitive": "image",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "image",
+       "props": {
+        "src": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
+        "alt": "A dot"
+       },
+       "events": {},
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "img",
+      "name": "A dot",
+      "text": "",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "image/hostile:src",
+   "primitive": "image",
+   "case": "hostile:src",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "image",
+       "props": {
+        "src": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "alt": "A dot"
+       },
+       "events": {},
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "link/example",
+   "primitive": "link",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "link",
+       "props": {
+        "href": "/guide"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "The guide"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "link",
+      "name": "The guide",
+      "text": "The guide",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "link/hostile:href",
+   "primitive": "link",
+   "case": "hostile:href",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "link",
+       "props": {
+        "href": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "The guide"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "checkbox/example",
+   "primitive": "checkbox",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "checkbox",
+      "name": "Done",
+      "text": "",
+      "enabled": true,
+      "checked": true,
+      "invalid": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/state:checked=true",
+   "primitive": "checkbox",
+   "case": "state:checked=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "checked": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/state:checked=false",
+   "primitive": "checkbox",
+   "case": "state:checked=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": false,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "false",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "checked": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/state:invalid=true",
+   "primitive": "checkbox",
+   "case": "state:invalid=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "invalid": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/state:invalid=false",
+   "primitive": "checkbox",
+   "case": "state:invalid=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": false,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "false"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "invalid": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/event:change",
+   "primitive": "checkbox",
+   "case": "event:change",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "checkbox.change",
+        false
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/key:Space",
+   "primitive": "checkbox",
+   "case": "key:Space",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": " "
+     },
+     "expect": {
+      "reports": [
+       [
+        "checkbox.change",
+        false
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/controlled:checked",
+   "primitive": "checkbox",
+   "case": "controlled:checked",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "checkbox.change",
+        false
+       ]
+      ]
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "checked": true
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": false,
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "false",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "checked": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "checkbox/hostile:checked",
+   "primitive": "checkbox",
+   "case": "hostile:checked",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "label": "Done",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "checkbox/hostile:label",
+   "primitive": "checkbox",
+   "case": "hostile:label",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "checkbox/hostile:invalid",
+   "primitive": "checkbox",
+   "case": "hostile:invalid",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "describedby": "hint"
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "checkbox/hostile:describedby",
+   "primitive": "checkbox",
+   "case": "hostile:describedby",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "checkbox",
+       "props": {
+        "checked": true,
+        "label": "Done",
+        "invalid": true,
+        "describedby": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "checked": "true",
+        "invalid": "true"
+       },
+       "events": {
+        "change": "checkbox.change"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "textfield/example",
+   "primitive": "textfield",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "textbox",
+      "name": "Name",
+      "text": "",
+      "enabled": true,
+      "invalid": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/state:invalid=true",
+   "primitive": "textfield",
+   "case": "state:invalid=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "invalid": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/state:invalid=false",
+   "primitive": "textfield",
+   "case": "state:invalid=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": false,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "false"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "invalid": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/event:change",
+   "primitive": "textfield",
+   "case": "event:change",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "type",
+      "text": "typed"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.change",
+        "typed"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/event:submit",
+   "primitive": "textfield",
+   "case": "event:submit",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Enter"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.submit"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/event:cancel",
+   "primitive": "textfield",
+   "case": "event:cancel",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Escape"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.cancel"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/event:focus",
+   "primitive": "textfield",
+   "case": "event:focus",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "focus"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.focus"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/event:blur",
+   "primitive": "textfield",
+   "case": "event:blur",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "blur"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.blur"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/key:Enter",
+   "primitive": "textfield",
+   "case": "key:Enter",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Enter"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.submit"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/key:Escape",
+   "primitive": "textfield",
+   "case": "key:Escape",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Escape"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.cancel"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/controlled:value",
+   "primitive": "textfield",
+   "case": "controlled:value",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "type",
+      "text": "typed"
+     },
+     "expect": {
+      "reports": [
+       [
+        "textfield.change",
+        "typed"
+       ]
+      ]
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "value": "Ada"
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "rendered",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "value": "rendered"
+     }
+    }
+   ]
+  },
+  {
+   "id": "textfield/hostile:value",
+   "primitive": "textfield",
+   "case": "hostile:value",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "textfield/hostile:placeholder",
+   "primitive": "textfield",
+   "case": "hostile:placeholder",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint",
+        "placeholder": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "textfield/hostile:label",
+   "primitive": "textfield",
+   "case": "hostile:label",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "invalid": true,
+        "describedby": "hint"
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "textfield/hostile:kind",
+   "primitive": "textfield",
+   "case": "hostile:kind",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": "hint",
+        "kind": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "textfield/hostile:invalid",
+   "primitive": "textfield",
+   "case": "hostile:invalid",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "describedby": "hint"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "textfield/hostile:describedby",
+   "primitive": "textfield",
+   "case": "hostile:describedby",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "textfield",
+       "props": {
+        "value": "Ada",
+        "label": "Name",
+        "invalid": true,
+        "describedby": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {
+        "change": "textfield.change",
+        "submit": "textfield.submit",
+        "cancel": "textfield.cancel",
+        "focus": "textfield.focus",
+        "blur": "textfield.blur"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "button/example",
+   "primitive": "button",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {},
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "button",
+      "name": "Save",
+      "text": "Save",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/state:disabled=true",
+   "primitive": "button",
+   "case": "state:disabled=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "disabled": true
+       },
+       "propText": {
+        "disabled": "true"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "enabled": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/state:disabled=false",
+   "primitive": "button",
+   "case": "state:disabled=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "disabled": false
+       },
+       "propText": {
+        "disabled": "false"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/variant:intent=neutral",
+   "primitive": "button",
+   "case": "variant:intent=neutral",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "intent": "neutral"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Save"
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/variant:intent=primary",
+   "primitive": "button",
+   "case": "variant:intent=primary",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "intent": "primary"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Save"
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/variant:intent=danger",
+   "primitive": "button",
+   "case": "variant:intent=danger",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "intent": "danger"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Save"
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/variant:size=sm",
+   "primitive": "button",
+   "case": "variant:size=sm",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "size": "sm"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Save"
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/variant:size=md",
+   "primitive": "button",
+   "case": "variant:size=md",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "size": "md"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Save"
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/variant:size=lg",
+   "primitive": "button",
+   "case": "variant:size=lg",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "size": "lg"
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Save"
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/event:click",
+   "primitive": "button",
+   "case": "event:click",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {},
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "button.click"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/key:Enter",
+   "primitive": "button",
+   "case": "key:Enter",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {},
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Enter"
+     },
+     "expect": {
+      "reports": [
+       [
+        "button.click"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/key:Space",
+   "primitive": "button",
+   "case": "key:Space",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {},
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": " "
+     },
+     "expect": {
+      "reports": [
+       [
+        "button.click"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "button/hostile:id",
+   "primitive": "button",
+   "case": "hostile:id",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "id": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "button/hostile:disabled",
+   "primitive": "button",
+   "case": "hostile:disabled",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "disabled": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "button/hostile:label",
+   "primitive": "button",
+   "case": "hostile:label",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "button/hostile:intent",
+   "primitive": "button",
+   "case": "hostile:intent",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "intent": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "button/hostile:size",
+   "primitive": "button",
+   "case": "hostile:size",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "button",
+       "props": {
+        "size": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {
+        "click": "button.click"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Save"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "toggle/example",
+   "primitive": "toggle",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "button",
+      "name": "Bold",
+      "text": "Bold",
+      "enabled": true,
+      "pressed": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/state:pressed=true",
+   "primitive": "toggle",
+   "case": "state:pressed=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "pressed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/state:pressed=false",
+   "primitive": "toggle",
+   "case": "state:pressed=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": false
+       },
+       "propText": {
+        "pressed": "false"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "pressed": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/state:disabled=true",
+   "primitive": "toggle",
+   "case": "state:disabled=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true,
+        "disabled": true
+       },
+       "propText": {
+        "pressed": "true",
+        "disabled": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "enabled": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/state:disabled=false",
+   "primitive": "toggle",
+   "case": "state:disabled=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true,
+        "disabled": false
+       },
+       "propText": {
+        "pressed": "true",
+        "disabled": "false"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/event:change",
+   "primitive": "toggle",
+   "case": "event:change",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "toggle.change",
+        false
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/key:Enter",
+   "primitive": "toggle",
+   "case": "key:Enter",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Enter"
+     },
+     "expect": {
+      "reports": [
+       [
+        "toggle.change",
+        false
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/key:Space",
+   "primitive": "toggle",
+   "case": "key:Space",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": " "
+     },
+     "expect": {
+      "reports": [
+       [
+        "toggle.change",
+        false
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/controlled:pressed",
+   "primitive": "toggle",
+   "case": "controlled:pressed",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "toggle.change",
+        false
+       ]
+      ]
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "pressed": true
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": false
+       },
+       "propText": {
+        "pressed": "false"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "pressed": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "toggle/hostile:pressed",
+   "primitive": "toggle",
+   "case": "hostile:pressed",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "toggle/hostile:label",
+   "primitive": "toggle",
+   "case": "hostile:label",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true,
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "toggle/hostile:disabled",
+   "primitive": "toggle",
+   "case": "hostile:disabled",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "toggle",
+       "props": {
+        "pressed": true,
+        "disabled": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "pressed": "true"
+       },
+       "events": {
+        "change": "toggle.change"
+       },
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Bold"
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radiogroup/example",
+   "primitive": "radiogroup",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radiogroup",
+       "props": {
+        "label": "Size",
+        "describedby": "hint"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "radio",
+         "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+         },
+         "propText": {
+          "checked": "true"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.2",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "radiogroup",
+      "name": "Size",
+      "text": "",
+      "enabled": true,
+      "children": [
+       "k0.0",
+       "k0.1",
+       "k0.2"
+      ]
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.0",
+     "expect": {
+      "key": "k0.0",
+      "text": ""
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.1",
+     "expect": {
+      "key": "k0.1",
+      "text": ""
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.2",
+     "expect": {
+      "key": "k0.2",
+      "text": ""
+     }
+    }
+   ]
+  },
+  {
+   "id": "radiogroup/state:invalid=true",
+   "primitive": "radiogroup",
+   "case": "state:invalid=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radiogroup",
+       "props": {
+        "label": "Size",
+        "describedby": "hint",
+        "invalid": true
+       },
+       "propText": {
+        "invalid": "true"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "radio",
+         "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+         },
+         "propText": {
+          "checked": "true"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.2",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "invalid": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "radiogroup/state:invalid=false",
+   "primitive": "radiogroup",
+   "case": "state:invalid=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radiogroup",
+       "props": {
+        "label": "Size",
+        "describedby": "hint",
+        "invalid": false
+       },
+       "propText": {
+        "invalid": "false"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "radio",
+         "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+         },
+         "propText": {
+          "checked": "true"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.2",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "invalid": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "radiogroup/hostile:label",
+   "primitive": "radiogroup",
+   "case": "hostile:label",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radiogroup",
+       "props": {
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "describedby": "hint"
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "radio",
+         "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+         },
+         "propText": {
+          "checked": "true"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.2",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radiogroup/hostile:invalid",
+   "primitive": "radiogroup",
+   "case": "hostile:invalid",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radiogroup",
+       "props": {
+        "label": "Size",
+        "describedby": "hint",
+        "invalid": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "radio",
+         "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+         },
+         "propText": {
+          "checked": "true"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.2",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radiogroup/hostile:describedby",
+   "primitive": "radiogroup",
+   "case": "hostile:describedby",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radiogroup",
+       "props": {
+        "label": "Size",
+        "describedby": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "events": {},
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "radio",
+         "props": {
+          "checked": true,
+          "value": "s",
+          "label": "Small"
+         },
+         "propText": {
+          "checked": "true"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "m",
+          "label": "Medium"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        },
+        {
+         "type": "node",
+         "key": "k0.2",
+         "component": "radio",
+         "props": {
+          "checked": false,
+          "value": "l",
+          "label": "Large"
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "select": "radio.select"
+         },
+         "children": []
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radio/example",
+   "primitive": "radio",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "radio",
+      "name": "Small",
+      "text": "",
+      "enabled": true,
+      "checked": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/state:checked=true",
+   "primitive": "radio",
+   "case": "state:checked=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "checked": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/state:checked=false",
+   "primitive": "radio",
+   "case": "state:checked=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": false,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "false"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "checked": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/state:disabled=true",
+   "primitive": "radio",
+   "case": "state:disabled=true",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": "Small",
+        "disabled": true
+       },
+       "propText": {
+        "checked": "true",
+        "disabled": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "enabled": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/state:disabled=false",
+   "primitive": "radio",
+   "case": "state:disabled=false",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": "Small",
+        "disabled": false
+       },
+       "propText": {
+        "checked": "true",
+        "disabled": "false"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/event:select",
+   "primitive": "radio",
+   "case": "event:select",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": false,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "false"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "radio.select",
+        "s"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/key:Space",
+   "primitive": "radio",
+   "case": "key:Space",
+   "requires": [
+    "keys"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": false,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "false"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": " "
+     },
+     "expect": {
+      "reports": [
+       [
+        "radio.select",
+        "s"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/controlled:checked",
+   "primitive": "radio",
+   "case": "controlled:checked",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": false,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "false"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "activate"
+     },
+     "expect": {
+      "reports": [
+       [
+        "radio.select",
+        "s"
+       ]
+      ]
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": false,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "false"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "checked": false
+     }
+    },
+    {
+     "op": "update",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "checked": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "radio/hostile:checked",
+   "primitive": "radio",
+   "case": "hostile:checked",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "value": "s",
+        "label": "Small"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radio/hostile:value",
+   "primitive": "radio",
+   "case": "hostile:value",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "label": "Small"
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radio/hostile:label",
+   "primitive": "radio",
+   "case": "hostile:label",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "radio/hostile:disabled",
+   "primitive": "radio",
+   "case": "hostile:disabled",
+   "requires": [],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "radio",
+       "props": {
+        "checked": true,
+        "value": "s",
+        "label": "Small",
+        "disabled": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "checked": "true"
+       },
+       "events": {
+        "select": "radio.select"
+       },
+       "children": []
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "status/example",
+   "primitive": "status",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "status",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Saved."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "status",
+      "text": "Saved.",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "alert/example",
+   "primitive": "alert",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "alert",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Could not save."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "alert",
+      "text": "Could not save.",
+      "enabled": true,
+      "children": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "label/example",
+   "primitive": "label",
+   "case": "example",
+   "requires": [
+    "names"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "label",
+       "props": {},
+       "events": {},
+       "children": [
+        {
+         "type": "text",
+         "key": "k0.t",
+         "text": "Done"
+        },
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "checkbox",
+         "props": {
+          "checked": false
+         },
+         "propText": {
+          "checked": "false"
+         },
+         "events": {
+          "change": "checkbox.change"
+         },
+         "children": []
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "Done",
+      "enabled": true,
+      "children": [
+       "k0.0"
+      ]
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.0",
+     "expect": {
+      "key": "k0.0",
+      "text": ""
+     }
+    }
+   ]
+  },
+  {
+   "id": "dialog/example",
+   "primitive": "dialog",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names",
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "dialog",
+       "props": {
+        "open": true,
+        "label": "Delete this?"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "dialog.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "This cannot be undone."
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "button",
+         "props": {},
+         "events": {
+          "click": "button.click"
+         },
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Delete"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "dialog",
+      "name": "Delete this?",
+      "text": "This cannot be undone.Delete",
+      "enabled": true,
+      "children": [
+       "k0.0",
+       "k0.1"
+      ]
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.0",
+     "expect": {
+      "key": "k0.0",
+      "text": "This cannot be undone."
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.1",
+     "expect": {
+      "key": "k0.1",
+      "text": "Delete"
+     }
+    }
+   ]
+  },
+  {
+   "id": "dialog/event:dismiss",
+   "primitive": "dialog",
+   "case": "event:dismiss",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "dialog",
+       "props": {
+        "open": true,
+        "label": "Delete this?"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "dialog.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "This cannot be undone."
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "button",
+         "props": {},
+         "events": {
+          "click": "button.click"
+         },
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Delete"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Escape"
+     },
+     "expect": {
+      "reports": [
+       [
+        "dialog.dismiss",
+        "escape"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "dialog/key:Escape",
+   "primitive": "dialog",
+   "case": "key:Escape",
+   "requires": [
+    "keys",
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "dialog",
+       "props": {
+        "open": true,
+        "label": "Delete this?"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "dialog.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "This cannot be undone."
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "button",
+         "props": {},
+         "events": {
+          "click": "button.click"
+         },
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Delete"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Escape"
+     },
+     "expect": {
+      "reports": [
+       [
+        "dialog.dismiss",
+        "escape"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "dialog/hostile:open",
+   "primitive": "dialog",
+   "case": "hostile:open",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "dialog",
+       "props": {
+        "open": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "label": "Delete this?"
+       },
+       "events": {
+        "dismiss": "dialog.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "This cannot be undone."
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "button",
+         "props": {},
+         "events": {
+          "click": "button.click"
+         },
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Delete"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "dialog/hostile:label",
+   "primitive": "dialog",
+   "case": "hostile:label",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "dialog",
+       "props": {
+        "open": true,
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "dialog.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "This cannot be undone."
+          }
+         ]
+        },
+        {
+         "type": "node",
+         "key": "k0.1",
+         "component": "button",
+         "props": {},
+         "events": {
+          "click": "button.click"
+         },
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.1.t",
+           "text": "Delete"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "popover/example",
+   "primitive": "popover",
+   "case": "example",
+   "requires": [
+    "roles",
+    "names",
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "role": "group",
+      "name": "Details",
+      "text": "More about this.",
+      "enabled": true,
+      "children": [
+       "k0.0"
+      ]
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0.0",
+     "expect": {
+      "key": "k0.0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/variant:placement=top",
+   "primitive": "popover",
+   "case": "variant:placement=top",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "placement": "top"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/variant:placement=bottom",
+   "primitive": "popover",
+   "case": "variant:placement=bottom",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "placement": "bottom"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/variant:placement=start",
+   "primitive": "popover",
+   "case": "variant:placement=start",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "placement": "start"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/variant:placement=end",
+   "primitive": "popover",
+   "case": "variant:placement=end",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "placement": "end"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/variant:mode=auto",
+   "primitive": "popover",
+   "case": "variant:mode=auto",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "mode": "auto"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/variant:mode=manual",
+   "primitive": "popover",
+   "case": "variant:mode=manual",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "mode": "manual"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "observe",
+     "key": "k0",
+     "expect": {
+      "key": "k0",
+      "text": "More about this."
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/event:dismiss",
+   "primitive": "popover",
+   "case": "event:dismiss",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Escape"
+     },
+     "expect": {
+      "reports": [
+       [
+        "popover.dismiss",
+        "escape"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/key:Escape",
+   "primitive": "popover",
+   "case": "key:Escape",
+   "requires": [
+    "keys",
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details"
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "op": "interact",
+     "key": "k0",
+     "how": {
+      "kind": "key",
+      "key": "Escape"
+     },
+     "expect": {
+      "reports": [
+       [
+        "popover.dismiss",
+        "escape"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "popover/hostile:open",
+   "primitive": "popover",
+   "case": "hostile:open",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": [
+         "not",
+         "a",
+         "scalar"
+        ],
+        "label": "Details"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "popover/hostile:anchor",
+   "primitive": "popover",
+   "case": "hostile:anchor",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "anchor": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "popover/hostile:placement",
+   "primitive": "popover",
+   "case": "hostile:placement",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "placement": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "popover/hostile:mode",
+   "primitive": "popover",
+   "case": "hostile:mode",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": "Details",
+        "mode": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  },
+  {
+   "id": "popover/hostile:label",
+   "primitive": "popover",
+   "case": "hostile:label",
+   "requires": [
+    "layers"
+   ],
+   "steps": [
+    {
+     "op": "load",
+     "tree": {
+      "format": "mesh-render",
+      "version": 1,
+      "root": {
+       "type": "node",
+       "key": "k0",
+       "component": "popover",
+       "props": {
+        "open": true,
+        "label": [
+         "not",
+         "a",
+         "scalar"
+        ]
+       },
+       "propText": {
+        "open": "true"
+       },
+       "events": {
+        "dismiss": "popover.dismiss"
+       },
+       "children": [
+        {
+         "type": "node",
+         "key": "k0.0",
+         "component": "text",
+         "props": {},
+         "events": {},
+         "children": [
+          {
+           "type": "text",
+           "key": "k0.0.t",
+           "text": "More about this."
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "expect": "refused"
+    }
+   ]
+  }
+ ]
+}

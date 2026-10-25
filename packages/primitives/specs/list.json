@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "name": "list",
+  "status": "portable",
+  "role": "list",
+  "summary": "A list of items. `ordered` says whether the order is meaning. Its children are items: HTML's content model allows nothing else in a list.",
+  "props": {
+    "ordered": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false
+    },
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {},
+  "content": {
+    "only": ["listitem"]
+  },
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "children": [
+      {
+        "name": "listitem",
+        "text": "One"
+      },
+      {
+        "name": "listitem",
+        "text": "Two"
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "target": {
+    "primitive": "column",
+    "part": "root"
+  },
+  "base": {
+    "gap": "space.3"
+  }
+}

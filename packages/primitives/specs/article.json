@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "article",
+  "status": "web-only",
+  "role": "generic",
+  "summary": "A self-contained piece of content (an article role).",
+  "props": {},
+  "events": {},
+  "content": "any",
+  "accessibleName": {
+    "from": "none"
+  },
+  "keyboard": [],
+  "example": {
+    "text": "x"
+  },
+  "webRole": "article"
+}

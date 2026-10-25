@@ -153,7 +153,7 @@ Templates are MPRX. Conditional and repeated parts are blocks: `{#if cond}…{:e
 | `prev`, `next` | `{ href, label }`, empty `href` when there is none |
 | `viewport` | How much room the page has: `"compact"` (under 600 px), `"medium"` (600 to 839) or `"expanded"` (840 and up), kept current as the window changes. `{#if viewport == "compact"}` chooses markup for a phone. The server renders `expanded`; the browser corrects it as soon as it starts. |
 
-Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `para`, `quote`, `list`, `olist`, `item`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
+Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `paragraph`, `blockquote`, `list`, `olist`, `listitem`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), `toggle`, `checkbox`, `textfield`, `radiogroup`, `radio`, `label`, `status`, `alert` (the full list, with roles and names, is [the primitives](../../docs/use/primitives.md)), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). The tags `para`, `item` and `quote` are now `paragraph`, `listitem` and `blockquote` (the ARIA names, which the Desktop already used); a template that writes the old one is told the new one. A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
 
 ## The components
 
@@ -173,20 +173,22 @@ export default defineApp({
 
 ```ts
 // src/theme-toggle.ts: the component states its own interface, where it is defined
-import { component } from "@valancex/common";
+import { component, field } from "@valancex/common";
 import { Schema } from "effect";
 import template from "./theme-toggle.mprx";
 
 export default component(template, {
-  props: { theme: Schema.Literal("light", "dark") },
+  props: { theme: field(Schema.Literal("light", "dark"), "light") },
   events: { toggle: Schema.Void },
 });
 ```
 
 - `import x from "./x.mprx"` names a template file; `component(x, …)` defines it. The tag is the file's name (`theme-toggle.mprx` is `<theme-toggle>`). Register it once, in `components`.
 - **Which components a template uses is read from the template.** Write `<theme-toggle … />` in the layout (or in another component) and it is used; there is no list of uses to keep in step. A registered component no template writes yet is not part of the program, and is not an error. A file under `src/` that is not registered is an error (`template-unused`).
-- **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and where it is used. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`, and props have no defaults. A schema with no MESH type is a diagnostic at the declaration (`component-schema`). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
+- **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and where it is used. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`. A **string-literal union is a closed set**: `Schema.Literal("info", "danger")` becomes the MESH type `"info" | "danger"`, and MESH reports any other literal written for the prop at the use (`unknown-variant`, with a did-you-mean when one is close); a number or boolean literal keeps its primitive type. A prop gets a **default** with `field(schema, value)` (`props: { tone: field(Schema.Literal("info", "danger"), "info") }`): a use of the component that leaves the prop out gets the value, the prop may then be left out, and TypeScript refuses a default that is not a member. A default is for a component with a template; on a primitive it is ignored. A schema with no MESH type, for example a union of a string literal and a number, or a default that is not a value of the prop's type, is a diagnostic at the declaration (`component-schema`). Both need MESH 0.14 or later (`@valancex/mesh-compiler` `^0.14.0`, which the packages depend on). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
 - `override: [component(runs, { props: { spans: … } })]` replaces a built-in (`runs`, `heading-block`, …) with your template of the same name.
+- **One MESH runtime.** `vlx build` (never `vlx dev`) stops with `runtime-duplicate` when the packages resolve more than one copy of `@valancex/mesh-runtime`: each copy is a 765 KB WebAssembly module (171 KB of brotli) that the site would ship and the browser fetch. The message names each copy, its version and who uses it, and says to add an `overrides` entry (npm; `pnpm.overrides`, or `resolutions` with yarn) so there is one. `@valancex/common`, `@valancex/valance` and `@valancex/nexus` accept the same range (`^0.12.0`) so a plain install has one.
+- **One name is one component.** Two registered files with the same name (for example `a/disclosure.mprx` and `b/disclosure.mprx`, whether yours or from two libraries) are `template-duplicate`, and a registered component named like a built-in is `template-builtin` unless it is in `override`: neither silently replaces the other, and the first one listed does not win. Rename one of the files; qualified ids for a library's components (`acme-ui/disclosure`, decision K14) are not built yet. `override` is only for built-ins: for any other name it is `override-unknown`, and the component belongs in `components`.
 - `layout` is optional; without it the built-in layout draws the page. Its template must be named `layout.mprx`.
 
 ### Children and slots
@@ -202,12 +204,37 @@ A component places the content its caller writes inside it with `<mesh-slot />`,
 
 <!-- where it is used -->
 <card>
-  <mesh-fill slot="head"><para class="title">Title</para></mesh-fill>
-  <para class="body">The body goes to the unnamed slot.</para>
+  <mesh-fill slot="head"><paragraph class="title">Title</paragraph></mesh-fill>
+  <paragraph class="body">The body goes to the unnamed slot.</paragraph>
 </card>
 ```
 
 The children are the caller's: `{x}` in them is the caller's `x`, never the card's. `vlx generate component` writes the single, unnamed slot for you. The rules (where a slot may be, what a fill is, the errors) are in MESH's [templates manual](https://github.com/ValanceX/Mesh/blob/main/docs/manual/templates.md#children-and-the-slot).
+
+### Snippets as props
+
+A prop can be a piece of template (MESH 0.14). Declare it with `snippet(…)`, the types of its parameters in order, and read it in the component's template with `{@render name(args)}`:
+
+```
+// src/panel.ts and src/item-list.ts
+component(panel, { props: { title: Schema.String, children: snippet() } });
+component(itemList, { props: { items: Schema.Array(Item), row: snippet(Item, Schema.String) } });
+```
+
+```
+<!-- src/panel.mprx -->
+<section><strong>{title}</strong>{@render children()}</section>
+
+<!-- where they are used: loose content is `children`; a {#snippet} that is a direct child is the prop of its name -->
+<panel title="Totals"><span class="count">{count}</span></panel>
+<item-list items={items} label="row">{#snippet row(item, tag)}<span class="row">{tag}:{item.name}</span>{/snippet}</item-list>
+```
+
+- `children` is reserved for the content between the tags: it must be `snippet()` (no parameters), and `children={…}` with content is `children-conflict`. A snippet is not data: it has no `field` default, is never optional, and is not a record field or an event's payload.
+- A snippet reads the scope of the template that **wrote** it (`count` above is the layout's, not the panel's), so a node that renders one is redrawn when that scope changes though its own props did not.
+- The arity and the types are checked: `snippet-arity-mismatch` in the composite's template when `{@render row(item)}` passes too few, and a member the parameter does not have is reported where the snippet is written.
+- **Optional.** `snippet(…).optional()` (and `children: snippet().optional()`) is one an occurrence may leave out: it is `snippet<…>?` in the model, and an absent one draws nothing. Rendering it is `possibly-absent-snippet` unless it is inside the first branch of an `{#if has(name)}` (`&&` allowed), so `{#if has(header)}{@render header()}{/if}` is how a template uses one.
+- Slots (`mesh-slot`, `mesh-fill`) keep working for a component that does not declare `children`.
 
 ### Typed template imports
 

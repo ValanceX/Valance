@@ -10,7 +10,7 @@ import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
 import { documentTitle, frame, FrameScope, pageAt, RESERVED } from "./scope.js";
 import { normalize } from "./routes.js";
-import { derivedOf } from "./index.js";
+import { derivedOf, isFormField } from "./index.js";
 import { Navigation } from "./navigation.js";
 import * as StoreOps from "./store.js";
 import { badDefaults, stateOf } from "./state.js";
@@ -23,6 +23,8 @@ export interface Built {
   readonly script: string;
   /** Stylesheet addresses, in order. Empty in development, where the script brings its styles. */
   readonly styles: ReadonlyArray<string>;
+  /** The address of the MESH runtime's WebAssembly module in a production build, which the head starts compiling at once (W11). Absent in development. */
+  readonly wasm?: string | undefined;
 }
 
 const PageSchema = Schema.Struct({
@@ -305,8 +307,24 @@ export const initialState = (author: DefinedApp | undefined): AppState => ({
   ...stateOf(author)?.initial,
 });
 
+/** The units of the components the author registered, by the tag each is written as (its template's file name without `.mprx`). */
+export const unitsOf = (author: DefinedApp | undefined): Readonly<Record<string, Valance.Unit>> => {
+  const parts = [author, author?.targets?.web, author?.targets?.desktop];
+  const components = parts.flatMap((part) => [...(part?.layout === undefined ? [] : [part.layout]), ...(part?.components ?? []), ...(part?.override ?? [])]);
+
+  return Object.fromEntries(
+    components.flatMap((component) => (component.unit === undefined ? [] : [[component.template.mprx.replace(/^.*[\\/]/, "").replace(/\.mprx$/, ""), component.unit] as const])),
+  );
+};
+
+/** The names of the state fields that hold a form. */
+const formsOf = (author: DefinedApp | undefined): ReadonlyArray<string> =>
+  Object.entries((author?.state ?? {}) as Record<string, unknown>).flatMap(([name, value]) => (isFormField(value) ? [name] : []));
+
 export const application = (content: Content, program: Valance.Program, author?: DefinedApp) => {
   checkDefinition(author);
+  const units = unitsOf(author);
+  const forms = formsOf(author);
 
   return Valance.define({
     name: content.site.name,
@@ -328,6 +346,11 @@ export const application = (content: Content, program: Valance.Program, author?:
     view: () => "layout" as const,
     commands: commandTable(author, (page) => pageAt(content, page) !== undefined) as never,
     ...(persisted(author).length === 0 ? {} : { start: "persist" }),
+    ...(Object.keys(units).length === 0 ? {} : { units }),
+    // A form takes the person to its first field in error each time a submit is tried (Bet 9, I13): nothing for the author to write.
+    ...(forms.length === 0
+      ? {}
+      : { focusFirstInvalid: (state: AppState) => forms.reduce((count, name) => count + ((state[name] as { readonly attempts?: number } | undefined)?.attempts ?? 0), 0) }),
   });
 };
 

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "name": "textfield",
+  "status": "portable",
+  "role": "textbox",
+  "summary": "A line of text the person edits. The application owns the value.",
+  "props": {
+    "value": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true,
+      "controlled": true
+    },
+    "placeholder": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "kind": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false
+    },
+    "invalid": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false,
+      "a11y": "state"
+    },
+    "describedby": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "relationship"
+    }
+  },
+  "events": {
+    "change": {
+      "payload": {
+        "kind": "string"
+      },
+      "meaning": "The text changed; carries the new text."
+    },
+    "submit": {
+      "meaning": "Enter: the person is done with what they typed."
+    },
+    "cancel": {
+      "meaning": "Escape: the person backs out of what they typed."
+    },
+    "focus": {
+      "meaning": "The person came into the field."
+    },
+    "blur": {
+      "meaning": "The person left the field."
+    }
+  },
+  "content": "none",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label",
+    "orContainedIn": "label",
+    "required": true
+  },
+  "keyboard": [
+    {
+      "key": "Enter",
+      "raises": "submit"
+    },
+    {
+      "key": "Escape",
+      "raises": "cancel"
+    }
+  ],
+  "states": {
+    "invalid": "invalid"
+  },
+  "relations": {
+    "describedby": "ref"
+  },
+  "example": {
+    "props": {
+      "value": "Ada",
+      "label": "Name",
+      "invalid": true,
+      "describedby": "hint"
+    },
+    "describedByText": "Say something"
+  },
+  "earlyInput": "keep"
+}

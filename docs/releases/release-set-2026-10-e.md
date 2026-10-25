@@ -1,6 +1,6 @@
 # Release set: VALANCE 0.13.0, the VALANCE extension 0.1.0, and what they need
 
-Prepared 2026-10-15. Nothing is tagged or published. The earlier set ([`release-set-2026-10-d.md`](./release-set-2026-10-d.md): VALANCE 0.12.0) is released. **Everything this set needs from PORT is already released**: `@valancex/port-web` 0.6.1 and `@valancex/port-desktop-vocabulary` 0.6.1 are on npm. Nothing in NEXUS or MESH changes.
+Prepared 2026-10-15; **VALANCE 0.13.0 is released** (tag `v0.13.0`, on npm 2026-10-15; `@valancex/router` 0.13.1 followed on 2026-10-16, see [the 0.14 notes](./v0.14.md#valancexrouter-0131)). The next set is [`release-set-2026-10-f.md`](./release-set-2026-10-f.md). The earlier set ([`release-set-2026-10-d.md`](./release-set-2026-10-d.md): VALANCE 0.12.0) is released. **Everything this set needs from PORT is already released**: `@valancex/port-web` 0.6.1 and `@valancex/port-desktop-vocabulary` 0.6.1 are on npm. Nothing in NEXUS or MESH changes.
 
 | # | Repository | What | Kind | Tag | Notes file |
 |---|---|---|---|---|---|

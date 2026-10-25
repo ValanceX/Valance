@@ -1,0 +1,26 @@
+{
+  "$comment": "What a model may use in the generated-UI conformance cases (Bet 13): the page's data and commands, as the host's manifest declares them, and the web components offered. The profile is made from this and the web manifest of @valancex/primitives (generate.ts); nothing here is written for the checker.",
+  "name": "conformance-generated",
+  "page": "page",
+  "components": ["column", "row", "heading", "text", "button", "checkbox", "textfield"],
+  "commands": ["add", "setDraft", "setDone", "remove", "refresh"],
+  "scope": {
+    "title": { "kind": "string" },
+    "count": { "kind": "number" },
+    "draft": { "kind": "string" },
+    "done": { "kind": "boolean" },
+    "items": {
+      "kind": "list",
+      "element": { "kind": "record", "fields": { "id": { "type": { "kind": "number" }, "required": true }, "label": { "type": { "kind": "string" }, "required": true } } }
+    }
+  },
+  "pageCommands": {
+    "add": { "parameters": [{ "name": "label", "type": { "kind": "string" } }], "effect": "write", "title": "Add an item" },
+    "setDraft": { "parameters": [{ "name": "value", "type": { "kind": "string" } }], "effect": "write", "title": "Change the draft" },
+    "setDone": { "parameters": [{ "name": "done", "type": { "kind": "boolean" } }], "effect": "write", "title": "Mark as done" },
+    "remove": { "parameters": [{ "name": "id", "type": { "kind": "number" } }], "effect": "destructive", "title": "Delete an item" },
+    "refresh": { "parameters": [], "effect": "read", "title": "Refresh the list" },
+    "wipe": { "parameters": [], "effect": "destructive", "title": "Delete everything" }
+  },
+  "snapshot": { "title": "Groceries", "count": 2, "draft": "", "done": false, "items": [{ "id": 1, "label": "Milk" }, { "id": 2, "label": "Eggs" }] }
+}

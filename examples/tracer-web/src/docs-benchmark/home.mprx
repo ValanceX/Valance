@@ -1,10 +1,10 @@
 <shell>
   <header><heading>{site}</heading></header>
   <main>
-    <para>{tagline}</para>
+    <paragraph>{tagline}</paragraph>
     <list>
       {#each guides as g (g.id)}
-        <item><link href={g.href}>{g.label}</link></item>
+        <listitem><link href={g.href}>{g.label}</link></listitem>
       {/each}
     </list>
   </main>

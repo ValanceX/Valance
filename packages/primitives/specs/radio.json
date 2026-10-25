@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "name": "radio",
+  "status": "portable",
+  "role": "radio",
+  "summary": "One option of a radio group. The application decides which one is selected.",
+  "props": {
+    "checked": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": true,
+      "controlled": true,
+      "a11y": "state"
+    },
+    "value": {
+      "type": {
+        "kind": "string"
+      },
+      "required": true
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "disabled": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false,
+      "a11y": "state"
+    },
+    "earlyInput": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "keep",
+          "drop"
+        ]
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {
+    "select": {
+      "payload": {
+        "kind": "string"
+      },
+      "meaning": "The person chose it; carries its value."
+    }
+  },
+  "content": "none",
+  "accessibleName": {
+    "from": "prop",
+    "prop": "label",
+    "orContainedIn": "label",
+    "required": true
+  },
+  "keyboard": [
+    {
+      "key": "Space",
+      "raises": "select"
+    },
+    {
+      "key": "ArrowDown",
+      "moves": "next"
+    },
+    {
+      "key": "ArrowRight",
+      "moves": "next"
+    },
+    {
+      "key": "ArrowUp",
+      "moves": "previous"
+    },
+    {
+      "key": "ArrowLeft",
+      "moves": "previous"
+    }
+  ],
+  "states": {
+    "checked": "checked",
+    "disabled": "disabled"
+  },
+  "within": [
+    "radiogroup"
+  ],
+  "example": {
+    "props": {
+      "checked": true,
+      "value": "s",
+      "label": "Small"
+    }
+  },
+  "earlyInput": "keep"
+}

@@ -1,0 +1,6 @@
+<column>
+  <heading level={1}>{title}</heading>
+  <text>You have {count} items.</text>
+  <button intent="primary" on.click={add(title)}>Add</button>
+  <button on.click={refresh()}>Refresh</button>
+</column>

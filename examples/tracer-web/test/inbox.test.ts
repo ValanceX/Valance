@@ -66,10 +66,10 @@ describe("second application: inbox", () => {
     await host.stop();
 
     expect(seen.map(({ step, texts: t, url: u, sameRoot }) => [step, t, u, sameRoot])).toEqual([
-      ["list", "2 unread|*Welcome|*Invoice", "/inbox", true],
+      ["list", "2 unread|* Welcome|* Invoice", "/inbox", true],
       ["open m2", "Invoice|Due Friday.", "/inbox?open=m2", false],
       ["star", "Invoice|Due Friday.", "/inbox?open=m2", true],
-      ["Back", "1 unread|*Welcome| Invoice", "/inbox", false],
+      ["Back", "1 unread|* Welcome|  Invoice", "/inbox", false],
       ["Forward", "Invoice|Due Friday.", "/inbox?open=m2", false],
     ]);
     expect(writes).toEqual(["/inbox?open=m2"]); // one navigation by the application; Back and Forward wrote nothing

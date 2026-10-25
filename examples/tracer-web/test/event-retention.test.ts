@@ -18,7 +18,7 @@ import * as Web from "@valancex/valance/web";
 import { Cause, Deferred, Effect, Exit, Fiber, FiberRef, Schema, Scope, Stream } from "effect";
 import { runInNewContext } from "node:vm";
 import { setFlagsFromString } from "node:v8";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { compilePrograms } from "../src/catalog/compile.js";
 import { primitives } from "../src/catalog/web.js";
@@ -60,7 +60,8 @@ const alive = (refs: ReadonlyArray<WeakRef<object>>) => refs.filter((ref) => ref
 const canaryRef = FiberRef.unsafeMake<object | undefined>(undefined);
 
 /** Builds, starts and mounts the application; returns only what a test needs. Everything else stays local so that `run` below can let it go. */
-const build = async (canaries: Canaries) => {
+// `ledger` is `Infinity` here: these tests measure the logical growth of the ledger (N events, N exits). The default bound is tested in G.
+const build = async (canaries: Canaries, ledger = Infinity) => {
   const gates = new Map<string, { readonly gate: Deferred.Deferred<string, string>; readonly started: Deferred.Deferred<void> }>();
   const gateOf = (name: string) => {
     let entry = gates.get(name);
@@ -151,7 +152,7 @@ const build = async (canaries: Canaries) => {
       ) as never;
     },
   }) as Valance.ApplicationHandle<State, string>;
-  const mount = (await Effect.runPromise(Valance.mount(watched as never, target).pipe(Scope.extend(scope)))) as Valance.Mounted<string>;
+  const mount = (await Effect.runPromise(Valance.mount(watched as never, target, { ledger }).pipe(Scope.extend(scope)))) as Valance.Mounted<string>;
 
   await until(() => page.container.querySelector("button") !== null);
   const row = (id: string) => page.container.querySelectorAll("div")[ids.indexOf(id as never)]!.querySelector("button")!;
@@ -171,9 +172,9 @@ const build = async (canaries: Canaries) => {
   };
 };
 
-const boot = async () => {
+const boot = async (ledger?: number) => {
   const canaries: Canaries = { fibers: [], exits: [] };
-  const b = await build(canaries);
+  const b = await build(canaries, ledger);
   /** Waits (bounded) for N recorded exits without calling `settled` (which would itself change `pending`). */
   const recorded = (n: number) => until(() => b.mount.dispatched.length >= n);
   /** What is held right now: recorded exits, fibers still pinned, exits still pinned. */
@@ -446,5 +447,85 @@ describe("G, H, J, K: mount close, and what the application can see", () => {
     b.click("fail");
     await b.recorded(3);
     expect(b.mount.dispatched.slice(0, 2)).toEqual(snapshot); // append-only: earlier entries unchanged
+  });
+});
+
+describe("G: the ledger is bounded (W22)", () => {
+  /** Waits for N exits to have been recorded in all: kept or dropped. */
+  const total = (b: Awaited<ReturnType<typeof boot>>, n: number) => until(() => b.mount.dispatched.length + b.mount.dispatchedDropped >= n);
+  const logged = () => {
+    const lines: Array<string> = [];
+    const spies = (["log", "error", "warn"] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation((...args: Array<unknown>) => {
+        lines.push(args.map(String).join(" "));
+      }),
+    );
+
+    return { lines: () => lines.filter((line) => line.includes("dropped from the ledger")), restore: () => spies.forEach((spy) => spy.mockRestore()) };
+  };
+
+  it("keeps the most recent exits in settle order, counts the dropped ones, and holds no more exits than the bound", async () => {
+    const b = await boot(3);
+
+    for (const id of ["ok", "fail", "ok", "ok", "ok"] as const) {
+      b.click(id);
+    }
+
+    await total(b, 5);
+    const ledger = b.mount.dispatched; // the same array for the mount's life
+
+    expect(ledger).toBe(b.mount.dispatched);
+    expect(ledger.map(show)).toEqual(["succeeded", "succeeded", "succeeded"]); // the failure was the second: it has left
+    expect(b.mount.dispatchedDropped).toBe(2);
+    expect(ledger.length + b.mount.dispatchedDropped).toBe(5);
+    await b.settled();
+  });
+
+  it("logs a dropped failure and a dropped defect once each, and a dropped success not at all; the log carries the identity, not the message", async () => {
+    const log = logged();
+
+    try {
+      const b = await boot(1);
+
+      // One at a time, so the settle order is the click order.
+      for (const [index, id] of (["ok", "fail", "die", "ok", "ok"] as const).entries()) {
+        b.click(id);
+        await total(b, index + 1);
+      }
+
+      await total(b, 5);
+      await b.settled();
+      await collect();
+      expect(b.mount.dispatchedDropped).toBe(4);
+      expect(log.lines().length).toBe(2); // the failure and the defect, once each (the dropped successes say nothing)
+    } finally {
+      log.restore();
+    }
+  });
+
+  it("`ledger: 0` records none and still counts and logs them; the default bound is 1,000; `Infinity` keeps every exit", async () => {
+    const none = await boot(0);
+
+    none.click("ok");
+    await total(none, 1);
+    expect(none.mount.dispatched.length).toBe(0);
+    expect(none.mount.dispatchedDropped).toBe(1);
+
+    const canaries: Canaries = { fibers: [], exits: [] };
+    const normal = await build(canaries, 1000);
+
+    for (let n = 0; n < 1005; n += 1) {
+      normal.click("ok");
+    }
+
+    await until(() => normal.mount.dispatched.length + normal.mount.dispatchedDropped >= 1005);
+    expect(normal.mount.dispatched.length).toBe(1000);
+    expect(normal.mount.dispatchedDropped).toBe(5);
+  }, 60_000);
+
+  it("a bound that is not a number of at least 0 is a defect at the call", async () => {
+    for (const ledger of [-1, Number.NaN]) {
+      await expect(boot(ledger)).rejects.toThrow(/the ledger bound must be a number of at least 0/);
+    }
   });
 });

@@ -22,10 +22,12 @@ export type Outbound =
   | { readonly op: "hello"; readonly protocol: number; readonly app: string }
   | { readonly op: "draw" | "update"; readonly tree: RenderTree }
   | { readonly op: "unmount" }
+  /** Focus the part `key` names, or the first thing in it that takes focus (`focusFirstInvalid`, decision I13): a request to the window after the screen that has the part, not a command and not state. A window that does not know it ignores it. */
+  | { readonly op: "focus"; readonly key: string }
   /** What the window is called. Sent before the first screen and whenever it changes: the window is the host's, so the application says its title, not a template. */
   | { readonly op: "title"; readonly title: string }
   /** How the application asks the window to look: `light` or `dark`, or `system` for the person's own. Sent before the first screen and whenever it changes. */
-  | { readonly op: "appearance"; readonly appearance: "light" | "dark" | "system" }
+  | { readonly op: "appearance"; readonly appearance: "light" | "dark" | "system"; readonly theme?: BoundaryValue }
   /** The answer to `closeRequested`. When `allowed`, the engine is closing and `unmount` follows; when not, the window stays open. */
   | { readonly op: "closeAnswer"; readonly allowed: boolean };
 
@@ -115,6 +117,11 @@ export const parseInbound = (line: string): Inbound | undefined => {
 export interface HostOptions<S, E = unknown> {
   /** What the application asks the window to look like for a state. Absent: the window follows the system. */
   readonly appearanceOf?: (state: S) => "light" | "dark" | "system";
+  /**
+   * The look the host gives the renderer, as data the engine does not read: sent once, with the first `appearance`, and kept by the renderer. It is the host's word (the desktop's host gives the theme,
+   * resolved), never the application's state. Absent: the renderer keeps its own look.
+   */
+  readonly theme?: BoundaryValue;
   /** The system's colors changed (or were first told): what that means to the application. Called with the scheme and the application's handle; absent: ignored. */
   readonly onScheme?: (scheme: "light" | "dark", handle: Valance.ApplicationHandle<S, E>) => Effect.Effect<void, unknown>;
   /** What a link means. Called with the address the person activated and the application's handle; absent: links do nothing. The address is untrusted text from another program. */
@@ -168,15 +175,17 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
       send({ op: "hello", protocol: PROTOCOL, app: app.name }); // before the first screen: a renderer checks the protocol before it draws anything
 
       let appearance: string | undefined;
+      let themed = false;
       let titled: string | undefined;
       // The title follows the state a screen is drawn for; sent only when it changed, and before the screen that goes with it.
       const retitle = (): void => {
         if (options.appearanceOf !== undefined) {
           const asked = options.appearanceOf(Effect.runSync(handle.state));
 
-          if (asked !== appearance) {
+          if (asked !== appearance || (options.theme !== undefined && !themed)) {
             appearance = asked;
-            send({ op: "appearance", appearance: asked });
+            send({ op: "appearance", appearance: asked, ...(options.theme !== undefined && !themed ? { theme: options.theme } : {}) });
+            themed = true;
           }
         }
         if (options.titleOf !== undefined) {
@@ -195,6 +204,7 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
         return {
           draw: (tree) => (retitle(), send({ op: "draw", tree: options.present?.(tree) ?? tree })),
           update: (tree) => (retitle(), send({ op: "update", tree: options.present?.(tree) ?? tree })),
+          focus: (key) => send({ op: "focus", key }),
           unmount: () => send({ op: "unmount" }),
         };
       });

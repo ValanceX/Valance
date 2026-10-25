@@ -1,0 +1,380 @@
+{
+  "measuredAt": "2026-10-24T06:10:06.249Z",
+  "node": "v22.22.0",
+  "source": "workspace tarballs (--tree)",
+  "builtWith": [
+    "@valancex/cli",
+    "@valancex/common",
+    "@valancex/valance",
+    "@valancex/router",
+    "@valancex/style"
+  ],
+  "bundler": "vlx build (Vite)",
+  "newestInstallsTogether": {
+    "installs": false,
+    "newest": {
+      "@valancex/mesh-runtime": "0.16.0",
+      "@valancex/mesh-compiler": "0.16.0",
+      "@valancex/nexus": "0.14.0",
+      "@valancex/valance": "0.13.0",
+      "@valancex/port-web": "0.12.0"
+    },
+    "behind": [
+      "@valancex/mesh-runtime",
+      "@valancex/mesh-compiler",
+      "@valancex/nexus",
+      "@valancex/valance",
+      "@valancex/port-web"
+    ],
+    "refusal": [
+      "npm error code ERESOLVE",
+      "npm error Found: @valancex/mesh-runtime@0.15.0",
+      "npm error Conflicting peer dependency: @valancex/mesh-runtime@0.12.0"
+    ]
+  },
+  "counter": {
+    "installed": {
+      "buildSeconds": 9.68003525700001,
+      "js": {
+        "files": 2,
+        "raw": 337445,
+        "gzip": 107435,
+        "brotli": 94305
+      },
+      "css": {
+        "files": 1,
+        "raw": 6591,
+        "gzip": 1333,
+        "brotli": 1096
+      },
+      "wasm": {
+        "files": 1,
+        "raw": 732005,
+        "gzip": 244267,
+        "brotli": 183629
+      },
+      "wasmFilesInOutput": 1,
+      "assets": [
+        {
+          "name": "client-B2q3KTrk.js",
+          "raw": 337157,
+          "gzip": 107219,
+          "brotli": 94147
+        },
+        {
+          "name": "client-DVMPwALq.css",
+          "raw": 6591,
+          "gzip": 1333,
+          "brotli": 1096
+        },
+        {
+          "name": "mesh-runtime-BHxDKd15.wasm",
+          "raw": 732005,
+          "gzip": 244267,
+          "brotli": 183629
+        },
+        {
+          "name": "promises-Bbc-dLSX.js",
+          "raw": 288,
+          "gzip": 216,
+          "brotli": 158
+        }
+      ]
+    },
+    "deduped": {
+      "buildSeconds": 9.934276863000006,
+      "js": {
+        "files": 2,
+        "raw": 337445,
+        "gzip": 107435,
+        "brotli": 94305
+      },
+      "css": {
+        "files": 1,
+        "raw": 6591,
+        "gzip": 1333,
+        "brotli": 1096
+      },
+      "wasm": {
+        "files": 1,
+        "raw": 732005,
+        "gzip": 244267,
+        "brotli": 183629
+      },
+      "wasmFilesInOutput": 1,
+      "assets": [
+        {
+          "name": "client-B2q3KTrk.js",
+          "raw": 337157,
+          "gzip": 107219,
+          "brotli": 94147
+        },
+        {
+          "name": "client-DVMPwALq.css",
+          "raw": 6591,
+          "gzip": 1333,
+          "brotli": 1096
+        },
+        {
+          "name": "mesh-runtime-BHxDKd15.wasm",
+          "raw": 732005,
+          "gzip": 244267,
+          "brotli": 183629
+        },
+        {
+          "name": "promises-Bbc-dLSX.js",
+          "raw": 288,
+          "gzip": 216,
+          "brotli": 158
+        }
+      ]
+    }
+  },
+  "docsApp": {
+    "pages": 3,
+    "buildSeconds": 10.761046952000004,
+    "js": {
+      "files": 2,
+      "raw": 435616,
+      "gzip": 114370,
+      "brotli": 99113
+    },
+    "css": {
+      "files": 1,
+      "raw": 8246,
+      "gzip": 1907,
+      "brotli": 1588
+    },
+    "wasm": {
+      "files": 1,
+      "raw": 732005,
+      "gzip": 244267,
+      "brotli": 183629
+    },
+    "wasmFilesInOutput": 1,
+    "assets": [
+      {
+        "name": "client-Cf_ZxgWS.css",
+        "raw": 8246,
+        "gzip": 1907,
+        "brotli": 1588
+      },
+      {
+        "name": "client-EvKVmI3Q.js",
+        "raw": 435328,
+        "gzip": 114154,
+        "brotli": 98955
+      },
+      {
+        "name": "mesh-runtime-BHxDKd15.wasm",
+        "raw": 732005,
+        "gzip": 244267,
+        "brotli": 183629
+      },
+      {
+        "name": "promises-Bbc-dLSX.js",
+        "raw": 288,
+        "gzip": 216,
+        "brotli": 158
+      }
+    ],
+    "perAddedPage": {
+      "added": 20,
+      "pagesAfter": 23,
+      "jsRawPerPage": 2471.5,
+      "jsBrotliPerPage": 271.75,
+      "jsGzipPerPage": 331.3,
+      "chunksBefore": 2,
+      "chunksAfter": 2
+    }
+  },
+  "browser": {
+    "updates": 200,
+    "chromium": "141.0.7390.37",
+    "installed": {
+      "noThrottling": {
+        "firstPaintMs": 84,
+        "interactiveAtMs": 378.9000000001397,
+        "deadZoneMs": 294.9000000001397,
+        "clickToDomMs": 11.100000000093132,
+        "bytesTransferredBrotli": 280821,
+        "atStart": {
+          "jsHeapUsedBytes": 5518880,
+          "wasmMemoryBytes": 1310720
+        },
+        "afterUpdates": {
+          "updates": 200,
+          "msPerUpdate": 7.353305799999943,
+          "jsHeapUsedBytes": 4584236,
+          "jsHeapUsedRange": [
+            4583824,
+            4584284
+          ],
+          "wasmMemoryBytes": 1310720,
+          "wasmMemoryRange": [
+            1310720,
+            1310720
+          ],
+          "rendererResidentBytes": 147881984
+        }
+      },
+      "cpu4x": {
+        "firstPaintMs": 1008,
+        "interactiveAtMs": 1204.9000000001397,
+        "deadZoneMs": 196.9000000001397,
+        "clickToDomMs": 58.199999999953434,
+        "bytesTransferredBrotli": 280821,
+        "atStart": {
+          "jsHeapUsedBytes": 5526820,
+          "wasmMemoryBytes": 1310720
+        },
+        "afterUpdates": {
+          "updates": 200,
+          "msPerUpdate": 42.31335030999995,
+          "jsHeapUsedBytes": 4552000,
+          "jsHeapUsedRange": [
+            4551260,
+            4563556
+          ],
+          "wasmMemoryBytes": 1310720,
+          "wasmMemoryRange": [
+            1310720,
+            1310720
+          ],
+          "rendererResidentBytes": 147525632
+        }
+      }
+    },
+    "deduped": {
+      "noThrottling": {
+        "firstPaintMs": 80,
+        "interactiveAtMs": 259.5,
+        "deadZoneMs": 179.5,
+        "clickToDomMs": 17,
+        "bytesTransferredBrotli": 280821,
+        "atStart": {
+          "jsHeapUsedBytes": 5514048,
+          "wasmMemoryBytes": 1310720
+        },
+        "afterUpdates": {
+          "updates": 200,
+          "msPerUpdate": 7.415469219999941,
+          "jsHeapUsedBytes": 4584224,
+          "jsHeapUsedRange": [
+            4583808,
+            4584268
+          ],
+          "wasmMemoryBytes": 1310720,
+          "wasmMemoryRange": [
+            1310720,
+            1310720
+          ],
+          "rendererResidentBytes": 147935232
+        }
+      },
+      "cpu4x": {
+        "firstPaintMs": 280,
+        "interactiveAtMs": 1210.1000000000931,
+        "deadZoneMs": 930.1000000000931,
+        "clickToDomMs": 81.5999999998603,
+        "bytesTransferredBrotli": 280821,
+        "atStart": {
+          "jsHeapUsedBytes": 5520320,
+          "wasmMemoryBytes": 1310720
+        },
+        "afterUpdates": {
+          "updates": 200,
+          "msPerUpdate": 43.42894662999999,
+          "jsHeapUsedBytes": 4555620,
+          "jsHeapUsedRange": [
+            4542196,
+            4561408
+          ],
+          "wasmMemoryBytes": 1310720,
+          "wasmMemoryRange": [
+            1310720,
+            1310720
+          ],
+          "rendererResidentBytes": 145256448
+        }
+      }
+    },
+    "docsApp": {
+      "noThrottling": {
+        "firstPaintMs": 120,
+        "interactiveAtMs": 479.19999999995343,
+        "deadZoneMs": 359.19999999995343,
+        "clickToDomMs": 61.5,
+        "bytesTransferredBrotli": 286942,
+        "atStart": {
+          "jsHeapUsedBytes": 4955368,
+          "wasmMemoryBytes": 2293760
+        },
+        "afterUpdates": {
+          "updates": 200,
+          "msPerUpdate": 50.116170730000015,
+          "jsHeapUsedBytes": 4839644,
+          "jsHeapUsedRange": [
+            4838140,
+            4841356
+          ],
+          "wasmMemoryBytes": 2293760,
+          "wasmMemoryRange": [
+            2293760,
+            2293760
+          ],
+          "rendererResidentBytes": 158175232
+        }
+      },
+      "cpu4x": {
+        "firstPaintMs": 264,
+        "interactiveAtMs": 2090.5,
+        "deadZoneMs": 1826.5,
+        "clickToDomMs": 323.19999999995343,
+        "bytesTransferredBrotli": 286942,
+        "atStart": {
+          "jsHeapUsedBytes": 4909668,
+          "wasmMemoryBytes": 2293760
+        },
+        "afterUpdates": {
+          "updates": 200,
+          "msPerUpdate": 246.95825136500002,
+          "jsHeapUsedBytes": 4831124,
+          "jsHeapUsedRange": [
+            4830352,
+            4831640
+          ],
+          "wasmMemoryBytes": 2293760,
+          "wasmMemoryRange": [
+            2293760,
+            2293760
+          ],
+          "rendererResidentBytes": 160976896
+        }
+      }
+    }
+  },
+  "runtimeVersion": "0.15.0",
+  "update": {
+    "1000": {
+      "fullRenderMs": 53.79596399998991,
+      "updateMs": 8.634558000019751,
+      "updateFromChangesMs": 3.069646999996621
+    },
+    "10000": {
+      "fullRenderMs": 542.226484999992,
+      "updateMs": 97.39655399997719,
+      "updateFromChangesMs": 51.9088220000267
+    }
+  },
+  "wire": {
+    "1000": {
+      "wholeTreeBytes": 185924,
+      "patchBytes": 202
+    },
+    "10000": {
+      "wholeTreeBytes": 1877922,
+      "patchBytes": 202
+    }
+  }
+}

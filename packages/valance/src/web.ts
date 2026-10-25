@@ -7,8 +7,10 @@ import type { HydrationResult, WebPort, WebPortOptions, WebPrimitive, WebPrimiti
 import type { BoundaryValue } from "@valancex/mesh-runtime";
 import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
 
+import * as PortWeb from "@valancex/port-web";
 import { attribute, controlled, createWebPort } from "@valancex/port-web";
 import { hydrate, mount, start } from "./index.js";
+import type { SessionRecorder } from "./replay.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
 import { applyHead, cleanTitle, compose } from "./web-plugin.js";
@@ -17,6 +19,20 @@ import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, controlled, controlledBoolean, property, textProperty } from "@valancex/port-web";
+/**
+ * Chooses a primitive's element by a boolean prop: `true` makes it the element `name` says (a list's `ordered` makes `ol`), and PORT Web replaces the element when the prop changes.
+ * From PORT Web 0.11; with an older PORT it is absent, and a table written for it leaves the prop out.
+ */
+export const elementWhen: ((name: string) => WebPrimitive extends { props?: Readonly<Record<string, infer P>> } ? P : never) | undefined = (
+  PortWeb as unknown as { readonly elementWhen?: (name: string) => never }
+).elementWhen;
+/** A layer's prop (PORT Web 0.12): `layerProp("open")` is whether the layer is shown, `"anchor"` the `id` of what a popover sits at, `"placement"` where. Absent with an older PORT, and a table written for it leaves its layers out. */
+export const layerProp: ((name: "open" | "anchor" | "placement") => WebPrimitive extends { props?: Readonly<Record<string, infer P>> } ? P : never) | undefined = (
+  PortWeb as unknown as { readonly layerProp?: (name: string) => never }
+).layerProp;
+/** The event a layer raises when the person asks to close it (PORT Web 0.12), with the reason `"escape"` or `"outside"`. */
+export const layerDismiss: (WebPrimitive extends { events?: Readonly<Record<string, infer E>> } ? E : never) | undefined = (PortWeb as unknown as { readonly layerDismiss?: never })
+  .layerDismiss;
 export { event } from "./web-payload.js";
 export type { PayloadKind } from "./web-payload.js";
 export type { Delivery, GuardResult, HeadTags, LinkTag, MetaTag, Navigation, Plugin, RouteTable } from "./web-plugin.js";
@@ -419,6 +435,10 @@ export interface RunOptions<S> extends StartOptions<S> {
    * `"hydrate"` adopts server-rendered markup in the container with the client's own render, and reports whether it did in `Host.mounted.hydration`.
    */
   readonly present: "mount" | "hydrate";
+  /** How many of the most recent exits `mounted.dispatched` keeps: `MountOptions.ledger` (default 1,000; `Infinity` keeps every exit). */
+  readonly ledger?: number;
+  /** A recorder for the session (`MountOptions.record`; `@valancex/valance/replay`). A development feature: `vlx dev --record` passes one. */
+  readonly record?: SessionRecorder;
   /** The application's own URL policy, handed to `history` unread. Absent: the URL is not kept in step. */
   readonly history?: HistoryOptions<S>;
   /**
@@ -482,7 +502,8 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
   const startup = Effect.gen(function* () {
     const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
     const web = target({ container: options.container, primitives: composed.primitives });
-    const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web) : yield* mount(handle, web);
+    const mountOptions = { ...(options.ledger === undefined ? {} : { ledger: options.ledger }), ...(options.record === undefined ? {} : { record: options.record }) };
+    const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web, mountOptions) : yield* mount(handle, web, mountOptions);
 
     if (policy !== undefined) {
       yield* history(handle, { container: options.container, ...policy });

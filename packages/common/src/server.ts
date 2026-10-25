@@ -7,6 +7,7 @@ import { Effect } from "effect";
 
 import type { Built } from "./app.js";
 import { application, stateFor } from "./app.js";
+import { earlyHead } from "./early.js";
 import { plugin } from "./web-app.js";
 import type { DefinedApp } from "./index.js";
 import type { Content } from "./model.js";
@@ -40,7 +41,7 @@ export const createRenderer = ({ content, program, author }: ServerParts) => {
 
     return {
       status: table.known(pathname) ? 200 : 404,
-      html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${renderHead(served.head)}</head><body><div id="app">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`,
+      html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${built.wasm === undefined ? "" : `<link rel="modulepreload" href="${built.script}">`}${earlyHead(built)}${renderHead(served.head)}</head><body><div id="app" data-vlx="starting">${served.html}</div><script id="valance-boot" type="application/json">${boot}</script><script type="module" src="${built.script}"></script></body></html>`,
     };
   };
 };

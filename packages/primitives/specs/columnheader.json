@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "columnheader",
+  "status": "desktop-only",
+  "role": "columnheader",
+  "summary": "A cell that names its column; `sort` says how the column is sorted.",
+  "props": {
+    "sort": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false
+    }
+  },
+  "events": {},
+  "content": "text",
+  "accessibleName": {
+    "from": "content"
+  },
+  "keyboard": [],
+  "within": ["table", "tablehead", "tablerow"],
+  "example": {
+    "text": "Size"
+  }
+}

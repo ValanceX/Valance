@@ -4,12 +4,12 @@ import { outline, tagsOf } from "../src/outline.js";
 
 describe("the outline of a template", () => {
   it("lists the elements written, with where, repeats included, closing tags and text not counted", () => {
-    const source = '<shell>\n  <theme-toggle theme={theme} />\n  <para>a < b</para>\n  <theme-toggle theme="x" />\n</shell>\n';
+    const source = '<shell>\n  <theme-toggle theme={theme} />\n  <paragraph>a < b</paragraph>\n  <theme-toggle theme="x" />\n</shell>\n';
     const found = outline(source);
 
-    expect(found.tags.map((tag) => tag.name)).toEqual(["shell", "theme-toggle", "para", "theme-toggle"]);
+    expect(found.tags.map((tag) => tag.name)).toEqual(["shell", "theme-toggle", "paragraph", "theme-toggle"]);
     expect(source.slice(found.tags[1]!.offset, found.tags[1]!.offset + 13)).toBe("<theme-toggle");
-    expect([...tagsOf(source).keys()]).toEqual(["shell", "theme-toggle", "para"]);
+    expect([...tagsOf(source).keys()]).toEqual(["shell", "theme-toggle", "paragraph"]);
   });
 
   it("does not read a tag in an expression, a quoted value or a comment", () => {

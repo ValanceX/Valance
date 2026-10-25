@@ -5,7 +5,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 import type { Schema } from "effect";
 
-import type { Component } from "@valancex/common";
+import type { Component, PropDeclaration } from "@valancex/common";
 import { ENTRY_FILE } from "./project.js";
 
 export interface Place {
@@ -20,7 +20,14 @@ export interface Node {
   /** The template, relative to the project. */
   readonly file: string;
   /** The interface the component declares: present when it declares one (an omitted side is none), absent when its contract is inferred from the template and where it is used. */
-  readonly interface?: { readonly props: Readonly<Record<string, Schema.Schema<any, any, never>>>; readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>> };
+  readonly interface?: {
+    readonly props: Readonly<Record<string, PropDeclaration>>;
+    readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+    /** The prop that is the component's accessible name, if it declares one. */
+    readonly name?: string;
+    /** The state and commands of one occurrence of the component, if it has any. */
+    readonly unit?: Component["unit"];
+  };
   /** The declared components its template writes. */
   readonly uses: ReadonlyArray<string>;
   /** Who uses it: the components whose templates write its tag; `"(application)"` for the layout and for an override. */
@@ -31,6 +38,21 @@ export const APPLICATION = "(application)";
 
 export const nameOf = (file: string): string => basename(file, ".mprx");
 
+/** A component as the definition lists it, before two with one name are told apart: how it was listed, and so whether it may replace a built-in. */
+export interface Declared {
+  readonly name: string;
+  readonly file: string;
+  readonly role: "layout" | "override" | "component";
+}
+
+/** Every component the definition lists, in order and with repeats, each with the role it was listed in. `treeOf` is these, once each by name. */
+export const declaredOf = (layout: Component | undefined, overrides: ReadonlyArray<Component>, components: ReadonlyArray<Component> = []): ReadonlyArray<Declared> =>
+  [
+    ...(layout === undefined ? [] : [{ component: layout, role: "layout" as const }]),
+    ...overrides.map((component) => ({ component, role: "override" as const })),
+    ...components.map((component) => ({ component, role: "component" as const })),
+  ].map(({ component, role }) => ({ name: nameOf(component.template.mprx), file: component.template.mprx, role }));
+
 /** Every component the definition declares, once each by name: `layout`, each `override`, then each of `components`. Who uses whom is read from the templates (`linked`). */
 export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<Component>, components: ReadonlyArray<Component> = []): ReadonlyArray<Node> => {
   const found = new Map<string, Node>();
@@ -39,7 +61,17 @@ export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<C
     const name = nameOf(declared.template.mprx);
 
     if (!found.has(name)) {
-      const contract = declared.props === undefined && declared.events === undefined ? {} : { interface: { props: declared.props ?? {}, events: declared.events ?? {} } };
+      const contract =
+        declared.props === undefined && declared.events === undefined && declared.unit === undefined
+          ? {}
+          : {
+              interface: {
+                props: declared.props ?? {},
+                events: declared.events ?? {},
+                ...(declared.name === undefined ? {} : { name: declared.name }),
+                ...(declared.unit === undefined ? {} : { unit: declared.unit }),
+              },
+            };
 
       found.set(name, { name, file: declared.template.mprx, ...contract, uses: [], parents: [] });
     }

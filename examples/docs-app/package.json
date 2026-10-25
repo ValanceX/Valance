@@ -19,7 +19,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@valancex/cli": "workspace:*",
-    "@valancex/mesh-lsp": "0.11.0",
+    "@valancex/mesh-lsp": "0.17.0",
     "playwright": "1.56.1",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0"

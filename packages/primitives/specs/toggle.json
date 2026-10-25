@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "name": "toggle",
+  "status": "portable",
+  "role": "button",
+  "summary": "A button that stays pressed or not. The application owns the value; a press reports the value it is going to have.",
+  "props": {
+    "pressed": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": true,
+      "controlled": true,
+      "a11y": "state"
+    },
+    "label": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "a11y": "name"
+    },
+    "disabled": {
+      "type": {
+        "kind": "boolean"
+      },
+      "required": false,
+      "a11y": "state"
+    },
+    "class": {
+      "type": {
+        "kind": "string"
+      },
+      "required": false,
+      "webOnly": true
+    },
+    "earlyInput": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "keep",
+          "drop"
+        ]
+      },
+      "required": false,
+      "webOnly": true
+    }
+  },
+  "events": {
+    "change": {
+      "payload": {
+        "kind": "boolean"
+      },
+      "meaning": "The person pressed it; carries the new value."
+    }
+  },
+  "content": "text",
+  "accessibleName": {
+    "from": "either",
+    "prop": "label"
+  },
+  "keyboard": [
+    {
+      "key": "Enter",
+      "raises": "change"
+    },
+    {
+      "key": "Space",
+      "raises": "change"
+    }
+  ],
+  "states": {
+    "pressed": "pressed",
+    "disabled": "disabled"
+  },
+  "example": {
+    "props": {
+      "pressed": true
+    },
+    "text": "Bold"
+  },
+  "earlyInput": "keep"
+}

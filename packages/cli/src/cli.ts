@@ -4,11 +4,13 @@
 //   vlx dev [--port N] [--host H]   serve the project and rebuild it as it changes
 //   vlx build                       write the site to dist/web/
 //   vlx check [--json]              find mistakes in authored files without building
+//   vlx theme check [--json]        the theme: its tokens, recipes, contrast and what each target applies
 //   vlx generate page|component <name>   add a page, or a component registered in src/main.ts (alias: g)
 //   vlx sync                        bring .valance/ (generated types, manifest, entries) up to date; runs by itself after install and generate
 //   vlx help [command]              what a command does
 //
 // In a terminal, `init`, `dev`, `build` and `check` draw an interface (Ink, `ui/`). Anywhere else (a pipe, CI, `--json`, `--plain`) they print the plain text they always have.
+import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
@@ -19,9 +21,11 @@ import { packageDesktop } from "./package.js";
 import { generateComponent, generatePage, generateTarget, GenerateError, KINDS } from "./add.js";
 import type { Kind } from "./add.js";
 import { check } from "./check.js";
+import { themeReport } from "./theme.js";
 import { findRoot } from "./config.js";
 import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
+import { defaultRecording, replayFile } from "./replay.js";
 import { AppError, format } from "./diagnostics.js";
 import { detectPackageManager, directoryFor, directoryProblem, execute, nameProblem, runCommand, titleOf } from "./init.js";
 import type { TargetId } from "./targets.js";
@@ -31,9 +35,11 @@ import { canAsk, canDraw } from "./tty.js";
 const HELP = `vlx <command>
 
   init [name] [--web]              make a new application
-  dev [--port N] [--host H]        serve it and rebuild as it changes
+  dev [--port N] [--host H]        serve it and rebuild as it changes (--record [file]: write a session log)
+  replay <log> [--route R] [--allow-user-data]  play a session log against this project and find where it differs
   build                            write the site to dist/web/
   check [--json]                   find mistakes in your files without building
+  theme check [--json]             check the theme: tokens, recipes, contrast, and what each target applies
   generate page|component <name>  add a page, or a component (alias: g)
   generate target web|desktop      add a target to the project
   package --desktop                the desktop target as one executable beside its window (unsigned)
@@ -62,12 +68,16 @@ const COMMAND_HELP: Readonly<Record<string, string>> = {
   init: INIT_HELP,
   generate: GENERATE_HELP,
   g: GENERATE_HELP,
-  dev: "vlx dev [--web|--desktop] [--port N] [--host H]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page.\n",
+  replay:
+    "vlx replay <log> [--route changes,update,render] [--json] [--allow-user-data]\n\nPlay a session log (written by vlx dev --record, or one of MESH's conformance logs) against this project's templates by the three routes of the equivalence law, and find the first line where one differs from the log: a tree, an event's outcome, a program or manifest that is not the one recorded. It runs no command and reads no clock. Exits 0 when every route gave what the log recorded, 1 when one did not, 2 when the log cannot be read. A log that holds user data (every recording does: its header says containsUserData) is refused unless you pass --allow-user-data: a divergence prints what was typed and shown.\n",
+  dev: "vlx dev [--web|--desktop] [--port N] [--host H] [--record [file]]\n\nServe the project (the web is served, a desktop project opens its window; a project of more than one target does both, or the one named) and rebuild it as files change. A mistake leaves the last good build serving and shows in the terminal and in the page. --record writes the web page's session as a log (default .valance/sessions/<time>.jsonl) for vlx replay: development only, never uploaded, and it holds what the person typed.\n",
   build:
     "vlx build [--web] [--desktop]\n\nBuild every target the project has (or the ones named). The web: the site, in dist/web/; any host that serves files can serve it. The desktop: the engine, in dist/desktop/.\n",
   sync: "vlx sync\n\nBring .valance/ up to date: the generated types for your templates (so your editor and tsc agree with them), the manifest and the entries. You rarely run it: a new project does it after install (the `prepare` script), `vlx generate` does it after it writes, and dev, build and check do it as they run. It never fails: mistakes in your files are reported by vlx check.\n",
   package:
     "vlx package --desktop [--platform linux-x64|win32-x64] [--window <path>] [--node <path>] [--archive]\n\nBuild the desktop target and package it: the engine as one executable (Node's single executable application, with the MESH runtime inside) beside the Desktop PORT's window program, in dist/package/<platform>/. --window is the window program for that platform (default: VLX_WINDOW, else vlx-window on the PATH; build it from the PORT repository). For another platform, --node is a node binary of this version for it. --archive also writes the package as one file, a .tar.gz (Linux) or a .zip (Windows), with its SHA-256 beside it. The result is unsigned.\n",
+  theme:
+    "vlx theme check [--json]\n\nCheck the theme: the project's `theme/theme.json` (its tokens by mode, in the Design Tokens format, and its recipes), or the default theme when it has none. Reports a token that does not resolve, a recipe that names a part, state, variant, property or token that does not exist, a removed focus ring, the contrast of every pair the theme declares (WCAG 2.2), and what the web and the desktop apply of it. --json prints the diagnostics, the contrast and the coverage.\n",
   check: "vlx check [--json]\n\nFind mistakes in your files without building. --json prints them as { file, line, column, code, message } for editors and CI.\n",
 };
 
@@ -91,6 +101,20 @@ const option = (args: ReadonlyArray<string>, name: string): string | undefined =
   const at = args.indexOf(name);
 
   return at < 0 ? undefined : args[at + 1];
+};
+
+/** `--record` alone, `--record file` or `--record=file`: the file, `""` for the default, nothing when it is not there. A word after it that is another flag is not its file. */
+const recordOption = (args: ReadonlyArray<string>): string | undefined => {
+  const joined = args.find((each) => each.startsWith("--record="));
+
+  if (joined !== undefined) {
+    return joined.slice("--record=".length);
+  }
+
+  const at = args.indexOf("--record");
+  const next = at < 0 ? undefined : args[at + 1];
+
+  return at < 0 ? undefined : next === undefined || next.startsWith("-") ? "" : next;
 };
 
 const version = (): string => (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { readonly version: string }).version;
@@ -169,7 +193,17 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
   }
 
   // A global `vlx` runs the project's own (see `delegate.ts`).
-  if (command === "dev" || command === "build" || command === "package" || command === "check" || command === "sync" || command === "generate" || command === "g") {
+  if (
+    command === "dev" ||
+    command === "replay" ||
+    command === "build" ||
+    command === "package" ||
+    command === "check" ||
+    command === "theme" ||
+    command === "sync" ||
+    command === "generate" ||
+    command === "g"
+  ) {
     const local = localCli(cwd);
 
     if (local !== undefined) {
@@ -212,11 +246,14 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         const target = picked[0];
+        const asked = recordOption(rest);
+        const record = asked === undefined ? undefined : asked === "" ? defaultRecording(findRoot(cwd)) : resolve(cwd, asked);
 
         if (draws) {
           const { drawDev } = await import("./ui/run.js");
 
           await drawDev(findRoot(cwd), {
+            ...(record === undefined ? {} : { record }),
             ...(target === undefined ? {} : { target }),
             ...(port === undefined ? {} : { port: Number(port) }),
             ...(host === undefined ? {} : { host }),
@@ -226,6 +263,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         const running = await dev(findRoot(cwd), {
+          ...(record === undefined ? {} : { record }),
           ...(target === undefined ? {} : { target }),
           ...(port === undefined ? {} : { port: Number(port) }),
           ...(host === undefined ? {} : { host }),
@@ -243,6 +281,26 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         return 0;
       }
+      case "replay": {
+        const file = rest.find((each, index) => !each.startsWith("-") && rest[index - 1] !== "--route");
+
+        if (file === undefined) {
+          console.error("vlx replay: name a log: vlx replay <log> [--route changes,update,render] [--json]");
+
+          return 2;
+        }
+
+        const routes = option(rest, "--route");
+        const replayed = await replayFile(findRoot(cwd), resolve(cwd, file), {
+          ...(routes === undefined ? {} : { routes: routes.split(",") }),
+          json: rest.includes("--json"),
+          allowUserData: rest.includes("--allow-user-data"),
+        });
+
+        (replayed.code === 0 ? console.log : console.error)(replayed.output);
+
+        return replayed.code;
+      }
       case "build": {
         if (draws) {
           const { drawBuild } = await import("./ui/run.js");
@@ -254,7 +312,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
 
         const started = Date.now();
         const flagged = targetFlags(rest);
-        const built = await build(findRoot(cwd), flagged.length === 0 ? {} : { targets: flagged });
+        const built = await build(findRoot(cwd), { ...(flagged.length === 0 ? {} : { targets: flagged }), onReport: (report) => report.forEach((line) => console.log(line)) });
 
         console.log(`vlx build: ${built.pages.length} pages, ${built.files.length} files → ${built.dir} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
 
@@ -303,6 +361,48 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         return result.diagnostics.length === 0 ? 0 : 1;
+      }
+      case "theme": {
+        if (rest[0] !== "check") {
+          console.error("vlx theme: say what: vlx theme check [--json]");
+
+          return 2;
+        }
+
+        const report = themeReport(findRoot(cwd));
+
+        if (rest.includes("--json")) {
+          console.log(
+            JSON.stringify({ theme: report.name, custom: report.custom, diagnostics: report.diagnostics, contrast: report.contrast, coverage: report.coverage }, null, 2),
+          );
+
+          return report.diagnostics.length === 0 ? 0 : 1;
+        }
+
+        console.log(`vlx theme check: ${report.custom ? "the project's theme" : "the default theme"} "${report.name}" (modes: ${report.modes.join(", ")})`);
+
+        for (const each of report.contrast) {
+          console.log(`  contrast  ${each.mode.padEnd(9)} ${each.text} on ${each.on}  ${each.ratio.toFixed(2)}:1  (min ${each.min})  ${each.passes ? "ok" : "BELOW"}`);
+        }
+
+        for (const each of report.coverage) {
+          console.log(
+            `  ${each.target}: ${each.styled.length} of ${each.styled.length + each.unstyled.length} primitives of the portable core styled${each.unstyled.length === 0 ? "" : ` (not styled: ${each.unstyled.join(", ")})`}`,
+          );
+
+          for (const note of each.notApplied) {
+            console.log(`    not applied: ${note.primitive} ${note.kind} ${note.name} (${note.support})`);
+          }
+        }
+
+        report.diagnostics.forEach((each) => {
+          console.error(format(each));
+        });
+        console.log(
+          report.diagnostics.length === 0 ? "vlx theme check: no problems" : `vlx theme check: ${report.diagnostics.length} problem${report.diagnostics.length === 1 ? "" : "s"}`,
+        );
+
+        return report.diagnostics.length === 0 ? 0 : 1;
       }
       case "sync": {
         const synced = await sync(cwd);

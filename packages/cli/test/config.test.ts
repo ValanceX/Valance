@@ -27,6 +27,7 @@ describe("valance.json and valance.web.json", () => {
       title: "{page} · {site}",
       web: { base: "/", url: "", headers: true, announce: true },
       api: { base: "", proxy: "" },
+      record: { redact: { scope: [], commands: [] } },
     });
   });
 

@@ -1,0 +1,341 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valancex.dev/schema/primitive-v1.json",
+  "title": "A primitive specification (primitive-v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "name",
+    "status",
+    "role",
+    "summary",
+    "props",
+    "events",
+    "content",
+    "accessibleName",
+    "keyboard",
+    "example"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*$"
+    },
+    "status": {
+      "enum": [
+        "portable",
+        "web-only",
+        "desktop-only"
+      ]
+    },
+    "role": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "webRole": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "props": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/prop"
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/event"
+      }
+    },
+    "content": {
+      "oneOf": [
+        {
+          "enum": [
+            "none",
+            "text",
+            "any"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "only"
+          ],
+          "properties": {
+            "only": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    },
+    "accessibleName": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from"
+      ],
+      "properties": {
+        "from": {
+          "enum": [
+            "content",
+            "prop",
+            "either",
+            "none"
+          ]
+        },
+        "prop": {
+          "type": "string"
+        },
+        "orContainedIn": {
+          "const": "label"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "keyboard": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "raises": {
+            "type": "string"
+          },
+          "moves": {
+            "enum": [
+              "next",
+              "previous"
+            ]
+          }
+        }
+      }
+    },
+    "earlyInput": {
+      "enum": [
+        "keep",
+        "drop"
+      ]
+    },
+    "states": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "relations": {
+      "type": "object",
+      "additionalProperties": {
+        "const": "ref"
+      }
+    },
+    "live": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "politeness",
+        "atomic"
+      ],
+      "properties": {
+        "politeness": {
+          "enum": [
+            "polite",
+            "assertive"
+          ]
+        },
+        "atomic": {
+          "type": "boolean"
+        }
+      }
+    },
+    "within": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "props": {
+          "type": "object"
+        },
+        "text": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/exampleChild"
+          }
+        },
+        "describedByText": {
+          "type": "string"
+        }
+      }
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "modal": {
+      "const": true
+    }
+  },
+  "definitions": {
+    "type": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "string",
+                "number",
+                "boolean",
+                "null",
+                "any"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "values"
+          ],
+          "properties": {
+            "kind": {
+              "const": "enum"
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "element"
+          ],
+          "properties": {
+            "kind": {
+              "const": "list"
+            },
+            "element": {
+              "$ref": "#/definitions/type"
+            }
+          }
+        }
+      ]
+    },
+    "prop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "required"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/type"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "controlled": {
+          "type": "boolean"
+        },
+        "a11y": {
+          "enum": [
+            "name",
+            "state",
+            "relationship",
+            "level",
+            "description-target"
+          ]
+        },
+        "webOnly": {
+          "type": "boolean"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "payload": {
+          "$ref": "#/definitions/type"
+        },
+        "meaning": {
+          "type": "string"
+        }
+      }
+    },
+    "exampleChild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object"
+        },
+        "text": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/exampleChild"
+          }
+        }
+      }
+    }
+  }
+}

@@ -50,6 +50,43 @@ const compile = async (source: string, model: unknown = derived) =>
 
 const page = (body: string): string => `<page title={title}>${body}</page>`;
 
+describe.skipIf(Web.layerProp === undefined)("a layer (PORT Web 0.12)", () => {
+  const layers: Web.WebPrimitives = {
+    ...primitives,
+    ...(Web.layerProp === undefined
+      ? {}
+      : {
+          dialog: {
+            element: "dialog",
+            layer: "modal",
+            props: { open: Web.layerProp("open"), label: Web.attribute("aria-label") },
+            events: { dismiss: Web.layerDismiss! },
+          } as never,
+          popover: {
+            element: "div",
+            layer: "popover",
+            props: { open: Web.layerProp("open"), anchor: Web.layerProp("anchor"), placement: Web.layerProp("placement") },
+            events: { dismiss: Web.layerDismiss! },
+          } as never,
+        }),
+  };
+  const withLayers = manifest({ primitives: layers, scopes: { board: Board }, commands });
+
+  it("has its props by what they are (open a boolean, anchor and placement text) and its dismissal with the reason as a string payload", () => {
+    expect(withLayers.components["dialog"]!.props["open"]).toEqual({ type: { kind: "boolean" }, required: false });
+    expect(withLayers.components["popover"]!.props["anchor"]).toEqual({ type: { kind: "string" }, required: false });
+    expect(withLayers.components["dialog"]!.events).toEqual({ dismiss: { payload: { kind: "string" } } });
+  });
+
+  it("is checked by MESH: a handler takes the reason as a string, and one that takes it as a number is refused", async () => {
+    const run = (source: string) =>
+      compileProgram({ model: { manifest: JSON.stringify(withLayers), path: "components.json" }, root: "board", components: [{ component: "board", path: "board.mprx", source }] });
+
+    expect((await run(page(`<dialog open={loading} label="Sure?" on.dismiss={search($event)}><text>Sure?</text></dialog>`))).program).toBeDefined();
+    expect((await run(page(`<dialog open={loading} label="Sure?" on.dismiss={select(1)}><text>Sure?</text></dialog>`))).program).toBeUndefined();
+  });
+});
+
 describe("what is derived", () => {
   it("tags from the primitives table (props by realization, events with their declared payload kind), scope from the Schema, commands from the command table", () => {
     const c = derived.components;
@@ -102,13 +139,44 @@ describe("what is derived", () => {
     expect(m.components["v"]!.scope).toEqual({
       maybe: { kind: "optional", type: { kind: "string" } },
       orUndefined: { kind: "optional", type: { kind: "number" } },
-      mode: { kind: "string" },
+      mode: { kind: "enum", values: ["a", "b"] },
       flag: { kind: "boolean" },
       nested: { kind: "record", fields: { n: { type: { kind: "number" }, required: true } } },
       tags: { kind: "list", element: { kind: "string" } },
       anything: { kind: "any" },
       parsed: { kind: "number" },
     });
+  });
+});
+
+describe("string literals are closed sets (T7)", () => {
+  const scopeOf = (fields: Schema.Struct.Fields) =>
+    manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) as unknown as Schema.Schema<any, any, never> }, commands: () => ({}) }).components["v"]!.scope;
+
+  it("a literal, or a union of string literals, is an enum; a number or boolean literal keeps its kind", () => {
+    expect(
+      scopeOf({
+        one: Schema.Literal("only"),
+        tone: Schema.Literal("info", "danger"),
+        joined: Schema.Union(Schema.Literal("a"), Schema.Literal("b", "c")),
+        maybe: Schema.UndefinedOr(Schema.Literal("x", "y")),
+        three: Schema.Literal(3),
+        yes: Schema.Literal(true),
+        nothing: Schema.Null,
+      }),
+    ).toEqual({
+      one: { kind: "enum", values: ["only"] },
+      tone: { kind: "enum", values: ["info", "danger"] },
+      joined: { kind: "enum", values: ["a", "b", "c"] },
+      maybe: { kind: "optional", type: { kind: "enum", values: ["x", "y"] } },
+      three: { kind: "number" },
+      yes: { kind: "boolean" },
+      nothing: { kind: "null" },
+    });
+  });
+
+  it("a union with no MESH type is a ManifestError that names the field, not a crash", () => {
+    expect(() => scopeOf({ mixed: Schema.Union(Schema.Literal("a"), Schema.Number) })).toThrow(/v\.mixed: a union of different kinds/);
   });
 });
 
