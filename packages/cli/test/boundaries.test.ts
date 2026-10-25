@@ -69,3 +69,25 @@ describe("what the application package depends on", () => {
     expect(manifest.private).toBeUndefined();
   });
 });
+
+describe("libraries (Bet 12; K4, K11): the mechanism is the build's, and the core knows nothing of it", () => {
+  const nodeOnly = (file: string): ReadonlyArray<string> => importsOf(read(join(src, file))).filter((name) => !name.startsWith("."));
+
+  it("reading a project's libraries imports only Node: no Vite, no compiler, no PORT, no framework package", () => {
+    expect(nodeOnly("libraries.ts").every((name) => name.startsWith("node:"))).toBe(true);
+  });
+
+  it("only the bundler's configuration, the two bundles and the template stage name the `valance` condition or the libraries' settings", () => {
+    const knows = files.filter((file) => /\bCONDITION\b|librariesOf|libraryOf|idOf\b/.test(read(join(src, file))) && file !== "libraries.ts").sort();
+
+    expect(knows).toEqual(["build.ts", "check.ts", "compile.ts", "emit.ts", "library.ts", "package.ts", "theme.ts", "vite.ts"]);
+  });
+
+  it("the core, the application package and the router do not know a library or its condition", () => {
+    for (const dir of ["../../valance/src/", "../../common/src/", "../../router/src/"]) {
+      for (const file of readdirSync(fileURLToPath(new URL(dir, import.meta.url))).filter((name) => name.endsWith(".ts"))) {
+        expect(read(fileURLToPath(new URL(`${dir}${file}`, import.meta.url))), `${dir}${file}`).not.toMatch(/export condition|librariesOf|"valance":/);
+      }
+    }
+  });
+});

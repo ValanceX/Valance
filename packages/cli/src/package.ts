@@ -1,6 +1,8 @@
 // `vlx package`: the desktop target as something to hand to a person. The engine becomes one executable (Node's single executable application: the engine bundled to one file, with the MESH
 // runtime's module inside as an asset, injected into a `node` binary), set beside the Desktop PORT's window program. Unsigned: signing and notarizing are not done here (the artifacts say so).
-import { build as bundle } from "vite";
+import { build as bundle, defaultServerConditions } from "vite";
+
+import { CONDITION } from "./libraries.js";
 import { execFileSync } from "node:child_process";
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -135,7 +137,9 @@ export const packageDesktop = async (root: string, options: PackageOptions = {})
     logLevel: "warn",
     plugins: [templates(root)],
     cacheDir: join(root, GENERATED_DIR, "cache"),
-    ssr: { noExternal: true, target: "node" },
+    // the desktop engine is one file: everything is bundled, and a library resolves by its `valance` condition (K4)
+    resolve: { conditions: [CONDITION, ...defaultServerConditions] },
+    ssr: { noExternal: true, target: "node", resolve: { conditions: [CONDITION, ...defaultServerConditions] } },
     esbuild: { keepNames: true },
     build: {
       ssr: join(root, GENERATED_DIR, "desktop.sea.ts"),

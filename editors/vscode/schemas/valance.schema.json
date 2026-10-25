@@ -64,6 +64,11 @@
         }
       }
     },
+    "theme": {
+      "type": "string",
+      "pattern": "^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$",
+      "description": "The theme package this project uses in place of the default theme: an installed package whose `valance` field is { \"kind\": \"theme\", \"theme\": \"./theme/theme.json\" }. A project with both this and a `theme/` directory is refused."
+    },
     "budgets": {
       "type": "array",
       "description": "The size budgets `vlx build` holds the production build to (never `vlx dev`). A type, a warning and an error threshold in bytes: 500000, \"500kB\" or \"1MB\" (1 kB is 1,000 bytes). With none, the framework's start-up budgets apply.",
