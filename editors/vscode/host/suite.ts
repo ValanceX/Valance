@@ -122,7 +122,7 @@ const cases: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       });
 
       assert.match(hoverText(found), /component theme-toggle/);
-      assert.match(hoverText(found), /theme: string/);
+      assert.match(hoverText(found), /theme: "light" \| "dark"/);
     },
   ],
 
