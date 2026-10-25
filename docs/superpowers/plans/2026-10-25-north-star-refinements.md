@@ -198,3 +198,11 @@ Close the `_tag` cross-delivery hazard (docs/primitives/event.md ~88) additively
 ### Task 27: Phase B iteration audit (valance)
 
 As Task 15, for E2 and I2 across all repos, appending "After Phase B iteration" to the 10-25 validation file. Goal ecosystem ≥ 77.
+
+### Task 28: Mesh argument names on the intent (mesh) — enables I2 named binding
+
+Additive: the command intent (`CommandIntent` in both runtimes, and the render/dispatch output shape that carries it) gains, for each argument whose expression is a plain path (`to`, `item.id`), its name (the last path segment; `null`/absent otherwise). Older consumers ignore the new field. Spec (MPRX §9.7/§9.9 where the intent is defined), manual (runtime.md), conformance vectors, stability row (Provisional), release notes for the next Mesh version. Tests in both runtimes. Runs after Task 23 (same repo).
+
+### Task 29: Valance named binding for bare commands (valance; nexus check) — I2 ◐→P
+
+Task 25 part 2, now that Task 28 supplies names: when every argument of a bare command's call site carries a name and every name is a field of the command's input struct, bind by name; otherwise by position as today. Check that the Nexus adapter passes the intent's new field through unchanged (fix there additively if not). Local packs for unreleased Mesh/Nexus in a separate DO-NOT-MERGE commit. Behavior change (only where names match fields but order differs — already warned by `command-argument-order`) under "behavior" in `docs/releases/v0.16.md`; the warning narrows to the positional case. Tests.
