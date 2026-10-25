@@ -172,3 +172,29 @@ Against local packs of the Mesh branch (separate DO-NOT-MERGE commits):
 ### Task 22: Phase C audit and final measurement (valance)
 
 Re-score all 19 audits for all four repos with evidence. Write the "After Phase C" section and final scores into `docs/north-star-validation-2026-10-25.md`. Goal ecosystem ≥ 85. Update the refinements doc status line to "implemented on branch `north-star-refinements`, not released".
+
+---
+
+## Phase B iteration (added 2026-10-26: Phase B audit scored 72 against the goal 77)
+
+Targets the two Phase B audits worth most without trading extensibility: E2 (Mesh, Port; 3.5) and I2 (Valance, Nexus; 2.5). Port T1.2 via a default table is excluded (decided against in refinements doc C-2). All additive; every change states tier and audits before and after.
+
+### Task 23: Mesh host helper (mesh) — E2 ◐→P
+
+Add a Tier 1 helper to `@valancex/mesh-runtime` (and the Rust crate if the runtime's public surface is mirrored there; follow the repo's two-runtime convention) that owns the render lifecycle a host does by hand today: keeps the current `Render`, releases the previous one after its patches are taken, tracks `version`, holds unit state and routes unit intents. Shape (name chosen against `docs/understand/glossary.md` in valance and Mesh's own vocabulary; `Session` and `Host` are taken, so pick a non-colliding name and justify it): created from a compiled program and manifest; `show(snapshot)` returns what a renderer needs (the first tree, then patches); `dispatch(event)` returns the intent; `close()` releases everything (and `[Symbol.dispose]`). Existing `render`/`update`/`release()` unchanged (Tier 2 now). Tests in both runtimes where applicable; manual page (runtime.md) leads with the helper and moves the manual lifecycle under Tier 2; stability row Provisional; release notes for the next Mesh version (prepared, not published).
+
+### Task 24: Port Web composer helper (port) — E2 ◐→P
+
+Add a Tier 1 helper in `@valancex/port-web` that drives a PORT from a Mesh program without the caller choosing draw vs update or releasing renders: it uses the Mesh runtime (Port Web may depend only on `@valancex/mesh-runtime`; the boundary test must still pass) — if Task 23's helper is available on the Mesh branch, use it through a DO-NOT-MERGE local pack commit; otherwise build on `render`/`update` directly and note the follow-up. `show(snapshot)` draws first, then updates; events from the PORT come back as intents to a callback. Existing `draw`/`update`/report contract unchanged (Tier 2). Tests (jsdom); README Tier 1 example leads with it; stability row Provisional; CHANGELOG with audits.
+
+### Task 25: Valance strict command keys (valance) — I2 ◐→P (with Task 26)
+
+Additive, opt-in: (1) a typed accessor for commands on the application handle keyed by the command table (e.g. `handle.command("app/select")` or a `commands` object — choose to match the handle's existing idiom) whose key is checked (typo = type error) and whose arguments are typed from the command's input schema where it is a struct; `invoke(key: string)` is unchanged. (2) Named binding for bare commands: when every event parameter name matches a field of the command's input struct, bind by name; otherwise positional as today (the `command-argument-order` warning stays for the positional case). This changes behavior only where names match but order differs — a case already warned as wrong; name it under "behavior" in the release notes. Tests, docs (`docs/use/` page that documents invoke and command binding), stability rows, `docs/releases/v0.16.md`.
+
+### Task 26: Nexus event identity (nexus) — I2 ◐→P (with Task 25)
+
+Close the `_tag` cross-delivery hazard (docs/primitives/event.md ~88) additively: the runtime refuses, with a typed defect (stable code, following the repo's error identity), a second distinct `EventDef` using a tag already registered in the same runtime (detected at first publish/subscribe of a def). Subscriptions to a def then can only receive that def's payloads, so the cast is sound; document why. Name the change under "behavior" in `docs/releases/v0.17.md` (it refuses only programs that already have the documented hazard). Tests: two defs same tag → defect; same def used twice → fine; distinct tags → fine.
+
+### Task 27: Phase B iteration audit (valance)
+
+As Task 15, for E2 and I2 across all repos, appending "After Phase B iteration" to the 10-25 validation file. Goal ecosystem ≥ 77.
