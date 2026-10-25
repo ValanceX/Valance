@@ -58,9 +58,10 @@ export const planLibrary = (answers: LibraryAnswers): ReadonlyMap<string, string
       type: "module",
       ...(manager === "pnpm" ? {} : { workspaces: ["packages/*", "playground"] }),
       scripts: {
-        "build:library": `cd ${lib} && vlx library build`,
-        "check:library": `cd ${lib} && vlx library check`,
-        playground: "cd playground && vlx dev",
+        // each through the package's own script: `vlx` is installed in the package that uses it, not at the workspace root, where a script cannot find it
+        "build:library": `cd ${lib} && ${runCommand(manager)} build`,
+        "check:library": `cd ${lib} && ${runCommand(manager)} check`,
+        playground: `cd playground && ${runCommand(manager)} dev`,
       },
     }),
   );

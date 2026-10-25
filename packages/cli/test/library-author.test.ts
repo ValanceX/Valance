@@ -72,6 +72,11 @@ describe("vlx init library", () => {
     expect(pkg["valance"]).toEqual({ kind: "components", targets: ["web", "desktop"] });
     expect(Object.keys(pkg["peerDependencies"])).toContain("@valancex/common");
 
+    // the workspace root has no `vlx` of its own: its scripts go through the scripts of the packages that do
+    const root = JSON.parse(planLibrary({ name: "acme-ui", dir: "/x/ui", packageManager: "pnpm" }).get("package.json")!) as { scripts: Record<string, string> };
+
+    expect(root.scripts).toEqual({ "build:library": "cd packages/acme-ui && pnpm build", "check:library": "cd packages/acme-ui && pnpm check", playground: "cd playground && pnpm dev" });
+
     // pnpm 11 stops an install on a dependency's build script nobody approved; esbuild's is optional, so the workspace says so
     expect(planLibrary({ name: "acme-ui", dir: "/x/ui", packageManager: "pnpm" }).get("pnpm-workspace.yaml")).toContain("allowBuilds:\n  esbuild: false");
   });
