@@ -1,6 +1,6 @@
 # North star measurement: ecosystem compliance on 2026-10-25
 
-A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last section, [After Phase A](#after-phase-a), re-scores the audits the first refinements touched. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
+A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last sections, [After Phase A](#after-phase-a) and [After Phase B](#after-phase-b), re-score the audits the refinements touched. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
 
 **Method and limits.** A static read of `main` in all four repos (Valance, Nexus, Mesh, Port), re-checking the 10-19 results and the audits the refinements plan §1 names. **Nothing was executed**, so no result was reproduced. Each `file:line` cited below was opened again on 2026-10-25 and holds. Results not named in §1 are carried from the baseline unchanged, and the † marks of 10-19 that §1 did not revisit are dropped only where this pass re-checked them (Nexus E3). Results are judgments against the scorecard's definitions, not measurements.
 
@@ -193,6 +193,114 @@ The Phase A goal is met. Still below P in the ecosystem, by the repo that holds 
 | Context | 10 | 0 | 0 | n/a | 0 | n/a |
 | Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
 | Tier 3: hatches | 7 | 50 | 50 | n/a | n/a | 50 |
+
+## After Phase B
+
+Re-scored on 2026-10-26 on the `north-star-refinements` branch, after the Phase B additive API of the [refinements plan](./direction/north-star-refinements.md) §4: B1 (`define` without `view`), B3 (`invoke` keys, `command-argument-order`, typed `resolve`), B5 (stability coverage test) and B6b (`Web.run`'s `native` and `target`) in Valance; B2 (defaults, `examples/hello`) and B4 (transforming schemas, validated `subscribe`, `cause`) in Nexus; B6a (the native hatch, `opaque`) in Port. Mesh did not change. Only the audits Phase B touched were re-checked (T1.1, T1.2, E2, E3, I2, H1, H2); the rest are as after Phase A. Run: in `valance/packages/valance`, `npx vitest run test/stability-coverage.test.ts test/define-default-view.test.ts test/invoke-keys.test.ts` (29 passed); in `valance/examples/todo`, `npx vitest run test/native-hatch.test.ts` (4 passed); in `nexus/`, `npx vitest run examples/hello tests/readme-first-app.test.ts tests/defaults.test.ts` (4 passed); in `port/packages/port-web`, `npx vitest run native` (17 passed). The rest is a static read.
+
+| | After Phase A | After Phase B | Band |
+|---|---|---|---|
+| **Ecosystem (weakest link)** | 69 | **72** | Needs improvement |
+| Port | 88 | **92** | Good |
+| Valance | 79 | **86** | Needs improvement |
+| Nexus | 80 | **84** | Needs improvement |
+| Mesh | 82 | 82 | Needs improvement |
+
+**The Phase B goal, ecosystem 77, is not met**: 70 ÷ 97 = 0.722, so 72. The plan's §6 estimate of ~77 lists only C1/C2 and D2 as the gaps left after Phase B, but T1.1 (Nexus), T1.2 (Port), E2 (Mesh, Port), I1, I2 and M2 are still ◐ in the ecosystem, and §6 itself expects T1.1, T1.2, E2, I1 and M2 to stay ◐ after Phase C. See [Blocking the Phase B goal](#blocking-the-phase-b-goal).
+
+These scores take the controller's rulings for H1 and H2 (below). The stricter reading of H2 that Phase A used (score the weaker of the documented hatches) gives Valance 84, Port 91 and the ecosystem 71.
+
+**Unreleased upstream.** Valance's H1 and H2 count `Web.run`'s `native`, which works only with the PORT Web from Port's branch, installed here from a local pack (`5a6fc77`, `DO NOT MERGE BEFORE THE RELEASES`). Without that pack, on released PORT, `native` is not there, so only `target` counts: Valance H2 is ◐ (Valance 84, ecosystem 71), and H1 stays P under the Web-only ruling. Every other result here reads code on each repo's own branch, with no dependency on another repo's unreleased version.
+
+### Audit results after Phase B
+
+Cells that differ from the After Phase A table are in **bold**.
+
+| ID | Audit | Eco | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| T1.1 | Zero-config path | ◐ | P | ◐ | P | P |
+| T1.2 | Nothing required with a default | ◐ | **P** | **P** | P | ◐ |
+| T1.3 | Docs lead with Tier 1 | P | P | P | P | P |
+| E1 | Boundaries enforced by a test | P | P | P | P | P |
+| E2 | No lifecycle step at Tier 1 | ◐ | P | P | ◐ | ◐ |
+| E3 | Every export tiered | P | P | P | P | P |
+| I1 | Names say what | ◐ | P | ◐ | ◐ | P |
+| I2 | Typed, no stringly or positional coupling | ◐ | ◐ | **◐** | P | P |
+| I3 | Command/query separation | P | P | P | P | P |
+| M1 | One source of truth, `UI = f(state)` | P | P | P | P | P |
+| M2 | One term per concept | ◐ | ◐ | ◐ | ◐ | P |
+| D1 | View models, not entities | P | P | P | P | P |
+| D2 | Wire data can be masked | ◐ | ◐ | – | – | – |
+| C1 | Value reaches a deep component without threading | F | F | – | F | – |
+| C2 | Channel explicit and checkable | – | – | – | – | – |
+| X1 | Opt-in knobs, behavior and performance | P | P | – | P | P |
+| X2 | Defaults correct without knobs | P | P | – | P | P |
+| H1 | Documented way down to the platform | **P** | **P** | – | – | **P** |
+| H2 | Hatch marked and safe | **P** | **P** | – | – | **P** |
+
+Bold without a change of letter: Nexus I2 loses its † (re-checked after B4).
+
+### What moved, and what did not, with evidence
+
+**Moved**
+- **Valance T1.2 ◐→P.** `define`'s `view` is optional when `views` has one entry, and is then that view (`packages/valance/src/index.ts:128-143`); with no view or several, a JS caller gets `missing-view` instead of a later "not a function". `learn/first-application.md` §3 drops `view`. With A4's derived manifest, the first application's required inputs are `name`, state, views and commands, and for `Web.run` `container` and `present`. `present` is required on purpose ("Explicit, and never inferred", `packages/valance/src/web.ts:433-437`), and `primitives` is optional (`:431`). Each is essential to the task, so P. Test: `test/define-default-view.test.ts`.
+- **Nexus T1.2 ◐→P.** `Runtime.make()` takes no layer (`nexus/src/runtime/index.ts:40-44`), and `Application.define({ name })` takes no `runtime` (`src/application/index.ts:86-90`), both through overloads, so `R` is `never` and is never inferred. The README's first app (`nexus/README.md:5-28`) and `examples/hello` need no Service, Layer or Resource. What is left is a state schema and initial value, a command name, its input schema and its handler: essential. One reading for the record: a command with no input still passes `Schema.Struct({})`, an obvious default. Not taken, because the first app's command takes input. That reading would give Nexus 80.
+- **Valance H1 ◐→P (ruling).** `docs/use/platform.md:7-14` documents two ways down from `Web.run`, `native` (PORT Web's hatch, passed through unread, `packages/valance/src/web.ts:450-455`) and `target` (a wrapper of run's own factory, so run keeps the `Mounted`, the URL policy and `stop`, `:456-461`). Both are tested through `Web.run`, including hydration (`examples/todo/test/native-hatch.test.ts`). Phase A held H1 at ◐ because the hatches are Web only. The controller's ruling is that Web only is fine for H1: `platform.md` says so, and a desktop parallel waits for evidence (Port ROADMAP §2.8). This changes how Phase A read the audit, not only the code, and is recorded as such.
+- **Valance H2 ◐→P (ruling, partly disputed).** The page leads with `native` (`platform.md:16-41`). It is marked (Tier 3, Provisional, types from a separate subpath), it gets no `report` or dispatch, the PORT writes back every slot it owns on the element on its next write, and only an `opaque` primitive gives the callback its content. So it visibly leaves the portable layer and state stays authoritative: P on the hatch the docs lead with. `target` is unchanged from Phase A: marked "Tier 3 and it is unprotected" (`platform.md:65`), and it can still write DOM the PORT owns, with nothing to restore it. The literal P wording holds even for `target` if "state" means the application's state, because the wrapper only passes `report` on and state changes only through commands. It fails if, as Phase A read it, the PORT's drawn DOM is framework state too. Phase A scored the weaker hatch and gave ◐. The ruling scores the hatch the docs lead with. **Disagreement recorded:** nothing about `target` changed. What lifts the cell is the rule for choosing which hatch to score. On Phase A's rule Valance H2 stays ◐ (Valance 84, ecosystem 71).
+- **Port H1 ◐→P.** `createWebPort`'s `native` option and the `@valancex/port-web/native` subpath are built and documented (`packages/port-web/README.md`, "The native hatch", `:185-192`; `docs/ARCHITECTURE.md:52` "*(built: Provisional, Web)*"; `docs/stability.md:20`). Port Web is a Web PORT, so Web only is the whole of its target.
+- **Port H2 ◐→P (ruling).** The hatch the README leads with is marked (a subpath that the client and server entries do not re-export) and keeps state authoritative: no report or dispatch, owned slots re-asserted at the end of every `update` and `patch` (tested, `test/native.test.ts:214`), `opaque` refused with children (`opaque-children`), and layers never opaque. What the README leaves to the author is stated: text-run children of a hatched element and the PORT's other elements, reached through the DOM, are not re-asserted, so "leave them alone" (`README.md:190`). Strictly, that is the same kind of gap as `target`, smaller in scope. `inspect(key)` still returns a node that can be mutated (Phase A's ◐), but it is a devtools read, "Not part of the contract" (`docs/stability.md:21`), and is not offered as a way down. On Phase A's weaker-hatch rule Port H2 stays ◐ (Port 91).
+
+**Re-checked, unchanged**
+- **Valance I2 ◐ (agree with the implementer).** `invoke(key: K | (string & {}), args: ReadonlyArray<IntentArgument>)` (`packages/valance/src/index.ts:408`): keys are completed, not checked, so a typo still type-checks. The arguments are untyped `IntentArgument`s. A bare command's input is still filled by position, and `command-argument-order` only warns (`packages/cli/src/argument-order.ts`). The typed `resolve` id (`packages/common/src/index.ts:306-309`) removes one untyped key. That still leaves "some untyped keys … position-dependent mapping", so ◐. P needs an opt-in strict handle (typo-checked keys, typed arguments per key), or name-based binding.
+- **Nexus I2 ◐ (re-checked, † dropped).** B4 settles N9: `Command.define` and `Event.define` take `Schema.Schema<A, I>` (`nexus/src/command/index.ts:20`, `src/event/index.ts:14`), and `CommandValidationError.cause` carries the `ParseError`. N2 is only mitigated: `subscribe` still matches on the `_tag` string, and on the default path it casts the payload (`src/event/index.ts:60`, `payload as Payload`). `docs/primitives/event.md:88`: "Two `EventDef`s with the same tag receive each other's payloads, unvalidated unless `{ validate: true }` is passed." The checked path is opt-in, and the default keeps a cast that a tag collision makes unsound, so ◐. The Nexus v0.17 release note says "I2 ◐→P (with Valance B3)". **Disagreement recorded.** P needs a tag-uniqueness check (at `define` or at runtime) or a validated default.
+- **Nexus T1.1 ◐.** The first app is one program, but it needs Effect (`Effect.Do`, `bind`, `runPromise`, `scoped`), `Schema`, `State`, `Command` and `Runtime` before it prints. That is "several concepts", not "one documented call, no prior concepts". Plan §6 also expects T1.1 ◐ after Phase C ("Nexus needs Schema/State/Command"). `examples/hello` is the same program through `Application`.
+- **Nexus E2 P.** The defaults add no step: `Runtime.make()` still ties the runtime to the caller's `Scope`, and nothing new is called by hand.
+- **Valance E2 P.** A `native` callback's cleanup is Tier 3 and is run by the PORT. A Tier 1 author drives nothing new.
+- **Valance E3 P, now enforced.** `test/stability-coverage.test.ts` fails when a value export of a published entry is not named in its row, and it passes. The new names are tiered: `LibraryComponentIds` and `ResolveId` (`docs/stability.md:30`), `ApplicationHandle<S, E, K>` (`:16`), the two `Web.run` options (Provisional row), and `missing-view` (`docs/use/README.md:24`). Port's and Nexus's new surfaces have rows (`port/docs/stability.md:20`, `nexus/docs/stability.md`, the 0.17.0 row).
+- **Port T1.2 ◐.** `primitives` is still required with no default table. This is decision C-2, and contested.
+- **Mesh:** no change on the branch since Phase A.
+
+### Blocking the Phase B goal
+
+77 needs 74.2 of 97 points (0.765 rounds to 77). The ecosystem has 70. The audits holding it below P, by the repo that holds each one down, and what P would add:
+
+| Audit | Held down by | Points to P | Lifted by |
+|---|---|---|---|
+| C1 (F) | Valance, Mesh | 7 (and C2 becomes applicable: +3 points, +3 divisor) | **C-1** context channel |
+| T1.1 | Nexus | 4 | nothing planned (§6 keeps it ◐) |
+| E2 | Mesh, Port | 3.5 | nothing planned (◐ by design, §5) |
+| T1.2 | Port | 3 | **C-2**, only if the opt-in vocabulary is accepted as P (contested) |
+| I2 | Valance, Nexus | 2.5 | not in Phase C: a strict `invoke` handle (Valance) and a tag-uniqueness check or a validated default (Nexus), both together |
+| I1 | Nexus, Mesh | 2.5 | 1.0 renames |
+| M2 | Valance, Nexus, Mesh | 2.5 | 1.0 renames (C-4 removes Mesh's collision, not the others) |
+| D2 | Valance | 2 | **C-3** `Schema.Redacted` |
+
+No single Phase B audit closes the gap of 4.2. The cheapest lifts outside Phase C are two together: I2 and T1.2 (75.5 ÷ 97, 78), or I2 and T1.1 (76.5 ÷ 97, 79). In Phase C, **C-1 alone meets 77**: (70 + 7 + 3) ÷ 100 = 80. With C-3 that is 82, and with C-2 taken as P, 85 (§6's estimate). On the strict H2 reading (69 ÷ 97, 71), C-1 alone gives 79 and all three C items give 84.
+
+### Arithmetic after Phase B
+
+**Valance** (divisor 97). T1: 8 + 6 + 6 = 20. Encapsulation: 8 + 7 + 5 = 20. Intention: 5 + 2.5 + 5 = 12.5. Mental model: 5 + 2.5 = 7.5. Data: 6 + 2 = 8. Context: 0. Tier 2: 8. Tier 3: H1 4 + H2 3 = 7. Sum 83. 83 ÷ 97 = 0.856, so **86**. (H2 ◐: 81.5 ÷ 97 = 0.840, 84.)
+
+**Nexus** (divisor 71). T1: 4 + 6 + 6 = 16. Encapsulation: 20. Intention: 2.5 + 2.5 + 5 = 10. Mental model: 7.5. Data: 6. Sum 59.5. 59.5 ÷ 71 = 0.838, so **84**. (T1.2 ◐: 56.5 ÷ 71, 80. I2 P: 62 ÷ 71, 87.)
+
+**Mesh** (divisor 86): unchanged, 70.5 ÷ 86 = 0.820, so **82**.
+
+**Port** (divisor 86). T1: 17. Encapsulation: 16.5. Intention: 15. Mental model: 10. Data: 6. Tier 2: 8. Tier 3: 4 + 3 = 7. Sum 79.5. 79.5 ÷ 86 = 0.924, so **92**. (H2 ◐: 78 ÷ 86 = 0.907, 91.)
+
+**Ecosystem** (divisor 97). T1: 4 + 3 + 6 = 13. Encapsulation: 8 + 3.5 + 5 = 16.5. Intention: 2.5 + 2.5 + 5 = 10. Mental model: 7.5. Data: 8. Context: 0. Tier 2: 8. Tier 3: 4 + 3 = 7. Sum 70. 70 ÷ 97 = 0.722, so **72**. (H2 ◐: 68.5 ÷ 97 = 0.706, 71.)
+
+### By category after Phase B
+
+| Category | Weight | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| Tier 1: minimal surface | 20 | 65 | 100 | 80 | 100 | 85 |
+| Encapsulation | 20 | 83 | 100 | 100 | 83 | 83 |
+| Intention and contracts | 15 | 67 | 83 | 67 | 83 | 100 |
+| Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
+| Data boundary | 10 | 80 | 80 | 100 | 100 | 100 |
+| Context | 10 | 0 | 0 | n/a | 0 | n/a |
+| Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
+| Tier 3: hatches | 7 | 100 | 100 | n/a | n/a | 100 |
 
 ## Appendix: arithmetic
 
