@@ -69,7 +69,8 @@ jobs:
   # report is uploaded; it is signed by the accessibility maintainer, not here.
   conformance:
     needs: ci
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -108,7 +109,8 @@ jobs:
   # ceiling is crossed. A tag push (a real release) also requires the known reds that have an expected value (the newest set installs together) to be green; a dry run only reports them.
   budgets:
     needs: ci
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
