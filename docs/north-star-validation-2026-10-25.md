@@ -1,6 +1,6 @@
 # North star measurement: ecosystem compliance on 2026-10-25
 
-A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
+A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last section, [After Phase A](#after-phase-a), re-scores the audits the first refinements touched. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
 
 **Method and limits.** A static read of `main` in all four repos (Valance, Nexus, Mesh, Port), re-checking the 10-19 results and the audits the refinements plan §1 names. **Nothing was executed**, so no result was reproduced. Each `file:line` cited below was opened again on 2026-10-25 and holds. Results not named in §1 are carried from the baseline unchanged, and the † marks of 10-19 that §1 did not revisit are dropped only where this pass re-checked them (Nexus E3). Results are judgments against the scorecard's definitions, not measurements.
 
@@ -50,10 +50,10 @@ P = Pass, ◐ = Partial, F = Fail, – = N/A. Ecosystem = the lowest result amon
 | D2 | Wire data can be masked | ◐ | ◐ | – | – | – |
 | C1 | Value reaches a deep component without threading | F | F | – | F | – |
 | C2 | Channel explicit and checkable | – | – | – | – | – |
-| X1 | Opt-in knobs, behavior and performance | P | **P** | – | P | P |
+| X1 | Opt-in knobs, behavior and performance | **P** | **P** | – | P | P |
 | X2 | Defaults correct without knobs | P | P | – | P | P |
-| H1 | Documented way down to the platform | ◐ | **◐** | – | – | **◐** |
-| H2 | Hatch marked and safe | ◐ | **P** | – | – | **◐** |
+| H1 | Documented way down to the platform | **◐** | **◐** | – | – | **◐** |
+| H2 | Hatch marked and safe | **◐** | **P** | – | – | **◐** |
 
 The brief lists Valance X1 as "P", which is a change from 10-19's ◐; it is in bold above because it is the one Valance cell that moves besides H1 and H2.
 
@@ -66,7 +66,7 @@ The brief lists Valance X1 as "P", which is a change from 10-19's ◐; it is in 
 - M1 P, at risk: unit state is kept outside the single state cell (`packages/valance/src/units.ts:1-8`, one NEXUS `State` per occurrence), while `docs/V1_CONTRACT.md:45` says "The application's single state cell is the only source of truth" and does not mention units. Scored P because the units file calls itself mechanism, not API; it moves to ◐ if units are judged to be state an author owns.
 - E3 ◐ is unchanged. The exports with no `stability.md` row are listed in the plan §1 (`snippet`, `isSnippet`, the brands, `controlled*`, `textField`, `ManifestError`, native `PROTOCOL`/`MAX_LINE`, cli `./schemas/*`).
 - M2 ◐ is unchanged. Collisions: `start` (`Valance.start`, `define.start`, `History.start`), `Host` (`packages/valance/src/web.ts:453`, `native.ts:117`), `scope`.
-- X1 and the by-category row: Tier 2 for Valance becomes 100.
+- With X1 at P, Valance's Tier 2 category (X1, X2) is 100 in the by-category table.
 
 **Nexus**
 - E3 ◐†→P. The tiering table in `nexus/docs/stability.md:16-24` covers `Application`, `Runtime`, `Service`, `State`, `Selector`, `Command`, `Capability`, `Resource`, `Event`, `Mesh`, `Semantic` (Provisional), `EventBusShape`/`EventBusLive` (Internal) and everything under `dist/` not exported (Internal). The 10-19 note about `Semantic`, `Mesh` and `EventBusShape` "beside the stable primitives" was stale: each now has a tier. No public API changed since the baseline.
@@ -93,7 +93,106 @@ T1.1 to T1.3, E1, E2, I1 to I3, D1, D2, C1, C2, X2 and the rest of E3 are as in 
 
 ## Next measurement
 
-Recompute with the [scorecard](./NORTH_STAR_SCORECARD.md) whenever a change touches an audit, and update this file in the same change.
+The next measurement is [After Phase A](#after-phase-a), below.
+
+## After Phase A
+
+Re-scored on 2026-10-25 on the `north-star-refinements` branch of the four repos, after the Phase A documentation changes of the [refinements plan](./direction/north-star-refinements.md) §3 (A1 to A12). Only the audits Phase A touched were re-checked (T1.2, T1.3, E2, E3, I1, I2, M1, M2, D2, X1, H1, H2); the rest are as above. Two things were run: the Nexus README's first app (`pnpm exec vitest run tests/readme-first-app.test.ts` in `nexus/`, 1 passed), and a scan of each published Valance entry's exports against the names in `stability.md`. The rest is a static read.
+
+| | 10-25 | After Phase A | Band |
+|---|---|---|---|
+| **Ecosystem (weakest link)** | 63 | **66** | Needs improvement |
+| Port | 88 | 88 | Needs improvement |
+| Mesh | 82 | 82 | Needs improvement |
+| Nexus | 75 | **80** | Needs improvement |
+| Valance | 78 | **76** | Needs improvement |
+
+The goal of Phase A, ecosystem 66, is met, but only by rounding: 64 ÷ 97 = 0.660 (65.98). It rests on one audit moving, T1.3. The plan also expected Valance E3 to reach P (§3, A3); it did not (below). With it the ecosystem would be 69.
+
+### Audit results after Phase A
+
+Cells that differ from the 10-25 table are in **bold**.
+
+| ID | Audit | Eco | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| T1.1 | Zero-config path | ◐ | P | ◐ | P | P |
+| T1.2 | Nothing required with a default | ◐ | ◐ | ◐ | P | ◐ |
+| T1.3 | Docs lead with Tier 1 | **P** | P | **P** | P | P |
+| E1 | Boundaries enforced by a test | P | P | P | P | P |
+| E2 | No lifecycle step at Tier 1 | ◐ | P | P | ◐ | ◐ |
+| E3 | Every export tiered | ◐ | ◐ | P | P | P |
+| I1 | Names say what | ◐ | P | **◐** | ◐ | P |
+| I2 | Typed, no stringly or positional coupling | ◐ | ◐ | ◐† | P | P |
+| I3 | Command/query separation | P | P | P | P | P |
+| M1 | One source of truth, `UI = f(state)` | P | **P** | P | P | P |
+| M2 | One term per concept | ◐ | ◐ | **◐** | ◐ | P |
+| D1 | View models, not entities | P | P | P | P | P |
+| D2 | Wire data can be masked | ◐ | ◐ | – | – | – |
+| C1 | Value reaches a deep component without threading | F | F | – | F | – |
+| C2 | Channel explicit and checkable | – | – | – | – | – |
+| X1 | Opt-in knobs, behavior and performance | P | P | – | P | P |
+| X2 | Defaults correct without knobs | P | P | – | P | P |
+| H1 | Documented way down to the platform | ◐ | ◐ | – | – | ◐ |
+| H2 | Hatch marked and safe | ◐ | **◐** | – | – | ◐ |
+
+Bold without a change of letter: Valance M1 loses "(at risk)"; Nexus I1 and M2 lose their † (re-checked against the glossary).
+
+### What moved, and what did not, with evidence
+
+**Moved**
+- **Nexus T1.3 ◐→P.** The README now opens with "Your first app" (`nexus/README.md:3-28`): `State`, one `Command` and `Runtime.make(Layer.empty)`, and nothing else, before the pitch and the Effect/Layer example. It is tested (`nexus/tests/readme-first-app.test.ts`, run above). With every repo at P, the ecosystem's T1.3 is P: this is the one change that moves the ecosystem score.
+- **Valance H2 P→◐ (judgment).** Phase A documents a second hatch, `docs/use/platform.md` (A9): wrap the `TargetFactory` that `Web.target` makes and pass it to `mount` or `hydrate`. It is marked (a Tier 3 page, "outside the vocabulary"), and the application state stays authoritative (the wrapper gets `report` only, and state changes only through commands). But the wrapper holds the `container` and the PORT it wraps, so it can write to DOM the PORT owns; the page says such a write "can be overwritten on the next update" (`platform.md:46`), which warns rather than prevents. That is the reading 10-25 gave Port's `inspect` (◐: marked, but the returned node can be mutated). Scored on the weaker of the two documented hatches, so ◐; the CSS hatch alone is still P. The mechanism is not new (FINDINGS Stage 55, 2026-10), so this is a re-judgment of an existing path that Phase A made a documented hatch, not a change in behavior. It is reported as a finding below.
+
+**Re-checked, unchanged**
+- **Valance E3 stays ◐.** A3 added rows for every export plan §1 named (`docs/stability.md:44-49`: `snippet`/`isSnippet`, the brands and `derivedOf`, `controlled`/`controlledBoolean`/`textField`, `ManifestError`, `PROTOCOL`/`MAX_LINE`, cli `./schemas/*`). Under the same standard (a value export of an entry whose row lists its names, and not among them), these remain untiered, all present before Phase A: `@valancex/common`'s `SNIPPET` and `isFormField` (`packages/common/src/index.ts:129`, `:163`); `/native`'s `MAX_HREF` (`packages/valance/src/native.ts:18`); `/web/plugin`'s `DEFAULT_DELIVERY` and `HEAD_MARK` (`web-plugin.ts:96`, `:239`); `/replay`'s `FORMAT`, `CHECKPOINT`, `compact`, `sha256`, `applyChanges` and `postTo` (`replay.ts:17`, `:58`, `:63`, `:89`, `:179`, `:600`). Exports covered by an entry-wide row (the `./client`, `./server`, `./desktop`, `./http` entries of `@valancex/common`; `@valancex/router`; `@valancex/style`; `./node` of the CLI; "the PORT table helpers" of `/web`) and types ("and their types") are taken as tiered. Plan §1's list was incomplete; B5's test would find these.
+- **Valance M1 P, no longer at risk (judgment).** `V1_CONTRACT.md` §3 now says unit state is held by the framework for each occurrence, "an input to the render, like a scope value, and never application state", not in `handle.state` and not read by an application command (A5). The contract now states what the API holds, so P. The other reading, that unit state is a documented exception to one source of truth, gives ◐ (Valance 74, ecosystem M1 ◐, ecosystem 63); it is recorded, not taken.
+- **Valance H1 stays ◐.** `platform.md` documents a real way down (proved in Chromium, FINDINGS Stage 55), but, like the CSS hatch, it reaches the web only: the native host builds its own target (`packages/valance/src/native.ts:201`) and takes no factory, and `Web.run` takes no target (`platform.md:55`). 10-25 scored the CSS hatch ◐ for the same reason.
+- **Valance I2 ◐.** The error-identity rule (A6, `V1_CONTRACT.md` §10 and `stability.md:50`) settles one of the 10-19 findings (G3, `code` against `_tag`). `invoke(key: string, …)` and the by-position filling of a bare command's input remain (B3).
+- **Valance D2 ◐.** Now documented in both places a reader meets it (`V1_CONTRACT.md` §17, `learn/mounting-and-hydration.md:41`): "Whole state crosses; documented" is the ◐ definition. P needs a masking step (C-3).
+- **Valance X1 P**, now with a Tier 2 page (`docs/use/performance.md`, A8): `admit`, `budgets`, `Target.patch`, `ledger`, `earlyInput`.
+- **Valance T1.2 ◐.** `learn/first-application.md` derives the manifest with `manifest()` and moves the hand-written `components.json` to an aside (A4), but `define` still requires `view` for one view (B1).
+- **Valance and Nexus M2 ◐, I1 ◐ (Nexus).** The shared glossary (`docs/understand/glossary.md`, A12, linked from each repo) names a canonical term for `scope`, `start`, `Host`, the identity fields, unit, occurrence/instance and `Render`. It documents the collisions; it removes none (every rename is deferred, C-4 or 1.0). The audit asks for consistent terms, so ◐ stays, as the plan expected ("M2 kept at ◐").
+- **Mesh M2 ◐.** The glossary makes **occurrence** canonical for the unit sense, but `Render.instances` and the intent's `instance` still carry it (glossary, "occurrence and instance": "not done yet"), so the three meanings of "instance" remain in the API.
+- **Mesh E3 P**, drift fixed: units are "**Provisional** (0.15.0; Tier 2)" in `docs/manual/stability.md:21`, "Units are **Provisional**" in `README.md:122`, and "Released 2026-10-23 as v0.15.0" in `docs/releases/v0.15.md:3` (A11).
+- **Mesh E2 ◐.** `docs/manual/runtime.md:349` now says keeping a render, its version, `release()` and unit state are Tier 2 host duties that Valance does for a Tier 1 author. The steps are still left to whoever embeds the runtime, documented, which is the ◐ definition. Whether E2 applies to a layer with no Tier 1 author is plan §6's open question, not used to raise the score.
+- **Port H1 ◐, H2 ◐.** `packages/port-web/README.md` "Leaving the portable layer" documents `inspect(key)`, `payload(event, element)` and an own `WebPrimitives` table, each tiered (A10). The audit's P is "exists and documented", but the same section and `docs/ARCHITECTURE.md:52` say a general hatch is "a direction, not built" and "only partial hatches exist today": `inspect` is a read for devtools. Partial, so ◐. H2: `inspect` is marked ("not part of the contract"), and the returned `Node` can still be changed; the README says changing it "is outside what the PORT keeps true", which warns rather than prevents. One of the two, ◐. Both wait for B6.
+- **Port M2 P**, collision removed: the README's "Tier 3" for a `layer` table entry is now "an advanced table entry" (`packages/port-web/README.md:49`). The dated release notes `docs/releases/v0.11.md` and `v0.12.md` keep "Tier 3" in that sense; they are records and are not edited.
+- **Nexus I1 ◐.** A2 fixed the doc drift of §1 (version, peer range, shutdown wording at `README.md:45` and `semantic.md:358`, the "optional peer" at `stability.md:21`, and the "nine primitives" now name the two other namespaces). That is accuracy; the overloaded names (`name`/`id`/`_tag`, `Host`, unit) remain.
+
+### Findings (recorded, not resolved)
+
+- **Valance H2 dropped P→◐ under a change that touched it** (A9). The scorecard's first rule is that no touched audit may drop. The drop comes from documenting an existing path, not from new behavior; B6 (a hatch that cannot write Port's slots) restores P. For the owner to decide whether `platform.md` ships before B6.
+- **Valance E3:** plan §1's list of untiered exports missed eleven value exports (above). A row for each, or B5's test, moves E3 to P.
+- **Port M2:** the dated Port release notes v0.11 and v0.12 use "Tier 3" for a primitive author's table entry, and so does Valance's Layers row (`docs/stability.md:42`, "`layer`, `layerProp`, `layerDismiss`: Tier 3"). Not scored as a collision in the API.
+
+### Blocking the next goals
+
+The Phase A goal is met. Still below P in the ecosystem, by the repo that holds it down: T1.1 (Nexus), T1.2 (Valance, Nexus, Port), E2 (Mesh, Port), E3 (Valance), I1 (Nexus, Mesh), I2 (Valance, Nexus), M2 (Valance, Nexus, Mesh), D2 (Valance), C1 F (Valance, Mesh), H1 (Valance, Port), H2 (Valance, Port).
+
+### Arithmetic after Phase A
+
+**Valance** (divisor 97). T1: 8 + 3 + 6 = 17. Encapsulation: 8 + 7 + 2.5 = 17.5. Intention: 5 + 2.5 + 5 = 12.5. Mental model: 5 + 2.5 = 7.5. Data: 6 + 2 = 8. Context: 0. Tier 2: 8. Tier 3: H1 2 + H2 1.5 = 3.5. Sum 74. 74 ÷ 97 = 0.763, so **76**.
+
+**Nexus** (divisor 71). T1: 4 + 3 + 6 = 13. Encapsulation: 20. Intention: 10. Mental model: 7.5. Data: 6. Sum 56.5. 56.5 ÷ 71 = 0.796, so **80**.
+
+**Mesh** (divisor 86): unchanged, 70.5 ÷ 86 = 0.820, so **82**.
+
+**Port** (divisor 86): unchanged, 76 ÷ 86 = 0.884, so **88**.
+
+**Ecosystem** (divisor 97). T1: 4 + 3 + 6 = 13. Encapsulation: 8 + 3.5 + 2.5 = 14. Intention: 10. Mental model: 7.5. Data: 8. Context: 0. Tier 2: 8. Tier 3: 2 + 1.5 = 3.5. Sum 64. 64 ÷ 97 = 0.660, so **66**.
+
+### By category after Phase A
+
+| Category | Weight | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| Tier 1: minimal surface | 20 | 65 | 85 | 65 | 100 | 85 |
+| Encapsulation | 20 | 70 | 88 | 100 | 83 | 83 |
+| Intention and contracts | 15 | 67 | 83 | 67 | 83 | 100 |
+| Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
+| Data boundary | 10 | 80 | 80 | 100 | 100 | 100 |
+| Context | 10 | 0 | 0 | n/a | 0 | n/a |
+| Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
+| Tier 3: hatches | 7 | 50 | 50 | n/a | n/a | 50 |
 
 ## Appendix: arithmetic
 
