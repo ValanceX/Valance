@@ -1,0 +1,43 @@
+{
+  "name": "@valancex/ui-web",
+  "version": "0.0.0",
+  "description": "Web-only components of the reference library: they are written with web elements and styled by the theme's custom properties.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "valance": "./dist/index.js"
+    }
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "valance": {
+    "kind": "components",
+    "targets": [
+      "web"
+    ],
+    "styles": [
+      "./dist/badge.css"
+    ]
+  },
+  "scripts": {
+    "build": "vlx library build",
+    "check": "vlx library check"
+  },
+  "peerDependencies": {
+    "@valancex/common": "^0.15.0",
+    "effect": ">=3.10.0 <4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/cli": "^0.15.0",
+    "@valancex/common": "^0.15.0",
+    "effect": "^3.10.0",
+    "typescript": "^5.6.0"
+  }
+}

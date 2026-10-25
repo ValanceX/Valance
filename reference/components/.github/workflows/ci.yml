@@ -1,0 +1,35 @@
+# Registry-only: this repository installs the published packages and nothing else (no workspace link to the framework, no private seam). `tests/boundary.mjs` fails the build if that stops being true.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+jobs:
+  test:
+    # Playwright supports ubuntu-24.04, not ubuntu-latest (26.04)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pnpm: [10, 11]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ matrix.pnpm }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: pnpm install --frozen-lockfile
+      - run: node tests/boundary.mjs
+      - run: pnpm build
+      - run: pnpm check
+      - run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm test

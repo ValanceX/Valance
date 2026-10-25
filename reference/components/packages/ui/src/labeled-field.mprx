@@ -1,0 +1,4 @@
+<label>
+  <text>{caption}</text>
+  <textfield value={value} invalid={invalid} on.change={change($event)} />
+</label>

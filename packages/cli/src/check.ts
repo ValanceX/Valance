@@ -4,6 +4,7 @@ import type { Diagnostic } from "./diagnostics.js";
 import { AppError } from "./diagnostics.js";
 import { loadAuthor } from "./author.js";
 import { loadConfig } from "./config.js";
+import { librariesOf } from "./libraries.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
 import { createLoader } from "./vite.js";
 
@@ -35,6 +36,8 @@ export const check = async (root: string): Promise<Checked> => {
     return { diagnostics: problems, pages: 0, components: [] };
   }
 
+  // a library whose marker is wrong is reported first: when the application cannot even be loaded, it is the likely reason (a package the build does not process)
+  problems.push(...librariesOf(root).problems);
   generateEntries(root, config);
 
   const content = await collect(problems, () => generateContent(root, config));
@@ -45,7 +48,10 @@ export const check = async (root: string): Promise<Checked> => {
     const failedAuthor = problems.some((each) => each.file === "src/main.ts");
     const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
 
-    return { diagnostics: problems, pages: content?.pages.length ?? 0, components: components ?? [] };
+    // (the templates stage reports the same marker problems; once is enough)
+    const once = problems.filter((each, index) => problems.findIndex((other) => other.file === each.file && other.code === each.code && other.message === each.message) === index);
+
+    return { diagnostics: once, pages: content?.pages.length ?? 0, components: components ?? [] };
   } finally {
     await server.close();
   }

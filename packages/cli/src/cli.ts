@@ -27,7 +27,9 @@ import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
 import { defaultRecording, replayFile } from "./replay.js";
 import { AppError, format } from "./diagnostics.js";
-import { detectPackageManager, directoryFor, directoryProblem, execute, nameProblem, runCommand, titleOf } from "./init.js";
+import { detectPackageManager, directoryFor, directoryProblem, execute, install as installDependencies, nameProblem, PACKAGE_MANAGERS, runCommand, titleOf } from "./init.js";
+import type { PackageManager } from "./init.js";
+import { buildLibrary, checkLibrary, scaffoldLibrary } from "./library.js";
 import type { TargetId } from "./targets.js";
 import { DEFAULT_TARGETS, TARGETS } from "./targets.js";
 import { canAsk, canDraw } from "./tty.js";
@@ -40,6 +42,8 @@ const HELP = `vlx <command>
   build                            write the site to dist/web/
   check [--json]                   find mistakes in your files without building
   theme check [--json]             check the theme: tokens, recipes, contrast, and what each target applies
+  init library <name>              make a component library: a workspace with the package and a playground
+  library build|check              build a library's dist/ (JavaScript, declarations, templates, styles); check the package
   generate page|component <name>  add a page, or a component (alias: g)
   generate target web|desktop      add a target to the project
   package --desktop                the desktop target as one executable beside its window (unsigned)
@@ -64,8 +68,34 @@ const GENERATE_HELP = `vlx generate <page|component|target> <name>   (alias: vlx
 Nothing is overwritten: a name that is taken is refused.
 `;
 
+const LIBRARY_HELP = `vlx library <build|check> [--json] [--app <dir>]
+
+Run in a library's package directory (the one with the "valance" export condition; \`vlx init library\` makes one).
+
+  vlx library build    dist/: the TypeScript compiled to JavaScript with declarations (the components' contracts are the
+                       types component() gives them), and every .mprx and .css under src/ copied beside it. Templates ship
+                       as source: the application's build compiles them. Needs typescript installed in the library.
+  vlx library check    the package as a consumer's build needs it: the "valance" condition on exports["."] and the file it
+                       names, no other entry a tool without the condition would load, a peer dependency on
+                       @valancex/common, stylesheets that exist and "sideEffects" that keeps them; then the playground
+                       (--app <dir>, default ../../playground, ./playground or ../playground), an application that depends
+                       on this package: it must build every target the package declares and write every template the
+                       package ships, and its own \`vlx check\` problems are reported with the library's.
+
+Exits 0 when there is nothing to say, 1 when there is. --json prints the diagnostics.
+`;
+
+const INIT_LIBRARY_HELP = `vlx init library <name> [--pm <npm|pnpm|yarn|bun>] [--no-install] [--cli <spec>]
+
+Make a component library: a workspace with packages/<name> (a sample component, written with the portable core, its contract,
+a tsconfig and a package.json that is marked as a library) and playground/ (an application that depends on it and builds
+the web and the desktop). <name> is the package name (acme-ui, @acme/ui); the directory is the name's last part.
+Then: cd <dir>, install, \`vlx library build\` in packages/<name>, \`vlx library check\`, and the playground's \`vlx dev\`.
+`;
+
 const COMMAND_HELP: Readonly<Record<string, string>> = {
-  init: INIT_HELP,
+  init: `${INIT_HELP}\n${INIT_LIBRARY_HELP}`,
+  library: LIBRARY_HELP,
   generate: GENERATE_HELP,
   g: GENERATE_HELP,
   replay:
@@ -175,6 +205,50 @@ const runInit = async (args: InitArgs, cwd: string): Promise<number> => {
   return 0;
 };
 
+const runInitLibrary = async (args: ReadonlyArray<string>, cwd: string): Promise<number> => {
+  const positional = args.filter((each, index) => !each.startsWith("-") && !["--pm", "--cli"].includes(args[index - 1] ?? ""));
+  const name = positional[0];
+  const manager = option(args, "--pm") as PackageManager | undefined;
+
+  if (name === undefined || !/^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name)) {
+    console.error(`vlx init library: name the package: vlx init library acme-ui (lowercase letters, digits, - . _; or @scope/name)\n\n${INIT_LIBRARY_HELP}`);
+
+    return 2;
+  }
+
+  if (manager !== undefined && !PACKAGE_MANAGERS.includes(manager)) {
+    console.error(`vlx init library: --pm is one of ${PACKAGE_MANAGERS.join(", ")}`);
+
+    return 2;
+  }
+
+  const dir = directoryFor(name.replace(/^@[^/]+\//, ""), cwd);
+  const problem = directoryProblem(dir);
+
+  if (problem !== undefined) {
+    console.error(`vlx init library: ${problem}`);
+
+    return 1;
+  }
+
+  const answers = { name, dir, packageManager: manager ?? detectPackageManager(), ...(option(args, "--cli") === undefined ? {} : { cli: option(args, "--cli")! }) };
+  const files = scaffoldLibrary(answers);
+
+  console.log(`vlx init library: created ${name} in ${dir} (${files.length} files)`);
+
+  if (!args.includes("--no-install")) {
+    const ran = await installDependencies(answers);
+
+    console.log(
+      ran.ok ? "vlx init library: installed" : `vlx init library: the dependencies were not installed (${answers.packageManager} install failed); run it yourself in ${dir}`,
+    );
+  }
+
+  console.log(`vlx init library: next: cd ${dir}/packages/${name.replace(/^@[^/]+\//, "")} && vlx library build && vlx library check`);
+
+  return 0;
+};
+
 export const main = async (args: ReadonlyArray<string>, cwd: string = process.cwd()): Promise<number> => {
   const [command, ...rest] = args;
 
@@ -200,6 +274,7 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
     command === "package" ||
     command === "check" ||
     command === "theme" ||
+    command === "library" ||
     command === "sync" ||
     command === "generate" ||
     command === "g"
@@ -222,6 +297,10 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
           console.log(INIT_HELP);
 
           return 0;
+        }
+
+        if (rest[0] === "library") {
+          return await runInitLibrary(rest.slice(1), cwd);
         }
 
         const parsed = parseInit(rest);
@@ -361,6 +440,41 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         }
 
         return result.diagnostics.length === 0 ? 0 : 1;
+      }
+      case "library": {
+        const sub = rest[0];
+
+        if (sub !== "build" && sub !== "check") {
+          console.error("vlx library: say what: vlx library build | vlx library check [--json] [--app <dir>]");
+
+          return 2;
+        }
+
+        const dir = cwd;
+        const json = rest.includes("--json");
+        const given = option(rest, "--app");
+        const report = (diagnostics: ReadonlyArray<{ readonly file: string; readonly line: number; readonly code: string; readonly message: string }>): number => {
+          if (json) {
+            console.log(JSON.stringify({ diagnostics }, null, 2));
+          } else {
+            diagnostics.forEach((each) => console.error(`${each.file}${each.line > 0 ? `:${each.line}` : ""} ${each.code}: ${each.message}`));
+            console.log(diagnostics.length === 0 ? `vlx library ${sub}: no problems` : `vlx library ${sub}: ${diagnostics.length} problem${diagnostics.length === 1 ? "" : "s"}`);
+          }
+
+          return diagnostics.length === 0 ? 0 : 1;
+        };
+
+        if (sub === "build") {
+          const built = buildLibrary(dir);
+
+          if (!json && built.diagnostics.length === 0) {
+            console.log(`vlx library build: dist/ written; ${built.copied.length} template and stylesheet file${built.copied.length === 1 ? "" : "s"} copied as source`);
+          }
+
+          return report(built.diagnostics);
+        }
+
+        return report(await checkLibrary(dir, given === undefined ? {} : { app: resolve(cwd, given) }));
       }
       case "theme": {
         if (rest[0] !== "check") {

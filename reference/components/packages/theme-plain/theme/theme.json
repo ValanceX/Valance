@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "name": "plain",
+  "base": "tokens/base.tokens.json",
+  "modes": {
+    "light": "tokens/light.tokens.json"
+  },
+  "recipes": [
+    "recipes/column.json",
+    "recipes/row.json",
+    "recipes/heading.json",
+    "recipes/text.json",
+    "recipes/button.json",
+    "recipes/checkbox.json",
+    "recipes/textfield.json"
+  ],
+  "contrast": [
+    {
+      "text": "color.text",
+      "on": "color.surface",
+      "min": 4.5
+    },
+    {
+      "text": "color.text-muted",
+      "on": "color.surface",
+      "min": 4.5
+    },
+    {
+      "text": "color.text",
+      "on": "color.surface-field",
+      "min": 4.5
+    },
+    {
+      "text": "color.on-accent",
+      "on": "color.accent",
+      "min": 4.5
+    },
+    {
+      "text": "color.on-danger",
+      "on": "color.danger",
+      "min": 4.5
+    },
+    {
+      "text": "color.border",
+      "on": "color.surface",
+      "min": 3
+    },
+    {
+      "text": "color.border",
+      "on": "color.surface-field",
+      "min": 3
+    },
+    {
+      "text": "color.focus",
+      "on": "color.surface",
+      "min": 3
+    }
+  ]
+}

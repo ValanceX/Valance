@@ -40,3 +40,7 @@ The stylesheet declares `@layer vlx-library, vlx-theme, vlx-app;`. Rules reach a
 ## What the Desktop applies
 
 Fill, text color, border, radius, padding, gap, minimum size, type size, the button's `intent` and `size`, its `hovered` and `pressed` states (the pointer over it, and held down; with the properties above), the textfield's invalid state and the viewport class. The window draws its own focus ring, so `focus-visible` is web only. Other declarations are reported as ignored in `vlx theme check`.
+
+## A theme in a package
+
+A theme can be installed instead of written in the project: a package with `"kind": "theme"` in its `valance` field ships `theme/` as source, and `valance.json` names it (`"theme": "acme-theme"`). Swapping one theme package for another changes the colors, borders and radius and nothing in a template. [Libraries](libraries.md#theme-packages) says how to make one.

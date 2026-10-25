@@ -1,0 +1,10 @@
+<column>
+  <row>
+    {#each items as item (item.id)}
+      <toggle pressed={item.id == (at == "" ? initial : at)} label={item.title} on.change={select(item.id)}>{item.title}</toggle>
+    {/each}
+  </row>
+  {#each items as item (item.id)}
+    {#if item.id == (at == "" ? initial : at)}{@render panel(item)}{/if}
+  {/each}
+</column>

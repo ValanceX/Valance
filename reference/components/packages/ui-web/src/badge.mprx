@@ -1,0 +1,3 @@
+<span class={size == "sm" ? "vcw-badge-sm" : "vcw-badge-md"}>
+  <span class={intent == "accent" ? "vcw-badge vcw-badge-accent" : intent == "danger" ? "vcw-badge vcw-badge-danger" : "vcw-badge vcw-badge-neutral"}>{label}</span>
+</span>

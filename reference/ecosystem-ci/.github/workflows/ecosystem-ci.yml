@@ -1,0 +1,32 @@
+# Runs every suite against a version of @valancex/*: the `next` prerelease on a schedule (Monday, Wednesday, Friday), or whatever tag or version is asked for by hand.
+name: ecosystem-ci
+on:
+  schedule:
+    - cron: "43 4 * * 1,3,5"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "dist-tag or version of @valancex/* to test (next, latest, 0.15.0)"
+        default: next
+      suite:
+        description: "one suite by name, or all"
+        default: all
+jobs:
+  suites:
+    # Playwright supports ubuntu-24.04, not ubuntu-latest (26.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      # Chromium for the suites that say `"needs": ["chromium"]`; the version Playwright installs is the suite's own, so it is installed by the suite's commands where it can be
+      - run: npx --yes playwright@1.56.1 install chromium --with-deps
+      - run: node scripts/run.mjs --suite "${{ inputs.suite || 'all' }}" --tag "${{ inputs.tag || 'next' }}"

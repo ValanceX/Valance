@@ -1,0 +1,15 @@
+/* Colors, radius and spacing come from the theme (--vlx-* custom properties), so the badge follows whichever theme the application uses. These rules are in the library layer: the theme and the application win. */
+.vcw-badge {
+  display: inline-block;
+  border: var(--vlx-border-1, 1px) solid var(--vlx-color-border);
+  border-radius: var(--vlx-radius-3, 999px);
+  padding: var(--vlx-space-1, 0.25rem) var(--vlx-space-3, 0.75rem);
+  font-family: var(--vlx-type-label-family, system-ui, sans-serif);
+  font-weight: var(--vlx-type-label-weight, 500);
+  line-height: 1.2;
+}
+.vcw-badge-sm { font-size: 0.8125rem; }
+.vcw-badge-md { font-size: var(--vlx-type-label-size, 0.9375rem); }
+.vcw-badge-neutral { background: var(--vlx-color-surface); color: var(--vlx-color-text); }
+.vcw-badge-accent { background: var(--vlx-color-accent); border-color: var(--vlx-color-accent); color: var(--vlx-color-on-accent); }
+.vcw-badge-danger { background: var(--vlx-color-danger); border-color: var(--vlx-color-danger); color: var(--vlx-color-on-danger); }

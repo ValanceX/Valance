@@ -36,6 +36,8 @@ export interface Config {
   /** The size budgets a production build is held to (Tier 2): the project's own, or none, in which case the framework's start-up budgets apply (W14). Never checked by `vlx dev`. */
   readonly budgets: ReadonlyArray<Budget> | undefined;
   /** What `vlx dev --record` leaves out of a session log (Tier 2; R9, R14): nothing, unless the project says. */
+  /** The theme package the project uses instead of the default theme (Tier 2; K12): an installed package whose `valance` field is `{ "kind": "theme" }`. Absent: the `theme/` directory, else the default. */
+  readonly theme: string | undefined;
   readonly record: { readonly redact: { readonly scope: ReadonlyArray<ReadonlyArray<string>>; readonly commands: ReadonlyArray<string> } };
 }
 
@@ -114,6 +116,10 @@ const title = (value: unknown): string | undefined =>
   typeof value === "string" && value.includes("{page}") && value.length <= 120 && !/[{}]/.test(value.replaceAll("{page}", "").replaceAll("{site}", ""))
     ? undefined
     : 'must contain "{page}" and may use "{site}", for example "{page} · {site}" (at most 120 characters)';
+const themePackage = (value: unknown): string | undefined =>
+  typeof value === "string" && /^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(value)
+    ? undefined
+    : 'must be the name of an installed theme package, such as "acme-theme" or "@acme/theme"';
 const flag = (value: unknown): string | undefined => (typeof value === "boolean" ? undefined : "must be true or false");
 const api = (value: unknown): string | undefined => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -193,7 +199,7 @@ export const loadConfig = (root: string): Config => {
   const desktop = read(root, DESKTOP_FILE);
   const problems = [
     ...(desktop === undefined ? [] : check(DESKTOP_FILE, desktop.text, desktop.value, { $schema: schema, version }, [])),
-    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title, record, budgets: budgetProblems }, ["name"]),
+    ...check(PROJECT_FILE, project.text, project.value, { $schema: schema, version, name: text, title, record, budgets: budgetProblems, theme: themePackage }, ["name"]),
     ...(web === undefined ? [] : check(WEB_FILE, web.text, web.value, { $schema: schema, version, base, url, headers: flag, announce: flag, api }, [])),
   ];
 
@@ -213,6 +219,7 @@ export const loadConfig = (root: string): Config => {
     readonly title?: string;
     readonly record?: { readonly redact: { readonly scope?: string[][]; readonly commands?: string[] } };
     readonly budgets?: ReadonlyArray<Budget>;
+    readonly theme?: string;
   };
 
   return {
@@ -222,6 +229,7 @@ export const loadConfig = (root: string): Config => {
     web: { base: given.base ?? "/", url: given.url ?? "", headers: given.headers ?? true, announce: given.announce ?? true },
     api: { base: given.api?.base ?? "", proxy: given.api?.proxy ?? "" },
     budgets: named.budgets,
+    theme: named.theme,
     record: { redact: { scope: named.record?.redact.scope ?? [], commands: named.record?.redact.commands ?? [] } },
   };
 };

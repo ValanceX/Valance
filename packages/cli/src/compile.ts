@@ -12,11 +12,12 @@ import { fileURLToPath } from "node:url";
 import { commandTable, scopeSchema } from "@valancex/common/internal";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
-import type { DefinedApp } from "@valancex/common";
+import type { Component, DefinedApp } from "@valancex/common";
 import type { Node, Place } from "./tree.js";
 import { declarationsOf, declaredOf, linked, nameOf, treeOf } from "./tree.js";
 import { tagsOf } from "./outline.js";
 import { entryOf } from "./contract.js";
+import { idOf, libraryOf, librariesOf } from "./libraries.js";
 import { locateKey } from "./wiring.js";
 import { namesOf, webVocabulary, WHOLE } from "@valancex/common/internal";
 import type { Vocabulary } from "@valancex/common/internal";
@@ -56,8 +57,17 @@ const entryText = (root: string): string => {
   }
 };
 
+/** A library component left out of a target's program because its library does not support the target (K5): the tag is reported at each use, once, where the application can act. */
+export interface Excluded {
+  readonly id: string;
+  readonly library: string;
+  readonly supports: ReadonlyArray<string>;
+}
+
 export interface Templates {
   readonly all: ReadonlyArray<Template>;
+  /** The library components this target leaves out, by tag. */
+  readonly excluded: ReadonlyMap<string, Excluded>;
   /** The declared tree, in `src/main.ts`'s own words. */
   readonly tree: ReadonlyArray<Node>;
 }
@@ -77,7 +87,30 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
 
   const layout = author?.layout;
   const overrides = author?.override ?? [];
-  const declared = treeOf(layout, overrides, author?.components ?? []);
+  const { libraries } = librariesOf(root);
+  const resolved = author?.resolve ?? {};
+  const overridden = new Set(overrides.map((each) => nameOf(each.template.mprx)));
+  const excluded = new Map<string, Excluded>();
+  const idFor = (component: Component): string => idOf(libraries, root, component.template.mprx, nameOf(component.template.mprx));
+  // The components of this target's program. A library's component is left out when its library does not support this target (K5: one diagnostic at the use, not several inside the library), when the
+  // application's own template of that name replaces it (`override`), and when `resolve` chose another of that name (K14).
+  const components = (author?.components ?? []).filter((each) => {
+    const name = nameOf(each.template.mprx);
+    const library = libraryOf(libraries, root, each.template.mprx);
+
+    if (library === undefined) {
+      return true;
+    }
+
+    if (!library.targets.includes(vocabulary.target as never)) {
+      excluded.set(name, { id: idFor(each), library: library.name, supports: library.targets });
+
+      return false;
+    }
+
+    return !overridden.has(name) && (resolved[name] === undefined || resolved[name] === idFor(each));
+  });
+  const declared = treeOf(layout, overrides, components);
   const declarations = declarationsOf(root);
   const problems: Array<Diagnostic> = [];
   /** Where a template's component is defined: its `component(…)` call, else where it is imported, else the top of the entry file. */
@@ -107,34 +140,65 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
   for (const each of overrides) {
     const name = nameOf(each.template.mprx);
 
-    if (!builtInNames.has(name) && name !== ROOT) {
-      problem(at(each.template.mprx), "override-unknown", `<${name}> is not a built-in component, so there is nothing to override; register it in \`components\` instead`);
+    if (
+      !builtInNames.has(name) &&
+      name !== ROOT &&
+      !(author?.components ?? []).some((other) => nameOf(other.template.mprx) === name && libraryOf(libraries, root, other.template.mprx) !== undefined)
+    ) {
+      problem(
+        at(each.template.mprx),
+        "override-unknown",
+        `<${name}> is not a built-in component and no library component in \`components\` has that name, so there is nothing to override; register it in \`components\` instead`,
+      );
+    }
+  }
+
+  for (const [tag, id] of Object.entries(resolved)) {
+    if (!(author?.components ?? []).some((each) => idFor(each) === id)) {
+      const named = (author?.components ?? []).filter((each) => nameOf(each.template.mprx) === tag).map(idFor);
+
+      problem(
+        { file: ENTRY_FILE, line: 1, column: 1 },
+        "resolve-unknown",
+        `\`resolve\` says <${tag}> is ${id}, but no component in \`components\` has that id${named.length === 0 ? ` (nothing named ${tag} is listed)` : ` (listed with that name: ${named.join(", ")})`}`,
+      );
     }
   }
 
   // A name is one component. Two files of one name, from anywhere in the definition (two libraries', or a library's and the application's), are an error: the first listed must not win silently
   // (decision K14). A component that is not listed in `override` and is named like a built-in is the same collision, with the built-in.
-  // TODO(K14): qualified ids (`acme-ui/disclosure`) will let a library's component be named and overridden without renaming a file; until then the way out of a collision is to rename one.
-  const listed = declaredOf(layout, overrides, author?.components ?? []);
-  const firstOf = new Map<string, string>();
+  // A library's component is named by its qualified id (`acme-ui/disclosure`) in a diagnostic and in `resolve`; the application's own, by the bare name.
+  const listed = declaredOf(layout, overrides, components);
+  const firstOf = new Map<string, { readonly file: string; readonly id: string }>();
+  const idOfFile = (file: string, name: string): string => idOf(libraries, root, file, name);
 
   for (const each of listed) {
     const first = firstOf.get(each.name);
+    const id = idOfFile(each.file, each.name);
 
     if (first === undefined) {
-      firstOf.set(each.name, each.file);
-      if (each.role === "component" && builtInNames.has(each.name) && !listed.some((other) => other.role !== "component" && other.name === each.name)) {
+      firstOf.set(each.name, { file: each.file, id });
+      if (
+        each.role === "component" &&
+        builtInNames.has(each.name) &&
+        resolved[each.name] !== id &&
+        !listed.some((other) => other.role !== "component" && other.name === each.name)
+      ) {
         problem(
           at(each.file),
           "template-builtin",
-          `${each.file} is <${each.name}>, which is also a built-in component: list it in \`override\` to replace the built-in, or rename the file so both can be used`,
+          `${id} is <${each.name}>, which is also a built-in component: list your own template of that name in \`override\` to replace the built-in, or choose this one with \`resolve: { ${each.name}: "${id}" }\``,
         );
       }
-    } else if (first !== each.file) {
+    } else if (first.file !== each.file) {
+      const libraryMade = id !== each.name || first.id !== each.name;
+
       problem(
         at(each.file),
         "template-duplicate",
-        `${each.file} is also <${each.name}>, like ${first}: a component is named by its file, so the name must be unique; rename one of the files`,
+        libraryMade
+          ? `${id === each.name ? each.file : id} and ${first.id === each.name ? first.file : first.id} are both <${each.name}>: a component is named by its file, so the name must be unique; choose one with \`resolve: { ${each.name}: "${id === each.name ? first.id : id}" }\` in defineApp, or replace both with your own template of that name in \`override\``
+          : `${each.file} is also <${each.name}>, like ${first.file}: a component is named by its file, so the name must be unique; rename one of the files`,
       );
     }
   }
@@ -194,7 +258,7 @@ export const templatesOf = (root: string, author: DefinedApp | undefined, vocabu
     throw new AppError(problems);
   }
 
-  return { all: [...found.values()], tree };
+  return { all: [...found.values()], tree, excluded };
 };
 
 /** The templates the root reaches, following the tags each uses. A template nothing uses is not part of the program (the compiler refuses one). */
@@ -396,7 +460,7 @@ const renamedHint = (
 
 /** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
 export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
-  const { all, tree } = templatesOf(root, author, vocabulary, views);
+  const { all, tree, excluded } = templatesOf(root, author, vocabulary, views);
   const used = reachable(all);
   const model = modelOf(root, author, tree, vocabulary);
 
@@ -415,6 +479,19 @@ export const compileViews = async (root: string, author: DefinedApp | undefined,
       ...(result.components ?? []).flatMap((entry) =>
         entry.diagnostics.diagnostics
           .filter((each) => each.severity === "error")
+          .map((each) => {
+            // a library component this target leaves out (K5): one sentence at the use, in place of the compiler's "unknown component"
+            const left = each.code === "unknown-component" ? excluded.get(/component "([^"]+)"/.exec(each.message)?.[1] ?? "") : undefined;
+
+            return left === undefined
+              ? each
+              : {
+                  ...each,
+                  code: "unsupported-target",
+                  message: `<${each.message.match(/component "([^"]+)"/)![1]}> is ${left.id}, and ${left.library} supports ${left.supports.join(" and ")} only; this project builds for ${vocabulary.target}. Use a component that ${vocabulary.target} has, or build ${left.library} for ${vocabulary.target}`,
+                  suggestions: [],
+                };
+          })
           .map((each) =>
             diagnostic(
               each.path,

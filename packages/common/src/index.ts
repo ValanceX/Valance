@@ -217,6 +217,15 @@ export type UnitCommandSpec<S, P extends Schema.Struct.Fields = Schema.Struct.Fi
       readonly raises?: Readonly<Record<string, (next: S, args: Schema.Struct.Type<P>) => unknown>>;
     };
 
+/** A command of a unit as `unit` takes it: any parameters (they are typed where the command is written, with `unitCommand`). */
+type UnitCommandInput<S> =
+  | ((state: S) => Changes<S>)
+  | {
+      readonly params?: Schema.Struct.Fields;
+      readonly run: (state: S, args: any) => Changes<S>;
+      readonly raises?: Readonly<Record<string, (next: S, args: any) => unknown>>;
+    };
+
 /** A command with parameters, typed: the parameters' types reach `run` and `raises`. */
 export const unitCommand = <S, P extends Schema.Struct.Fields>(spec: {
   readonly params: P;
@@ -241,7 +250,8 @@ export const unitCommand = <S, P extends Schema.Struct.Fields>(spec: {
  */
 export const unit = <F extends Fields>(definition: {
   readonly state: F;
-  readonly commands: { readonly [name: string]: UnitCommandSpec<StateOf<F>, any> };
+  // (a command's parameters are typed where it is written, by `unitCommand`; here any command of the state is accepted, whatever its parameters)
+  readonly commands: { readonly [name: string]: UnitCommandInput<StateOf<F>> };
   readonly controllable?: ReadonlyArray<Extract<keyof F, string>>;
 }): Valance.Unit<StateOf<F>> => {
   const entries = Object.entries(definition.state) as Array<[string, Field<any>]>;
@@ -302,6 +312,12 @@ export interface AppDefinition<S extends StateInput = {}> {
   readonly components?: ReadonlyArray<Component>;
   /** Built-in components (`heading`, `runs`, …) you replace with your own template of the same name. */
   readonly override?: ReadonlyArray<Component>;
+  /**
+   * Which component a tag means when two share a name (Tier 2: nothing to write until there is a collision). A library's component has the qualified id `package/name` (`acme-ui/disclosure`); two
+   * libraries that both have a `disclosure`, or a library component named like a built-in, are a compile error that names both ids, and `resolve: { disclosure: "acme-ui/disclosure" }` says which one the
+   * tag is. The others are left out of the program, and a library template that writes the tag gets the one chosen. A built-in is replaced by the chosen library component, as `override` would.
+   */
+  readonly resolve?: Readonly<Record<string, string>>;
   /**
    * Application state beyond the page: `{ theme: field(Schema.Literal("light", "dark"), "light") }`. Its fields become names a layout can read. A hand-built `{ schema, initial }` is also accepted, for
    * hydration and shared schemas.

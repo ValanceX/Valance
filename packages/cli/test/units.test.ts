@@ -62,6 +62,15 @@ describe("the model a unit makes", () => {
     });
   });
 
+  it("a controllable field in a project checks clean: the prop is read by its name, supplied by the unit, and not also a scope name (manifest-unit-clash)", async () => {
+    const controlled =
+      "unit({ state: { open: field(Schema.Boolean, false) }, controllable: ['open'], commands: { toggle: (state: { readonly open: boolean }) => ({ open: !state.open }) } })";
+    const main = MAIN(controlled).replace("props: { label: Schema.String }, events: {}", "props: { label: Schema.String, open: Schema.UndefinedOr(Schema.Boolean) }, events: {}");
+    const found = (await check(project(FILES(main)))).diagnostics.map(({ file, code }) => `${file} ${code}`);
+
+    expect(found).toEqual([]);
+  });
+
   it("refuses a controllable field with no prop of its name, at the declaration", async () => {
     const { Schema } = await import("effect");
     const { field, unit } = await import("@valancex/common");

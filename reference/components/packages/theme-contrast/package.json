@@ -1,0 +1,31 @@
+{
+  "name": "@valancex/theme-contrast",
+  "version": "0.0.0",
+  "description": "A higher-contrast theme: black on white and white on black, 2px borders, a 7:1 contrast declared for text.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "theme",
+    "index.js"
+  ],
+  "exports": {
+    ".": {
+      "valance": "./index.js"
+    }
+  },
+  "sideEffects": false,
+  "valance": {
+    "kind": "theme",
+    "theme": "./theme/theme.json",
+    "targets": [
+      "web",
+      "desktop"
+    ]
+  },
+  "scripts": {
+    "check": "vlx library check"
+  },
+  "devDependencies": {
+    "@valancex/cli": "^0.15.0"
+  }
+}

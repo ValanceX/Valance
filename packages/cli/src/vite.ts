@@ -1,10 +1,11 @@
 // The one place that knows about Vite. It is how the browser script is bundled, how the author's TypeScript is loaded in Node, and what a development server is built on; an author never
 // configures it, and `valance.json` does not mention it.
 import type { InlineConfig, Plugin, ViteDevServer } from "vite";
-import { createLogger, createServer } from "vite";
+import { createLogger, createServer, defaultClientConditions, defaultServerConditions } from "vite";
 import { join, relative, sep } from "node:path";
 
 import type { Config } from "./config.js";
+import { CONDITION, librariesOf } from "./libraries.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 
 export const CLIENT_ENTRY = `${GENERATED_DIR}/client.ts`;
@@ -41,7 +42,21 @@ export const templates = (root: string): Plugin => ({
   handleHotUpdate: ({ file }) => (file.endsWith(".mprx") ? [] : undefined),
 });
 
+/**
+ * What marked packages (libraries, K4) need from the bundler: the `valance` export condition resolved, for the browser and for the server, and the packages processed by Vite instead of loaded by
+ * Node, which does not know `.mprx` or `.css`. Added for every project, with nothing to write: a project with no library has no package that has the condition.
+ */
+const librarySettings = (root: string): Pick<InlineConfig, "resolve" | "ssr"> => {
+  const names = librariesOf(root).libraries.map((each) => each.name);
+
+  return {
+    resolve: { conditions: [CONDITION, ...defaultClientConditions] },
+    ssr: { noExternal: names, resolve: { conditions: [CONDITION, ...defaultServerConditions] } },
+  };
+};
+
 export const baseConfig = (root: string, config: Config, out: string = OUTPUT_DIR): InlineConfig => ({
+  ...librarySettings(root),
   root,
   configFile: false,
   base: config.web.base,
@@ -54,7 +69,8 @@ export const baseConfig = (root: string, config: Config, out: string = OUTPUT_DI
   clearScreen: false,
   build: { outDir: join(root, out), emptyOutDir: true, target: "esnext", manifest: true, rollupOptions: { input: join(root, CLIENT_ENTRY) } },
   // The MESH runtime refers to node:fs/promises on a path the browser never takes.
-  optimizeDeps: { exclude: ["@valancex/mesh-runtime", "@valancex/cli", "@valancex/common"] },
+  // (a library's package is not prebundled either: its templates are the build's to compile)
+  optimizeDeps: { exclude: ["@valancex/mesh-runtime", "@valancex/cli", "@valancex/common", ...librariesOf(root).libraries.map((each) => each.name)] },
 });
 
 /** A Vite server that serves nothing: it loads the author's TypeScript and the generated server entry in Node. Used by build and check. */

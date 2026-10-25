@@ -1,0 +1,17 @@
+{
+  "name": "@valancex/port-terminal",
+  "version": "0.0.0",
+  "description": "A minimal terminal PORT: draws the portable core as text cells with colors from a theme's tokens, and reports key presses as events. It exists to test that the contract is not shaped like the web and the desktop.",
+  "license": "MIT",
+  "type": "module",
+  "files": ["dist"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "peerDependencies": { "@valancex/mesh-runtime": "^0.17.0", "@valancex/valance": "^0.15.0" },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/mesh-runtime": "^0.17.0",
+    "@valancex/valance": "^0.15.0",
+    "typescript": "^5.6.0"
+  }
+}

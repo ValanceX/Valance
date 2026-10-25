@@ -1,0 +1,5 @@
+<column>
+  <heading>{title}</heading>
+  <text>{message}</text>
+  <button on.click={dismiss()}>Dismiss</button>
+</column>

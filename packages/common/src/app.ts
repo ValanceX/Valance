@@ -69,6 +69,14 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
     }
   }
 
+  for (const [tag, id] of Object.entries(author?.resolve ?? {})) {
+    if (typeof id !== "string" || !/^(@[^/\s]+\/)?[^/\s]+\/[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(id) || id.split("/").at(-1) !== tag) {
+      throw new AppDefinitionError(
+        `src/main.ts: \`resolve\` maps a tag to the qualified id of the component it means, \`${tag}: "package/${tag}"\`; got ${JSON.stringify(id)} for "${tag}"`,
+      );
+    }
+  }
+
   const fields = Object.keys(stateOf(author)?.schema.fields ?? {});
 
   for (const name of persistedFields(author)) {

@@ -1,6 +1,8 @@
 // `vlx build`: the project → a static site in `dist/web/`. The stages, in order: configuration, content, templates, the browser bundle, then one document per page (and a 404 page, a sitemap
 // when the site has a published address). Everything is generated under `.valance/` first; `dist/` holds only what is built.
-import { build as bundle } from "vite";
+import { build as bundle, defaultServerConditions } from "vite";
+
+import { CONDITION } from "./libraries.js";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -82,7 +84,9 @@ const buildDesktop = async (root: string): Promise<Built> => {
     logLevel: "warn",
     plugins: [templates(root)],
     cacheDir: join(root, GENERATED_DIR, "cache"),
-    ssr: { noExternal: true, target: "node" },
+    // the desktop engine is one file: everything is bundled, and a library resolves by its `valance` condition (K4)
+    resolve: { conditions: [CONDITION, ...defaultServerConditions] },
+    ssr: { noExternal: true, target: "node", resolve: { conditions: [CONDITION, ...defaultServerConditions] } },
     esbuild: { keepNames: true },
     build: {
       ssr: join(root, GENERATED_DIR, "desktop.ts"),

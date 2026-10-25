@@ -1,0 +1,12 @@
+<column>
+  <heading>Components</heading>
+  <row><badge label="new" intent="accent" size="sm" /><badge label="stable" /></row>
+  <labeled-field caption="Name" value={name} on.change={rename($event)} />
+  <disclosure label="Details"><text>Hello {name}</text></disclosure>
+  <tabs items={tabs} initial="one">
+    {#snippet panel(tab)}<text>Panel {tab.title}</text>{/snippet}
+  </tabs>
+  <data-list items={rows}>
+    {#snippet row(r)}<row><text>{r.label}</text><text>{r.detail}</text></row>{/snippet}
+  </data-list>
+</column>

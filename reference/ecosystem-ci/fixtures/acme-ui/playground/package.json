@@ -1,0 +1,22 @@
+{
+  "name": "acme-ui-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vlx dev",
+    "build": "vlx build",
+    "check": "vlx check",
+    "prepare": "vlx sync"
+  },
+  "dependencies": {
+    "@valancex/common": "^0.15.0",
+    "effect": "^3.10.0",
+    "acme-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@valancex/cli": "^0.15.0",
+    "typescript": "^5.6.0"
+  }
+}
