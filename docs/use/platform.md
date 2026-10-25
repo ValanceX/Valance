@@ -40,6 +40,8 @@ await Effect.runPromise(
 // await Effect.runPromise(Scope.close(scope, Exit.void));               // ends the screen, then the application
 ```
 
+**This is Tier 3 and it is unprotected.** A wrapper that writes to DOM the PORT owns (the elements and attributes it draws) leaves the framework's guarantees: the next `update` may overwrite what you wrote, a hydration may not adopt it, and nothing checks it. Until the planned `native` hatch (a constrained one, not yet built), what is safe is: reading the DOM; calling `focus` and similar requests that leave no state behind; and writing only nodes the PORT does not own (an element you created and appended outside the tree it draws).
+
 What the wrapper sees, and what it does not:
 
 - `draw` is a program change (a different view); `update` is the same view with new data; `hydrate` takes over server markup and is not a `draw`, so focus stays where it was on load. A navigation, from a link or from Back, reaches `draw`.
