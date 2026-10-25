@@ -99,6 +99,11 @@ describe("vlx library build and check", () => {
     // the compiled entry still imports the template as a file: the consumer's build compiles it
     expect(readFileSync(join(lib, "dist", "greeting.js"), "utf8")).toContain('./greeting.mprx"');
     expect(await checkLibrary(lib)).toEqual([]);
+
+    // a file left in dist/ by an earlier build (a component renamed or removed) is not shipped by this one
+    writeFileSync(join(lib, "dist", "removed.mprx"), "<column></column>\n");
+    expect(buildLibrary(lib).diagnostics).toEqual([]);
+    expect(existsSync(join(lib, "dist", "removed.mprx"))).toBe(false);
   });
 
   it("is found when a package is not marked, or offers a way around the marker", { timeout: 180_000 }, async () => {

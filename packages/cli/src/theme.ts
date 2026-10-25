@@ -65,6 +65,13 @@ export const themeFileOf = (root: string): { readonly file: string; readonly cus
 
 const asDiagnostic = (each: Problem): Diagnostic => diagnostic(each.file, 0, each.code, `${each.path === undefined || each.path === "" ? "" : `${each.path}: `}${each.message}`);
 
+/** The problems of a theme file, checked as a project's theme is (tokens, recipes, contrast of the pairs it declares); `base` is what a file's name is shown relative to. */
+export const themeFileProblems = (file: string, base: string): ReadonlyArray<Diagnostic> => {
+  const loaded = loadTheme(file, (path) => relative(base, path).split("\\").join("/"));
+
+  return checkTheme(loaded, defaultInputs()).problems.map(asDiagnostic);
+};
+
 export interface ThemeResult {
   readonly custom: boolean;
   readonly name: string;

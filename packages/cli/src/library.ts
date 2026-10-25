@@ -2,7 +2,7 @@
 // (JavaScript, declarations, and the templates and stylesheets as source), `vlx library check` holds the package to the rules a consumer's build relies on. The consumer's side (finding a marked
 // package, the build settings, the diagnostics at the use site) is `libraries.ts`.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 import { check } from "./check.js";
@@ -12,6 +12,7 @@ import { diagnostic } from "./diagnostics.js";
 import { cliSpec, commonSpec, packageName, runCommand } from "./init.js";
 import type { PackageManager } from "./init.js";
 import { CONDITION, hasCondition, installedAt } from "./libraries.js";
+import { themeFileProblems } from "./theme.js";
 
 const own = (): { readonly version: string; readonly dependencies: Readonly<Record<string, string>> } =>
   JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string; dependencies: Record<string, string> };
@@ -251,7 +252,7 @@ interface Package {
   readonly name?: string;
   readonly exports?: unknown;
   readonly sideEffects?: unknown;
-  readonly valance?: { readonly styles?: ReadonlyArray<string>; readonly targets?: ReadonlyArray<string> };
+  readonly valance?: { readonly kind?: string; readonly styles?: ReadonlyArray<string>; readonly targets?: ReadonlyArray<string>; readonly theme?: string };
   readonly peerDependencies?: Readonly<Record<string, string>>;
 }
 
@@ -312,7 +313,9 @@ export const checkLibrary = async (dir: string, options: { readonly app?: string
     }
   }
 
-  if (manifest.peerDependencies?.["@valancex/common"] === undefined) {
+  const isTheme = manifest.valance?.kind === "theme";
+
+  if (!isTheme && manifest.peerDependencies?.["@valancex/common"] === undefined) {
     problem(
       "library-peer",
       `${FILE} should declare @valancex/common as a peer dependency (one copy of the framework in an application; removing it from the peers is breaking, K8)`,
@@ -330,6 +333,19 @@ export const checkLibrary = async (dir: string, options: { readonly app?: string
     } else {
       problem("library-side-effects", `"sideEffects" in ${FILE} drops stylesheets from a bundle: use ["**/*.css"] (K6)`);
     }
+  }
+
+  // A theme is data: it is checked as a project's theme is (tokens, recipes, the contrast of the pairs it declares), and needs no playground.
+  if (isTheme) {
+    const file = manifest.valance?.theme === undefined ? undefined : resolve(dir, manifest.valance.theme);
+
+    if (file === undefined || !existsSync(file)) {
+      problem("library-field", `"valance.theme" in ${FILE} must name the package's theme.json`);
+    } else {
+      problems.push(...themeFileProblems(file, dir));
+    }
+
+    return problems;
   }
 
   // the playground
@@ -433,6 +449,9 @@ export const buildLibrary = (dir: string): BuiltLibrary => {
   if (tsc === undefined) {
     return { diagnostics: [diagnostic(FILE, 0, "library-build", "typescript is not installed here: add it to the library's devDependencies and install")], copied: [] };
   }
+
+  // dist/ is made by this build alone: a file left from a component that was renamed or removed would be shipped (and its template checked as if it were a component)
+  rmSync(join(dir, "dist"), { recursive: true, force: true });
 
   const ran = spawnSync(process.execPath, [tsc, "-p", join(dir, "tsconfig.json")], { cwd: dir, encoding: "utf8" });
 
