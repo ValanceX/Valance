@@ -1,6 +1,6 @@
 {
   "name": "@valancex/style",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "The style contract for VALANCE: tokens (Design Tokens format), recipes for a primitive's root part, states, variants and conditions, as data; and what is generated or checked from them (a layered stylesheet for the web, resolved values for the Desktop, the contrast of declared pairs, the coverage of a theme).",
   "keywords": [
     "valance",
