@@ -116,6 +116,13 @@ describe("a tag the web renamed (P7)", () => {
     expect(result.diagnostics.some((each) => each.message.includes(`\`${old}\` is now \`${now}\``))).toBe(true);
   });
 
+  it("a hook of the web that the specification says may be left out may be: a portable list, paragraph, link, blockquote and image need no class", async () => {
+    const layout =
+      '<column><list><listitem><link href="/a">a</link></listitem></list><paragraph>p</paragraph><blockquote>q</blockquote><image src="/x.png" alt="x" /></column>';
+
+    expect(await codes(layout)).toEqual([]);
+  });
+
   it("accepts the new names", async () => {
     expect(await codes('<column><paragraph class="p">x</paragraph><blockquote class="q">y</blockquote></column>')).toEqual([]);
   });

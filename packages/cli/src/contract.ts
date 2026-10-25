@@ -119,6 +119,14 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
 
   const unit = declared.unit === undefined ? undefined : unitEntry(declared.unit, props, problems);
 
+  // A controllable field is read in the template by the name of its prop, and the unit supplies that name (the prop's value when the caller writes it, else the unit's own); listing the prop in the scope
+  // as well is `manifest-unit-clash` in MESH, for a field the docs say to declare this way (found building a tabs component outside the repository).
+  for (const [name, each] of Object.entries(unit?.state ?? {})) {
+    if (each.controllable === true) {
+      delete scope[name];
+    }
+  }
+
   if (declared.name !== undefined) {
     const named = props[declared.name];
 

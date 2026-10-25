@@ -169,7 +169,8 @@
       "props": {
         "class": {
           "kind": "attribute",
-          "name": "class"
+          "name": "class",
+          "optional": true
         },
         "id": {
           "kind": "attribute",
@@ -183,7 +184,8 @@
       "props": {
         "class": {
           "kind": "attribute",
-          "name": "class"
+          "name": "class",
+          "optional": true
         }
       }
     },
@@ -197,7 +199,8 @@
         },
         "class": {
           "kind": "attribute",
-          "name": "class"
+          "name": "class",
+          "optional": true
         }
       }
     },
@@ -207,7 +210,8 @@
       "props": {
         "class": {
           "kind": "attribute",
-          "name": "class"
+          "name": "class",
+          "optional": true
         }
       },
       "fixed": {
@@ -260,7 +264,8 @@
       "props": {
         "class": {
           "kind": "attribute",
-          "name": "class"
+          "name": "class",
+          "optional": true
         },
         "src": {
           "kind": "attribute",
@@ -272,7 +277,8 @@
         },
         "loading": {
           "kind": "attribute",
-          "name": "loading"
+          "name": "loading",
+          "optional": true
         }
       },
       "rename": {
@@ -299,11 +305,13 @@
         },
         "class": {
           "kind": "attribute",
-          "name": "class"
+          "name": "class",
+          "optional": true
         },
         "current": {
           "kind": "attribute",
-          "name": "aria-current"
+          "name": "aria-current",
+          "optional": true
         }
       }
     },

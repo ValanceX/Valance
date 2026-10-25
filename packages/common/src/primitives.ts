@@ -222,7 +222,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       },
       "id": {
         "type": {
@@ -239,7 +239,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       }
     },
     "events": {}
@@ -256,7 +256,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       }
     },
     "events": {}
@@ -267,7 +267,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       }
     },
     "events": {}
@@ -322,7 +322,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       },
       "src": {
         "type": {
@@ -340,7 +340,7 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       }
     },
     "events": {}
@@ -368,13 +368,13 @@ export const declared: Readonly<Record<string, { readonly props: Readonly<Record
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       },
       "current": {
         "type": {
           "kind": "string"
         },
-        "required": true
+        "required": false
       }
     },
     "events": {}

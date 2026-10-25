@@ -217,6 +217,15 @@ export type UnitCommandSpec<S, P extends Schema.Struct.Fields = Schema.Struct.Fi
       readonly raises?: Readonly<Record<string, (next: S, args: Schema.Struct.Type<P>) => unknown>>;
     };
 
+/** A command of a unit as `unit` takes it: any parameters (they are typed where the command is written, with `unitCommand`). */
+type UnitCommandInput<S> =
+  | ((state: S) => Changes<S>)
+  | {
+      readonly params?: Schema.Struct.Fields;
+      readonly run: (state: S, args: any) => Changes<S>;
+      readonly raises?: Readonly<Record<string, (next: S, args: any) => unknown>>;
+    };
+
 /** A command with parameters, typed: the parameters' types reach `run` and `raises`. */
 export const unitCommand = <S, P extends Schema.Struct.Fields>(spec: {
   readonly params: P;
@@ -241,7 +250,8 @@ export const unitCommand = <S, P extends Schema.Struct.Fields>(spec: {
  */
 export const unit = <F extends Fields>(definition: {
   readonly state: F;
-  readonly commands: { readonly [name: string]: UnitCommandSpec<StateOf<F>, any> };
+  // (a command's parameters are typed where it is written, by `unitCommand`; here any command of the state is accepted, whatever its parameters)
+  readonly commands: { readonly [name: string]: UnitCommandInput<StateOf<F>> };
   readonly controllable?: ReadonlyArray<Extract<keyof F, string>>;
 }): Valance.Unit<StateOf<F>> => {
   const entries = Object.entries(definition.state) as Array<[string, Field<any>]>;
