@@ -1,7 +1,7 @@
 //! The application's own vocabulary is a subset of the Desktop PORT's: a change in the PORT to a word the application uses shows here.
 use serde_json::{json, Value};
 
-/// What is wrong with `ours` as a subset of `theirs`: a word the PORT lacks, or a word whose props or events differ. A word the PORT has and `ours` does not is not a difference (the PORT may grow).
+/// What is wrong with `ours` as a subset of `theirs`: a word the PORT lacks, or a prop or an event of ours that the PORT lacks or defines differently. A word, a prop or an event the PORT has and `ours` does not is not a difference (the PORT may grow).
 fn differences(ours: &Value, theirs: &Value) -> Vec<String> {
     let their_words = theirs["components"]
         .as_object()
@@ -16,8 +16,12 @@ fn differences(ours: &Value, theirs: &Value) -> Vec<String> {
             None => found.push(format!("`{word}` is not in the PORT's vocabulary")),
             Some(theirs) => {
                 for part in ["props", "events"] {
-                    if ours[part] != theirs[part] {
-                        found.push(format!("`{word}`: its {part} differ from the PORT's"));
+                    for (name, ours) in ours[part].as_object().into_iter().flatten() {
+                        if theirs[part].get(name) != Some(ours) {
+                            found.push(format!(
+                                "`{word}`: its {part} `{name}` is missing or differs in the PORT"
+                            ));
+                        }
                     }
                 }
             }
@@ -88,15 +92,15 @@ fn a_changed_word_is_found() {
     extra_event["components"]["button"]["events"]["invented"] = json!({});
     assert_eq!(
         differences(&extra_event, &theirs),
-        ["`button`: its events differ from the PORT's"]
+        ["`button`: its events `invented` is missing or differs in the PORT"]
     );
 
-    // an event removed
-    let mut removed = ours();
+    // an event the application uses, removed by the PORT
+    let mut removed = theirs.clone();
     removed["components"]["button"]["events"] = json!({});
     assert_eq!(
-        differences(&removed, &theirs),
-        ["`button`: its events differ from the PORT's"]
+        differences(&ours(), &removed),
+        ["`button`: its events `click` is missing or differs in the PORT"]
     );
 
     // a word the PORT does not have
@@ -122,6 +126,17 @@ fn a_changed_word_is_found() {
         differences(&renamed, &theirs),
         [format!("`{word}x` is not in the PORT's vocabulary")]
     );
+}
+
+/// The PORT may add a prop or an event to a word the application uses: the application's seven are still a subset.
+#[test]
+fn a_prop_or_an_event_the_port_adds_is_not_a_difference() {
+    let mut grown = theirs();
+    grown["components"]["button"]["props"]["invented"] =
+        json!({ "type": { "kind": "string" }, "required": false });
+    grown["components"]["button"]["events"]["invented"] = json!({});
+
+    assert_eq!(differences(&ours(), &grown), Vec::<String>::new());
 }
 
 /// The PORT may add words: the application's seven are still a subset.
