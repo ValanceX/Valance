@@ -382,7 +382,7 @@ The VS Code extension (**VALANCE**, in [`editors/vscode`](../../editors/vscode))
 
 ## Diagnostics
 
-Every mistake the tools can attribute to a file has one shape: `{ file, line, column, code, message }`. `vlx check --json` prints them for editors and CI; codes are stable (`link-broken`, `md-html`, `front-unknown`, `config-unknown`, `template-unused`, `entry-export`, and the MESH compiler's own for templates).
+Every mistake the tools can attribute to a file has one shape: `{ file, line, column, code, message }`, plus `severity` on a warning. `vlx check --json` prints them for editors and CI; codes are stable (`link-broken`, `md-html`, `front-unknown`, `config-unknown`, `template-unused`, `entry-export`, and the MESH compiler's own for templates).
 
 A diagnostic with `"severity": "warning"` is worth a look and is not a mistake: `vlx check` prints it (`file:line:column warning code: message`) and still succeeds. One code is a warning:
 

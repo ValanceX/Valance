@@ -1,6 +1,6 @@
-// B3 (Tier 1, audit I2): `start` types `invoke`'s key from the command table. A bare name `n` is `"app/n"`, an exact `"component/name"` key is itself, and a literal key the
-// table lacks is a type error. A key that is not a literal (a `string`, a template) still compiles, so a caller that builds keys keeps working, and an `ApplicationHandle<S, E>`
-// (the default, any key) still takes a typed handle.
+// B3 (Tier 1, audit I2): `start` carries the command table's keys to `invoke`: a bare name `n` is `"app/n"` and an exact `"component/name"` key is itself, which an editor
+// completes. Additive: any other string is still accepted (an unknown one is the typed `UnmappedCommand` at run time), so a table built by spreading another, whose type does not
+// show the spread keys, still compiles. Typos are not caught by the type.
 import { Effect, Exit, Schema, Scope } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
@@ -8,11 +8,13 @@ import * as Valance from "../src/index.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
 const State = Schema.Struct({ count: Schema.Number });
+type State = typeof State.Type;
+const views = { main: { program: eventFreeProgram, scope: () => ({}) } };
 
 const app = Valance.define({
   name: "invoke-keys",
   state: { schema: State, initial: { count: 0 } },
-  views: { main: { program: eventFreeProgram, scope: () => ({}) } },
+  views,
   commands: (state) => {
     const command = Valance.command(state);
     const add = command(Schema.Struct({ amount: Schema.Number }), ({ amount }, s) => ({ count: s.count + amount }));
@@ -21,39 +23,52 @@ const app = Valance.define({
   },
 });
 
-describe("invoke's key, typed from the command table", () => {
-  it("accepts the table's keys and runs them", async () => {
-    const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+// A table composed by spreading one typed `CommandTable`: TypeScript drops the spread's index signature, so its type shows only `app/own`.
+const shared = (state: Valance.StateHandle<State>): Valance.CommandTable<never, never> => ({
+  add: Valance.command(state)(Schema.Struct({ amount: Schema.Number }), ({ amount }, s) => ({ count: s.count + amount })),
+});
+const spread = Valance.define({
+  name: "invoke-keys-spread",
+  state: { schema: State, initial: { count: 0 } },
+  views,
+  commands: (state) => ({ ...shared(state), "app/own": Valance.entry(Valance.command(state)((s) => s)) }),
+});
+
+const started = async <K extends string>(definition: Valance.ApplicationDefinition<State, any, never, "main", K>) => {
+  const scope = await Effect.runPromise(Scope.make());
+
+  return { handle: await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope))), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
+};
+
+describe("invoke's key, from the command table", () => {
+  it("names the table's keys (what an editor completes) and still takes any string", () => {
+    type Key = Parameters<Effect.Effect.Success<ReturnType<typeof Valance.start<State, any, never, "main", "app/add" | "app/reset">>>["invoke"]>[0];
+    // `define` gives `start` exactly the table's keys
+    type Inferred = Parameters<Effect.Effect.Success<ReturnType<typeof startApp>>["invoke"]>[0];
+    const startApp = () => Valance.start(app);
+
+    expectTypeOf<Inferred>().toEqualTypeOf<Key>();
+    expectTypeOf<Key>().toEqualTypeOf<"app/add" | "app/reset" | (string & {})>();
+  });
+
+  it("runs a known key, and an unknown one is the typed failure, not a type error", async () => {
+    const { handle, close } = await started(app);
 
     await Effect.runPromise(handle.invoke("app/add", [{ value: 2 }]));
     expect(await Effect.runPromise(handle.state)).toEqual({ count: 2 });
-    await Effect.runPromise(handle.invoke("app/reset", []));
-    expect(await Effect.runPromise(handle.state)).toEqual({ count: 0 });
-
-    // @ts-expect-error a literal key the table does not have
-    expect((await Effect.runPromise(Effect.exit(handle.invoke("app/ad", [])))).pipe(Exit.isFailure)).toBe(true);
-    // @ts-expect-error a bare name is not a key: from outside a render it is "app/add"
-    void (() => handle.invoke("add", []));
-
-    // a key built at run time is not checked (it was a `string` before, and stays one)
-    const built: string = "app/add";
-    await Effect.runPromise(handle.invoke(built, [{ value: 1 }]));
-    await Effect.runPromise(handle.invoke(`app/${"add" as string}`, [{ value: 1 }]));
-    expect(await Effect.runPromise(handle.state)).toEqual({ count: 2 });
-
-    // a typed handle is still an `ApplicationHandle<S, E>`, whose keys are any string
-    const wide: Valance.ApplicationHandle<{ readonly count: number }, unknown> = handle;
-    void (() => wide.invoke("anything/at-all", []));
-
-    await Effect.runPromise(Scope.close(scope, Exit.void));
+    expect(Exit.isFailure(await Effect.runPromise(Effect.exit(handle.invoke("app/ad", []))))).toBe(true);
+    await close();
   });
 
-  it("is any string for a definition typed without its keys (the default)", () => {
-    const untyped: Valance.ApplicationDefinition<{ readonly count: number }, unknown, never, "main"> = app;
-    const started = Valance.start(untyped);
+  it("compiles and runs a key of a spread-composed table that its type does not show", async () => {
+    const { handle, close } = await started(spread);
 
-    expectTypeOf(started).toEqualTypeOf<Effect.Effect<Valance.ApplicationHandle<{ readonly count: number }, unknown>, Valance.StartError, Scope.Scope>>();
-    void (() => Effect.map(started, (handle) => handle.invoke("anything/at-all", [])));
+    await Effect.runPromise(handle.invoke("app/add", [{ value: 3 }]));
+    expect(await Effect.runPromise(handle.state)).toEqual({ count: 3 });
+    await close();
+  });
+
+  it("a typed handle is still an ApplicationHandle<S, E>", () => {
+    expectTypeOf<Valance.ApplicationHandle<State, unknown, "app/add">>().toExtend<Valance.ApplicationHandle<State, unknown>>();
   });
 });

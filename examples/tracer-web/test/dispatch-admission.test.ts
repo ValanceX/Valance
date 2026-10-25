@@ -206,7 +206,7 @@ describe("closing the application", () => {
     expect(shape(await dispatch())).toBe("failed UnmappedCommand");
     await Effect.runPromise(Scope.close(otherScope, Exit.void));
     expect(shape(await dispatch())).toMatch(/^died .*terminating/);
-    expect(shape(await Effect.runPromise(Effect.exit(other.invoke("app/nothing" as string, []))))).toBe("failed UnmappedCommand"); // the key is looked up before admission
+    expect(shape(await Effect.runPromise(Effect.exit(other.invoke("app/nothing", []))))).toBe("failed UnmappedCommand"); // the key is looked up before admission
     await m.close();
   });
 

@@ -176,8 +176,7 @@ describe("application event entry", () => {
         Effect.gen(function* () {
           const running = yield* Valance.start(application);
 
-          // A literal key the table lacks is a type error since 0.16 (B3); a key known only at run time is still the typed failure.
-          return yield* Effect.exit(running.invoke("nowhere/at-all" as string, []));
+          return yield* Effect.exit(running.invoke("nowhere/at-all", []));
         }),
       ),
     );

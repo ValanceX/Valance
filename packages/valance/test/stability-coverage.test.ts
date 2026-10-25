@@ -15,10 +15,7 @@ const rowsFor = (page: string, id: string): string => {
   const [scope, name, ...sub] = id.split("/");
   const pkg = `${scope}/${name}`;
   // a subpath is named in full (`@valancex/common/http`) or after its package (`@valancex/cli`'s `./node`); the root entry is the package name not followed by a subpath
-  const mentions =
-    sub.length === 0
-      ? new RegExp(`${escape(pkg)}(?![\\w$/])`)
-      : new RegExp(`${escape(id)}(?![\\w$])|${escape(pkg)}\`'s \`\\./${escape(sub.join("/"))}\``);
+  const mentions = sub.length === 0 ? new RegExp(`${escape(pkg)}(?![\\w$/])`) : new RegExp(`${escape(id)}(?![\\w$])|${escape(pkg)}\`'s \`\\./${escape(sub.join("/"))}\``);
 
   return page
     .split("\n")
@@ -26,8 +23,7 @@ const rowsFor = (page: string, id: string): string => {
     .flatMap((line) => Array.from(line.matchAll(/`([^`]+)`/g), (match) => match[1]!))
     .join("\n");
 };
-const namedIn = (page: string, id: string, name: string): boolean =>
-  new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`).test(rowsFor(page, id));
+const namedIn = (page: string, id: string, name: string): boolean => new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`).test(rowsFor(page, id));
 
 const stability = readFileSync(root("docs/stability.md"), "utf8");
 

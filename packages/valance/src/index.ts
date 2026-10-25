@@ -64,7 +64,7 @@ export type CommandTable<E, R extends Ambient> = Readonly<Record<string, Nexus.M
 declare const invokeKeys: unique symbol;
 
 export interface ApplicationDefinition<S, E, R extends Ambient, V extends string, K extends string = string> {
-  /** The keys `invoke` takes (see `InvokeKey`): set by `define` from the command table's type, read by `start`. Never present at run time. */
+  /** The keys `invoke` takes (see `ApplicationHandle.invoke`): set by `define` from the command table's type, read by `start`. Never present at run time. */
   readonly [invokeKeys]?: K;
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
@@ -147,12 +147,6 @@ export function define(definition: { readonly views: Record<string, unknown>; re
  * A table whose type has no literal keys (`Record<string, …>`) takes any string.
  */
 type InvokeKeys<T> = string extends keyof T ? string : { readonly [N in keyof T & string]: N extends `${string}/${string}` ? N : `app/${N}` }[keyof T & string];
-
-/**
- * What `invoke` accepts for a key written as `Key`, given the application's keys `K`: a literal must be one of `K`; a key that is not a literal (a `string`, or a template such as
- * `` `app/${name}` ``) is accepted as it always was, and an unknown one is the typed `UnmappedCommand` at run time.
- */
-export type InvokeKey<K extends string, Key extends string> = [{}] extends [Record<Key, unknown>] ? Key : Key extends K ? Key : K;
 
 /** True for a union of two or more literals (`"a" | "b"`), false for a single one. */
 type IsUnion<U, C = U> = [U] extends [never] ? false : U extends unknown ? ([C] extends [U] ? false : true) : never;
@@ -407,10 +401,11 @@ export interface ApplicationHandle<S, E, K extends string = string> {
    * back to the caller (NEXUS I44). The caller needs no runtime and provides no services: interrupting the returned
    * effect interrupts the command, and typed failures and defects pass through unchanged.
    *
-   * `key` is typed (`K`, from `define`'s command table): `"app/name"` for a bare command, an exact key as written. A literal the table lacks is a type error; a key built at run time
-   * (a `string`) is accepted, as before. A method, so a typed handle is still an `ApplicationHandle<S, E>`, which takes any key.
+   * `key` is one of `K` (from `define`'s command table: `"app/name"` for a bare command, an exact key as written), which an editor completes, or any other string, as before: a key
+   * the table lacks is the typed `UnmappedCommand` at run time, not a type error (a table built by spreading another has keys its type does not show). A method, so a typed handle is
+   * still an `ApplicationHandle<S, E>`.
    */
-  invoke<const Key extends string>(key: InvokeKey<K, Key>, args: ReadonlyArray<Nexus.Mesh.IntentArgument>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  invoke(key: K | (string & {}), args: ReadonlyArray<Nexus.Mesh.IntentArgument>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
 }
 
 /**
