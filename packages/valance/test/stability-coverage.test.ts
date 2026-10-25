@@ -8,9 +8,28 @@ import { describe, expect, it } from "vitest";
 
 const root = (path: string): string => fileURLToPath(new URL(`../../../${path}`, import.meta.url));
 
-// Names are matched inside backtick spans of the page, as whole identifiers, so prose ("text", "list") does not count as naming `text`.
-const spans = Array.from(readFileSync(root("docs/stability.md"), "utf8").matchAll(/`([^`]+)`/g), (match) => match[1]!).join("\n");
-const named = (name: string): boolean => new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`).test(spans);
+// A name counts only inside a backtick span of a table row that names its own entry (the package name for the root entry, the full subpath for another), so a word another entry's
+// row already uses (`check`, `run`, `text`) cannot name it. Names are whole identifiers: the pattern relies on JS identifier characters (word characters and `$`), and only `$` needs escaping.
+const rowsFor = (page: string, id: string): string => {
+  const escape = (text: string): string => text.replace(/[$/.]/g, "\\$&");
+  const [scope, name, ...sub] = id.split("/");
+  const pkg = `${scope}/${name}`;
+  // a subpath is named in full (`@valancex/common/http`) or after its package (`@valancex/cli`'s `./node`); the root entry is the package name not followed by a subpath
+  const mentions =
+    sub.length === 0
+      ? new RegExp(`${escape(pkg)}(?![\\w$/])`)
+      : new RegExp(`${escape(id)}(?![\\w$])|${escape(pkg)}\`'s \`\\./${escape(sub.join("/"))}\``);
+
+  return page
+    .split("\n")
+    .filter((line) => line.startsWith("|") && mentions.test(line))
+    .flatMap((line) => Array.from(line.matchAll(/`([^`]+)`/g), (match) => match[1]!))
+    .join("\n");
+};
+const namedIn = (page: string, id: string, name: string): boolean =>
+  new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`).test(rowsFor(page, id));
+
+const stability = readFileSync(root("docs/stability.md"), "utf8");
 
 const published = ["cli", "common", "router", "style", "valance"];
 
@@ -31,13 +50,24 @@ describe("docs/stability.md names every value export of a published entry", () =
     expect(entries.length).toBeGreaterThanOrEqual(published.length);
   });
 
-  it.each(entries.filter((entry) => entry.id.endsWith("/internal")).map((entry) => entry.id))("%s is named as Internal", (id) => {
-    expect(readFileSync(root("docs/stability.md"), "utf8")).toContain(id);
+  it("counts a name only in a row for its own entry", () => {
+    const page = "| `@valancex/cli`'s `./node` (`check`) | x |\n| `@valancex/valance/web` (`run`) | x |\n| `@valancex/valance` (`define`) | x |";
+
+    expect(namedIn(page, "@valancex/valance", "define")).toBe(true);
+    expect(namedIn(page, "@valancex/valance", "run")).toBe(false);
+    expect(namedIn(page, "@valancex/valance/web", "run")).toBe(true);
+    expect(namedIn(page, "@valancex/valance/web", "check")).toBe(false);
+    expect(namedIn(page, "@valancex/cli/node", "check")).toBe(true);
+    expect(namedIn(page, "@valancex/cli/node", "define")).toBe(false);
   });
 
-  it.each(entries.filter((entry) => !entry.id.endsWith("/internal")).map((entry) => [entry.id, entry.source] as const))("%s", async (_id, source) => {
+  it.each(entries.filter((entry) => entry.id.endsWith("/internal")).map((entry) => entry.id))("%s is named as Internal", (id) => {
+    expect(rowsFor(stability, id)).not.toBe("");
+  });
+
+  it.each(entries.filter((entry) => !entry.id.endsWith("/internal")).map((entry) => [entry.id, entry.source] as const))("%s", async (id, source) => {
     const exported = Object.keys(await import(root(source))).filter((name) => name !== "default");
 
-    expect(exported.filter((name) => !named(name))).toEqual([]);
+    expect(exported.filter((name) => !namedIn(stability, id, name))).toEqual([]);
   });
 });
