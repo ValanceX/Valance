@@ -4,3 +4,9 @@ packages:
 allowBuilds:
   esbuild: false
   vnu-jar: false
+overrides:
+  "@valancex/cli": file:../local-packs/valancex-cli-0.15.0.tgz
+  "@valancex/common": file:../local-packs/valancex-common-0.15.0.tgz
+  "@valancex/valance": file:../local-packs/valancex-valance-0.15.0.tgz
+  "@valancex/style": file:../local-packs/valancex-style-0.15.0.tgz
+  "@valancex/router": file:../local-packs/valancex-router-0.15.0.tgz
