@@ -60,7 +60,12 @@ export interface View<S> {
  */
 export type CommandTable<E, R extends Ambient> = Readonly<Record<string, Nexus.Mesh.Binding<E, R> | Nexus.Command.Command<any, any, E, R>>>;
 
-export interface ApplicationDefinition<S, E, R extends Ambient, V extends string> {
+/** Carries an application's `invoke` keys in its definition's type, for `start` to read. Type only: no definition has it. */
+declare const invokeKeys: unique symbol;
+
+export interface ApplicationDefinition<S, E, R extends Ambient, V extends string, K extends string = string> {
+  /** The keys `invoke` takes (see `InvokeKey`): set by `define` from the command table's type, read by `start`. Never present at run time. */
+  readonly [invokeKeys]?: K;
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
   readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
@@ -122,8 +127,10 @@ type RequirementOf<V> = V extends Nexus.Command.Command<any, any, any, infer Req
  */
 export function define<S, T extends CommandTable<any, Ambient>, V extends string>(
   // With exactly one view, `view` may be left out: it is that view (Tier 1, a default for what has only one answer). With more than one key it is required (omitting it is a type error).
-  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands" | "view"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T } & (IsUnion<V> extends true ? { readonly view: (state: S) => V } : { readonly view?: (state: S) => V }),
-): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
+  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands" | "view"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T } & (IsUnion<V> extends true
+      ? { readonly view: (state: S) => V }
+      : { readonly view?: (state: S) => V }),
+): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V, InvokeKeys<T>>;
 export function define(definition: { readonly views: Record<string, unknown>; readonly view?: unknown }): unknown {
   // Same rule as `defineApp`'s: the one view is the default. The runtime, which cannot see the types, defaults whenever `view` is absent and there is one key.
   const keys = Object.keys(definition.views);
@@ -134,6 +141,18 @@ export function define(definition: { readonly views: Record<string, unknown>; re
 
   return { ...definition, view: () => keys[0] };
 }
+
+/**
+ * The keys `invoke` takes, from a command table's type: an exact `"component/name"` key is itself, and a bare name `n` is `"app/n"` (what it is bound to outside a render).
+ * A table whose type has no literal keys (`Record<string, …>`) takes any string.
+ */
+type InvokeKeys<T> = string extends keyof T ? string : { readonly [N in keyof T & string]: N extends `${string}/${string}` ? N : `app/${N}` }[keyof T & string];
+
+/**
+ * What `invoke` accepts for a key written as `Key`, given the application's keys `K`: a literal must be one of `K`; a key that is not a literal (a `string`, or a template such as
+ * `` `app/${name}` ``) is accepted as it always was, and an unknown one is the typed `UnmappedCommand` at run time.
+ */
+export type InvokeKey<K extends string, Key extends string> = [{}] extends [Record<Key, unknown>] ? Key : Key extends K ? Key : K;
 
 /** True for a union of two or more literals (`"a" | "b"`), false for a single one. */
 type IsUnion<U, C = U> = [U] extends [never] ? false : U extends unknown ? ([C] extends [U] ? false : true) : never;
@@ -373,7 +392,7 @@ const failureIdentity = (cause: Cause.Cause<unknown>): string => {
  * It carries no runtime, no render, no dispatch, and no lifecycle: the application's lifetime is the `Scope` `start`
  * ran in, and nothing here ends it, restarts it, or reports on it.
  */
-export interface ApplicationHandle<S, E> {
+export interface ApplicationHandle<S, E, K extends string = string> {
   /**
    * The application's current state: one read, as of when it runs. A read, not a subscription: the state a host sees
    * is the state commands have committed, whatever view is shown.
@@ -387,8 +406,11 @@ export interface ApplicationHandle<S, E> {
    * It executes in the application's own context, with the platform's FiberRefs, and nothing of that context flows
    * back to the caller (NEXUS I44). The caller needs no runtime and provides no services: interrupting the returned
    * effect interrupts the command, and typed failures and defects pass through unchanged.
+   *
+   * `key` is typed (`K`, from `define`'s command table): `"app/name"` for a bare command, an exact key as written. A literal the table lacks is a type error; a key built at run time
+   * (a `string`) is accepted, as before. A method, so a typed handle is still an `ApplicationHandle<S, E>`, which takes any key.
    */
-  readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  invoke<const Key extends string>(key: InvokeKey<K, Key>, args: ReadonlyArray<Nexus.Mesh.IntentArgument>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
 }
 
 /**
@@ -396,10 +418,10 @@ export interface ApplicationHandle<S, E> {
  * Valance keeps nothing that outlives that scope. (NEXUS can also end an application early; that is the substrate's,
  * is outside this model, and nothing here asks for it. The command drain below belongs to the Scope close, so that route does not pass it.)
  */
-export const start = <S, E, R extends Ambient, V extends string>(
-  app: ApplicationDefinition<S, E, R, V>,
+export const start = <S, E, R extends Ambient, V extends string, K extends string = string>(
+  app: ApplicationDefinition<S, E, R, V, K>,
   options: StartOptions<S> = {},
-): Effect.Effect<ApplicationHandle<S, E>, StartError, Scope.Scope> =>
+): Effect.Effect<ApplicationHandle<S, E, K>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
     const nexus = yield* Nexus.Application.start(

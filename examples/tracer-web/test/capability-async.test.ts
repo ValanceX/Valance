@@ -642,7 +642,7 @@ describe("what remains executable after the application's Scope closes", () => {
       ["command without a capability", "app/home", []],
       ["unknown entry", "nowhere/at-all", []],
     ] as const) {
-      fresh.push([label, show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))]);
+      fresh.push([label, show(await Effect.runPromise(Effect.exit(handle.invoke(key as string, args))))]); // keys outside this table (B3: typed as a string)
     }
 
     // A. The admitted command was interrupted while suspended. Opening its gate afterwards changes nothing: it is gone.
@@ -1332,7 +1332,7 @@ describe("a platform-owned registry of admitted command fibers", () => {
       ["app/home", []],
       ["app/trackedLookup", [{ value: "Z" }]],
     ] as const) {
-      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key, args))))).toBe("died: VALANCE: admission is closed (draining)");
+      expect(show(await Effect.runPromise(Effect.exit(handle.invoke(key as string, args))))).toBe("died: VALANCE: admission is closed (draining)"); // keys outside this table (B3: typed as a string)
     }
 
     await Effect.runPromise(Deferred.succeed(region.gate, undefined));
@@ -1365,7 +1365,7 @@ describe("a platform-owned registry of admitted command fibers", () => {
       let refused = "";
 
       for (let attempt = 0; attempt < 1000 && !refused.startsWith("died: VALANCE"); attempt += 1) {
-        refused = show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))));
+        refused = show(await Effect.runPromise(Effect.exit(handle.invoke("app/home" as string, []))));
         await yields(1);
       }
 
@@ -1411,7 +1411,7 @@ describe("a platform-owned registry of admitted command fibers", () => {
 
   it("probe H (command lifetime): coverage no longer depends on the command using a wrapper: an unwrapped command is interrupted too, before the resource releases", async () => {
     const { w, handle, closeScope } = await bootTracked();
-    const invoked = Effect.runFork(handle.invoke("app/lookupAsync", [{ value: "A" }])); // the application's own command: not wrapped
+    const invoked = Effect.runFork(handle.invoke("app/lookupAsync" as string, [{ value: "A" }])); // the application's own command: not wrapped (spread from base.commands, which the table type does not see: B3)
 
     await Effect.runPromise(w.started("A"));
     w.events.push("scope closing");
@@ -2254,7 +2254,7 @@ describe("early end through the substrate (outside the VALANCE model)", () => {
 
     expect(w.events).toContain("lookup interrupted A"); // NEXUS settled the command it tracks: interrupted, and its exit awaited
     expect(show(await Effect.runPromise(Fiber.await(invoked)))).toBe("interrupted");
-    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home", []))))).toBe("died: NEXUS: the runtime has begun terminating"); // NEXUS's refusal, not VALANCE's
+    expect(show(await Effect.runPromise(Effect.exit(handle.invoke("app/home" as string, []))))).toBe("died: NEXUS: the runtime has begun terminating"); // NEXUS's refusal, not VALANCE's
     expect(w.events).not.toContain("resource used after release A");
 
     await Effect.runPromise(Fiber.join(closeScope())); // the Scope's own close afterwards finds nothing left and is harmless
