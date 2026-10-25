@@ -67,7 +67,7 @@ Canonical: "execution unit" for Nexus, "component unit" for the Mesh/Valance sen
 | instance, unit sense | `mesh/docs/manual/runtime.md` (`render.instances`, `raise(render, instance, ...)`, intent `instance`) | One occurrence of a component that has a unit. |
 | occurrence | `mesh/docs/MPRX-SPEC.md` section 9.10.2 | A rendered copy of a site, identified by its path of (site, instance) steps. |
 
-Canonical: **occurrence** for the unit sense, **instance** only for a repeat key and for the spec section 9.1 element sense (qualify: "component element"). The refinements doc (C-4) plans renaming the unit sense of `instance` to `occurrence`; this is **not done yet**, so `render.instances` and intent `instance` still exist. Code and schema rename waits for a version that says so (1.0 at the latest).
+Canonical: **occurrence** for the unit sense, **instance** only for a repeat key and for the spec section 9.1 element sense (qualify: "component element"). The refinements doc (C-4) plans renaming the unit sense of `instance` to `occurrence`; this is **not done yet**, so `render.instances` and intent `instance` still exist. Code and schema rename is planned as one coordinated set (Mesh 0.18, then Nexus and Valance), per refinements C-4 (section 5): rename now, not deferred to 1.0.
 
 ## `Render`
 
