@@ -2,6 +2,8 @@
 // target run builds, which keeps what run reports (`mounted.dispatched`, `stop`). The to-do application over a jsdom page, as in web-realization.test.ts.
 import type { Native } from "@valancex/port-web/native";
 import * as Web from "@valancex/valance/web";
+import { renderToHtml } from "@valancex/valance/web/server";
+import { Effect } from "effect";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -104,5 +106,43 @@ describe("Web.run's target option: a wrapper of the target run builds", () => {
     add.dispatchEvent(new (app.ownerDocument.defaultView as unknown as typeof globalThis).MouseEvent("click", { bubbles: true }));
     await wait(() => host.mounted.dispatched.length === 1);
     expect(host.mounted.dispatched[0]!._tag).toBe("Success");
+  });
+
+  it("hydrates through the wrapper: the server markup is adopted, the callback gets the adopted element, and the wrapper sees hydrate, not draw", async () => {
+    const served = await Effect.runPromise(renderToHtml(application(programs, initial()), { primitives }));
+    const app = container();
+
+    app.innerHTML = served.html;
+
+    const serverHeading = app.querySelector("h1")!;
+    const calls: Array<string> = [];
+    const hatched: Array<Element> = [];
+    const host = await Web.run(application(programs, served.state), {
+      container: app,
+      primitives,
+      present: "hydrate",
+      native: { heading: (element) => void hatched.push(element) },
+      target: (base) => (report) => {
+        const port = base(report);
+
+        return {
+          ...port,
+          draw: (tree) => {
+            calls.push("draw");
+            port.draw(tree);
+          },
+          hydrate: (tree) => {
+            calls.push("hydrate");
+
+            return port.hydrate(tree);
+          },
+        };
+      },
+    });
+
+    closers.push(() => host.stop());
+    expect(host.mounted.hydration).toEqual({ adopted: true });
+    expect(calls).toEqual(["hydrate"]);
+    expect(hatched).toEqual([serverHeading]);
   });
 });

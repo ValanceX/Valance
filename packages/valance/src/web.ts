@@ -450,7 +450,7 @@ export interface RunOptions<S> extends StartOptions<S> {
   /**
    * PORT Web's native hatch (Tier 3, Provisional, Web only): a callback per component that gets each drawn element of that primitive and `{ key }`, and may return a cleanup.
    * Handed to the PORT unread; the shape is PORT's `Native` (`@valancex/port-web/native`), whose README ("Leaving the portable layer") says when it runs and what it may touch.
-   * It gets nothing that reports or dispatches. Needs a PORT Web with the hatch: an older one ignores it. Absent: no callbacks.
+   * It gets nothing that reports or dispatches. Needs a PORT Web with the hatch: at release the peer range starts there. Absent: no callbacks.
    */
   readonly native?: { readonly [component: string]: (element: Element, info: { readonly key: string }) => (() => void) | void };
   /**

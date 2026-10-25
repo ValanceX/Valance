@@ -11,7 +11,7 @@ There are two ways down, and they are not equally safe:
 | `native` | PORT Web's native hatch: a callback per component, given each drawn element of that primitive | Yes: constrained by the PORT (below) |
 | `target` | A wrapper of the target `Web.run` builds | No: what it writes to DOM the PORT owns is not kept true |
 
-Both are **Provisional** (Unreleased, for 0.16.0), Web only, and not in contract v1 ([stability](../stability.md)). `native` needs a PORT Web with the hatch (PORT's next release); an older one ignores it.
+Both are **Provisional** (Unreleased, for 0.16.0), Web only, and not in contract v1 ([stability](../stability.md)). `native` needs a PORT Web with the hatch: at release, Valance's peer range for `@valancex/port-web` starts at the PORT version that has it, so `native` is never silently ignored. (Until then this branch installs that PORT from a local pack; an older PORT would ignore the option.)
 
 ## `native`: the constrained hatch
 
