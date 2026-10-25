@@ -23,7 +23,7 @@ VALANCE adds no behavior of its own to state, templates or targets. It connects 
 
 ```ts
 // abridged: the shapes, not a complete program
-const app = Valance.define({ name, state: { schema, initial }, views: { home: { program, scope }, about: { program, scope } }, view: (state) => "home", commands, start /* optional: a command key */ });
+const app = Valance.define({ name, state: { schema, initial }, views: { home: { program, scope }, about: { program, scope } }, view: (state) => "home" /* optional with exactly one view: it is that view */, commands, start /* optional: a command key */ });
 const handle = yield* Valance.start(app, { platform, state });   // inside the caller's Scope
 // handle: { state: Effect<S>, invoke(key, args): Effect<unknown, UnmappedCommand | E> }
 ```

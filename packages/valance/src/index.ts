@@ -120,10 +120,19 @@ type RequirementOf<V> = V extends Nexus.Command.Command<any, any, any, infer Req
  * would otherwise claim that failure cannot happen. `R` is the union of the services the table needs. Both are read from the table's own type, so no command's
  * failure is narrowed to another's.
  */
-export const define = <S, T extends CommandTable<any, Ambient>, V extends string>(
-  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T },
-): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V> =>
-  definition as unknown as ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
+export function define<S, T extends CommandTable<any, Ambient>, V extends string>(
+  // With exactly one view, `view` may be left out: it is that view (Tier 1, a default for what has only one answer). With more than one key it is required (omitting it is a type error).
+  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands" | "view"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T } & (IsUnion<V> extends true ? { readonly view: (state: S) => V } : { readonly view?: (state: S) => V }),
+): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
+export function define(definition: { readonly views: Record<string, unknown>; readonly view?: unknown }): unknown {
+  // Same rule as `defineApp`'s: the one view is the default. The runtime, which cannot see the types, defaults whenever `view` is absent and there is one key.
+  const keys = Object.keys(definition.views);
+
+  return definition.view === undefined && keys.length === 1 ? { ...definition, view: () => keys[0] } : definition;
+}
+
+/** True for a union of two or more literals (`"a" | "b"`), false for a single one. */
+type IsUnion<U, C = U> = [U] extends [never] ? false : U extends unknown ? ([C] extends [U] ? false : true) : never;
 
 /** How a waiting command's work ended: the value it produced, or what its Promise rejected with, as received. */
 export type Outcome<A> = { readonly ok: true; readonly value: A } | { readonly ok: false; readonly error: unknown };

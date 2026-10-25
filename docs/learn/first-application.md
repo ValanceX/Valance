@@ -93,12 +93,11 @@ const app = Valance.define({
   name: "counter",
   state: { schema: State, initial: { count: 0 } },
   views: { counter: { program: built.program, scope: ({ count }) => ({ count }) } },
-  view: () => "counter",
   commands,
 });
 ```
 
-Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`. A **command** is how the application changes: `increment` takes the current state and returns the next one. Its name is how the screen finds it: the button's `increment()` in the description runs the command called `increment`.
+Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`; with one view, `view` (which view the state shows) is left out and is that view. A **command** is how the application changes: `increment` takes the current state and returns the next one. Its name is how the screen finds it: the button's `increment()` in the description runs the command called `increment`.
 
 A command that needs input says what it takes (put it in the table in `counter.ts`), and the event's arguments fill that in order:
 
