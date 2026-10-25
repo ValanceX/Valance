@@ -8,7 +8,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { AppError, diagnostic } from "./diagnostics.js";
-import defaults from "./budgets.json" with { type: "json" };
 
 export type FileKind = "javascript" | "css" | "wasm" | "other";
 
@@ -128,8 +127,10 @@ export interface BudgetResult {
 
 export const BUDGET_TYPES: ReadonlyArray<BudgetType> = ["initial", "runtime", "startup", "afterStart", "anyChunk"];
 
-/** The framework's own start-up budgets (decision W14): what a project gets when it sets none. They are data (`budgets.json`), so a gate can read the same numbers. */
-export const DEFAULT_BUDGETS: ReadonlyArray<Budget> = defaults.project.budgets as ReadonlyArray<Budget>;
+/** The framework's own start-up budgets (decision W14): what a project gets when it sets none. They are data (`budgets.json`, beside this file, copied next to the compiled code by `scripts/copy-data.mjs`), so a gate can read the same numbers. */
+const defaults = JSON.parse(readFileSync(new URL("./budgets.json", import.meta.url), "utf8")) as { readonly project: { readonly budgets: ReadonlyArray<Budget> } };
+
+export const DEFAULT_BUDGETS: ReadonlyArray<Budget> = defaults.project.budgets;
 
 /** `"500kB"` or `500000` as bytes, or `undefined` if it is neither. */
 export const bytesOf = (value: string | number): number | undefined => {
