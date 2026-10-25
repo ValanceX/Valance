@@ -7,7 +7,7 @@ import * as Nexus from "@valancex/nexus";
 import type { HydrationResult } from "@valancex/port-web";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Deferred, Effect, Schema, Scope } from "effect";
 import { beforeAll, expect, inject, it } from "vitest";
 

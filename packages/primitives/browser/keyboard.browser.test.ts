@@ -5,7 +5,7 @@
 import { createWebPort } from "@valancex/port-web";
 import portPackage from "@valancex/port-web/package.json";
 import * as Web from "@valancex/valance/web";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Specification, WebRealizations } from "../src/index.js";

@@ -7,7 +7,7 @@ import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 

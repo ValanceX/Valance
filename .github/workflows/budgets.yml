@@ -16,11 +16,11 @@ jobs:
     # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: 12
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -36,7 +36,7 @@ jobs:
           node scripts/measure-footprint.mjs --runs 5 --json budgets-previous.json
       - name: Hold the tree to its budgets
         run: node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json --json budgets-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: budgets-weekly

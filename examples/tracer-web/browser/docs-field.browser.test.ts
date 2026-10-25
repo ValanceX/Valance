@@ -3,7 +3,7 @@ import * as Web from "@valancex/valance/web";
 import { renderToHtml } from "@valancex/valance/web/server";
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Effect } from "effect";
 import { beforeAll, expect, inject, it } from "vitest";
 

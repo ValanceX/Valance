@@ -14,7 +14,7 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { handleOf, runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Effect, Layer } from "effect";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 

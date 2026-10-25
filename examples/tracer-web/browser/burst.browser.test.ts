@@ -1,7 +1,7 @@
 import { init } from "@valancex/mesh-runtime";
 import wasmUrl from "@valancex/mesh-runtime/mesh-runtime.wasm?url";
 import * as Valance from "@valancex/valance";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Effect, Exit, Scope } from "effect";
 import { beforeAll, describe, expect, it } from "vitest";
 

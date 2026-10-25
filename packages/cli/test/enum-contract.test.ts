@@ -1,13 +1,11 @@
 // A prop is a closed set when its schema is a string-literal union (T7), and it has a default when it is declared `field(schema, default)` (T6, T12). The model carries both; MESH checks every
 // literal written for the prop at the use site. Needs MESH 0.14 (the `enum` kind and a prop's `default`).
-import { rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { check } from "../src/check.js";
 import { entryOf } from "../src/contract.js";
 import { cleanup, PAGE, project } from "./fixture.js";
+import { diagnosticsOf } from "./typecheck.js";
 
 afterEach(cleanup);
 
@@ -95,28 +93,6 @@ describe("the use site is checked against the closed set (vlx check)", () => {
 });
 
 describe("the TypeScript side", () => {
-  const diagnosticsOf = (source: string): ReadonlyArray<string> => {
-    // Inside the package, so that `effect` and `@valancex/common` resolve as they do for a project.
-    const file = join(import.meta.dirname, `.typecheck-${process.pid}.ts`);
-
-    writeFileSync(file, source);
-
-    try {
-      const program = ts.createProgram([file], {
-        strict: true,
-        noEmit: true,
-        skipLibCheck: true,
-        target: ts.ScriptTarget.ES2022,
-        module: ts.ModuleKind.NodeNext,
-        moduleResolution: ts.ModuleResolutionKind.NodeNext,
-        types: ["node"],
-      });
-
-      return ts.getPreEmitDiagnostics(program).map((each) => ts.flattenDiagnosticMessageText(each.messageText, "\n"));
-    } finally {
-      rmSync(file, { force: true });
-    }
-  };
   const header = 'import { field } from "@valancex/common";\nimport { Schema } from "effect";\n';
 
   it("accepts a default that is a member and refuses one that is not", () => {

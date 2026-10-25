@@ -2,16 +2,15 @@
 // parameters); MESH checks the use. Needs MESH 0.14. The last describe builds a site and uses it in a browser.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { rmSync, writeFileSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { chromium } from "playwright";
-import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { build } from "../src/build.js";
 import { check } from "../src/check.js";
 import { entryOf } from "../src/contract.js";
 import { cleanup, PAGE, project } from "./fixture.js";
+import { diagnosticsOf } from "./typecheck.js";
 
 afterEach(cleanup);
 
@@ -151,28 +150,11 @@ describe("an optional snippet is checked (vlx check)", () => {
 
 describe("the TypeScript side", () => {
   it("accepts snippet() as a prop beside schemas, and refuses a default for one", () => {
-    const file = join(import.meta.dirname, `.typecheck-${process.pid}.ts`);
-
-    writeFileSync(
-      file,
-      'import { component, field, snippet } from "@valancex/common";\nimport { Schema } from "effect";\ndeclare const template: { readonly mprx: string };\nexport const ok = component(template, { props: { title: Schema.String, children: snippet(), row: snippet(Schema.String) } });\n// @ts-expect-error a snippet has no default\nexport const bad = field(snippet(), snippet());\n',
-    );
-
-    try {
-      const program = ts.createProgram([file], {
-        strict: true,
-        noEmit: true,
-        skipLibCheck: true,
-        target: ts.ScriptTarget.ES2022,
-        module: ts.ModuleKind.NodeNext,
-        moduleResolution: ts.ModuleResolutionKind.NodeNext,
-        types: ["node"],
-      });
-
-      expect(ts.getPreEmitDiagnostics(program).map((each) => ts.flattenDiagnosticMessageText(each.messageText, "\n"))).toEqual([]);
-    } finally {
-      rmSync(file, { force: true });
-    }
+    expect(
+      diagnosticsOf(
+        'import { component, field, snippet } from "@valancex/common";\nimport { Schema } from "effect";\ndeclare const template: { readonly mprx: string };\nexport const ok = component(template, { props: { title: Schema.String, children: snippet(), row: snippet(Schema.String) } });\n// @ts-expect-error a snippet has no default\nexport const bad = field(snippet(), snippet());\n',
+      ),
+    ).toEqual([]);
   });
 });
 
