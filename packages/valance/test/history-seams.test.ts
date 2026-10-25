@@ -153,6 +153,7 @@ const scenario = <A>(
         const go = (path: string) => state.update((current) => Effect.succeed({ ...current, path }));
         const running: Running<App, never> = {
           nexus,
+          command: () => Effect.die("unused"),
           render: Effect.die("unused"),
           values: Stream.empty,
           dispatch: () => Effect.die("unused"),

@@ -7,7 +7,7 @@
  *   start(app, options)    starts the NEXUS application in the CALLER's Scope; supplies the platform;
  *                          creates the application's state and its MESH host; checks that every event the views' programs declare has
  *                          a command-table key (MESH says what is declared; Contract §2); returns the application's handle:
- *                          its `state` and `invoke`, and nothing of the composition (see ./internal).
+ *                          its `state`, `invoke` and `command`, and nothing of the composition (see ./internal).
  *   mount / hydrate        connects a PORT target to a started application: draws (or adopts server
  *                          server output for) the current render, follows later renders as updates, and
  *                          dispatches each reported event with the render that was drawn.
@@ -62,10 +62,21 @@ export type CommandTable<E, R extends Ambient> = Readonly<Record<string, Nexus.M
 
 /** Carries an application's `invoke` keys in its definition's type, for `start` to read. Type only: no definition has it. */
 declare const invokeKeys: unique symbol;
+/** Carries what `ApplicationHandle.command` takes per key, in the definition's type, for `start` to read. Type only: no definition has it. */
+declare const commandInputs: unique symbol;
 
-export interface ApplicationDefinition<S, E, R extends Ambient, V extends string, K extends string = string> {
+export interface ApplicationDefinition<
+  S,
+  E,
+  R extends Ambient,
+  V extends string,
+  K extends string = string,
+  C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+> {
   /** The keys `invoke` takes (see `ApplicationHandle.invoke`): set by `define` from the command table's type, read by `start`. Never present at run time. */
   readonly [invokeKeys]?: K;
+  /** What `ApplicationHandle.command` takes, by key: set by `define` from the command table's type, read by `start`. Never present at run time. */
+  readonly [commandInputs]?: C;
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
   readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
@@ -130,7 +141,7 @@ export function define<S, T extends CommandTable<any, Ambient>, V extends string
   definition: Omit<ApplicationDefinition<S, never, never, V>, "commands" | "view"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T } & (IsUnion<V> extends true
       ? { readonly view: (state: S) => V }
       : { readonly view?: (state: S) => V }),
-): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V, InvokeKeys<T>>;
+): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V, InvokeKeys<T>, CommandInputs<T>>;
 export function define(definition: { readonly views: Record<string, unknown>; readonly view?: unknown }): unknown {
   // Same rule as `defineApp`'s: the one view is the default. The runtime, which cannot see the types, defaults whenever `view` is absent and there is one key.
   const keys = Object.keys(definition.views);
@@ -147,6 +158,23 @@ export function define(definition: { readonly views: Record<string, unknown>; re
  * A table whose type has no literal keys (`Record<string, …>`) takes any string.
  */
 type InvokeKeys<T> = string extends keyof T ? string : { readonly [N in keyof T & string]: N extends `${string}/${string}` ? N : `app/${N}` }[keyof T & string];
+
+/**
+ * What `ApplicationHandle.command` takes, by key, from a command table's type: a bare name `n` is `"app/n"` and takes the command's input whole (its schema's type), and an exact
+ * `"component/name"` key takes its entry's arguments, as `invoke` does. A table whose type has no literal keys takes any string and any input.
+ */
+type CommandInputs<T> = string extends keyof T
+  ? Readonly<Record<string, unknown>>
+  : {
+      readonly [N in keyof T & string as N extends `${string}/${string}` ? N : `app/${N}`]: N extends `${string}/${string}`
+        ? ReadonlyArray<Nexus.Mesh.IntentArgument>
+        : T[N] extends Nexus.Command.Command<infer I, any, any, any>
+          ? I
+          : never;
+    };
+
+/** The rest of `command`'s parameters for an input `I`: optional when the empty input is one (a command that takes none). */
+type InputArguments<I> = {} extends I ? [input?: I] : [input: I];
 
 /** True for a union of two or more literals (`"a" | "b"`), false for a single one. */
 type IsUnion<U, C = U> = [U] extends [never] ? false : U extends unknown ? ([C] extends [U] ? false : true) : never;
@@ -386,7 +414,7 @@ const failureIdentity = (cause: Cause.Cause<unknown>): string => {
  * It carries no runtime, no render, no dispatch, and no lifecycle: the application's lifetime is the `Scope` `start`
  * ran in, and nothing here ends it, restarts it, or reports on it.
  */
-export interface ApplicationHandle<S, E, K extends string = string> {
+export interface ApplicationHandle<S, E, K extends string = string, C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
   /**
    * The application's current state: one read, as of when it runs. A read, not a subscription: the state a host sees
    * is the state commands have committed, whatever view is shown.
@@ -406,6 +434,17 @@ export interface ApplicationHandle<S, E, K extends string = string> {
    * still an `ApplicationHandle<S, E>`.
    */
   invoke(key: K | (string & {}), args: ReadonlyArray<Nexus.Mesh.IntentArgument>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  /**
+   * Runs the command bound to `key`, as `invoke` does (the same table, the same admission), with a key and an input the type CHECKS. Opt-in: `invoke` is unchanged.
+   *
+   *  - **`"app/name"` for a bare command** takes the command's input whole, typed by its schema: a struct by field name (`command("app/move", { from, to })`), never by
+   *    position; another input as itself; nothing for a command that takes none. It is validated by the command's schema as always.
+   *  - **an exact `"component/name"` key** takes its entry's arguments, as `invoke` does: what an `entry`'s adapter makes of them is not in its type.
+   *
+   * A key the table's type lacks is a type error. A table built by spreading one typed as the wide `CommandTable` has keys its type does not show: give the shared table its
+   * own literal keys (no annotation), or call those keys with `invoke`. A table whose type has no literal keys at all takes any string, and an unknown key is the typed `UnmappedCommand`.
+   */
+  command<N extends keyof C & string>(key: N, ...input: InputArguments<C[N]>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
 }
 
 /**
@@ -413,10 +452,17 @@ export interface ApplicationHandle<S, E, K extends string = string> {
  * Valance keeps nothing that outlives that scope. (NEXUS can also end an application early; that is the substrate's,
  * is outside this model, and nothing here asks for it. The command drain below belongs to the Scope close, so that route does not pass it.)
  */
-export const start = <S, E, R extends Ambient, V extends string, K extends string = string>(
-  app: ApplicationDefinition<S, E, R, V, K>,
+export const start = <
+  S,
+  E,
+  R extends Ambient,
+  V extends string,
+  K extends string = string,
+  C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+>(
+  app: ApplicationDefinition<S, E, R, V, K, C>,
   options: StartOptions<S> = {},
-): Effect.Effect<ApplicationHandle<S, E, K>, StartError, Scope.Scope> =>
+): Effect.Effect<ApplicationHandle<S, E, K, C>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
     const nexus = yield* Nexus.Application.start(
@@ -708,6 +754,14 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
         const [component = "", name = ""] = key.split("/");
 
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
+      },
+      // A bare command's `"app/name"` (no exact key of that name) runs the binding that takes the input whole; anything else is `invoke`, with the input as the arguments.
+      command: (key, input) => {
+        const name = key.startsWith("app/") ? key.slice("app/".length) : undefined;
+
+        return name !== undefined && !Object.hasOwn(given, key) && named.has(name)
+          ? running.invoke(INPUT_KEY(name), [{ value: (input ?? {}) as BoundaryValue }])
+          : running.invoke(key, (input ?? []) as ReadonlyArray<Nexus.Mesh.IntentArgument>);
       },
     };
 

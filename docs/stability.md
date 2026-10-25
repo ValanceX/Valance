@@ -13,7 +13,7 @@ What each public surface of VALANCE promises. The tiers have one meaning each, s
 
 | Entry | Tier |
 |---|---|
-| `@valancex/valance` (`define` (`view` optional with exactly one view, in 0.16.0), `start`, `mount`, `hydrate`, `command`, `entry` and their types; in 0.16.0 `ApplicationHandle<S, E, K>`, whose `invoke` key is the table's keys or any string: additive, completion only, a typo is not a type error) | Stable; the optional `view` and `ApplicationHandle`'s `K` are **Unreleased** (prepared for 0.16.0, not yet tagged) |
+| `@valancex/valance` (`define` (`view` optional with exactly one view, in 0.16.0), `start`, `mount`, `hydrate`, `command`, `entry` and their types; in 0.16.0 `ApplicationHandle<S, E, K, C>`, whose `invoke` key is the table's keys or any string: additive, completion only, a typo is not a type error; and its opt-in `command(key, input)`, whose key and input are checked by the type: additive) | Stable; the optional `view`, `ApplicationHandle`'s `K` and `C`, and `command` are **Unreleased** (prepared for 0.16.0, not yet tagged) |
 | `@valancex/valance/web` (`Web.target`, `Web.history`, `Web.run`, `Web.link`, `Web.event`, the PORT table helpers) | Stable |
 | `@valancex/valance/web/server` (`renderToHtml`) | Stable |
 | `@valancex/valance/web/build` (`manifest` and its helpers) | Stable |

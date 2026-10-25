@@ -113,13 +113,13 @@ describe("application event entry", () => {
     ]);
   });
 
-  it("the handle is the application's face and nothing else: state and invoke, frozen, with no composition or substrate", async () => {
+  it("the handle is the application's face and nothing else: state, invoke and command, frozen, with no composition or substrate", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
           const handle = yield* Valance.start(application);
 
-          expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
+          expect(Object.keys(handle).sort()).toEqual(["command", "invoke", "state"]);
           expect(Object.isFrozen(handle)).toBe(true);
           for (const internal of ["nexus", "values", "dispatch", "render", "states", "runtime", "shutdown", "status"]) {
             expect(internal in handle, internal).toBe(false);
@@ -128,7 +128,7 @@ describe("application event entry", () => {
       ),
     );
 
-    expectTypeOf<keyof Valance.ApplicationHandle<State, never>>().toEqualTypeOf<"state" | "invoke">();
+    expectTypeOf<keyof Valance.ApplicationHandle<State, never>>().toEqualTypeOf<"state" | "invoke" | "command">();
   });
 
   it("state is one read of what commands have committed, not a subscription", async () => {
