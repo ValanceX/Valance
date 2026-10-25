@@ -11,6 +11,7 @@ import { check } from "../src/check.js";
 import { themeReport } from "../src/theme.js";
 import { cleanup, project } from "./fixture.js";
 import { APP_FILES, APP_MAIN, APP_PACKAGE, install, libraryFiles } from "./library-support.js";
+import { diagnosticsOf } from "./typecheck.js";
 
 afterEach(cleanup);
 
@@ -192,6 +193,24 @@ describe("qualified ids, collisions and overrides (K14)", () => {
     install(root, "acme-ui", libraryFiles());
     expect(await found(root)).toEqual([]);
     expect(readFileSync(join((await build(root)).dir, "web", "index.html"), "utf8")).toContain("mine");
+  });
+
+  it("the qualified ids are written as a type that `resolve` takes, even when the collision stops the compile (B3, I2)", { timeout: 120_000 }, async () => {
+    const root = two(BOTH());
+
+    await check(root);
+
+    const file = join(root, ".valance/types/library-components.d.ts");
+    const declared = readFileSync(file, "utf8");
+
+    expect(declared).toContain('"acme-ui/disclosure": true;');
+    expect(declared).toContain('"other-ui/disclosure": true;');
+
+    const source = (id: string): string =>
+      `/// <reference path="${file}" />\nimport { defineApp } from "@valancex/common";\nexport default defineApp({ resolve: { disclosure: "${id}" } });\n`;
+
+    expect(diagnosticsOf(source("other-ui/disclosure"))).toEqual([]);
+    expect(diagnosticsOf(source("third-ui/disclosure")).join("\n")).toContain('"third-ui/disclosure"');
   });
 
   it("a malformed `resolve` is refused when the definition is checked", async () => {

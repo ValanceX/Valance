@@ -26,7 +26,7 @@ import { findRoot } from "./config.js";
 import { localCli } from "./delegate.js";
 import { dev } from "./dev.js";
 import { defaultRecording, replayFile } from "./replay.js";
-import { AppError, format } from "./diagnostics.js";
+import { AppError, format, isProblem } from "./diagnostics.js";
 import { detectPackageManager, directoryFor, directoryProblem, execute, install as installDependencies, nameProblem, PACKAGE_MANAGERS, runCommand, titleOf } from "./init.js";
 import type { PackageManager } from "./init.js";
 import { buildLibrary, checkLibrary, scaffoldLibrary } from "./library.js";
@@ -116,9 +116,9 @@ const sync = async (from: string): Promise<string> => {
   try {
     const checked = await check(findRoot(from));
 
-    return checked.diagnostics.length === 0
-      ? "the generated files are up to date"
-      : `the generated files are up to date; ${checked.diagnostics.length} problem${checked.diagnostics.length === 1 ? "" : "s"} in your files (vlx check)`;
+    const count = checked.diagnostics.filter(isProblem).length;
+
+    return count === 0 ? "the generated files are up to date" : `the generated files are up to date; ${count} problem${count === 1 ? "" : "s"} in your files (vlx check)`;
   } catch (error) {
     return `skipped (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`;
   }
@@ -423,23 +423,27 @@ export const main = async (args: ReadonlyArray<string>, cwd: string = process.cw
         if (draws && !rest.includes("--json")) {
           const { drawCheck } = await import("./ui/run.js");
 
-          return (await drawCheck(findRoot(cwd))).diagnostics.length === 0 ? 0 : 1;
+          return (await drawCheck(findRoot(cwd))).diagnostics.some(isProblem) ? 1 : 0;
         }
 
         const result = await check(findRoot(cwd));
+        const count = result.diagnostics.filter(isProblem).length;
 
         if (rest.includes("--json")) {
           console.log(JSON.stringify(result.diagnostics, null, 2));
-        } else if (result.diagnostics.length === 0) {
-          console.log(`vlx check: ${result.pages} pages, ${result.components.length} components, no problems`);
         } else {
           result.diagnostics.forEach((each) => {
             console.error(format(each));
           });
-          console.error(`vlx check: ${result.diagnostics.length} problem${result.diagnostics.length === 1 ? "" : "s"}`);
+
+          if (count === 0) {
+            console.log(`vlx check: ${result.pages} pages, ${result.components.length} components, no problems`);
+          } else {
+            console.error(`vlx check: ${count} problem${count === 1 ? "" : "s"}`);
+          }
         }
 
-        return result.diagnostics.length === 0 ? 0 : 1;
+        return count === 0 ? 0 : 1;
       }
       case "library": {
         const sub = rest[0];

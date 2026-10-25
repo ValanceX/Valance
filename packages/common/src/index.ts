@@ -299,6 +299,15 @@ export interface TargetParts {
   readonly override?: ReadonlyArray<Component>;
 }
 
+/**
+ * The qualified ids (`package/name`) of the library components the application lists, as keys. Empty here: `vlx check`, `dev` and `build` fill it for a project in
+ * `.valance/types/library-components.d.ts` (included by `"include": ["src", ".valance/types/*.d.ts"]` in tsconfig.json), from the `components` of `src/main.ts`.
+ */
+export interface LibraryComponentIds {}
+
+/** What `resolve` maps a tag to: one of `LibraryComponentIds`, or any string while there are none (a project whose types were not generated, or that lists no library component). */
+export type ResolveId = [keyof LibraryComponentIds] extends [never] ? string : Extract<keyof LibraryComponentIds, string>;
+
 export interface AppDefinition<S extends StateInput = {}> {
   /**
    * The templates of one target, for a project with more than one (`valance.web.json` and `valance.desktop.json`): `targets: { web: { layout, components }, desktop: { layout } }`. A target's
@@ -316,8 +325,9 @@ export interface AppDefinition<S extends StateInput = {}> {
    * Which component a tag means when two share a name (Tier 2: nothing to write until there is a collision). A library's component has the qualified id `package/name` (`acme-ui/disclosure`); two
    * libraries that both have a `disclosure`, or a library component named like a built-in, are a compile error that names both ids, and `resolve: { disclosure: "acme-ui/disclosure" }` says which one the
    * tag is. The others are left out of the program, and a library template that writes the tag gets the one chosen. A built-in is replaced by the chosen library component, as `override` would.
+   * The id is typed (`ResolveId`) once `vlx` has written `.valance/types/library-components.d.ts` and the project's tsconfig.json includes it.
    */
-  readonly resolve?: Readonly<Record<string, string>>;
+  readonly resolve?: Readonly<Record<string, ResolveId>>;
   /**
    * Application state beyond the page: `{ theme: field(Schema.Literal("light", "dark"), "light") }`. Its fields become names a layout can read. A hand-built `{ schema, initial }` is also accepted, for
    * hydration and shared schemas.

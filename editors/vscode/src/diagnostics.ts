@@ -8,6 +8,8 @@ export interface ValanceDiagnostic {
   readonly column: number;
   readonly code: string;
   readonly message: string;
+  /** `"warning"` for a warning (`command-argument-order`); absent for a mistake. */
+  readonly severity?: "warning";
 }
 
 /** A diagnostic in an editor's terms: zero-based, with a range. Content diagnostics know a line, not a column, so they cover the line. */
@@ -19,6 +21,7 @@ export interface Placed {
   readonly endColumn: number;
   readonly code: string;
   readonly message: string;
+  readonly warning: boolean;
 }
 
 export const place = (each: ValanceDiagnostic): Placed => ({
@@ -28,6 +31,7 @@ export const place = (each: ValanceDiagnostic): Placed => ({
   endColumn: each.column > 0 ? each.column : -1,
   code: each.code,
   message: each.message,
+  warning: each.severity === "warning",
 });
 
 /**

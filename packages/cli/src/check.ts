@@ -3,6 +3,7 @@
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError } from "./diagnostics.js";
 import { loadAuthor } from "./author.js";
+import { argumentOrder } from "./argument-order.js";
 import { loadConfig } from "./config.js";
 import { librariesOf } from "./libraries.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
@@ -47,6 +48,11 @@ export const check = async (root: string): Promise<Checked> => {
     const author = await collect(problems, () => loadAuthor(server, root));
     const failedAuthor = problems.some((each) => each.file === "src/main.ts");
     const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
+
+    // Warnings come after a clean compile: they are about templates the compiler accepted.
+    if (components !== undefined) {
+      problems.push(...argumentOrder(root, author, config));
+    }
 
     // (the templates stage reports the same marker problems; once is enough)
     const once = problems.filter((each, index) => problems.findIndex((other) => other.file === each.file && other.code === each.code && other.message === each.message) === index);

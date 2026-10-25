@@ -384,6 +384,10 @@ The VS Code extension (**VALANCE**, in [`editors/vscode`](../../editors/vscode))
 
 Every mistake the tools can attribute to a file has one shape: `{ file, line, column, code, message }`. `vlx check --json` prints them for editors and CI; codes are stable (`link-broken`, `md-html`, `front-unknown`, `config-unknown`, `template-unused`, `entry-export`, and the MESH compiler's own for templates).
 
+A diagnostic with `"severity": "warning"` is worth a look and is not a mistake: `vlx check` prints it (`file:line:column warning code: message`) and still succeeds. One code is a warning:
+
+- `command-argument-order`: a template passes a command's arguments under names that are not its fields in order (`move(to, from)` to a command whose input is `Schema.Struct({ from, to })`). A bare command takes them by position, the first argument filling the first field, so this one swaps them. The binding stays positional; pass them in field order, or rename them. An argument is named by the last name of a plain path (`row.to` is `to`); a literal or `$event` has no name and is not compared, and a command of one field is not checked.
+
 ## Limits (this cycle)
 
 - The whole content model ships in the page bundle. Fine for tens of pages; a per-page payload is the known answer for hundreds (the documentation verifier does it).
