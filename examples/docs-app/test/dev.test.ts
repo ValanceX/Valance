@@ -27,8 +27,17 @@ const edit = (file: string, from: string, to: string): void => {
   writeFileSync(join(copy, file), text.replace(from, to));
 };
 
+const pageLog: Array<string> = [];
+
+/** The page is hydrated. When it is not within the time, say what the dev server and the page said: a timeout alone says nothing about a cold start, a failed module or a missing file. */
 const ready = async (): Promise<void> => {
-  await page.waitForSelector('#app[data-valance="running"]');
+  try {
+    await page.waitForSelector('#app[data-valance="running"]');
+  } catch (error) {
+    throw new Error(
+      `${String(error)}\n--- the dev server said:\n${logs.slice(-40).join("\n")}\n--- the page said:\n${pageLog.slice(-40).join("\n")}\n--- the page's body:\n${((await page.textContent("body").catch(() => "")) ?? "").slice(0, 400)}`,
+    );
+  }
 };
 
 beforeAll(async () => {
@@ -45,6 +54,9 @@ beforeAll(async () => {
   });
   browser = await chromium.launch();
   page = await browser.newPage();
+  page.on("console", (message) => pageLog.push(`${message.type()}: ${message.text()}`));
+  page.on("pageerror", (error) => pageLog.push(`pageerror: ${error.message}`));
+  page.on("requestfailed", (request) => pageLog.push(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
   await page.goto(`${running.url}guide/getting-started`);
   await ready();
 });
