@@ -7,5 +7,5 @@
   "singleQuote": false,
   "trailingComma": "all",
   "endOfLine": "lf",
-  "ignorePatterns": ["packages/common/src/primitives.ts", "packages/style/src/primitives.ts", "**/dist/**", "**/dist-host/**", "**/.valance/**", "**/node_modules/**", "pnpm-lock.yaml", "**/*.mprx", "**/*.md", "**/*.json", "**/*.css", "examples/docs-verifier/**", "docs/direction/evidence/**", "**/__screenshots__/**"]
+  "ignorePatterns": ["packages/common/src/primitives.ts", "packages/style/src/primitives.ts", "**/dist/**", "**/dist-host/**", "**/.valance/**", "**/node_modules/**", "pnpm-lock.yaml", "**/*.mprx", "**/*.md", "**/*.json", "**/*.css", "examples/docs-verifier/**", "reference/**", "docs/direction/evidence/**", "**/__screenshots__/**"]
 }

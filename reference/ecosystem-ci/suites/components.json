@@ -1,0 +1,10 @@
+{
+  "name": "components",
+  "description": "The reference component library: five components, two themes, a terminal PORT and a playground. Chromium and Java are needed by its web tests.",
+  "repository": "ValanceX/Components",
+  "ref": "main",
+  "directory": ".",
+  "install": "pnpm install --no-frozen-lockfile",
+  "commands": ["node tests/boundary.mjs", "pnpm build", "pnpm check", "pnpm test"],
+  "needs": ["chromium", "java"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "acme-ui-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:library": "cd packages/acme-ui && pnpm build",
+    "check:library": "cd packages/acme-ui && pnpm check",
+    "playground": "cd playground && pnpm dev"
+  }
+}

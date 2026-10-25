@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "target": {
+    "primitive": "text",
+    "part": "root"
+  },
+  "base": {
+    "text": "color.text",
+    "type": "type.body",
+    "min-size": "size.line"
+  }
+}

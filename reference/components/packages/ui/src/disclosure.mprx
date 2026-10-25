@@ -1,0 +1,4 @@
+<column>
+  <button on.click={toggle()}>{label}</button>
+  {#if open}{@render children()}{/if}
+</column>

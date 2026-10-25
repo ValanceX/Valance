@@ -1,0 +1,14 @@
+{
+  "name": "ecosystem-ci",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Downstream CI for VALANCE: runs libraries' own build and tests against a prerelease of the framework (decision K16).",
+  "scripts": {
+    "suites": "node scripts/run.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.0"
+  }
+}

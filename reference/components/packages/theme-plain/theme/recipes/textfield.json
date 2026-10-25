@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "target": {
+    "primitive": "textfield",
+    "part": "root"
+  },
+  "base": {
+    "background": "color.surface-field",
+    "text": "color.text",
+    "border": {
+      "width": "border.1",
+      "color": "color.border"
+    },
+    "radius": "radius.2",
+    "padding": [
+      "space.2",
+      "space.3"
+    ],
+    "type": "type.body",
+    "min-size": "size.target"
+  },
+  "states": {
+    "focus-visible": {
+      "outline": {
+        "width": "border.2",
+        "color": "color.focus",
+        "offset": "space.1"
+      }
+    },
+    "invalid": {
+      "border": {
+        "width": "border.2",
+        "color": "color.danger"
+      }
+    }
+  }
+}

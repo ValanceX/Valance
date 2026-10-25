@@ -1,0 +1,7 @@
+<column>
+  {#if dismissed}
+    <text>Dismissed</text>
+  {:else}
+    <greeting title="Hello" message="This is the playground." on.dismiss={dismiss()} />
+  {/if}
+</column>

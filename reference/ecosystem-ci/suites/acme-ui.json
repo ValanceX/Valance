@@ -1,0 +1,10 @@
+{
+  "name": "acme-ui",
+  "description": "The workspace `vlx init library acme-ui` writes, unchanged: the smallest library a consumer can follow the documentation to make.",
+  "repository": ".",
+  "ref": "",
+  "directory": "fixtures/acme-ui",
+  "install": "pnpm install --no-frozen-lockfile",
+  "commands": ["pnpm run build:library", "pnpm run check:library"],
+  "needs": []
+}

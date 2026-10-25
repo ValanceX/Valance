@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "target": {
+    "primitive": "heading",
+    "part": "root"
+  },
+  "base": {
+    "text": "color.text",
+    "type": "type.heading"
+  }
+}
