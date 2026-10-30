@@ -99,7 +99,7 @@ const app = Valance.define({
 
 Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`; with one view, `view` (which view the state shows) is left out and is that view. A **command** is how the application changes: `increment` takes the current state and returns the next one. Its name is how the screen finds it: the button's `increment()` in the description runs the command called `increment`.
 
-A command that needs input says what it takes (put it in the table in `counter.ts`), and the event's arguments fill that in order:
+A command that needs input says what it takes (put it in the table in `counter.ts`), and the event's arguments fill it: by name when each is a plain name of a field (`add(amount)`), otherwise in field order:
 
 ```ts
 add: command(
@@ -136,10 +136,10 @@ const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }
 import { Exit, Scope } from "effect";
 const scope = await Effect.runPromise(Scope.make());
 const application = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-await Effect.runPromise(application.invoke("app/increment", []));      // from outside the screen: "app/" and the command's name
+await Effect.runPromise(application.command("app/increment"));   // from outside the screen: "app/" and the command's name, checked by the type
 await Effect.runPromise(application.state);                       // { count: 1 }
-// With the `add` command from step 3 in the table, its argument is wrapped as { value }, in the command's field order:
-// await Effect.runPromise(application.invoke("app/add", [{ value: 5 }]));   // then the state is { count: 6 }
+// With the `add` command from step 3 in the table, its input is typed from the command:
+// await Effect.runPromise(application.command("app/add", { amount: 5 }));   // then the state is { count: 6 }
 await Effect.runPromise(Scope.close(scope, Exit.void));           // ends the application
 ```
 
