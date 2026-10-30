@@ -74,7 +74,7 @@ describe("API tracer: one definition, two shapes", () => {
           const alpha = p.container.querySelectorAll("div")[0];
 
           // The handle's whole surface: no runtime, no render, no dispatch. An external entry, on the default Effect runtime.
-          expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
+          expect(Object.keys(handle).sort()).toEqual(["command", "invoke", "state"]);
           yield* handle.invoke("app/changeItems", [{ value: items("CAB") as never }]);
           yield* Effect.promise(() => until(() => p.rows()[0] === "Gamma"));
           same(p.container.firstElementChild, section); // same view: update, the same section
