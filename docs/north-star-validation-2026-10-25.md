@@ -1,6 +1,6 @@
 # North star measurement: ecosystem compliance on 2026-10-25
 
-A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last sections, [After Phase A](#after-phase-a) and [After Phase B](#after-phase-b), re-score the audits the refinements touched. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
+A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last sections, [After Phase A](#after-phase-a), [After Phase B](#after-phase-b) and [After Phase B iteration](#after-phase-b-iteration), re-score the audits the refinements touched. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
 
 **Method and limits.** A static read of `main` in all four repos (Valance, Nexus, Mesh, Port), re-checking the 10-19 results and the audits the refinements plan §1 names. **Nothing was executed**, so no result was reproduced. Each `file:line` cited below was opened again on 2026-10-25 and holds. Results not named in §1 are carried from the baseline unchanged, and the † marks of 10-19 that §1 did not revisit are dropped only where this pass re-checked them (Nexus E3). Results are judgments against the scorecard's definitions, not measurements.
 
@@ -296,6 +296,123 @@ No single Phase B audit closes the gap of 4.2. The cheapest lifts outside Phase 
 | Tier 1: minimal surface | 20 | 65 | 100 | 80 | 100 | 85 |
 | Encapsulation | 20 | 83 | 100 | 100 | 83 | 83 |
 | Intention and contracts | 15 | 67 | 83 | 67 | 83 | 100 |
+| Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
+| Data boundary | 10 | 80 | 80 | 100 | 100 | 100 |
+| Context | 10 | 0 | 0 | n/a | 0 | n/a |
+| Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
+| Tier 3: hatches | 7 | 100 | 100 | n/a | n/a | 100 |
+
+## After Phase B iteration
+
+Re-scored on 2026-10-30 on the `north-star-refinements` branch, after the Phase B iteration that followed the [After Phase B](#after-phase-b) score of 72: in Mesh, the screen (`openScreen`, `9e3034f`, `f068e61`) and argument names on the command intent (`6ab1180`, `2a523d1`); in Port, `composeWebPort` (`bc9b378`); in Nexus, the refusal of a second `EventDef` with a tag already used in the runtime (`82bc0ee`, `0adb181`); in Valance, the opt-in `handle.command(key, input)` (`4571553`) and named binding of a bare command's arguments (`25f151a`, `7596375`, `596a4e7`), with `command-argument-order` narrowed to the positional case (Valance `docs/releases/v0.16.md`). Re-checked: E2 and I2 in every repo, and I1, M2 and T1.2 where the new names and options touch them; the rest are as after Phase B. Run: in `nexus/`, `npx vitest run tests/event.test.ts` (14 passed); in `mesh/packages/mesh-runtime`, `node --test test/screen.test.mjs` (14 passed); in `port/packages/port-web`, `npx vitest run compose` (13 passed); in `valance/packages/valance`, `npx vitest run test/named-binding.test.ts test/command-keys.test.ts test/invoke-keys.test.ts` (15 passed); in `valance/packages/cli`, `npx vitest run test/argument-order.test.ts` (4 passed). The rest is a static read. The reviewers' verdicts (Mesh E2 P, Port E2 P, Nexus I2 P, Valance I2 P) were checked against the code and the scorecard's wording, not taken as given.
+
+| | After Phase B | After Phase B iteration | Band |
+|---|---|---|---|
+| **Ecosystem (weakest link)** | 72 | **78** | Needs improvement |
+| Port | 92 | **97** | Good |
+| Valance | 86 | **88** | Needs improvement |
+| Nexus | 84 | **87** | Needs improvement |
+| Mesh | 82 | **86** | Needs improvement |
+
+**The Phase B goal, ecosystem 77, is met on the branch**: 76 ÷ 97 = 0.784, so 78. It is met only with the DO-NOT-MERGE packs: without them it is 71 (below). Two audits move it: E2 (Mesh and Port to P, so every repo is P) and I2 (Valance and Nexus to P, so every repo is P).
+
+| Reading | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|
+| With the packs, H2 on the hatch the docs lead with (the ruling) | **78** | 88 | 87 | 86 | 97 |
+| With the packs, strict H2 (the weaker documented hatch) | **77** | 87 | 87 | 86 | 95 |
+| Without the packs, leading-hatch H2 | 71 | 84 | 87 | 86 | 92 |
+| Without the packs, strict H2 | 71 | 84 | 87 | 86 | 91 |
+
+On the strict H2 reading the goal is met by rounding only: 74.5 ÷ 97 = 0.768, 76.8, so 77.
+
+**Unreleased upstream.** Three cells count code that another repo has not released, each installed from a local pack in a commit titled `DO NOT MERGE BEFORE THE RELEASES`:
+- **Valance I2** counts named binding, which needs `IntentArgument.name` from the Mesh runtime on Mesh's branch (`7d9f2ed`, packed from mesh `2a523d1`). With released `@valancex/mesh-runtime` 0.17.0 no argument has a name, the binding is positional as in 0.15 (`docs/releases/v0.16.md`, "A bare command binds by name"), and Valance I2 is ◐ (`handle.command` alone does not lift it, below).
+- **Port E2** counts `composeWebPort`, which takes a Mesh screen. The helper imports nothing from Mesh (`packages/port-web/src/compose.ts`, structural `ComposedScreen`), but no released Mesh has `openScreen` (`port/CHANGELOG.md`: "it needs a Mesh with `openScreen` (not in 0.17.0)"); its tests run against `2d65e20`. Without it a Port author drives `draw`/`patch` and releases renders, so Port E2 is ◐.
+- **Valance H2** counts `Web.run`'s `native` (`5a6fc77`, the PORT Web pack), as after Phase B.
+
+Mesh's and Nexus's cells read only their own branch. Since the ecosystem's E2 is held by Port and its I2 by Valance, without the packs neither moves and the ecosystem is the After Phase B figure without its pack, 71. **Releasing Mesh alone** (the screen and the argument names) lifts Port E2 and Valance I2 and gives 74.5 ÷ 97, **77**; releasing PORT Web's `native` as well gives 78. Each downstream release also needs the peer floor moved (Valance's `@valancex/mesh-runtime` and `@valancex/port-web` ranges; Task 29 M2 and Task 14, deferred to release).
+
+### Audit results after Phase B iteration
+
+Cells that differ from the After Phase B table are in **bold**.
+
+| ID | Audit | Eco | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| T1.1 | Zero-config path | ◐ | P | ◐ | P | P |
+| T1.2 | Nothing required with a default | ◐ | P | P | P | ◐ |
+| T1.3 | Docs lead with Tier 1 | P | P | P | P | P |
+| E1 | Boundaries enforced by a test | P | P | P | P | P |
+| E2 | No lifecycle step at Tier 1 | **P** | P | P | **P** | **P** |
+| E3 | Every export tiered | P | P | P | P | P |
+| I1 | Names say what | ◐ | P | ◐ | ◐ | P |
+| I2 | Typed, no stringly or positional coupling | **P** | **P** | **P** | P | P |
+| I3 | Command/query separation | P | P | P | P | P |
+| M1 | One source of truth, `UI = f(state)` | P | P | P | P | P |
+| M2 | One term per concept | ◐ | ◐ | ◐ | ◐ | P |
+| D1 | View models, not entities | P | P | P | P | P |
+| D2 | Wire data can be masked | ◐ | ◐ | – | – | – |
+| C1 | Value reaches a deep component without threading | F | F | – | F | – |
+| C2 | Channel explicit and checkable | – | – | – | – | – |
+| X1 | Opt-in knobs, behavior and performance | P | P | – | P | P |
+| X2 | Defaults correct without knobs | P | P | – | P | P |
+| H1 | Documented way down to the platform | P | P | – | – | P |
+| H2 | Hatch marked and safe | P | P | – | – | P |
+
+### What moved, and what did not, with evidence
+
+**Moved**
+- **Mesh E2 ◐→P (agree with the re-reviewer).** `openScreen({ program, model, transitions? })` (`packages/mesh-runtime/src/screen.ts`) keeps the render on screen and its snapshot, releases the one before it once its patches are given, holds the occurrences' unit state, runs a unit command's transition and does its `raise`. Its caller only calls `show(snapshot)` and `dispatch(handler, payload?)`; `close()` ends the screen as closing a scope ends a Valance application, not a step of the mechanism. `docs/manual/runtime.md` leads with it ("Showing a program", `:15-42`), renames the old section "The host by hand (Tier 2)" (`:62`) and says the duties are Tier 2 and a Tier 1 author never meets them (`:393`); the package README's quick start uses it (`packages/mesh-runtime/README.md:5-22`). Tiered Provisional, Tier 1 (`docs/manual/stability.md:30`). Tests: `test/screen.test.mjs` (14, including one render kept in the module, release after the patches, and a trap). Checked against the one gap: the screen is JavaScript only, and a Rust host still keeps the `Render` it drew and passes it to `update` (`runtime.md:42`). That is holding a value, not a release or flush step (Rust frees a render when it is dropped), and the Tier 1 path of the published package is the JavaScript one, so P. A stricter reading, that keeping the previous render in Rust is an update step, would keep Mesh ◐ (Mesh 82; ecosystem unchanged, since Port also holds E2).
+- **Port E2 ◐→P (agree with the reviewer; with the pack).** `composeWebPort({ screen, container, primitives, onIntent })` (`packages/port-web/src/compose.ts`) chooses `draw` or `patch` from what the screen gives, routes each report through the screen, applies a unit's patches, and serializes every call so each result is applied before the next report is dispatched; `close()` empties the container and closes the screen. The package README leads with it as Tier 1 (`packages/port-web/README.md:5-24`) and calls `draw`, `update`, `patch` and `report` the Tier 2 contract. Tiered Provisional (`docs/stability.md:21`). Tests: `test/compose.test.ts` (13: draw then in-place patch, intent, `native` passed through, unit patches with and without a raised intent, ordering, diagnostics, `onError`, recovery). The CHANGELOG states E2 ◐→P. Without the Mesh pack (`2d65e20`) no screen exists to pass, so ◐.
+- **Nexus I2 ◐→P (agree with the reviewer).** After Phase B left it ◐ because the default `subscribe` casts a `_tag`-matched payload and a tag collision made that cast unsound. Now each runtime's bus registers a tag to the first `EventDef` that publishes or subscribes with it (`src/event/internal.ts:34-38`, called at `src/event/index.ts:40` and `:54`), and a second, distinct def dies with `Runtime.Refusal`, `code: "duplicate-event-tag"`, a new `RefusalCode` (`src/runtime/internal.ts`). `docs/primitives/event.md:88` now says a subscription only receives its own def's payloads, "which is why delivering the payload as `Payload` without a check is sound". Checked for a way around it: the bus's `publish` takes an untyped envelope, but the `EventBus` tag is internal (`src/event/internal.ts`) and `EventBusShape` is Internal (`docs/stability.md:25`), so no public path skips the claim. The refusal is a defect at first use, not a type error, and its failure has a stable code: P. Tests: `tests/event.test.ts:177-203` (refused on publish and on subscribe, one def reused, per runtime). The hot-reload caveat is documented (`event.md:88`, `docs/releases/v0.17.md:19`), and this is a behavior change for programs that had the hazard (controller ruling). The v0.17 release note's earlier "I2 ◐→P (with Valance B3)" (`:11`), disputed after Phase B, is now true for a different reason.
+- **Valance I2 ◐→P (with the pack; agree with the reviewer).** After Phase B named what P needs: "an opt-in strict handle (typo-checked keys, typed arguments per key), or name-based binding". Both are now in:
+  - `handle.command(key, ...input)` (`packages/valance/src/index.ts:465`): the key is `keyof C`, so a typo is a type error, and a bare command's `"app/name"` takes its input whole, typed by its schema, a struct by field name (`docs/use/README.md:15`, `docs/releases/v0.16.md:25-29`). Test: `test/command-keys.test.ts` (with `@ts-expect-error` for a typo, a wrong field type, a missing field and a missing input).
+  - A template's call binds by name when every argument is a plain path naming a distinct field (`bareBinding`, `index.ts:326-341`; `V1_CONTRACT.md:53`), so `move(to, from)` sets each field as written. Test: `test/named-binding.test.ts`, including a real compiled template through MESH. `command-argument-order` now warns only where the binding is still positional and the names disagree (`packages/cli/src/argument-order.ts:72`; `test/argument-order.test.ts`).
+
+  What is still positional, checked: a call with a literal or `$event` among its arguments, `invoke`, and an exact key's `entry` adapter. Each such argument fills a parameter MESH type-checks against the manifest (`command-arity-mismatch`, `type-mismatch`; the derived manifest's parameters are the fields in field order, `V1_CONTRACT.md:292`), which is how Mesh's and Port's positional intent arguments were scored P since 10-19; and where a name contradicts the position, `vlx check` says so. `invoke`'s key still accepts any string (`index.ts:454`), with the typed `UnmappedCommand` for an unknown one, and a checked accessor now exists beside it. So types carry meaning and failures have stable codes: P. Without the Mesh pack only `handle.command` is left, and a template's call, the Tier 1 path, ignores the call site's names again: ◐. That is the controller's ruling when Task 25 part 2 was split off (positional mapping is named in the ◐ definition).
+
+**Re-checked, unchanged**
+- **Valance E2 P, Nexus E2 P.** `handle.command` and named binding add no step. Valance does not use the screen (its own host already did these duties; `runtime.md:393`).
+- **Mesh I2 P, Port I2 P.** The intent's `name` is additive, tiered Provisional (`mesh/docs/manual/stability.md:29`), and Rust's `Intent` is unchanged (`NamedIntent` is `#[non_exhaustive]`). `composeWebPort`'s `Intent` and `Diagnostics` are inferred from the screen passed.
+- **Port T1.2 ◐.** `composeWebPort` needs `screen`, `container`, `primitives` and `onIntent`; `onError` and `onDiagnostics` are optional with defaults (`port/CHANGELOG.md:10`). `primitives` is still required with no default table (C-2), so ◐ stays.
+- **Mesh M2 ◐, I1 ◐.** "Screen" collides with no public name (Task 23 report), and its fields say `occurrence` (C-4), so it adds no meaning of "instance". Port's "composer" is the PORT contract's own word for the host (`docs/CONTRACT.md:22`).
+- **Valance I1 P, M2 ◐ (finding, recorded, not taken).** `handle.command(key, input)` runs a command; `Valance.command(state)` makes one (`docs/use/README.md:15-16`). One name now has two meanings in the API. M2 is already ◐ for `start`, `Host` and `scope`, so it does not move. On I1 the two are told apart by where they live (a handle's method, a module's function) and both are about commands, so I1 stays P. The reading that this is an overloaded name gives Valance I1 ◐: 83 ÷ 97, 86, and no change to the ecosystem (I1 is ◐ through Nexus and Mesh). The glossary (`docs/understand/glossary.md`) does not list it.
+- **Finding: the tutorial still teaches `invoke` by position.** `learn/first-application.md:139-142` shows `invoke("app/add", [{ value: 5 }])`, "in the command's field order", and does not mention `handle.command`. It is correct, and the audit is judged on what the API offers, so it does not move I2. A reader who scores I2 on the path the first page teaches would keep Valance I2 ◐: Valance 86, ecosystem 73.5 ÷ 97, 76 (74 with strict H2), and the goal not met. Recorded for the owner; changing that line to `handle.command` would remove the question.
+- **Disagreement recorded:** `docs/releases/v0.16.md:44` says Valance I2 goes "Partial to Pass once this and the refinements' Task 26 (Nexus's duplicate-tag refusal) are both in". Valance's column does not depend on Task 26: Valance exposes no `Event` API, and its Nexus peer range (`^0.14.0 || ^0.15.0 || ^0.16.0`) excludes the 0.17 that has the refusal. Task 26 lifts Nexus's column, and both are needed for the ecosystem's I2.
+
+### Blocking the next goal
+
+The Phase B goal is met on the branch, and is blocked off the branch only by the releases above (Mesh: `openScreen` and argument names; PORT Web: `native`). Still below P in the ecosystem, by the repo that holds each one down:
+
+| Audit | Held down by | Points to P | Lifted by |
+|---|---|---|---|
+| C1 (F) | Valance, Mesh | 7 (and C2 becomes applicable: +3 points, +3 divisor) | **C-1** context channel |
+| T1.1 | Nexus | 4 | nothing planned (§6 keeps it ◐) |
+| T1.2 | Port | 3 | **C-2**, only if the opt-in vocabulary is accepted as P (contested) |
+| I1 | Nexus, Mesh | 2.5 | 1.0 renames |
+| M2 | Valance, Nexus, Mesh | 2.5 | 1.0 renames (C-4 removes Mesh's collision, not the others) |
+| D2 | Valance | 2 | **C-3** `Schema.Redacted` |
+
+For the Phase C goal of 85: C-1 alone gives (76 + 7 + 3) ÷ 100 = 86; with C-3, 88; with C-2 taken as P, 91. On the strict H2 reading, 85, 87 and 90.
+
+### Arithmetic after Phase B iteration
+
+**Valance** (divisor 97). T1: 8 + 6 + 6 = 20. Encapsulation: 8 + 7 + 5 = 20. Intention: 5 + 5 + 5 = 15. Mental model: 5 + 2.5 = 7.5. Data: 6 + 2 = 8. Context: 0. Tier 2: 8. Tier 3: 4 + 3 = 7. Sum 85.5. 85.5 ÷ 97 = 0.881, so **88**. (H2 ◐: 84 ÷ 97 = 0.866, 87. Without the packs, I2 ◐ and H2 ◐: 81.5 ÷ 97 = 0.840, 84.)
+
+**Nexus** (divisor 71). T1: 4 + 6 + 6 = 16. Encapsulation: 20. Intention: 2.5 + 5 + 5 = 12.5. Mental model: 7.5. Data: 6. Sum 62. 62 ÷ 71 = 0.873, so **87**.
+
+**Mesh** (divisor 86). T1: 20. Encapsulation: 8 + 7 + 5 = 20. Intention: 2.5 + 5 + 5 = 12.5. Mental model: 7.5. Data: 6. Context: 0. Tier 2: 8. Sum 74. 74 ÷ 86 = 0.860, so **86**.
+
+**Port** (divisor 86). T1: 17. Encapsulation: 8 + 7 + 5 = 20. Intention: 15. Mental model: 10. Data: 6. Tier 2: 8. Tier 3: 4 + 3 = 7. Sum 83. 83 ÷ 86 = 0.965, so **97**. (H2 ◐: 81.5 ÷ 86 = 0.948, 95. Without the pack, E2 ◐: 79.5 ÷ 86 = 0.924, 92; with strict H2 too, 78 ÷ 86 = 0.907, 91.)
+
+**Ecosystem** (divisor 97). T1: 4 + 3 + 6 = 13. Encapsulation: 8 + 7 + 5 = 20. Intention: 2.5 + 5 + 5 = 12.5. Mental model: 7.5. Data: 8. Context: 0. Tier 2: 8. Tier 3: 4 + 3 = 7. Sum 76. 76 ÷ 97 = 0.784, so **78**. (H2 ◐: 74.5 ÷ 97 = 0.768, 77. Without the packs, E2 ◐, I2 ◐ and H2 ◐: 68.5 ÷ 97 = 0.706, 71.)
+
+### By category after Phase B iteration
+
+| Category | Weight | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| Tier 1: minimal surface | 20 | 65 | 100 | 80 | 100 | 85 |
+| Encapsulation | 20 | 100 | 100 | 100 | 100 | 100 |
+| Intention and contracts | 15 | 83 | 100 | 83 | 83 | 100 |
 | Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
 | Data boundary | 10 | 80 | 80 | 100 | 100 | 100 |
 | Context | 10 | 0 | 0 | n/a | 0 | n/a |
