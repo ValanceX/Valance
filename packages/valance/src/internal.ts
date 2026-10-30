@@ -92,3 +92,4 @@ export const runningOf = <S, E>(handle: ApplicationHandle<S, E>): Running<S, E> 
 
 /** The registry key under which a bare command receives its input WHOLE (the navigation fact history reads from a URL). Reserved for history's `navigate`; not a key a MESH program declares or a caller needs. */
 export const INPUT_KEY = (name: string): string => `navigation/${name}`;
+export { problemsOf as redactedProblems } from "./web-redacted.js";

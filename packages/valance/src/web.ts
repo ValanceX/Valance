@@ -13,6 +13,7 @@ import { hydrate, mount, start } from "./index.js";
 import type { SessionRecorder } from "./replay.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
+import { restoreRedacted } from "./web-redacted.js";
 import { applyHead, cleanTitle, compose } from "./web-plugin.js";
 import type { GuardResult, HeadTags, Navigation, Plugin } from "./web-plugin.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
@@ -512,7 +513,9 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
             ...(composed.head === undefined ? {} : { head: composed.head }),
           };
   const startup = Effect.gen(function* () {
-    const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
+    // A server leaves a Redacted field out of the state it embeds; hydrating puts its declared default back (C-3).
+    const embedded = options.present === "hydrate" && options.state !== undefined ? { state: restoreRedacted(app.state.schema, app.state.initial, options.state) } : {};
+    const handle = yield* start(app, { ...options, ...embedded, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
     const base = target({ container: options.container, primitives: composed.primitives, ...(options.native === undefined ? {} : { native: options.native }) });
     const web = options.target === undefined ? base : options.target(base);
     const mountOptions = { ...(options.ledger === undefined ? {} : { ledger: options.ledger }), ...(options.record === undefined ? {} : { record: options.record }) };

@@ -2,6 +2,7 @@
 // `defineApp`'s state and commands. This is one Valance application (`Valance.define`): the page is its state, going to a page is its `go` command, and the layout is its one view.
 // The server renders it and the browser runs it, from the same function.
 import * as Valance from "@valancex/valance";
+import { redactedFields } from "@valancex/valance";
 import { History, permit } from "@valancex/router";
 import * as Nexus from "@valancex/nexus";
 import { Effect, Schema, Stream } from "effect";
@@ -114,9 +115,11 @@ export const checkDefinition = (author: DefinedApp | undefined): void => {
   }
 };
 
+const hiddenIn = (author: DefinedApp | undefined): ReadonlyArray<string> => (stateOf(author) === undefined ? [] : redactedFields(stateOf(author)!.schema));
+
 /** The names `src/main.ts` adds: state fields (readable in the layout) and commands (runnable from it). */
 export const ownNames = (author: DefinedApp | undefined): { readonly state: ReadonlyArray<string>; readonly commands: ReadonlyArray<string> } => ({
-  state: authorFields(author),
+  state: authorFields(author).filter((name) => !hiddenIn(author).includes(name)),
   commands: Object.keys(author?.commands?.(Valance.command({} as never) as never) ?? {}),
 });
 
@@ -124,7 +127,9 @@ export const ownNames = (author: DefinedApp | undefined): { readonly state: Read
 export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
   const state = stateOf(author);
   const derived = Object.entries(derivedOf(author));
-  const base = state === undefined ? FrameScope : (Schema.extend(FrameScope, state.schema) as unknown as Schema.Schema<any, any, never>);
+  // A Redacted field is a secret and has no MESH type: the layout does not see it (C-3).
+  const seen = state === undefined ? undefined : state.schema.pipe(Schema.omit(...redactedFields(state.schema)));
+  const base = seen === undefined ? FrameScope : (Schema.extend(FrameScope, seen) as unknown as Schema.Schema<any, any, never>);
 
   // A derived value is a name the layout reads, with the type it was given.
   return derived.length === 0
@@ -333,6 +338,7 @@ export const application = (content: Content, program: Valance.Program, author?:
   checkDefinition(author);
   const units = unitsOf(author);
   const forms = formsOf(author);
+  const hidden = redactedFields(stateSchema(author));
 
   return Valance.define({
     name: content.site.name,
@@ -341,7 +347,9 @@ export const application = (content: Content, program: Valance.Program, author?:
       layout: {
         program,
         scope: (state: AppState) => {
-          const { page, ...own } = state;
+          const { page } = state;
+          // A Redacted field is a secret the layout may not read (C-3), so it is not in the scope.
+          const own = Object.fromEntries(Object.keys(state).filter((name) => name !== "page" && !hidden.includes(name)).map((name) => [name, state[name]]));
 
           return {
             ...frame(content, page, state.viewport, state.colorScheme, { canGoBack: state.cursor > 0, canGoForward: state.cursor < state.trail.length - 1 }),

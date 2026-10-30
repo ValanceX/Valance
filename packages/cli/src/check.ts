@@ -1,8 +1,10 @@
 // `vlx check`: every stage that can find a mistake in authored files, without bundling or writing a site. It reports all of them at once, in the one diagnostic shape, so an editor
 // or a CI job can read the result (`--json`) as easily as a person reads the terminal.
 import type { Diagnostic } from "./diagnostics.js";
-import { AppError } from "./diagnostics.js";
+import { AppError, diagnostic } from "./diagnostics.js";
 import { loadAuthor } from "./author.js";
+import { application } from "@valancex/common/internal";
+import { redactedProblems } from "@valancex/valance/internal";
 import { argumentOrder } from "./argument-order.js";
 import { loadConfig } from "./config.js";
 import { librariesOf } from "./libraries.js";
@@ -48,6 +50,13 @@ export const check = async (root: string): Promise<Checked> => {
     const author = await collect(problems, () => loadAuthor(server, root));
     const failedAuthor = problems.some((each) => each.file === "src/main.ts");
     const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
+
+    // C-3: a Redacted state field needs a default and may not be read by a view. The program is not looked at, so none is built.
+    if (components !== undefined && content !== undefined) {
+      for (const each of redactedProblems(application(content, {} as never, author))) {
+        problems.push(diagnostic("src/main.ts", 1, each.code, each.message));
+      }
+    }
 
     // Warnings come after a clean compile: they are about templates the compiler accepted.
     if (components !== undefined) {

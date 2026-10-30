@@ -109,6 +109,7 @@ describe("application event entry", () => {
       "isUnit",
       "isValanceError",
       "mount",
+      "redactedFields",
       "start",
     ]);
   });
