@@ -1,6 +1,6 @@
 // C-3: a state field typed `Schema.Redacted` never reaches the page. The server leaves it out of the state it embeds, the client puts its declared default back, and a view cannot read it,
 // so the tree the client draws is the tree the server wrote.
-import { Effect, Redacted, Schema } from "effect";
+import { Cause, Effect, Exit, Redacted, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
@@ -119,5 +119,18 @@ describe("Schema.Redacted state fields (C-3)", () => {
 
     await Effect.runPromise(renderToHtml(app(), { state: { name: "ada", token: Redacted.make("hunter2") }, head }));
     expect(heads).toEqual(["default"]);
+  });
+
+  it("renderToHtml fails closed on a Redacted it cannot mask: a ValanceError with the code, before anything starts", async () => {
+    const nested = Valance.define({
+      name: "nested",
+      state: { schema: Schema.Struct({ a: Schema.Struct({ b: Schema.RedactedFromSelf(Schema.String) }) }), initial: { a: { b: Redacted.make("x") } } },
+      views: { only: { program: eventFreeProgram, scope: () => ({}) } },
+      view: () => "only" as const,
+      commands: () => ({}),
+    });
+    const exit = await Effect.runPromiseExit(renderToHtml(nested, {}));
+
+    expect(Exit.isFailure(exit) && Cause.isDie(exit.cause) && (Cause.squash(exit.cause) as { code?: string }).code).toBe("redacted-unmaskable");
   });
 });

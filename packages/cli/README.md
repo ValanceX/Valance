@@ -388,6 +388,13 @@ A diagnostic with `"severity": "warning"` is worth a look and is not a mistake: 
 
 - `command-argument-order`: a template passes a command's arguments by position, under names that are not its fields in order (`move(to, "a")` to a command whose input is `Schema.Struct({ from, to })`). A bare command takes them by position, the first argument filling the first field, unless every argument is named after a different field of the input (`move(to, from)`), when they are bound by name (since 0.16) and nothing is warned. Pass them in field order, name every argument after a field, or rename them. An argument is named by the last name of a plain path (`row.to` is `to`); a literal or `$event` has no name, so one among the arguments makes the binding positional; a command of one field is not checked.
 
+Four codes report a `Schema.Redacted` state field (north-star refinements C-3), all errors, at `src/main.ts`:
+
+- `redacted-unmaskable`: a Redacted that is not a top-level field of a struct state (inside a sub-struct, an array, a record, a union with other members, or under a class, filter or `optionalWith` default). Only top-level fields are masked.
+- `redacted-no-default`: a Redacted field with no default, which a client needs to hydrate it to.
+- `redacted-in-view`: a view's `scope` or `view` selector reads a Redacted field (found by running them on the initial state).
+- `redacted-check-failed`: the check could not build the application to look.
+
 ## Limits (this cycle)
 
 - The whole content model ships in the page bundle. Fine for tens of pages; a per-page payload is the known answer for hundreds (the documentation verifier does it).

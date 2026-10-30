@@ -13,7 +13,8 @@ import { Effect } from "effect";
 
 import { runningOf } from "./internal.js";
 import { start } from "./index.js";
-import { restoreRedacted, withoutRedacted } from "./web-redacted.js";
+import { ValanceError } from "./errors.js";
+import { restoreRedacted, unmaskableFields, withoutRedacted } from "./web-redacted.js";
 import { compose } from "./web-plugin.js";
 
 export interface Served<S> {
@@ -38,6 +39,13 @@ export const renderToHtml = <S, E, R extends Ambient, V extends string>(
   options: RenderOptions<S>,
 ): Effect.Effect<Served<S>, StartError | Mesh.MeshDiagnostics> =>
   Effect.suspend(() => {
+    // Fail closed: a Redacted this cannot mask must not be embedded, whether or not `vlx check` ran.
+    const unmaskable = unmaskableFields(app.state.schema);
+
+    if (unmaskable.length > 0) {
+      throw new ValanceError("redacted-unmaskable", `renderToHtml: the state holds a Schema.Redacted that is not a top-level struct field (${unmaskable.join(", ")}), and only top-level fields are masked`);
+    }
+
     // Composed before anything is acquired: a conflict fails the call with nothing started.
     const composed = compose<S>({ primitives: options.primitives, platform: options.platform, head: options.head }, options.plugins ?? []);
 
