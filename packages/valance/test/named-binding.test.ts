@@ -80,7 +80,7 @@ describe("a template's call, through MESH", () => {
         Valance.define({
           name: "named-template",
           state: { schema: State, initial: { from: "A", to: "B" } },
-          views: { main: { program: made.program!, scope: (state) => ({ from: state.from, to: state.to }) } },
+          views: { main: { program: made.program!, scope: () => ({ from: "X", to: "Y" }) } },
           commands: (state) => ({
             move: Valance.command(state)(Schema.Struct({ from: Schema.String, to: Schema.String }), ({ from, to }, s) => ({ ...s, from, to })),
           }),
@@ -91,9 +91,9 @@ describe("a template's call, through MESH", () => {
     const current = await Effect.runPromise(running.render);
     const click = /"click":"([^"]+)"/.exec(JSON.stringify(current.render.tree))![1]!;
 
-    // Positionally, `move(to, from)` would set from = "B", to = "A".
+    // By name the click sets from = "X", to = "Y"; positionally they would swap, and a dropped click would leave "A", "B".
     await Effect.runPromise(running.dispatch(current as never, click).pipe(Effect.orDie));
-    expect(await Effect.runPromise(handle.state)).toEqual({ from: "A", to: "B" });
+    expect(await Effect.runPromise(handle.state)).toEqual({ from: "X", to: "Y" });
     await Effect.runPromise(Scope.close(scope, Exit.void));
   });
 });
