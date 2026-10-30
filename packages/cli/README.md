@@ -386,7 +386,7 @@ Every mistake the tools can attribute to a file has one shape: `{ file, line, co
 
 A diagnostic with `"severity": "warning"` is worth a look and is not a mistake: `vlx check` prints it (`file:line:column warning code: message`) and still succeeds. One code is a warning:
 
-- `command-argument-order`: a template passes a command's arguments under names that are not its fields in order (`move(to, from)` to a command whose input is `Schema.Struct({ from, to })`). A bare command takes them by position, the first argument filling the first field, so this one swaps them. The binding stays positional; pass them in field order, or rename them. An argument is named by the last name of a plain path (`row.to` is `to`); a literal or `$event` has no name and is not compared, and a command of one field is not checked.
+- `command-argument-order`: a template passes a command's arguments by position, under names that are not its fields in order (`move(to, "a")` to a command whose input is `Schema.Struct({ from, to })`). A bare command takes them by position, the first argument filling the first field, unless every argument is named after a different field of the input (`move(to, from)`), when they are bound by name (since 0.16) and nothing is warned. Pass them in field order, name every argument after a field, or rename them. An argument is named by the last name of a plain path (`row.to` is `to`); a literal or `$event` has no name, so one among the arguments makes the binding positional; a command of one field is not checked.
 
 ## Limits (this cycle)
 

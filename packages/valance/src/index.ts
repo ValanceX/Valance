@@ -93,9 +93,11 @@ export interface ApplicationDefinition<
    * **Resolution**, for each declared `component/name` and for each `app/name`: the exact key in the table wins; otherwise the bare `name` is used; otherwise there is
    * no command, and `start` fails with `ConformanceViolation` (declared events) or the key is `UnmappedCommand` (everything else). One rule, no other precedence.
    *
-   * **Arguments of a bare command.** If its input is a struct, the arguments an event (or `invoke`) supplies are its fields **in the struct's field order**: the first
-   * argument is the first field, and so on. An argument the event does not supply is `undefined` (so a required field then fails validation), and arguments beyond the
-   * fields are ignored. The event's own parameter names are not used. If its input is not a struct, the first argument is the whole input. The input is validated by the
+   * **Arguments of a bare command.** If its input is a struct and every argument of the event's call carries a name (an argument written as a plain path, `to` or `row.id`,
+   * is named by its last segment) that is a field of the struct, each one fills the field of its name, wherever it stands: `move(to, from)` fills `to` and `from`. Otherwise
+   * (a literal or `$event` among the arguments, a name that is not a field, two arguments of one name, or `invoke`, whose arguments have no names) the arguments are its
+   * fields **in the struct's field order**: the first argument is the first field, and so on. An argument the event does not supply is `undefined` (so a required field then
+   * fails validation), and arguments beyond the fields are ignored. The event's own parameter names are not used. If its input is not a struct, the first argument is the whole input. The input is validated by the
    * command's schema as always. (A single object argument is not unpacked into fields.)
    *
    * A bare name must hold a command object. A function there (such as an `entry`) is a mistake and `start` dies with a defect naming it.
@@ -316,11 +318,27 @@ const fieldsOf = (schema: Schema.Schema<any>): ReadonlyArray<string> | undefined
   return ast._tag === "TypeLiteral" ? ast.propertySignatures.map((property) => String(property.name)) : undefined;
 };
 
-/** The binding of a bare command name: the arguments are the struct's fields in order, or the whole input when the input is not a struct. */
+/**
+ * The binding of a bare command name. When the input is a struct and every argument carries a name (MESH writes one for an argument that is a plain path: `to`, `row.id`), each
+ * name is a different field of it, the arguments fill those fields BY NAME. Otherwise (a literal or `$event` has no name, a name is not a field, two share one, or `invoke` passes
+ * bare values) a struct takes its arguments as its fields in order, and an input that is not a struct takes the first argument whole.
+ */
 const bareBinding = <E, R>(command: Nexus.Command.Command<any, any, E, R>): Nexus.Mesh.Binding<E | Nexus.Command.CommandValidationError, R> => {
   const fields = fieldsOf(command.input);
 
-  return entry(command, (...values) => (fields === undefined ? values[0] : Object.fromEntries(fields.map((field, index) => [field, values[index]]))));
+  return Nexus.Mesh.bind(command, (args) => {
+    const values = args.map(plain);
+
+    if (fields === undefined) {
+      return values[0];
+    }
+
+    const names = args.map((argument) => argument.name);
+
+    return args.length > 0 && names.every((name) => name !== undefined && fields.includes(name)) && new Set(names).size === names.length
+      ? Object.fromEntries(names.map((name, index) => [name, values[index]]))
+      : Object.fromEntries(fields.map((field, index) => [field, values[index]]));
+  });
 };
 
 /**

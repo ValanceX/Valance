@@ -1,5 +1,5 @@
-// `command-argument-order` (a warning of `vlx check`, B3): a bare command takes an event's arguments by position, the first argument filling the first field of its input struct, and so on.
-// The binding stays positional; this says where a template's arguments are named otherwise. An argument's name is the last name of a plain path (`from`, `row.to`); a literal, `$event` or any
+// `command-argument-order` (a warning of `vlx check`, B3): a bare command takes an event's arguments by position, the first argument filling the first field of its input struct, and so on,
+// unless every argument is named after a different field of it, when they fill those fields by name (Valance's `bareBinding`). This says where the binding is still positional and a template's arguments are named otherwise. An argument's name is the last name of a plain path (`from`, `row.to`); a literal, `$event` or any
 // other expression has none and is not compared. A command of one field is not compared: its one argument fills it whatever it is called.
 import type { DefinedApp } from "@valancex/common";
 import type { Manifest } from "@valancex/valance/web/build";
@@ -69,14 +69,17 @@ export const argumentOrder = (root: string, author: DefinedApp | undefined, conf
 
           const names = argumentsOf(call[2]!).map(nameOf);
 
-          if (names.some((name, index) => name !== undefined && index < fields.length && name !== fields[index])) {
+          // Every argument named after a different field: bound by name, in any order, so there is nothing to warn about.
+          const byName = names.every((name) => name !== undefined && fields.includes(name)) && new Set(names).size === names.length;
+
+          if (!byName && names.some((name, index) => name !== undefined && index < fields.length && name !== fields[index])) {
             const place = placeIn(template.source, attribute.at, template.path);
 
             found.push({
               ...place,
               code: CODE,
               severity: "warning",
-              message: `${call[1]}(${names.map((name) => name ?? "…").join(", ")}) passes its arguments by position: the command's fields are ${call[1]}(${fields.join(", ")}), so the first argument fills \`${fields[0]}\`, and so on. Pass them in that order, or rename them`,
+              message: `${call[1]}(${names.map((name) => name ?? "…").join(", ")}) passes its arguments by position (they are not all named after fields): the command's fields are ${call[1]}(${fields.join(", ")}), so the first argument fills \`${fields[0]}\`, and so on. Pass them in that order, or rename them`,
             });
           }
         }

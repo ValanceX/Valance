@@ -1,5 +1,5 @@
-// B3 (audit I2): a bare command takes an event's arguments by position, in its input struct's field order. `vlx check` warns (`command-argument-order`) where a template passes
-// arguments whose names say otherwise; the binding stays positional, and a warning does not fail the check.
+// B3 (audit I2): a bare command takes an event's arguments by position, in its input struct's field order, unless every argument is named after a field (then by name, Task 29).
+// `vlx check` warns (`command-argument-order`) where the binding is positional and the names say otherwise; a warning does not fail the check.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { check } from "../src/check.js";
@@ -32,12 +32,16 @@ const app = (call: string): string =>
   });
 
 describe("command-argument-order", () => {
-  it("warns where an argument's name is another field's, at the handler", async () => {
-    const found = (await check(app("move(to, from)"))).diagnostics;
+  it("warns where the binding is positional and an argument's name is another field's, at the handler", async () => {
+    const found = (await check(app("move(to, \"a\")"))).diagnostics;
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ file: "src/layout.mprx", line: 2, code: "command-argument-order", severity: "warning" });
     expect(found[0]!.message).toContain("move(from, to)");
+  });
+
+  it("does not warn when every argument is named after a field, in any order: they are bound by name", async () => {
+    expect((await check(app("move(to, from)"))).diagnostics).toEqual([]);
   });
 
   it("does not warn when the names are the fields in order, or an argument has no name", async () => {
@@ -49,7 +53,7 @@ describe("command-argument-order", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     vi.spyOn(console, "log").mockImplementation(() => undefined);
-    expect(await main(["check"], app("move(to, from)"))).toBe(0);
+    expect(await main(["check"], app("move(to, \"a\")"))).toBe(0);
     expect(errors.mock.calls.flat().join("\n")).toContain("warning command-argument-order");
   });
 });
