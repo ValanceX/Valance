@@ -27,7 +27,6 @@ import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
 import { Cause, Deferred, Duration, Effect, Equal, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
-import type { SchemaAST } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export { isUnit, UNIT } from "./units.js";
@@ -1163,28 +1162,4 @@ export const hydrate = <S, E, H>(
     (connected) => Object.defineProperties({ hydration: connected.first }, Object.getOwnPropertyDescriptors(without(connected, "first"))) as Mounted<E> & { readonly hydration: H },
   );
 
-// ---- masking (C-3) ----
-
-const REDACTED = Symbol.for("effect/annotation/TypeConstructor");
-
-const isRedacted = (ast: SchemaAST.AST): boolean => {
-  const own = ast._tag === "Transformation" ? ast.to : ast;
-
-  return own._tag === "Declaration" && (own.annotations[REDACTED] as { readonly _tag?: string } | undefined)?._tag === "effect/Redacted";
-};
-
-/** The names of a state struct's fields whose schema is `Schema.Redacted` (optional ones too). Empty for a schema that is not a struct. */
-export const redactedFields = (schema: Schema.Schema<any, any, any>): ReadonlyArray<string> => {
-  const ast = schema.ast;
-
-  if (ast._tag !== "TypeLiteral") {
-    return [];
-  }
-
-  return ast.propertySignatures.flatMap((each) => {
-    const type = each.type;
-
-    return isRedacted(type) || (type._tag === "Union" && type.types.some(isRedacted)) ? [String(each.name)] : [];
-  });
-};
-
+export { redactedFields } from "./web-redacted.js";

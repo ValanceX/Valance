@@ -27,6 +27,19 @@ describe("Redacted state fields", () => {
     expect((await check(app("{}"))).diagnostics).toMatchObject([{ code: "redacted-no-default", file: "src/main.ts" }]);
   });
 
+  it("reports a Redacted below the top level: only top-level fields are masked", async () => {
+    const root = project({
+      "content/index.md": PAGE(),
+      "src/main.ts": `import { defineApp } from "@valancex/common";
+import { Redacted, Schema } from "effect";
+
+export default defineApp({ state: { schema: Schema.Struct({ auth: Schema.Struct({ token: Schema.RedactedFromSelf(Schema.String) }) }), initial: { auth: { token: Redacted.make("t") } } } });
+`,
+    });
+
+    expect((await check(root)).diagnostics).toContainEqual(expect.objectContaining({ code: "redacted-unmaskable", file: "src/main.ts" }));
+  });
+
   it("does not let the layout read one: its name is unknown there", async () => {
     const root = project({
       "content/index.md": PAGE(),

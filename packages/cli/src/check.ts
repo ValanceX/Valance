@@ -52,9 +52,14 @@ export const check = async (root: string): Promise<Checked> => {
     const components = failedAuthor ? undefined : await collect(problems, () => generateProgram(root, author, config));
 
     // C-3: a Redacted state field needs a default and may not be read by a view. The program is not looked at, so none is built.
-    if (components !== undefined && content !== undefined) {
-      for (const each of redactedProblems(application(content, {} as never, author))) {
-        problems.push(diagnostic("src/main.ts", 1, each.code, each.message));
+    if (!failedAuthor && content !== undefined) {
+      try {
+        for (const each of redactedProblems(application(content, {} as never, author))) {
+          problems.push(diagnostic("src/main.ts", 1, each.code, each.message));
+        }
+      } catch (error) {
+        // building the application for this check threw (a definition mistake the other stages did not name): a diagnostic, not an abort
+        problems.push(diagnostic("src/main.ts", 1, "redacted-check-failed", `the Redacted check could not build the application: ${error instanceof Error ? error.message : String(error)}`));
       }
     }
 

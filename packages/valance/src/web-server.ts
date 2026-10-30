@@ -13,7 +13,7 @@ import { Effect } from "effect";
 
 import { runningOf } from "./internal.js";
 import { start } from "./index.js";
-import { withoutRedacted } from "./web-redacted.js";
+import { restoreRedacted, withoutRedacted } from "./web-redacted.js";
 import { compose } from "./web-plugin.js";
 
 export interface Served<S> {
@@ -47,7 +47,11 @@ export const renderToHtml = <S, E, R extends Ambient, V extends string>(
         const viewed = yield* running.render;
         const state = yield* running.state;
 
-        return { html: realizeHtml(viewed.render.tree, composed.primitives), state: withoutRedacted(app.state.schema, state), head: composed.head?.(state) ?? {} };
+        const embedded = withoutRedacted(app.state.schema, state);
+        // The head is written from the state the browser will have (each Redacted field at its default), so a secret cannot reach `<head>` or `<title>`.
+        const seen = restoreRedacted(app.state.schema, app.state.initial, embedded);
+
+        return { html: realizeHtml(viewed.render.tree, composed.primitives), state: embedded, head: composed.head?.(seen) ?? {} };
       }),
     );
   });
