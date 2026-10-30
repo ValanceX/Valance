@@ -1,8 +1,10 @@
 // Task 29 (audit I2): a bare command whose call site names every argument with a field of its struct input is bound BY NAME (MESH's `IntentArgument.name`); any other call is by position.
+import { compileProgram } from "@valancex/mesh-compiler";
 import { Effect, Exit, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
+import { runningOf } from "../src/internal.js";
 import type { Mesh } from "@valancex/nexus";
 
 import { eventFreeProgram } from "./event-free-program.js";
@@ -48,5 +50,50 @@ describe("a bare command's arguments", () => {
 
   it("give a non-struct input its first argument whole, named or not", async () => {
     expect((await run("app/set", [{ value: "z", name: "other" }])).state.to).toBe("z");
+  });
+});
+
+// End to end: a real template calls `move(to, from)` for a command declared `{ from, to }`; the click goes through MESH and each value lands in its own field.
+describe("a template's call, through MESH", () => {
+  it("binds `move(to, from)` by name", async () => {
+    const model = JSON.stringify({
+      version: 1,
+      types: {},
+      components: {
+        button: { props: {}, events: { click: {} }, commands: {}, scope: {} },
+        main: {
+          props: {},
+          events: {},
+          commands: { move: { parameters: [{ name: "from", type: { kind: "string" } }, { name: "to", type: { kind: "string" } }] } },
+          scope: { from: { kind: "string" }, to: { kind: "string" } },
+        },
+      },
+    });
+    const made = await compileProgram({
+      model: { manifest: model, path: "components.json" },
+      root: "main",
+      components: [{ component: "main", source: "<button on.click={move(to, from)} />", path: "main.mprx" }],
+    });
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(
+      Valance.start(
+        Valance.define({
+          name: "named-template",
+          state: { schema: State, initial: { from: "A", to: "B" } },
+          views: { main: { program: made.program!, scope: (state) => ({ from: state.from, to: state.to }) } },
+          commands: (state) => ({
+            move: Valance.command(state)(Schema.Struct({ from: Schema.String, to: Schema.String }), ({ from, to }, s) => ({ ...s, from, to })),
+          }),
+        }),
+      ).pipe(Scope.extend(scope)),
+    );
+    const running = runningOf(handle);
+    const current = await Effect.runPromise(running.render);
+    const click = /"click":"([^"]+)"/.exec(JSON.stringify(current.render.tree))![1]!;
+
+    // Positionally, `move(to, from)` would set from = "B", to = "A".
+    await Effect.runPromise(running.dispatch(current as never, click).pipe(Effect.orDie));
+    expect(await Effect.runPromise(handle.state)).toEqual({ from: "A", to: "B" });
+    await Effect.runPromise(Scope.close(scope, Exit.void));
   });
 });
