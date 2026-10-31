@@ -1413,7 +1413,7 @@ packages:
     engines: {node: '>=22'}
 
   '@valancex/nexus@file:local-packs/valancex-nexus-0.16.0.tgz':
-    resolution: {integrity: sha512-uwMNGCOj/E2wXun4HebFEikxeayrhnCqkZFexDYJsC0CRLM5g+r7x/eDQnDqvPLPtw2CPTJ0eDPt1G/G4zky6A==, tarball: file:local-packs/valancex-nexus-0.16.0.tgz}
+    resolution: {integrity: sha512-1yn/OabnzKGHYE9MUCr7H45GJXHnNdqfRIcgkAo70Qlih2OUacjHmFnQTXxodC0A5HSb9Q66ATfSkRWHwijo5Q==, tarball: file:local-packs/valancex-nexus-0.16.0.tgz}
     version: 0.16.0
     engines: {node: '>=22'}
     peerDependencies:
