@@ -1,6 +1,6 @@
 {
   "name": "@valancex/valance",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "VALANCE application composition: starts a NEXUS application, renders it with MESH, and realizes it on a PORT target.",
   "type": "module",
   "license": "MIT",
@@ -63,12 +63,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@valancex/nexus": "^0.14.0 || ^0.15.0 || ^0.16.0"
+    "@valancex/nexus": "^0.17.0"
   },
   "peerDependencies": {
-    "@valancex/mesh-compiler": "^0.17.0 || ^0.18.0",
-    "@valancex/mesh-runtime": "^0.15.0 || ^0.16.0 || ^0.17.0 || ^0.18.0",
-    "@valancex/port-web": "^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0",
+    "@valancex/mesh-compiler": "^0.18.0",
+    "@valancex/mesh-runtime": "^0.18.0",
+    "@valancex/port-web": "^0.15.0",
     "effect": "^3.10.0"
   },
   "peerDependenciesMeta": {
@@ -81,9 +81,9 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "@valancex/mesh-compiler": "^0.17.0",
-    "@valancex/mesh-runtime": "^0.17.0",
-    "@valancex/port-web": "^0.14.0",
+    "@valancex/mesh-compiler": "^0.18.0",
+    "@valancex/mesh-runtime": "^0.18.0",
+    "@valancex/port-web": "^0.15.0",
     "effect": "^3.10.0",
     "esbuild": "0.28.2",
     "typescript": "^7.0.2",

@@ -15,7 +15,7 @@ Seeded with two suites, so it works with no outsiders: **components** (the refer
 
 ```
 node scripts/run.mjs                              # every suite against `next`
-node scripts/run.mjs --suite acme-ui --tag 0.15.0 # one suite against a version
+node scripts/run.mjs --suite acme-ui --tag 0.16.0 # one suite against a version
 ```
 
 Needs `pnpm`; the `components` suite needs Chromium (Playwright) and Java for its tests. `--no-update` runs a suite against the versions it asks for; `--source <dir>` runs one suite from a local directory.

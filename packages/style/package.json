@@ -1,6 +1,6 @@
 {
   "name": "@valancex/style",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "The style contract for VALANCE: tokens (Design Tokens format), recipes for a primitive's root part, states, variants and conditions, as data; and what is generated or checked from them (a layered stylesheet for the web, resolved values for the Desktop, the contrast of declared pairs, the coverage of a theme).",
   "keywords": [
     "valance",
@@ -56,8 +56,8 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@valancex/common": "workspace:^",
-    "@valancex/mesh-runtime": "^0.17.0",
-    "@valancex/port-web": "^0.14.0",
+    "@valancex/mesh-runtime": "^0.18.0",
+    "@valancex/port-web": "^0.15.0",
     "@valancex/valance": "workspace:^",
     "@vitest/browser-playwright": "5.0.5",
     "playwright": "1.64.1",

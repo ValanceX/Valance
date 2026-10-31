@@ -11,7 +11,7 @@ import * as Nexus from "@valancex/nexus";
 import { Effect, Exit, Schema, Scope } from "effect";
 
 /**
- * One occurrence of a component with a unit in a render, as MESH 0.18 lists it (`Render.occurrences`; MESH 0.15 to 0.17 said `instances`, each with `instance`). Written here and not imported,
+ * One occurrence of a component with a unit in a render, as MESH 0.18 lists it (`Render.occurrences`). Written here and not imported,
  * so that this package builds and runs, for an application with no units, against the MESH and NEXUS it was released with before them.
  */
 export interface UnitOccurrence {
@@ -24,8 +24,8 @@ export interface UnitOccurrence {
 /** The state the host holds for the occurrences that have changed, by the occurrence's key. */
 export type UnitStates = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 
-/** A command intent as far as units are concerned: `controlled` is in it from MESH 0.15, the occurrence from MESH 0.15 as `instance` and from MESH 0.18 as `occurrence`. */
-export type UnitIntent = Nexus.Mesh.CommandIntent & { readonly occurrence?: string; readonly instance?: string; readonly controlled?: ReadonlyArray<string> };
+/** A command intent as far as units are concerned: `controlled` and `occurrence` are in it from MESH 0.18. */
+export type UnitIntent = Nexus.Mesh.CommandIntent & { readonly occurrence?: string; readonly controlled?: ReadonlyArray<string> };
 
 /** The part of the NEXUS adapter that units use: NEXUS 0.14 has it. An older one has none, and an application without units never asks for it. */
 interface UnitsAdapter {
@@ -49,11 +49,9 @@ const adapter = (): UnitsAdapter => {
   return found as UnitsAdapter;
 };
 
-/** The occurrences a render lists: MESH 0.18's `occurrences`, or the `instances` of MESH 0.15 to 0.17 read under the new name. */
+/** The occurrences a render lists: MESH 0.18's `occurrences` (the 0.15 to 0.17 `instances` are no longer read: the peer range starts at 0.18). */
 export const occurrencesOf = (render: Nexus.Mesh.Render): ReadonlyArray<UnitOccurrence> => {
-  const listed = render as unknown as { readonly occurrences?: ReadonlyArray<UnitOccurrence>; readonly instances?: ReadonlyArray<{ readonly instance: string } & Omit<UnitOccurrence, "occurrence">> };
-
-  return listed.occurrences ?? listed.instances?.map(({ instance, ...rest }) => ({ ...rest, occurrence: instance })) ?? [];
+  return (render as unknown as { readonly occurrences?: ReadonlyArray<UnitOccurrence> }).occurrences ?? [];
 };
 
 /** A unit command's binding: the arguments, and the intent (which names the occurrence). */
@@ -164,7 +162,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
 
       return (args, intent) =>
         Effect.gen(function* () {
-          const key = intent?.occurrence ?? intent?.instance;
+          const key = intent?.occurrence;
           const known = key === undefined ? undefined : seen.get(key);
 
           if (key === undefined || known === undefined) {

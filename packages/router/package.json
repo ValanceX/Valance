@@ -1,6 +1,6 @@
 {
   "name": "@valancex/router",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Routing for VALANCE applications: route definitions with typed path and query parameters, matching conditions, guards for entering and leaving a route, programmatic navigation, and a title per route. Plugs into Web.run as the URL policy.",
   "keywords": [
     "valance",
@@ -46,18 +46,18 @@
     "prepack": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@valancex/nexus": "^0.14.0 || ^0.15.0 || ^0.16.0"
+    "@valancex/nexus": "^0.17.0"
   },
   "peerDependencies": {
-    "@valancex/valance": "^0.15.0",
+    "@valancex/valance": "^0.16.0",
     "effect": "^3.10.0"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
-    "@valancex/mesh-compiler": "^0.17.0",
-    "@valancex/mesh-runtime": "^0.17.0",
-    "@valancex/port-web": "^0.14.0",
+    "@valancex/mesh-compiler": "^0.18.0",
+    "@valancex/mesh-runtime": "^0.18.0",
+    "@valancex/port-web": "^0.15.0",
     "@valancex/valance": "workspace:^",
     "effect": "^3.10.0",
     "jsdom": "^30.1.3",
