@@ -20,3 +20,4 @@ minimumReleaseAgeExclude:
   - "@valancex/mesh-lsp@0.11.0 || 0.17.0 || 0.18.0"
 overrides:
   ignore: 7.0.12
+  "@valancex/nexus": file:./local-packs/valancex-nexus-0.18.0.tgz

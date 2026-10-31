@@ -46,7 +46,7 @@
     "prepack": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@valancex/nexus": "^0.17.0"
+    "@valancex/nexus": "^0.18.0"
   },
   "peerDependencies": {
     "@valancex/valance": "^0.16.0",

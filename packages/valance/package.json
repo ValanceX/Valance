@@ -63,7 +63,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@valancex/nexus": "^0.17.0"
+    "@valancex/nexus": "^0.18.0"
   },
   "peerDependencies": {
     "@valancex/mesh-compiler": "^0.18.0",
