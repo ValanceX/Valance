@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const root = new URL("../../../", import.meta.url);
-const page = readFileSync(new URL("docs/learn/desktop-application.md", root), "utf8");
+const page = readFileSync(new URL("docs/tutorials/03-desktop-application.md", root), "utf8");
 const lines = (text: string): ReadonlyArray<string> => text.split("\n").map((line) => line.trim());
 const blocks = [...page.matchAll(/\*\*File:\*\* `([^`]+)`\n\n```[a-z]*\n([\s\S]*?)\n```/g)].map((match) => ({ file: match[1]!, code: match[2]! }));
 
-describe("docs/learn/desktop-application.md", () => {
+describe("docs/tutorials/03-desktop-application.md", () => {
   it("has the code blocks it promises", () => {
     expect(blocks.map((block) => block.file)).toEqual([
       "examples/todo/src/screens/notFound.mprx",

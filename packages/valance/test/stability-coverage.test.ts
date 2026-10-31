@@ -1,4 +1,4 @@
-// Every public entry of every published package names each of its value exports in docs/stability.md, so no export ships without a tier.
+// Every public entry of every published package names each of its value exports in docs/reference/stability.md, so no export ships without a stability level.
 // Value exports (runtime names) are checked. A type-only export is covered by its entry's row ("and their types"), so it is not listed here.
 // An `./internal` entry is one Internal row for the whole entry (its names are unstable by design), so its subpath must be named and its names need not be.
 // The entries are read from each package.json "exports" (the source file behind each built file), never from internal modules an entry does not re-export.
@@ -25,7 +25,7 @@ const rowsFor = (page: string, id: string): string => {
 };
 const namedIn = (page: string, id: string, name: string): boolean => new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`).test(rowsFor(page, id));
 
-const stability = readFileSync(root("docs/stability.md"), "utf8");
+const stability = readFileSync(root("docs/reference/stability.md"), "utf8");
 
 const published = ["cli", "common", "router", "style", "valance"];
 
@@ -40,7 +40,7 @@ const entries = published.flatMap((dir) => {
   });
 });
 
-describe("docs/stability.md names every value export of a published entry", () => {
+describe("docs/reference/stability.md names every value export of a published entry", () => {
   it("finds the entries it checks", () => {
     expect(entries.map((entry) => entry.id)).toContain("@valancex/valance");
     expect(entries.length).toBeGreaterThanOrEqual(published.length);

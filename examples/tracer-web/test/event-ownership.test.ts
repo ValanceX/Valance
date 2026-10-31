@@ -1,4 +1,4 @@
-// Stage 36 probes, adopted in Stage 39: who owns a click-initiated command once it is admitted. Decision (docs/FINDINGS.md, Stage 39): the
+// Stage 36 probes, adopted in Stage 39: who owns a click-initiated command once it is admitted. Decision (docs/explanation/findings.md, Stage 39): the
 // APPLICATION. Closing the dispatching mount ends its follower and target; the command goes on, commits, and is rendered by the mounts that remain.
 // (Stage 36 ran these same probes against both models; the mount-owned expectations are recorded there, no longer here.)
 import type { HydrationResult } from "@valancex/port-web";

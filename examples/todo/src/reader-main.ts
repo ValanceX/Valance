@@ -1,4 +1,4 @@
-// A content site in a window, as an experiment (docs/application-model/NATIVE-VOCABULARY.md, "the content layer"): a `vlx`-style project compiled against the native vocabulary, run behind the
+// A content site in a window, as an experiment (docs/explanation/application-model/native-vocabulary.md, "the content layer"): a `vlx`-style project compiled against the native vocabulary, run behind the
 // host protocol. `node dist/reader-main.js <dir>`, where `dir` holds `content.json` and `program.json` (written by `packages/cli/test/native-content.test.ts` when `NATIVE_READER_OUT` is set).
 // What it shows: the application a `vlx` project defines runs unchanged, a link is an address the application turns into its own navigation, and the window draws the content layer.
 import { application, routes } from "@valancex/common/internal";

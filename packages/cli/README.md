@@ -1,6 +1,6 @@
 # @valancex/cli
 
-> **Pre-1.0.** Like VALANCE itself, the commands and conventions may change between minor releases; each change is in the [release notes](../../docs/releases/). The design record is [`docs/application-model/`](../../docs/application-model/).
+> **Pre-1.0.** Like VALANCE itself, the commands and conventions may change between minor releases; each change is in the [release notes](../../docs/reference/releases/). The design record is [`docs/explanation/application-model/`](../../docs/explanation/application-model/).
 
 `vlx` is the way into VALANCE: it makes an application, serves it as you edit, builds it, checks it and adds to it. The application model it runs: you write **content**, a **layout**, **components** and **styles**; `vlx dev` serves them as you edit and `vlx build` produces a website. You do not write a compiler step, a manifest, a server, a hydration script or a bundler config.
 
@@ -68,13 +68,13 @@ Without a terminal (a pipe, CI) it cannot ask, so it needs a name and a target: 
 
 ## A desktop application: `vlx init --desktop`
 
-A project has the targets whose settings file it has; `vlx init my-app --web --desktop` makes both, and `defineApp`'s `targets` gives each its templates (how it was designed and what it found: `docs/application-model/MULTI-TARGET.md` and `MULTI-TARGET-PLAN.md`). `vlx init my-app --desktop` makes the same project as for the web (Markdown in `content/`, a layout, state and commands in `src/main.ts`) with `valance.desktop.json` in place of `valance.web.json`. Its templates are written against the Desktop PORT's vocabulary (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, and the content layer: `paragraph`, `list`, `listitem`, `blockquote`, `emphasis`, …), not the web's tags: `<div>` in a desktop project is an error from `vlx check`.
+A project has the targets whose settings file it has; `vlx init my-app --web --desktop` makes both, and `defineApp`'s `targets` gives each its templates (how it was designed and what it found: `docs/explanation/application-model/multi-target.md` and `MULTI-TARGET-PLAN.md`). `vlx init my-app --desktop` makes the same project as for the web (Markdown in `content/`, a layout, state and commands in `src/main.ts`) with `valance.desktop.json` in place of `valance.web.json`. Its templates are written against the Desktop PORT's vocabulary (`column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, and the content layer: `paragraph`, `list`, `listitem`, `blockquote`, `emphasis`, …), not the web's tags: `<div>` in a desktop project is an error from `vlx check`.
 
 `vlx build` writes the engine to `dist/desktop/`: `engine.mjs` (everything bundled; run it with Node) and `mesh-runtime.wasm` beside it. The engine speaks the host protocol on stdin and stdout; the window that runs it is the Desktop PORT's (`valancex-port-desktop`). `vlx package --desktop` packs the engine into one executable (Node's single executable application, with the MESH runtime inside) and sets it beside the window program (`--window <path>`, or `VLX_WINDOW`, or `vlx-window` on the PATH) in `dist/package/<platform>/`. `--archive` also writes the package as one reproducible file, a `.tar.gz` (Linux) or a `.zip` (Windows), with its SHA-256 beside it. **Unsigned**: signing and notarization are not done by `vlx`. For another platform, `--platform win32-x64 --node <that platform's node> --window <that platform's window>`. `vlx dev` builds the engine, opens the Desktop PORT's window on it (the `vlx-window` program, installed with `cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`, found on the PATH or at `VLX_WINDOW`), and when a file changes it builds again and tells the running window to start the engine again in place (the window keeps its position and size). Closing the window ends `vlx dev`.
 
 ## Adding a target: `vlx generate target desktop`
 
-A web project becomes a project of two targets without moving anything: `vlx generate target desktop` writes `valance.desktop.json` (and `valance.web.json`, which a project needs once it has another target's), a layout of its own in `src/desktop/`, and registers it in `targets` in `src/main.ts`. The layout the project has stays the default for a target with none of its own. **The site moves**: a project of one web target builds to `dist/`, one of several to `dist/<target>/` (`dist/web/`, `dist/desktop/`), so a deploy step that serves `dist/` is pointed at `dist/web/` when the second target is added (the command says so). See `docs/application-model/MULTI-TARGET.md`.
+A web project becomes a project of two targets without moving anything: `vlx generate target desktop` writes `valance.desktop.json` (and `valance.web.json`, which a project needs once it has another target's), a layout of its own in `src/desktop/`, and registers it in `targets` in `src/main.ts`. The layout the project has stays the default for a target with none of its own. **The site moves**: a project of one web target builds to `dist/`, one of several to `dist/<target>/` (`dist/web/`, `dist/desktop/`), so a deploy step that serves `dist/` is pointed at `dist/web/` when the second target is added (the command says so). See `docs/explanation/application-model/multi-target.md`.
 
 ## Adding to an application: `vlx generate`
 
@@ -89,7 +89,7 @@ $ vlx generate component post-card          # src/post-card.mprx and src/post-ca
 
 In a terminal `dev`, `build`, `check` and `init` draw an interface with [Ink](https://github.com/vadimdemedes/ink): `check` groups mistakes by file with line, code and message; `build` shows its stages and ends with what it wrote; `dev` shows the address, whether the project is sound, the mistakes that are open (the last good build keeps serving) and the latest changes. Anywhere else (a pipe, `CI`, `TERM=dumb`, `check --json`, or `--plain`) they print the plain text they always have, so scripts and editors read the same output as before.
 
-Try it locally: [`docs/application-model/TRY-IT.md`](../../docs/application-model/TRY-IT.md). The worked example is [`examples/docs-app`](../../examples/docs-app): about 200 lines of authored files.
+Try it locally: [`docs/explanation/application-model/try-it.md`](../../docs/explanation/application-model/try-it.md). The worked example is [`examples/docs-app`](../../examples/docs-app): about 200 lines of authored files.
 
 ## How do I create an application, run it, and change a page?
 
@@ -153,7 +153,7 @@ Templates are MPRX. Conditional and repeated parts are blocks: `{#if cond}…{:e
 | `prev`, `next` | `{ href, label }`, empty `href` when there is none |
 | `viewport` | How much room the page has: `"compact"` (under 600 px), `"medium"` (600 to 839) or `"expanded"` (840 and up), kept current as the window changes. `{#if viewport == "compact"}` chooses markup for a phone. The server renders `expanded`; the browser corrects it as soon as it starts. |
 
-Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `paragraph`, `blockquote`, `list`, `olist`, `listitem`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), `toggle`, `checkbox`, `textfield`, `radiogroup`, `radio`, `label`, `status`, `alert` (the full list, with roles and names, is [the primitives](../../docs/use/primitives.md)), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). The tags `para`, `item` and `quote` are now `paragraph`, `listitem` and `blockquote` (the ARIA names, which the Desktop already used); a template that writes the old one is told the new one. A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
+Tags you may use: `shell` (`class`, `theme`), `div`, `header`, `footer`, `nav` (`class`, `label`), `aside`, `section`, `article`, `main` (`id`, `tabindex`), `h1`–`h3` (`id`), `paragraph`, `blockquote`, `list`, `olist`, `listitem`, `pre`, `code`, `strong`, `em`, `span`, `image`, `a` (`href`), `link` (`href`, `class`, `current`), `button` (`class`, `pressed`, `on.click`), `toggle`, `checkbox`, `textfield`, `radiogroup`, `radio`, `label`, `status`, `alert` (the full list, with roles and names, is [the primitives](../../docs/reference/primitives.md)), plus your components and the built-ins (`blocks`, `block`, `heading`, `list-block`, `list-items`, `runs`, `inline`). The tags `para`, `item` and `quote` are now `paragraph`, `listitem` and `blockquote` (the ARIA names, which the Desktop already used); a template that writes the old one is told the new one. A prop a tag declares must be written wherever the tag is used; that is why there are many narrow tags rather than a few wide ones. The attribute each prop becomes is in [`src/primitives.ts`](src/primitives.ts).
 
 ## The components
 
@@ -209,7 +209,7 @@ A component places the content its caller writes inside it with `<mesh-slot />`,
 </card>
 ```
 
-The children are the caller's: `{x}` in them is the caller's `x`, never the card's. `vlx generate component` writes the single, unnamed slot for you. The rules (where a slot may be, what a fill is, the errors) are in MESH's [templates manual](https://github.com/ValanceX/Mesh/blob/main/docs/manual/templates.md#children-and-the-slot).
+The children are the caller's: `{x}` in them is the caller's `x`, never the card's. `vlx generate component` writes the single, unnamed slot for you. The rules (where a slot may be, what a fill is, the errors) are in MESH's [templates manual](https://github.com/ValanceX/Mesh/blob/main/docs/reference/templates.md#children-and-the-slot).
 
 ### Snippets as props
 
@@ -285,7 +285,7 @@ export default defineApp({
 });
 ```
 
-The framework's own names are `page`, `trail`, `cursor`, `viewport`, `colorScheme`, `canGoBack` and `canGoForward` (state a layout reads) and the commands `go`, `back`, `forward`, `resize`, `colorScheme` and `persist`; an application's own state and commands cannot take them. A text field reports `change`, `submit` (Enter) and `cancel` (Escape). `Store` and `Open` (send a person to an address outside the application: a new tab, or the system's opener) are capabilities in `@valancex/common`. How navigation is modelled across a page, a window and a phone: `docs/application-model/NAVIGATION.md`.
+The framework's own names are `page`, `trail`, `cursor`, `viewport`, `colorScheme`, `canGoBack` and `canGoForward` (state a layout reads) and the commands `go`, `back`, `forward`, `resize`, `colorScheme` and `persist`; an application's own state and commands cannot take them. A text field reports `change`, `submit` (Enter) and `cancel` (Escape). `Store` and `Open` (send a person to an address outside the application: a new tab, or the system's opener) are capabilities in `@valancex/common`. How navigation is modelled across a page, a window and a phone: `docs/explanation/application-model/navigation.md`.
 
 ## The document's title
 
@@ -378,7 +378,7 @@ A mistake leaves the last good build serving and appears in the terminal and as 
 $ pnpm add -D @valancex/mesh-lsp
 ```
 
-The VS Code extension (**VALANCE**, in [`editors/vscode`](../../editors/vscode)) starts it, highlights `.mprx`, and shows `vlx check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/guides/editor-setup.md)).
+The VS Code extension (**VALANCE**, in [`editors/vscode`](../../editors/vscode)) starts it, highlights `.mprx`, and shows `vlx check` mistakes in Markdown, config and `main.ts`. Neovim and Helix can use the same two files ([MESH's editor guide](https://github.com/ValanceX/Mesh/blob/main/docs/how-to/editor-setup.md)).
 
 ## Diagnostics
 

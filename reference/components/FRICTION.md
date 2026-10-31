@@ -1,6 +1,6 @@
 # Friction log
 
-Every place where building this repository as an outsider cost more than it should have (decision K17). The outsider rule: only the public documentation (`docs/use/libraries.md` and the pages it links) was followed; where it failed, the documentation or the product was fixed, and the fix is named here.
+Every place where building this repository as an outsider cost more than it should have (decision K17). The outsider rule: only the public documentation (`docs/how-to/libraries.md` and the pages it links) was followed; where it failed, the documentation or the product was fixed, and the fix is named here.
 
 **Severity**: 1 = a small cost, worked around in minutes. 2 = a real cost, or something an author must know that the documentation did not say. 3 = it stopped the work, or would have shipped something wrong. A 3 is fixed in the product or recorded as a decision; none stays open.
 
@@ -18,7 +18,7 @@ Every place where building this repository as an outsider cost more than it shou
 | F10 | 2 | A disclosure has no `aria-expanded` and the tabs no `tablist`/`tab`/`tabpanel` roles: the portable core has no such hooks, so the components are less accessible than their names say. The e2e test asserts what is there (pressed buttons). | Recorded as a decision (an accessibility review is deferred with the accessibility maintainer, X7); documented under "What a library cannot do yet". |
 | F11 | 2 | A theme cannot style a library component: recipes are for primitives only. A library component takes its look from what it composes. | Documented; recorded as a decision. |
 | F12 | 1 | No index in `{#each}` and no list length in a template. | Documented in "Write a component". |
-| F13 | 2 | The guide had no section on writing a component (props, events, snippets, controllable units) and none on where a theme package starts. | Fixed in `docs/use/libraries.md`. |
+| F13 | 2 | The guide had no section on writing a component (props, events, snippets, controllable units) and none on where a theme package starts. | Fixed in `docs/how-to/libraries.md`. |
 | F14 | 1 | The boundary scan flagged its own test strings and the temporary pack paths. | Fixed in the scan (strings built from parts; `local-packs/` allowed only with `ALLOW_LOCAL_PACKS=1`). |
 
 Not claimed: the Reference Gate. The two outside parties, the accessibility maintainer and the download check are deferred (X7).

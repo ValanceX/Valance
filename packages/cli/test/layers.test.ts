@@ -1,5 +1,5 @@
 // A dialog and a popover in a built application (WP6b): the application owns `open`, a dismissal is an event it answers, and the browser does the rest (a modal page, focus inside it and back to what
-// opened it, the page that does not scroll behind it). Written the way docs/use/layers.md says; the HTML it draws is judged by the Nu Html Checker and the name by the computation the standard defines.
+// opened it, the page that does not scroll behind it). Written the way docs/how-to/dialogs-and-popovers.md says; the HTML it draws is judged by the Nu Html Checker and the name by the computation the standard defines.
 import { computeAccessibleName } from "dom-accessibility-api";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it } from "vitest";

@@ -42,4 +42,4 @@ A built or deployed application depends on this package and `effect`; `@valancex
 
 Documentation: [`@valancex/cli`](../cli/README.md) (the project layout, components, state and commands).
 
-Pre-1.0: the API may change between minor releases; every change is in the [release notes](../../docs/releases/).
+Pre-1.0: the API may change between minor releases; every change is in the [release notes](../../docs/reference/releases/).

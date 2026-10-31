@@ -355,7 +355,7 @@ export interface RecorderOptions {
   /** For each view: the compiled templates in order, and the manifest text, so the header can hash them. */
   readonly programs: (view: string) => { readonly root?: string; readonly templates: ReadonlyArray<string>; readonly model: string };
   /**
-   * What not to write (Tier 2; R9, R14). Nothing is redacted by default and the header says `containsUserData` either way. A marked value is **never written**: its place holds a digest keyed
+   * What not to write (R9, R14). Nothing is redacted by default and the header says `containsUserData` either way. A marked value is **never written**: its place holds a digest keyed
    * with a random key that exists only in this recorder, so equal values have equal digests in one log and nothing else can be learned from it. The tree hashes are taken from a second render of
    * the redacted snapshot, so the log still replays. Needs `programs` to give the `root`.
    */

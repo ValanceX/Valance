@@ -8,7 +8,7 @@ Decisions (from the project owner):
 
 - **Static generation (SSG) is the primary target.** SSR is opt-in per route and is inspected and expanded later (`EXTERNALS.md` X5).
 - **Routing, a content pipeline, a static generator, a dev server and a server adapter are external dependencies**, developed later as packages (`EXTERNALS.md`). VALANCE gets *seams* now so adopting one is passing it, not re-wiring. Until then the verifier hosts stand-ins that implement the same contracts.
-- **VALANCE may re-export** those packages to simplify the API, as their own subpaths with optional peers, tree-shakable (`docs/V1_CONTRACT.md` §19).
+- **VALANCE may re-export** those packages to simplify the API, as their own subpaths with optional peers, tree-shakable (`docs/reference/v1-contract.md` §19).
 - **Per-route delivery** (`"static"` default, `"server"` opt-in) is part of the route contract from the start.
 - **Visual parity with effect.website is not the target; the capabilities are**: enough of them that a developer can compose a site like it, and others.
 

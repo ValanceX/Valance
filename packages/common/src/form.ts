@@ -8,7 +8,7 @@
 //
 // What it keeps for each field: the text typed (`value`), whether the person has left the field (`touched`), and the message a server gave it (`remote`). `dirty` and the message are worked out. An error is
 // shown for a field when it is wrong and the person has left the field once or tried to submit (stricter than Angular's dirty-or-touched and Phoenix's used-input, so the first keystroke is not an error); once
-// shown it follows the typing. A failed submit touches every field. Tier 1: the defaults are the whole interface; the options (`initial`, `message`, `required`) are Tier 2.
+// shown it follows the typing. A failed submit touches every field. The defaults are the whole interface for most forms; the options (`initial`, `message`, `required`) are for the rest.
 import { Either, Option, ParseResult, Schema, SchemaAST as AST } from "effect";
 
 import type { Derived, DeriveMaker, Field } from "./index.js";

@@ -18,11 +18,11 @@ $ pnpm lint                  # oxlint (OXC); `pnpm format` writes the style, `pn
 | `examples/` | `docs-app` (the application model), `docs-site`, `tracer-web` (the contract suite), `docs-verifier` (the friction record) |
 | `docs/` | the guides, the contract, and `application-model/` (the design record of the CLI) |
 
-To try the CLI from a clone, `pnpm link --global` in `packages/cli`; the walkthrough is in [`docs/application-model/TRY-IT.md`](docs/application-model/TRY-IT.md).
+To try the CLI from a clone, `pnpm link --global` in `packages/cli`; the walkthrough is in [`docs/explanation/application-model/try-it.md`](docs/explanation/application-model/try-it.md).
 
 ## Design north star
 
-Every public API change is held to the [design north star](docs/DESIGN_NORTH_STAR.md): progressive disclosure, three tiers, four anti-patterns. Score your change with the [scorecard](docs/NORTH_STAR_SCORECARD.md), name its tier and check it against the [review checklist](docs/DESIGN_NORTH_STAR.md#5-review-checklist-use-on-every-public-api-change).
+Every public API change is held to the [design north star](docs/explanation/design-north-star.md): progressive disclosure, three tiers, four anti-patterns. Score your change with the [scorecard](docs/explanation/north-star-scorecard.md), name its tier and check it against the [review checklist](docs/explanation/design-north-star.md#5-review-checklist-use-on-every-public-api-change).
 
 ## Windows
 
@@ -30,4 +30,4 @@ The same `pnpm` commands run in PowerShell or cmd. Git should check files out wi
 
 ## Releasing
 
-The three packages share one version and are released by one `v*` tag ([`release.yml`](.github/workflows/release.yml)): `@valancex/valance`, then `@valancex/common`, then `@valancex/cli`, each depending on the one before. It runs all of CI on the tagged commit, and a manual run without `publish` is a dry run. The steps are in the current release set under [`docs/releases/`](docs/releases/).
+The three packages share one version and are released by one `v*` tag ([`release.yml`](.github/workflows/release.yml)): `@valancex/valance`, then `@valancex/common`, then `@valancex/cli`, each depending on the one before. It runs all of CI on the tagged commit, and a manual run without `publish` is a dry run. The steps are in the current release set under [`docs/reference/releases/`](docs/reference/releases/).

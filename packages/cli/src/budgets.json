@@ -17,7 +17,7 @@
     "note": "W14: the framework's own start-up ceilings. `initial` warns above the largest reference application's JavaScript and CSS ceiling (docs-app) and fails at twice that; `runtime` is the WebAssembly runtime, the same for every application, so a growth of it fails the build of whoever upgrades."
   },
   "framework": {
-    "baseline": "docs/direction/baselines/2026-10-24-wp8-before.md",
+    "baseline": "docs/explanation/baselines/2026-10-24-wp8-before.md",
     "ceilings": [
       {
         "id": "counter.javascript",
@@ -27,7 +27,7 @@
         "baseline": 93722,
         "ceiling": 98500,
         "previousCeiling": 92400,
-        "analysis": "docs/direction/evidence/measurement/size-2026-10-24.md"
+        "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
         "id": "counter.css",
@@ -45,7 +45,7 @@
         "baseline": 183629,
         "ceiling": 192900,
         "previousCeiling": 179400,
-        "analysis": "docs/direction/evidence/measurement/size-2026-10-24.md"
+        "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
         "id": "counter.transferred",
@@ -55,7 +55,7 @@
         "baseline": 279594,
         "ceiling": 293600,
         "previousCeiling": 274100,
-        "analysis": "docs/direction/evidence/measurement/size-2026-10-24.md"
+        "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
         "id": "docsApp.javascript",
@@ -65,7 +65,7 @@
         "baseline": 98520,
         "ceiling": 103500,
         "previousCeiling": 97400,
-        "analysis": "docs/direction/evidence/measurement/size-2026-10-24.md"
+        "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
         "id": "docsApp.css",

@@ -59,7 +59,7 @@ fn the_application_has_seven_words() {
     assert_eq!(
         ours()["components"].as_object().unwrap().len(),
         7,
-        "the tutorial (docs/learn/desktop-application.md) names seven"
+        "the tutorial (docs/tutorials/03-desktop-application.md) names seven"
     );
 }
 

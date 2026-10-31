@@ -16,11 +16,11 @@ Five things, and nothing else (not an element, a class, or the order of wrappers
 
 A **recipe** (`recipes/<primitive>.json`) maps a part, a variant, a state and a condition to declarations from a closed set of properties: `background`, `text`, `border`, `radius`, `padding`, `gap`, `min-size`, `type`, `elevation`, `opacity`, `outline`, `align`. A value is a token path (or a keyword, or a number for `opacity`).
 
-## The three tiers
+## How a project is styled
 
-1. **Tier 1, nothing to write.** The default theme styles the seven primitives of the portable core on the web and on the desktop.
-2. **Tier 2, opt in.** A `theme/` directory with a `theme.json` replaces the default, whole: your token documents and recipes. `vlx theme check` says what is wrong and what each target applies; `vlx check` and `vlx build` refuse a theme with a mistake in it. `intent` and `size` on a `button` choose a variant.
-3. **Tier 3, the marked way out.** A recipe's `escape.web.css` holds CSS for a property outside the contract, for the web only; a project's own stylesheet, in no layer, wins over every layer.
+1. **With nothing written.** The default theme styles the seven primitives of the portable core on the web and on the desktop.
+2. **With a theme of its own.** A `theme/` directory with a `theme.json` replaces the default, whole: your token documents and recipes. `vlx theme check` says what is wrong and what each target applies; `vlx check` and `vlx build` refuse a theme with a mistake in it. `intent` and `size` on a `button` choose a variant.
+3. **With CSS outside the contract.** The marked way out: a recipe's `escape.web.css` holds CSS for a property outside the contract, for the web only; a project's own stylesheet, in no layer, wins over every layer.
 
 ## What is generated
 

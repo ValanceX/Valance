@@ -1,4 +1,4 @@
-// What this package may depend on, made executable (docs/CONSTRAINTS.md, C45): it composes VALANCE and the MESH compiler and bundles with Vite; it reimplements none of NEXUS, MESH or PORT,
+// What this package may depend on, made executable (docs/explanation/constraints.md, C45): it composes VALANCE and the MESH compiler and bundles with Vite; it reimplements none of NEXUS, MESH or PORT,
 // and the core knows nothing of it.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";

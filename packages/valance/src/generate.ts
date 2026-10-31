@@ -2,10 +2,10 @@
  * Generated UI (direction Bet 13; decisions G1 to G14). Provisional, and for a host that lets a model write the interface: nothing in an ordinary application, in `start` or in a built page imports it (a boundary
  * test enforces it).
  *
- * - **Tier 1**: `profile(manifest, { page })` says what a model may use; `promptOf(profile)` is the vocabulary written from that data; `generation(profile)` takes the chunks as they come (`push`) and says,
+ * - **To start**: `profile(manifest, { page })` says what a model may use; `promptOf(profile)` is the vocabulary written from that data; `generation(profile)` takes the chunks as they come (`push`) and says,
  *   after each, what is wrong and what can be drawn, and `finish()` ends the round. `previewProgram` makes a preview into a program that `admit` puts into the running application.
- * - **Tier 2**: which components and commands a profile offers, the limits, the number of correction rounds, the consent a command needs and who gives it, a log of the generation.
- * - **Tier 3**: none. A generation can only reach what the profile names; the checker's repair and limits are not options.
+ * - **To tune**, each with a default: which components and commands a profile offers, the limits, the number of correction rounds, the consent a command needs and who gives it, a log of the generation.
+ * - **No way around the check**: a generation can only reach what the profile names; the checker's repair and limits are not options.
  *
  * Mechanism stays below: the repair of a prefix and its check are MESH's (`openSession`); this module keeps the profile, the rounds, the guard and the log. It runs no model, draws nothing and starts no command.
  */
@@ -49,7 +49,7 @@ export interface Profile {
   readonly omitted: ReadonlyArray<Omission>;
 }
 
-/** The profile's tuning (Tier 2). Each has a default that is right without it. */
+/** The profile's tuning. Each has a default that is right without it. */
 export interface ProfileOptions {
   /** The component whose template is written. Default `"page"`. */
   readonly page?: string;
@@ -273,7 +273,7 @@ export type GenerationLine =
   | { readonly line: "budget"; readonly round: number; readonly after: number; readonly elapsedMs: number }
   | { readonly line: "close"; readonly round: number; readonly ok: boolean; readonly codes: ReadonlyArray<string> };
 
-/** Tuning of a generation (Tier 2). */
+/** Tuning of a generation. */
 export interface GenerationOptions {
   /** Called with each line of the record, in order. Nothing is written when it is absent. */
   readonly record?: (line: GenerationLine) => void;

@@ -2,7 +2,7 @@
 // The engine side of a native host: `Native.run` is to a window what `Web.run` is to a page. The application runs here, in JavaScript, with its state, commands and router; a renderer (a PORT, a
 // separate native process) draws the screen and reports what the person did. They talk in lines of JSON over two byte streams (the engine's stdin and stdout, or any pair). The renderer never sees a
 // command, a state or a route: only the render tree and the opaque handler identifiers in it, which is all PORT's contract gives a renderer. The protocol is specified in the Desktop PORT's
-// architecture note (github.com/ValanceX/Port, docs/architecture/2026-10-14-port-desktop.md). Node only.
+// architecture note (github.com/ValanceX/Port, docs/explanation/design-records/2026-10-14-port-desktop.md). Node only.
 import type { BoundaryValue, RenderTree } from "@valancex/mesh-runtime";
 import { Effect, Logger } from "effect";
 import { createInterface } from "node:readline";

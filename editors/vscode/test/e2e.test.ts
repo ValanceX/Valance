@@ -1,5 +1,5 @@
 // The pieces the extension connects, run for real and together: the project's own `valance` writes what the editor reads, the real `mesh-lsp` is started with exactly those settings,
-// and `vlx check --json` is run through the extension's own `run`. What is not run here is VS Code itself (see docs/application-model/EDITOR.md).
+// and `vlx check --json` is run through the extension's own `run`. What is not run here is VS Code itself (see docs/explanation/application-model/editor.md).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

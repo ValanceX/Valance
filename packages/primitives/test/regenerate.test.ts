@@ -116,7 +116,7 @@ describe("the committed table", () => {
 
 describe("the committed reference page", () => {
   it("is what the generator writes from the specifications and the realizations", () => {
-    expect(readFileSync(join(root, "..", "..", "docs", "use", "primitives.md"), "utf8")).toBe(generateDocs(loadSpecifications(), loadWeb()));
+    expect(readFileSync(join(root, "..", "..", "docs", "reference", "primitives.md"), "utf8")).toBe(generateDocs(loadSpecifications(), loadWeb()));
   });
 });
 

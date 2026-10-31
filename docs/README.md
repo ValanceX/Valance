@@ -1,44 +1,54 @@
 # VALANCE documentation
 
-VALANCE (`@valancex/valance`) is for building an interactive application whose **state lives in one place**, whose **screen is a function of that state**, and whose **only way to change anything is a command**. The same application runs in a browser, renders to HTML on a server, and runs headless in a test, because none of those is part of its definition.
+> **TL;DR:** VALANCE builds an interactive application whose state lives in one place, whose screen is a function of that state, and whose only way to change anything is a command. Start with the first tutorial; come back here when you need something specific.
 
-The documentation has three levels. Start at the first and go down only when you need to.
+## Prerequisites
 
-| Level | For | Start here |
+* Node.js and a package manager (pnpm, npm or yarn).
+* Some TypeScript. Nothing about the engines underneath is needed.
+
+---
+
+## Where to go
+
+```mermaid
+flowchart LR
+  T["Tutorials<br/>build something, in order"] --> H["How-to guides<br/>one task each"]
+  H --> R["Reference<br/>exact behavior"]
+  H --> E["Explanation<br/>why it is this way"]
+```
+
+| You want to… | Read | Start with |
 |---|---|---|
-| **1. Learn** | Understanding the model and building your first application. Uses VALANCE's own words only. | [`learn/`](learn/README.md) |
-| **2. Use** | Exact API, options, behavior, lifecycle, failure and what is *not* promised. | [`use/`](use/README.md), then the [contract](V1_CONTRACT.md) and [API stability](stability.md) |
-| **3. Understand** | Why it is built this way, and the evidence: architecture, constraints, investigation record, and the three packages underneath. | [`understand/`](understand/README.md) |
+| learn by building | [Tutorials](tutorials/README.md) | [Your first application](tutorials/01-first-application.md) |
+| get one thing done | [How-to guides](how-to/README.md) | [Async work](how-to/async-work.md) |
+| look up exactly what an API does | [Reference](reference/README.md) | [API reference](reference/api.md) |
+| understand why it works this way | [Explanation](explanation/README.md) | [What is VALANCE?](explanation/what-is-valance.md) |
 
-## I want to…
+## Common questions
 
 | I want to… | Go to |
 |---|---|
-| know what VALANCE is and what problem it solves | [What is VALANCE?](learn/what-is-valance.md) |
-| build the smallest working application | [Your first application](learn/first-application.md) |
-| wait for data, cancel it, or show loading and failure | [Async work](learn/async-work.md) |
-| run something when the application starts | [Startup work](learn/startup-work.md) |
-| draw the application, hydrate server HTML, or render on a server | [Mounting and hydration](learn/mounting-and-hydration.md) |
-| see how state, view and events fit together | [State, views and events](learn/state-views-events.md) |
-| see a whole, runnable application (links, search, titles, SSR, hydration) | [`examples/docs-site`](../examples/docs-site) |
-| do a common task (add a view, a command, a resource, URLs, server rendering) | [Common tasks](learn/README.md#common-tasks) |
-| look up exactly what an API does, and what happens when it fails | [API reference](use/README.md) |
-| know what VALANCE guarantees, and what it does not | [The contract](V1_CONTRACT.md) |
-| understand how it is implemented, and why | [Understand](understand/README.md) |
-| know the design rules every API is held to, and how the ecosystem measures up | [Design north star](DESIGN_NORTH_STAR.md), [scorecard](NORTH_STAR_SCORECARD.md), [baseline](north-star-validation-2026-10-19.md), [latest measurement](north-star-validation-2026-10-25.md) |
-| find the evidence behind a design decision | [Concept → evidence](understand/README.md#from-a-concept-to-its-evidence) |
-| install it, with the right package versions | [Installation](V1_CONTRACT.md#13-installation-and-package-surface) |
-| see what changed in a release | [`releases/`](releases/) |
-| know where VALANCE is heading, what is not built yet, and how to help | [Direction](direction/README.md) |
+| build the smallest working application | [Your first application](tutorials/01-first-application.md) |
+| see how state, views and events fit together | [State, views and events](tutorials/02-state-views-and-events.md) |
+| wait for data, cancel it, or show loading and failure | [Async work](how-to/async-work.md) |
+| draw the application, hydrate server HTML, or render on a server | [Mounting and hydration](how-to/mounting-and-hydration.md) |
+| do a common task (add a view, a command, a resource, URLs) | [Common tasks](tutorials/README.md#common-tasks) |
+| know what VALANCE guarantees, and what it does not | [The V1 contract](reference/v1-contract.md) |
+| install it, with the right package versions | [Installation](reference/v1-contract.md#13-installation-and-package-surface) |
+| see what changed in a release | [Changelog](../CHANGELOG.md) |
+| see a whole, runnable application | [`examples/docs-site`](../examples/docs-site) |
 
-## Where the files are
+<details>
+<summary><b>For maintainers: design rules, evidence and direction</b></summary>
 
-| Level | Files |
-|---|---|
-| Learn | `docs/learn/*` |
-| Use | `docs/use/README.md` (index) and `docs/V1_CONTRACT.md` (the reference itself) |
-| Understand | `docs/understand/README.md` (index), `docs/CONSTRAINTS.md`, `docs/FINDINGS.md` |
-| Releases | `docs/releases/*` |
-| Direction | `docs/direction/README.md` (the front page), `docs/direction/bets/*` (one open question each), `docs/direction/prior-art.md` (the evidence log). It describes where VALANCE is going, not what exists, so it sits beside the three levels |
+* [Design north star](explanation/design-north-star.md) and its [scorecard](explanation/north-star-scorecard.md), with the [baseline](explanation/north-star-validation-2026-10-19.md) and [latest measurement](explanation/north-star-validation-2026-10-25.md).
+* [Concept → evidence](explanation/README.md#from-a-concept-to-its-evidence): the investigation record behind each part of the contract.
+* [Direction](explanation/direction/README.md): where VALANCE is heading, what is not built yet, and how to help.
+* [Contributing](../CONTRIBUTING.md): building, testing and releasing.
 
-`V1_CONTRACT.md`, `CONSTRAINTS.md` and `FINDINGS.md` stay where they are: they are cited by name from the source, the tests and earlier releases.
+</details>
+
+## Next steps
+
+* [Your first application](tutorials/01-first-application.md): a counter, from nothing to a page that works.

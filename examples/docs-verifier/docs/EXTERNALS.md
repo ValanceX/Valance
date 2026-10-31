@@ -1,6 +1,6 @@
 # External dependencies
 
-Things the documentation site needs that are **outside VALANCE's contract** (`docs/V1_CONTRACT.md` §11, `docs/CONSTRAINTS.md`: no router, plugin registry, CLI, dev server). They are not built into VALANCE and are not built yet as packages. Each one is a package to be developed later, and each has a **seam** in VALANCE (`docs/V1_CONTRACT.md` §19) so that adopting it means passing it, not re-wiring the application.
+Things the documentation site needs that are **outside VALANCE's contract** (`docs/reference/v1-contract.md` §11, `docs/explanation/constraints.md`: no router, plugin registry, CLI, dev server). They are not built into VALANCE and are not built yet as packages. Each one is a package to be developed later, and each has a **seam** in VALANCE (`docs/reference/v1-contract.md` §19) so that adopting it means passing it, not re-wiring the application.
 
 Until a package exists, this verifier hosts a **stand-in** that implements the same contract. Graduating an external is moving the stand-in's files into a package and passing the same contract tests; the application does not change.
 
@@ -8,7 +8,7 @@ Names are provisional. Stability of every external's contract is **Provisional**
 
 ## Status after the application-model cycle (re-checked against the code, 2026-10)
 
-The cycle ([`docs/application-model/`](../../../docs/application-model/)) put an **application model and its commands** in a new private package, [`@valancex/cli`](../../../packages/cli), proved by [`examples/docs-app`](../../docs-app). It is VALANCE *tooling*, not the core: `packages/valance` is unchanged and a test pins that it does not know the package exists. The register below is the original; this table is what is true now. A capability is "implemented" here only if a public command or export uses it and a test exercises it.
+The cycle ([`docs/explanation/application-model/`](../../../docs/explanation/application-model/)) put an **application model and its commands** in a new private package, [`@valancex/cli`](../../../packages/cli), proved by [`examples/docs-app`](../../docs-app). It is VALANCE *tooling*, not the core: `packages/valance` is unchanged and a test pins that it does not know the package exists. The register below is the original; this table is what is true now. A capability is "implemented" here only if a public command or export uses it and a test exercises it.
 
 | ID | Capability | Status now | Where | Public contract it needs | Depends on | Packaging decision | Smallest proof that extraction is needed |
 |---|---|---|---|---|---|---|---|
@@ -45,7 +45,7 @@ Ownership is unchanged: behaviour is NEXUS's, render semantics MESH's, realizati
 1. **Done, no action:** the workflow for a small content application (this cycle).
 2. **Next:** make the verifier build through `vlx build`. Needs: the verifier's block kinds in the content model; a way to ship a *library* of components and tags (D4); `platform` in `defineApp` (X7); per-page payloads (X3). This is the real test of "docs-verifier is a canonical example".
 3. **Then:** `valance preview` (serve `dist/` as a host does) and the opt-in server adapter (X5).
-4. **Upstream contract requests** (smallest changes), recorded in [`docs/application-model/FINDINGS.md`](../../../docs/application-model/FINDINGS.md): optional props on primitives (D1), `mesh-if`/`mesh-switch` directly inside `mesh-case` (D2), string concatenation in MPRX (D3), a library mechanism for templates (D4), a URL that can carry a fragment (D5).
+4. **Upstream contract requests** (smallest changes), recorded in [`docs/explanation/application-model/findings.md`](../../../docs/explanation/application-model/findings.md): optional props on primitives (D1), `mesh-if`/`mesh-switch` directly inside `mesh-case` (D2), string concatenation in MPRX (D3), a library mechanism for templates (D4), a URL that can carry a fragment (D5).
 
 ## Register (original, before the cycle)
 
@@ -69,7 +69,7 @@ What it would take to turn each stand-in into a package, in what order, and what
 4. **Static first, server opt-in.** An external must work when its output is produced once at build time. Anything that needs a request is marked `delivery: "server"` and is left to X5.
 5. **No SSR assumptions leaked into the application.** No module-level mutable state, a fresh `platform` per render, no `node:*` import under `app/`, serializable state. `renderToHtml` is the only render primitive.
 
-## Seams VALANCE provides today (0.8, unreleased; `docs/V1_CONTRACT.md` §19)
+## Seams VALANCE provides today (0.8, unreleased; `docs/reference/v1-contract.md` §19)
 
 | Seam | Provided by | Tests |
 |---|---|---|

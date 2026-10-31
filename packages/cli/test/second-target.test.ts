@@ -1,6 +1,6 @@
 // What is the web's in the application model, and what is not? The project `vlx init` makes is compiled and run on a target that is not the web (a text one, test/text-target.ts), and compiled
 // against a vocabulary without the web's styling hooks. What runs unchanged is portable; what the second vocabulary rejects is the web leaking into the templates. The findings are
-// recorded in docs/application-model/PLATFORMS-HTTP-TITLES.md ("The second target").
+// recorded in docs/explanation/application-model/platforms-http-titles.md ("The second target").
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, relative } from "node:path";
