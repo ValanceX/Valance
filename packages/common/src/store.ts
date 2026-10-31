@@ -25,9 +25,9 @@ export class StoreError extends Error {
 
 export interface StoreClient {
   /** The value stored under `key`, decoded by `schema`; `undefined` when nothing is stored. */
-  readonly get: <A>(key: string, schema: Schema.Schema<A, any, never>) => Effect.Effect<A | undefined, StoreError>;
+  readonly get: <A>(key: string, schema: Schema.Codec<A, any, never>) => Effect.Effect<A | undefined, StoreError>;
   /** Stores `value` under `key`, encoded by `schema`. */
-  readonly set: <A>(key: string, schema: Schema.Schema<A, any, never>, value: A) => Effect.Effect<void, StoreError>;
+  readonly set: <A>(key: string, schema: Schema.Codec<A, any, never>, value: A) => Effect.Effect<void, StoreError>;
   /** Forgets `key`. */
   readonly remove: (key: string) => Effect.Effect<void, StoreError>;
 }
@@ -40,9 +40,8 @@ type Failure = StoreError | Nexus.Capability.CapabilityUnavailableError;
 
 const client = Nexus.Capability.require(Store) as Effect.Effect<StoreClient, Nexus.Capability.CapabilityUnavailableError, Needs>;
 
-export const get = <A>(key: string, schema: Schema.Schema<A, any, never>): Effect.Effect<A | undefined, Failure, Needs> =>
-  Effect.flatMap(client, (store) => store.get(key, schema));
-export const set = <A>(key: string, schema: Schema.Schema<A, any, never>, value: A): Effect.Effect<void, Failure, Needs> =>
+export const get = <A>(key: string, schema: Schema.Codec<A, any, never>): Effect.Effect<A | undefined, Failure, Needs> => Effect.flatMap(client, (store) => store.get(key, schema));
+export const set = <A>(key: string, schema: Schema.Codec<A, any, never>, value: A): Effect.Effect<void, Failure, Needs> =>
   Effect.flatMap(client, (store) => store.set(key, schema, value));
 export const remove = (key: string): Effect.Effect<void, Failure, Needs> => Effect.flatMap(client, (store) => store.remove(key));
 
@@ -53,13 +52,13 @@ export const checkKey = (key: string): Effect.Effect<string, StoreError> =>
   SAFE_KEY.test(key) ? Effect.succeed(key) : Effect.fail(new StoreError("Unsafe", `"${key}" cannot be a store key: use letters, digits, . _ - (at most 80 characters)`));
 
 /** Decodes stored text with `schema`: text that is not JSON, or does not fit, is `Decode`. */
-export const decodeStored = <A>(text: string, schema: Schema.Schema<A, any, never>): Effect.Effect<A, StoreError> =>
+export const decodeStored = <A>(text: string, schema: Schema.Codec<A, any, never>): Effect.Effect<A, StoreError> =>
   Effect.try({ try: () => JSON.parse(text) as unknown, catch: () => new StoreError("Decode", "what is stored is not JSON") }).pipe(
-    Effect.flatMap((json) => Schema.decodeUnknown(schema)(json).pipe(Effect.mapError(() => new StoreError("Decode", "what is stored no longer fits its type")))),
+    Effect.flatMap((json) => Schema.decodeUnknownEffect(schema)(json).pipe(Effect.mapError(() => new StoreError("Decode", "what is stored no longer fits its type")))),
   );
 
-export const encodeStored = <A>(value: A, schema: Schema.Schema<A, any, never>): Effect.Effect<string, StoreError> =>
-  Schema.encode(schema)(value).pipe(
+export const encodeStored = <A>(value: A, schema: Schema.Codec<A, any, never>): Effect.Effect<string, StoreError> =>
+  Schema.encodeEffect(schema)(value).pipe(
     Effect.mapError(() => new StoreError("Decode", "the value does not fit its type")),
     Effect.map((encoded) => JSON.stringify(encoded)),
   );

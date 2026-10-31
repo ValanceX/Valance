@@ -117,7 +117,7 @@ describe("what is derived", () => {
       primitives: {},
       scopes: { v: Schema.Struct({}) },
       commands: () => ({}),
-      context: Schema.Struct({ theme: Schema.Literal("light", "dark"), user: Schema.optional(Schema.String) }),
+      context: Schema.Struct({ theme: Schema.Literals(["light", "dark"]), user: Schema.optional(Schema.String) }),
     });
 
     expect(m.context).toEqual({ theme: { kind: "enum", values: ["light", "dark"] }, user: { kind: "optional", type: { kind: "string" } } });
@@ -137,7 +137,7 @@ describe("what is derived", () => {
         v: Schema.Struct({
           maybe: Schema.optional(Schema.String),
           orUndefined: Schema.UndefinedOr(Schema.Number),
-          mode: Schema.Literal("a", "b"),
+          mode: Schema.Literals(["a", "b"]),
           flag: Schema.Boolean,
           nested: Schema.Struct({ n: Schema.Number }),
           tags: Schema.Array(Schema.String),
@@ -163,15 +163,15 @@ describe("what is derived", () => {
 
 describe("string literals are closed sets (T7)", () => {
   const scopeOf = (fields: Schema.Struct.Fields) =>
-    manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) as unknown as Schema.Schema<any, any, never> }, commands: () => ({}) }).components["v"]!.scope;
+    manifest({ primitives: {}, scopes: { v: Schema.Struct(fields) as unknown as Schema.Codec<any, any, never> }, commands: () => ({}) }).components["v"]!.scope;
 
   it("a literal, or a union of string literals, is an enum; a number or boolean literal keeps its kind", () => {
     expect(
       scopeOf({
         one: Schema.Literal("only"),
-        tone: Schema.Literal("info", "danger"),
-        joined: Schema.Union(Schema.Literal("a"), Schema.Literal("b", "c")),
-        maybe: Schema.UndefinedOr(Schema.Literal("x", "y")),
+        tone: Schema.Literals(["info", "danger"]),
+        joined: Schema.Union([Schema.Literal("a"), Schema.Literals(["b", "c"])]),
+        maybe: Schema.UndefinedOr(Schema.Literals(["x", "y"])),
         three: Schema.Literal(3),
         yes: Schema.Literal(true),
         nothing: Schema.Null,
@@ -188,7 +188,7 @@ describe("string literals are closed sets (T7)", () => {
   });
 
   it("a union with no MESH type is a ManifestError that names the field, not a crash", () => {
-    expect(() => scopeOf({ mixed: Schema.Union(Schema.Literal("a"), Schema.Number) })).toThrow(/v\.mixed: a union of different kinds/);
+    expect(() => scopeOf({ mixed: Schema.Union([Schema.Literal("a"), Schema.Number]) })).toThrow(/v\.mixed: a union of different kinds/);
   });
 });
 
@@ -301,8 +301,8 @@ describe("what is refused instead of defaulted", () => {
       /^v\.deep\.n$/,
       /union of different kinds/,
     );
-    refuses(() => manifest({ primitives: {}, scopes: { v: Schema.Struct({ pair: Schema.Tuple(Schema.String, Schema.Number) }) }, commands: () => ({}) }), /^v\.pair$/, /tuple/);
-    refuses(() => manifest({ primitives: {}, scopes: { v: Schema.Struct({ when: Schema.DateFromSelf }) }, commands: () => ({}) }), /^v\.when$/, /no MESH type/);
+    refuses(() => manifest({ primitives: {}, scopes: { v: Schema.Struct({ pair: Schema.Tuple([Schema.String, Schema.Number]) }) }, commands: () => ({}) }), /^v\.pair$/, /tuple/);
+    refuses(() => manifest({ primitives: {}, scopes: { v: Schema.Struct({ when: Schema.Date }) }, commands: () => ({}) }), /^v\.when$/, /no MESH type/);
     refuses(() => manifest({ primitives: {}, scopes: { v: Schema.String as never }, commands: () => ({}) }), /^v$/, /Schema\.Struct/);
   });
 

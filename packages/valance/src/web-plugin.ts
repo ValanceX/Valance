@@ -188,7 +188,7 @@ export const compose = <S>(own: Own<S>, plugins: ReadonlyArray<Plugin<S>>): Comp
  * the later one's. What a platform acquires is released with the merged platform, last built first, as one platform's resources are.
  */
 export const mergePlatforms = (platforms: ReadonlyArray<Platform>): Platform =>
-  Layer.scoped(
+  Layer.effect(
     Nexus.Capability.Environment,
     Effect.gen(function* () {
       const resolutions = new Map<string, Nexus.Capability.CapabilityResolution<unknown>>();

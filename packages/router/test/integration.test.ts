@@ -52,7 +52,7 @@ const routes = [
   route("/", { name: "home", title: "Home" }),
   route("/inbox", {
     name: "inbox",
-    query: Schema.Struct({ tab: Schema.optional(Schema.Literal("all", "unread")) }),
+    query: Schema.Struct({ tab: Schema.optional(Schema.Literals(["all", "unread"])) }),
     replaceQuery: true,
     title: ({ query }) => `Inbox ${query.tab ?? "all"}`,
   }),
@@ -101,7 +101,7 @@ const page = async (start: string, user: App["user"] = "member") => {
     throw new Error(`does not compile: ${JSON.stringify(compiled.components)}`);
   }
 
-  const State = Schema.Struct({ route: Schema.Unknown, dirty: Schema.Boolean, user: Schema.Literal("guest", "member") }) as unknown as Schema.Schema<App>;
+  const State = Schema.Struct({ route: Schema.Unknown, dirty: Schema.Boolean, user: Schema.Literals(["guest", "member"]) }) as unknown as Schema.Codec<App>;
   const app = Valance.define({
     name: "router-integration",
     state: { schema: State, initial: { route: router.match(start), dirty: false, user } },

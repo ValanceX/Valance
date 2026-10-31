@@ -1,4 +1,4 @@
-import { Effect, Exit, Fiber, Schema } from "effect";
+import { Cause, Effect, Exit, Fiber, Option, Schema } from "effect";
 import { describe, expect, it, vi } from "vitest";
 
 import * as Nexus from "@valancex/nexus";
@@ -16,7 +16,7 @@ const fail = async <A>(effect: Effect.Effect<A, HttpError>): Promise<HttpError> 
     throw new Error("expected a failure");
   }
 
-  return (exit.cause as { error: HttpError }).error;
+  return Option.getOrThrow(Cause.findErrorOption(exit.cause));
 };
 
 describe("the address of a request", () => {
@@ -91,7 +91,7 @@ describe("the web client", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     await Effect.runPromise(Fiber.interrupt(fiber));
-    expect(Exit.isInterrupted(await Effect.runPromise(Fiber.await(fiber)))).toBe(true);
+    expect(Exit.hasInterrupts(await Effect.runPromise(Fiber.await(fiber)))).toBe(true);
   });
 
   it("accepts an answer with no content when the Schema is for nothing", async () => {

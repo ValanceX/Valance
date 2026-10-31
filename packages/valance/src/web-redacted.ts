@@ -5,19 +5,18 @@ import type { Schema, SchemaAST } from "effect";
 
 import type { Ambient, ApplicationDefinition } from "./index.js";
 
-const REDACTED = Symbol.for("effect/annotation/TypeConstructor");
+// Effect 4 keeps a schema's encoding on its type node, so `Redacted` and `RedactedFromValue` are both this declaration, named by its documented representation id.
+const isRedacted = (ast: SchemaAST.AST): boolean =>
+  ast._tag === "Declaration" && (ast.annotations?.["representation"] as { readonly id?: unknown } | undefined)?.id === "effect/schema/Redacted";
 
-const isRedacted = (ast: SchemaAST.AST): boolean => {
-  const own = ast._tag === "Transformation" ? ast.to : ast;
-
-  return own._tag === "Declaration" && (own.annotations[REDACTED] as { readonly _tag?: string } | undefined)?._tag === "effect/Redacted";
-};
+// A struct with a check on the whole (a filter) is not a plain struct: Effect 4 puts the check on the struct's node, where Effect 3 wrapped the struct, so it is excluded by hand.
+const isPlainStruct = (ast: SchemaAST.AST): ast is SchemaAST.Objects => ast._tag === "Objects" && ast.checks === undefined;
 
 /** The names of a state struct's top-level fields whose schema is `Schema.Redacted`, or a union with one (`NullOr(Redacted(...))`). Empty for a schema that is not a struct. */
-export const redactedFields = (schema: Schema.Schema<any, any, any>): ReadonlyArray<string> => {
+export const redactedFields = (schema: Schema.Codec<any, any, any, any>): ReadonlyArray<string> => {
   const ast = schema.ast;
 
-  if (ast._tag !== "TypeLiteral") {
+  if (!isPlainStruct(ast)) {
     return [];
   }
 
@@ -39,18 +38,14 @@ const contains = (ast: SchemaAST.AST, seen = new Set<SchemaAST.AST>()): boolean 
   switch (ast._tag) {
     case "Declaration":
       return isRedacted(ast) || ast.typeParameters.some(next);
-    case "TypeLiteral":
+    case "Objects":
       return ast.propertySignatures.some((each) => next(each.type)) || ast.indexSignatures.some((each) => next(each.type));
-    case "TupleType":
-      return ast.elements.some((each) => next(each.type)) || ast.rest.some((each) => next(each.type));
+    case "Arrays":
+      return ast.elements.some(next) || ast.rest.some(next);
     case "Union":
       return ast.types.some(next);
-    case "Refinement":
-      return next(ast.from);
-    case "Transformation":
-      return isRedacted(ast) || next(ast.from) || next(ast.to);
     case "Suspend":
-      return next(ast.f());
+      return next(ast.thunk());
     default:
       return false;
   }
@@ -60,10 +55,10 @@ const contains = (ast: SchemaAST.AST, seen = new Set<SchemaAST.AST>()): boolean 
  * The Redacted fields that cannot be masked: a Redacted below a top-level field (in a sub-struct, an array, a union with other members), or anywhere under a state schema that is not a plain
  * struct (a class, a filter, an `optionalWith` default). Each is a name, or `"(state)"` when the whole schema is not a struct. Masking is by top-level field name only.
  */
-export const unmaskableFields = (schema: Schema.Schema<any, any, any>): ReadonlyArray<string> => {
+export const unmaskableFields = (schema: Schema.Codec<any, any, any, any>): ReadonlyArray<string> => {
   const ast = schema.ast;
 
-  if (ast._tag !== "TypeLiteral") {
+  if (!isPlainStruct(ast)) {
     return contains(ast) ? ["(state)"] : [];
   }
 
@@ -81,14 +76,14 @@ export const unmaskableFields = (schema: Schema.Schema<any, any, any>): Readonly
 };
 
 /** The state without its Redacted fields: what a server may embed. */
-export const withoutRedacted = <S>(schema: Schema.Schema<S, any, any>, state: S): S => {
+export const withoutRedacted = <S>(schema: Schema.Codec<S, any, any, any>, state: S): S => {
   const hidden = redactedFields(schema);
 
   return hidden.length === 0 ? state : (Object.fromEntries(Object.entries(state as object).filter(([name]) => !hidden.includes(name))) as S);
 };
 
 /** The state a client starts from: what the server embedded, with each omitted Redacted field at its declared default. */
-export const restoreRedacted = <S>(schema: Schema.Schema<S, any, any>, initial: S, embedded: S): S => {
+export const restoreRedacted = <S>(schema: Schema.Codec<S, any, any, any>, initial: S, embedded: S): S => {
   const hidden = redactedFields(schema);
 
   return hidden.length === 0 ? embedded : ({ ...Object.fromEntries(hidden.map((name) => [name, (initial as Record<string, unknown>)[name]])), ...embedded } as S);

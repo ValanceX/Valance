@@ -5,7 +5,7 @@ import * as Valance from "@valancex/valance";
 import { redactedFields } from "@valancex/valance";
 import { History, permit } from "@valancex/router";
 import * as Nexus from "@valancex/nexus";
-import { Effect, Schema, SchemaAST, Stream } from "effect";
+import { Effect, Schema, Stream } from "effect";
 
 import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
@@ -32,8 +32,8 @@ const PageSchema = Schema.Struct({
   page: Schema.String,
   trail: Schema.Array(Schema.String),
   cursor: Schema.Number,
-  viewport: Schema.Literal("compact", "medium", "expanded"),
-  colorScheme: Schema.Literal("light", "dark"),
+  viewport: Schema.Literals(["compact", "medium", "expanded"]),
+  colorScheme: Schema.Literals(["light", "dark"]),
 });
 
 /** A mistake in `src/main.ts`, reported with what to change. */
@@ -63,15 +63,14 @@ const derivedValues = (author: DefinedApp | undefined, state: AppState): Readonl
  * The type of the context values (`defineApp`'s `context`), for the manifest's top-level `context`: each name the projection returns for the initial state, with the type the layout reads it
  * under. Absent without `context`. A name the layout does not read has no type, so it is a mistake in the definition.
  */
-export const contextSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> | undefined => {
+export const contextSchema = (author: DefinedApp | undefined): Schema.Codec<any, any, never> | undefined => {
   if (author?.context === undefined) {
     return undefined;
   }
 
   const names = Object.keys(author.context(initialState(author) as never));
-  const scope = scopeSchema(author);
-  const known = new Set(SchemaAST.getPropertySignatures(SchemaAST.typeAST(scope.ast)).map((each) => String(each.name)));
-  const unknown = names.filter((name) => !known.has(name));
+  const scope = scopeFields(author);
+  const unknown = names.filter((name) => !Object.hasOwn(scope, name));
 
   if (unknown.length > 0) {
     throw new AppDefinitionError(
@@ -79,7 +78,8 @@ export const contextSchema = (author: DefinedApp | undefined): Schema.Schema<any
     );
   }
 
-  return scope.pipe(Schema.pick(...names)) as unknown as Schema.Schema<any, any, never>;
+  // The scope's order, not the projection's: the order the manifest has always listed the context in.
+  return Schema.Struct(Object.fromEntries(Object.entries(scope).filter(([name]) => names.includes(name)))) as unknown as Schema.Codec<any, any, never>;
 };
 
 /** Checks the author's definition against the names the framework owns. */
@@ -146,24 +146,24 @@ export const ownNames = (author: DefinedApp | undefined): { readonly state: Read
   commands: Object.keys(author?.commands?.(Valance.command({} as never) as never) ?? {}),
 });
 
-/** The scope schema a layout is compiled against: the framework's names and the author's state fields. */
-export const scopeSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
+/** The fields of the scope a layout is compiled against: the framework's names, the author's state fields, and the derived values, in that order. */
+const scopeFields = (author: DefinedApp | undefined): Schema.Struct.Fields => {
   const state = stateOf(author);
-  const derived = Object.entries(derivedOf(author));
   // A Redacted field is a secret and has no MESH type: the layout does not see it (C-3).
-  const seen = state === undefined ? undefined : state.schema.pipe(Schema.omit(...redactedFields(state.schema)));
-  const base = seen === undefined ? FrameScope : (Schema.extend(FrameScope, seen) as unknown as Schema.Schema<any, any, never>);
+  const hidden = state === undefined ? [] : redactedFields(state.schema);
+  const seen = state === undefined ? {} : Object.fromEntries(Object.entries(state.schema.fields).filter(([name]) => !hidden.includes(name)));
 
-  // A derived value is a name the layout reads, with the type it was given.
-  return derived.length === 0
-    ? base
-    : (Schema.extend(base, Schema.Struct(Object.fromEntries(derived.map(([name, each]) => [name, each.schema])))) as unknown as Schema.Schema<any, any, never>);
+  // A derived value is a name the layout reads, with the type it was given. `checkDefinition` refuses a name that is two of these, so no field replaces another.
+  return { ...FrameScope.fields, ...seen, ...Object.fromEntries(Object.entries(derivedOf(author)).map(([name, each]) => [name, each.schema])) };
 };
 
-export const stateSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> => {
+/** The scope schema a layout is compiled against: the framework's names and the author's state fields. */
+export const scopeSchema = (author: DefinedApp | undefined): Schema.Codec<any, any, never> => Schema.Struct(scopeFields(author)) as unknown as Schema.Codec<any, any, never>;
+
+export const stateSchema = (author: DefinedApp | undefined): Schema.Codec<any, any, never> => {
   const state = stateOf(author);
 
-  return state === undefined ? PageSchema : (Schema.extend(PageSchema, state.schema) as unknown as Schema.Schema<any, any, never>);
+  return state === undefined ? PageSchema : (Schema.Struct({ ...PageSchema.fields, ...state.schema.fields }) as unknown as Schema.Codec<any, any, never>);
 };
 
 /**
@@ -183,7 +183,7 @@ const keepBetweenRuns = (
   const schema = Schema.Struct({
     ...Object.fromEntries(names.map((name) => [name, fields[name]!])),
     ...(navigation ? { navigation: Schema.Unknown } : {}),
-  }) as unknown as Schema.Schema<Record<string, unknown>, any, never>;
+  }) as unknown as Schema.Codec<Record<string, unknown>, any, never>;
   const update = (f: (current: any) => Effect.Effect<any>) => (state as unknown as { readonly update: (f: (current: any) => Effect.Effect<any>) => Effect.Effect<any> }).update(f);
   const pick = (current: Record<string, unknown>, keepList: boolean): Record<string, unknown> => ({
     ...Object.fromEntries(names.map((name) => [name, current[name]])),
@@ -196,7 +196,7 @@ const keepBetweenRuns = (
       const engineKeepsList = navigation
         ? yield* (Nexus.Capability.require(Navigation) as Effect.Effect<unknown, Nexus.Capability.CapabilityUnavailableError, Nexus.Capability.EnvironmentShape>).pipe(
             Effect.as(true),
-            Effect.catchAll(() => Effect.succeed(false)),
+            Effect.catch(() => Effect.succeed(false)),
           )
         : false;
 
@@ -204,7 +204,7 @@ const keepBetweenRuns = (
       const stored = yield* StoreOps.get(STORE_KEY, schema).pipe(
         Effect.map((value) => ({ store: true as const, value })),
         Effect.catchTag("CapabilityUnavailableError", () => Effect.succeed({ store: false as const, value: undefined })),
-        Effect.catchAll(() => Effect.succeed({ store: true as const, value: undefined })),
+        Effect.catch(() => Effect.succeed({ store: true as const, value: undefined })),
       );
 
       if (!stored.store) {
@@ -327,9 +327,9 @@ export const commandTable =
       ...(persisted(author).length === 0 ? {} : { persist: keepBetweenRuns(author, state, command, known) }),
       ...navigationCommands(author, state, command),
       // The window changed size: the browser tells the application, which tells the layout (`viewport`).
-      resize: command(Schema.Struct({ viewport: Schema.Literal("compact", "medium", "expanded") }), ({ viewport }, current) => ({ ...current, viewport })),
+      resize: command(Schema.Struct({ viewport: Schema.Literals(["compact", "medium", "expanded"]) }), ({ viewport }, current) => ({ ...current, viewport })),
       // The person's system changed colors: the page or the window tells the application, which tells the layout (`colorScheme`).
-      colorScheme: command(Schema.Struct({ scheme: Schema.Literal("light", "dark") }), ({ scheme }, current) => ({ ...current, colorScheme: scheme })),
+      colorScheme: command(Schema.Struct({ scheme: Schema.Literals(["light", "dark"]) }), ({ scheme }, current) => ({ ...current, colorScheme: scheme })),
       ...own,
     };
   };
@@ -365,7 +365,7 @@ export const application = (content: Content, program: Valance.Program, author?:
 
   return Valance.define({
     name: content.site.name,
-    state: { schema: stateSchema(author) as Schema.Schema<AppState>, initial: initialState(author) },
+    state: { schema: stateSchema(author) as Schema.Codec<AppState>, initial: initialState(author) },
     views: {
       layout: {
         program,

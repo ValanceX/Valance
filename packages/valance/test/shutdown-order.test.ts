@@ -14,9 +14,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isDieType(exit.cause)
-      ? `defect: ${(exit.cause.defect as Error).message}`
-      : Cause.isInterruptedOnly(exit.cause)
+    : exit.cause.reasons.length === 1 && Cause.isDieReason(exit.cause.reasons[0]!)
+      ? `defect: ${(exit.cause.reasons[0].defect as Error).message}`
+      : Cause.hasInterruptsOnly(exit.cause)
         ? "interrupted"
         : "other";
 
@@ -56,8 +56,8 @@ const rig = async (modes: Record<string, Mode>) => {
       ) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
   });
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-  const callers: Record<string, Fiber.RuntimeFiber<Exit.Exit<unknown, unknown>>> = {};
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
+  const callers: Record<string, Fiber.Fiber<Exit.Exit<unknown, unknown>>> = {};
   const exits: Record<string, string> = {};
   const admit = async (name: string) => {
     callers[name] = Effect.runFork(Effect.exit(handle.invoke(`app/${name}`, [])));

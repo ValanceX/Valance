@@ -209,7 +209,7 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
         };
       });
 
-      yield* Effect.async<void>((resume) => {
+      yield* Effect.callback<void>((resume) => {
         const lines = createInterface({ input: streams.input, crlfDelay: Infinity });
         const done = (): void => {
           lines.close();
@@ -260,10 +260,8 @@ export const serve = <S, E, R extends Valance.Ambient, V extends string>(
   );
 
 /** The engine's log, on stderr: stdout is the protocol, and a line of anything else on it would be taken for a message. */
-const toStderr = Logger.replace(
-  Logger.defaultLogger,
-  Logger.map(Logger.logfmtLogger, (line) => void process.stderr.write(`${line}\n`)),
-);
+// Effect 4 replaces the whole set of loggers, so the tracer logger, which Effect 3 left in place beside the replaced default, is named again.
+const toStderr = Logger.layer([Logger.map(Logger.formatLogFmt, (line) => void process.stderr.write(`${line}\n`)), Logger.tracerLogger]);
 
 export interface RunOptions<S, E = unknown> extends HostOptions<S, E> {
   /** Default the process's stdin and stdout. Tests and tools pass their own. */

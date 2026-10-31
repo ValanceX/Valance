@@ -8,7 +8,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import * as Valance from "../src/index.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
-const State = Schema.Struct({ count: Schema.Number, label: Schema.Literal("idle", "busy") });
+const State = Schema.Struct({ count: Schema.Number, label: Schema.Literals(["idle", "busy"]) });
 type State = typeof State.Type;
 
 const application = (start?: string) =>
@@ -32,7 +32,7 @@ const application = (start?: string) =>
 
 const boot = async (start?: string) => {
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application(start)).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application(start)).pipe(Scope.provide(scope)));
 
   return {
     handle,
@@ -85,7 +85,7 @@ describe("the no-input form of Valance.command(state)", () => {
 
     const bad = await app.exit("app/add", "five");
 
-    expect(Exit.isFailure(bad) && Cause.failureOption(bad.cause)).toMatchObject({ _tag: "Some", value: { _tag: "CommandValidationError" } });
+    expect(Exit.isFailure(bad) && Cause.findErrorOption(bad.cause)).toMatchObject({ _tag: "Some", value: { _tag: "CommandValidationError" } });
     expect((await app.state()).count).toBe(5);
     await app.close();
   });
@@ -110,7 +110,7 @@ describe("the no-input form of Valance.command(state)", () => {
             return { bare: made.bare, explicit: made.explicit };
           },
         }),
-      ).pipe(Scope.extend(scope)),
+      ).pipe(Scope.provide(scope)),
     );
     await Effect.runPromise(Scope.close(scope, Exit.void));
 

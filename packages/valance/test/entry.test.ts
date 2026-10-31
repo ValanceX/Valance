@@ -3,7 +3,7 @@
 import type { Mesh } from "@valancex/nexus";
 
 import * as Nexus from "@valancex/nexus";
-import { Cause, Clock, Effect, Exit, Fiber, FiberRef, Layer, Schema } from "effect";
+import { Cause, Clock, Context, Effect, Exit, Fiber, Layer, Schema } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import * as Valance from "../src/index.js";
@@ -14,13 +14,29 @@ type State = Schema.Schema.Type<typeof State>;
 
 // A complete Clock (sleep included) that reads `n`.
 const fixed = (n: number): Clock.Clock => {
-  const base = Clock.make();
+  const live = Clock.Clock.defaultValue();
 
-  return Object.assign(Object.create(Object.getPrototypeOf(base) as object) as Clock.Clock, base, { currentTimeMillis: Effect.succeed(n), unsafeCurrentTimeMillis: () => n });
+  return {
+    currentTimeMillis: Effect.succeed(n),
+    currentTimeMillisUnsafe: () => n,
+    currentTimeNanos: live.currentTimeNanos,
+    currentTimeNanosUnsafe: () => live.currentTimeNanosUnsafe(),
+    monotonicTimeNanos: live.monotonicTimeNanos,
+    monotonicTimeNanosUnsafe: () => live.monotonicTimeNanosUnsafe(),
+    sleep: (duration) => live.sleep(duration),
+  };
 };
 
-/** A FiberRef the application's commands read and write, to observe which direction FiberRefs flow. */
-const probe = FiberRef.unsafeMake("initial");
+/** A Context reference the application's commands read and write, to observe which direction such values flow (Effect 3's FiberRef). */
+const probe = Context.Reference("entry/probe", { defaultValue: () => "initial" });
+
+// What a FiberRef write was in Effect 3: a change to the Context of the fiber that runs it, which every later step of that fiber sees.
+const writeIntoFiber = <S>(reference: Context.Reference<S>, value: S): Effect.Effect<void> =>
+  Effect.withFiber((fiber) =>
+    Effect.sync(() => {
+      fiber.setContext(Context.add(fiber.context, reference, value));
+    }),
+  );
 
 const firstValue = (args: ReadonlyArray<Mesh.IntentArgument>): unknown => {
   const first = args[0];
@@ -43,15 +59,15 @@ const application = Valance.define({
       Effect.flatMap(Clock.currentTimeMillis, (clock) => state.update((current) => Effect.succeed({ ...current, clock }))).pipe(Effect.asVoid),
     );
     const readProbe = Nexus.Command.define("t.readProbe", Schema.Struct({}), () =>
-      Effect.flatMap(FiberRef.get(probe), (seen) => state.update((current) => Effect.succeed({ ...current, seen }))).pipe(Effect.asVoid),
+      Effect.flatMap(Effect.service(probe), (seen) => state.update((current) => Effect.succeed({ ...current, seen }))).pipe(Effect.asVoid),
     );
-    const writeProbe = Nexus.Command.define("t.writeProbe", Schema.Struct({}), () => FiberRef.set(probe, "written by the application"));
+    const writeProbe = Nexus.Command.define("t.writeProbe", Schema.Struct({}), () => writeIntoFiber(probe, "written by the application"));
 
     const hangs = Nexus.Command.define("t.hang", Schema.Struct({}), () =>
       Effect.sync(() => {
         hang.started = true;
       }).pipe(
-        Effect.zipRight(Effect.never),
+        Effect.andThen(Effect.never),
         Effect.onInterrupt(() =>
           Effect.sync(() => {
             hang.interrupted = true;
@@ -72,7 +88,7 @@ const application = Valance.define({
   },
 });
 
-const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.setClock(fixed(42)));
+const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.succeed(Clock.Clock, fixed(42)));
 
 describe("application event entry", () => {
   it("delivers an event with the caller holding no runtime: invoke, on the default Effect runtime, causes the transition", async () => {
@@ -160,7 +176,7 @@ describe("application event entry", () => {
       ),
     );
 
-    expect(Exit.isFailure(result.exit) && Cause.isFailType(result.exit.cause) && result.exit.cause.error).toMatchObject({ _tag: "CommandValidationError" });
+    expect(Exit.isFailure(result.exit) && Cause.hasFails(result.exit.cause) && Cause.squash(result.exit.cause)).toMatchObject({ _tag: "CommandValidationError" });
     expect(result.state.n).toBe(0);
   });
 
@@ -168,7 +184,7 @@ describe("application event entry", () => {
     type Entry = ReturnType<Valance.ApplicationHandle<State, never>["invoke"]>;
 
     expectTypeOf<Entry>().toEqualTypeOf<Effect.Effect<unknown, Mesh.UnmappedCommand, never>>();
-    expectTypeOf<Effect.Effect.Context<Entry>>().toEqualTypeOf<never>();
+    expectTypeOf<Effect.Services<Entry>>().toEqualTypeOf<never>();
   });
 
   it("an unmapped entry is the existing UnmappedCommand failure", async () => {
@@ -185,12 +201,12 @@ describe("application event entry", () => {
     expect(exit).toEqual(Exit.fail({ _tag: "UnmappedCommand", component: "nowhere", name: "at-all" }));
   });
 
-  it("platform services reach the command, and the command's FiberRef writes never reach the caller (NEXUS I44)", async () => {
+  it("platform services reach the command, and the command's Context reference writes never reach the caller (NEXUS I44)", async () => {
     const callerClocks: Array<number> = [];
     const callerProbe: Array<string> = [];
     const observe = Effect.gen(function* () {
       callerClocks.push(yield* Clock.currentTimeMillis);
-      callerProbe.push(yield* FiberRef.get(probe));
+      callerProbe.push(yield* Effect.service(probe));
     });
 
     const state = await Effect.runPromise(
@@ -200,7 +216,7 @@ describe("application event entry", () => {
 
           yield* observe;
           yield* running.invoke("app/readClock", []); // the platform's Clock is the application's
-          yield* running.invoke("app/writeProbe", []); // an application-side FiberRef write
+          yield* running.invoke("app/writeProbe", []); // an application-side Context reference write
           yield* observe;
           yield* running.invoke("app/readProbe", []); // ... which a later event does not see either: each event runs in the application's own context
 
@@ -216,14 +232,14 @@ describe("application event entry", () => {
     expect(state.seen).toBe("initial");
   });
 
-  it("the caller's FiberRefs at start flow into the application; later changes in the caller do not reach an event", async () => {
+  it("the caller's Context references at start flow into the application; later changes in the caller do not reach an event", async () => {
     const state = await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
-          yield* FiberRef.set(probe, "set by the caller before start");
+          yield* writeIntoFiber(probe, "set by the caller before start");
           const running = yield* Valance.start(application);
 
-          yield* FiberRef.set(probe, "set by the caller after start");
+          yield* writeIntoFiber(probe, "set by the caller after start");
           yield* running.invoke("app/readProbe", []);
 
           return yield* running.state;
@@ -239,7 +255,7 @@ describe("application event entry", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const running = yield* Valance.start(application);
-          const event = yield* Effect.fork(running.invoke("app/hang", []));
+          const event = yield* Effect.forkChild(running.invoke("app/hang", []));
 
           yield* Effect.promise(async () => {
             for (let i = 0; i < 200 && !hang.started; i += 1) {
@@ -257,7 +273,7 @@ describe("application event entry", () => {
 
           const exit = yield* Effect.exit(running.invoke("app/dies", []));
 
-          expect(Exit.isFailure(exit) && Cause.isDie(exit.cause)).toBe(true);
+          expect(Exit.isFailure(exit) && Cause.hasDies(exit.cause)).toBe(true);
         }),
       ),
     );

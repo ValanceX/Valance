@@ -12,7 +12,7 @@
 // The defaults are the safe ones: a request goes to the application's own origin (or the one `api.base` names), carries no credentials to another origin, sends and accepts JSON, is
 // bounded in time and size, and its response is *decoded by a Schema* before it can reach state. A failure says what kind it was and never what it carried.
 import * as Nexus from "@valancex/nexus";
-import { Effect, FiberRef, Schema } from "effect";
+import { Context, Effect, Schema } from "effect";
 
 import { Open, webOpen } from "./open.js";
 import { Store } from "./store.js";
@@ -31,7 +31,7 @@ export interface RequestSpec<A> {
   /** Sent as JSON. */
   readonly body?: unknown;
   /** What the answer must be. The decoded value is what the command receives; an answer that is not this is `Decode`, and nothing else gets through. */
-  readonly response: Schema.Schema<A, any, never>;
+  readonly response: Schema.Codec<A, any, never>;
   /** Milliseconds before the request is given up (`Timeout`), for each attempt. Default 15 000. */
   readonly timeoutMs?: number;
   /** Interceptors for this request alone: the innermost, the closest to the wire (see `Interceptor`). */
@@ -115,7 +115,7 @@ export const only =
   };
 
 /** The interceptors in force for the requests made inside `withInterceptors`. The client reads it for each request, so a scope reaches every request its effect makes, however deep. */
-const scope = FiberRef.unsafeMake<ReadonlyArray<Interceptor>>([]);
+const scope = Context.Reference<ReadonlyArray<Interceptor>>("@valancex/common/http/interceptors", { defaultValue: () => [] });
 
 /**
  * Runs `effect` with `interceptors` added for the requests it makes: a scope narrower than the application's. A scope inside another is inside it (the outer ones see the request first and the
@@ -124,7 +124,7 @@ const scope = FiberRef.unsafeMake<ReadonlyArray<Interceptor>>([]);
  *   work: () => withInterceptors(Http.request({ path: "/admin/users", response: Users }), bearer(...adminToken))
  */
 export const withInterceptors = <A, E, R>(effect: Effect.Effect<A, E, R>, ...interceptors: ReadonlyArray<Interceptor>): Effect.Effect<A, E, R> =>
-  Effect.locallyWith(effect, scope, (current) => [...current, ...interceptors]);
+  Effect.updateService(effect, scope, (current) => [...current, ...interceptors]);
 
 /** Whether the request goes to the origin the application's API is on (the base's, or the page's for a relative base). */
 const sameApi = (base: string, url: string): boolean => {
@@ -281,7 +281,7 @@ export const webHttp = (options: WebHttpOptions): HttpClient => {
         // Whatever the interceptors did to the request, it goes where the API is: the address is checked again as the wire gets it.
         const guarded: Transport = (final) =>
           sameApi(options.base, final.url) ? wire(final) : Effect.fail<HttpError>({ _tag: "Unsafe", reason: "an interceptor sent the request outside the API's origin" });
-        const scoped = yield* FiberRef.get(scope);
+        const scoped = yield* Effect.service(scope);
         const response = yield* chain(global, ...scoped, ...(spec.interceptors ?? []))(guarded)(request);
 
         if (response.status < 200 || response.status >= 300) {
@@ -293,7 +293,7 @@ export const webHttp = (options: WebHttpOptions): HttpClient => {
 
         const json = yield* Effect.try({ try: () => (response.text === "" ? undefined : (JSON.parse(response.text) as unknown)), catch: (): HttpError => ({ _tag: "Decode" }) });
 
-        return yield* Schema.decodeUnknown(spec.response)(json).pipe(Effect.mapError((): HttpError => ({ _tag: "Decode" })));
+        return yield* Schema.decodeUnknownEffect(spec.response)(json).pipe(Effect.mapError((): HttpError => ({ _tag: "Decode" })));
       }),
   };
 };

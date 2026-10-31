@@ -30,7 +30,7 @@ const started = async (main?: string) => {
     await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
 
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
     const state = () => Effect.runPromise(handle.state) as Promise<{ readonly page: string; readonly trail: ReadonlyArray<string>; readonly cursor: number }>;
     const run = (key: string, ...values: ReadonlyArray<unknown>) => Effect.runPromise(handle.invoke(key, values.map((value) => ({ value })) as never));
     const canGo = async () => {

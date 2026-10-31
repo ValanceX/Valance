@@ -22,7 +22,7 @@ const app = Valance.define({
 
 const run = async (key: string, args: ReadonlyArray<Mesh.IntentArgument>) => {
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
   const exit = await Effect.runPromise(Effect.exit(handle.invoke(key, args)));
   const state = await Effect.runPromise(handle.state);
 
@@ -101,7 +101,7 @@ describe("a template's call, through MESH", () => {
             move: Valance.command(state)(Schema.Struct({ from: Schema.String, to: Schema.String }), ({ from, to }, s) => ({ ...s, from, to })),
           }),
         }),
-      ).pipe(Scope.extend(scope)),
+      ).pipe(Scope.provide(scope)),
     );
     const running = runningOf(handle);
     const current = await Effect.runPromise(running.render);

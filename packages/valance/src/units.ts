@@ -8,7 +8,7 @@
  * the package's entry beyond the types a definition needs.
  */
 import * as Nexus from "@valancex/nexus";
-import { Effect, Exit, Schema, Scope } from "effect";
+import { Effect, Equal, Exit, Schema, Scope } from "effect";
 
 /**
  * One occurrence of a component with a unit in a render, as MESH 0.18 lists it (`Render.occurrences`). Written here and not imported,
@@ -77,9 +77,9 @@ export interface UnitCommand<S = any> {
 export interface Unit<S = any> {
   readonly [UNIT]: true;
   /** The state's schema: a struct of the unit's fields. */
-  readonly schema: Schema.Schema<S, any, never>;
+  readonly schema: Schema.Codec<S, any, never>;
   /** The fields, by name, with the schema and the default of each. */
-  readonly fields: Readonly<Record<string, { readonly schema: Schema.Schema<any, any, never>; readonly initial: unknown }>>;
+  readonly fields: Readonly<Record<string, { readonly schema: Schema.Codec<any, any, never>; readonly initial: unknown }>>;
   /** The fields a caller may own by writing a prop of the same name. */
   readonly controllable: ReadonlyArray<string>;
   readonly commands: Readonly<Record<string, UnitCommand<S>>>;
@@ -89,7 +89,7 @@ export const isUnit = (value: unknown): value is Unit => typeof value === "objec
 
 /** A unit occurrence the registry holds state for: its own scope, and its state in it. */
 interface Held {
-  readonly scope: Scope.CloseableScope;
+  readonly scope: Scope.Closeable;
   readonly state: Nexus.State.StateHandle<Record<string, unknown>>;
 }
 
@@ -115,7 +115,8 @@ export interface Registry {
 
 const fieldNames = (unit: Unit): ReadonlyArray<string> => Object.keys(unit.fields);
 
-const same = (left: unknown, right: unknown): boolean => JSON.stringify(left) === JSON.stringify(right);
+// Effect 4 compares plain objects and arrays by structure, so a value equals itself whatever its key order (a JSON comparison did not).
+const same = (left: unknown, right: unknown): boolean => Equal.equals(left, right);
 
 /**
  * The registry of an application's units. `deliver` runs the intent a unit's `raises` resolves to (the command table is the application's, and it is
@@ -148,7 +149,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
 
         const unit = units[component]!;
         const scope = yield* Scope.make();
-        const state = yield* Nexus.State.create(unit.schema as Schema.Schema<Record<string, unknown>>, from).pipe(Scope.extend(scope), Effect.orDie);
+        const state = yield* Nexus.State.create(unit.schema as Schema.Codec<Record<string, unknown>>, from).pipe(Scope.provide(scope), Effect.orDie);
         const made: Held = { scope, state };
 
         held.set(key, made);
@@ -181,7 +182,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
           }
 
           const given = Object.fromEntries(names.map((each, index) => [each, (args[index] as { readonly value?: unknown } | undefined)?.value]));
-          const decoded = command.input === undefined ? {} : Schema.decodeUnknownSync(command.input as unknown as Schema.Schema<any, any, never>)(given);
+          const decoded = command.input === undefined ? {} : Schema.decodeUnknownSync(command.input as unknown as Schema.Codec<any, any, never>)(given);
           const changes = command.run(basis, decoded);
           const applied = Object.fromEntries(Object.entries(changes).filter(([field, value]) => !controlled.has(field) && !same(value, base[field])));
 

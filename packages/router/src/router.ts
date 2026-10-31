@@ -2,7 +2,7 @@
 // decides whether a navigation may happen (matching conditions, guards for leaving and entering), titles a route, and offers the two commands that change where the application is.
 import * as Nexus from "@valancex/nexus";
 import type { Plugin, RouteTable } from "@valancex/valance/web/plugin";
-import { Effect, Either, Schema } from "effect";
+import { Effect, Exit, Schema } from "effect";
 
 import { runGuard } from "./guards.js";
 import { bySpecificity, buildPath, LIMITS, matchSegments, RouteDefinitionError, segmentsOf } from "./pattern.js";
@@ -139,14 +139,14 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
     return found;
   };
 
-  const decodeWith = <A>(schema: Schema.Schema<A, any> | undefined, raw: unknown, fallback: A): A | undefined => {
+  const decodeWith = <A>(schema: Schema.Codec<A, any> | undefined, raw: unknown, fallback: A): A | undefined => {
     if (schema === undefined) {
       return fallback;
     }
 
-    const decoded = Schema.decodeUnknownEither(schema)(raw);
+    const decoded = Schema.decodeUnknownExit(schema)(raw);
 
-    return Either.isRight(decoded) && jsonSafe(decoded.right) ? decoded.right : undefined;
+    return Exit.isSuccess(decoded) && jsonSafe(decoded.value) ? decoded.value : undefined;
   };
 
   /** The state for a route's decoded parameters and query, following its `redirectTo`, or `undefined` when it cannot be built. */
@@ -191,8 +191,8 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
         continue;
       }
 
-      const params = decodeWith(candidate.config.params as Schema.Schema<Record<string, unknown>, any> | undefined, values, { ...values });
-      const decodedQuery = decodeWith(candidate.config.query as Schema.Schema<Record<string, unknown>, any> | undefined, query, {});
+      const params = decodeWith(candidate.config.params as Schema.Codec<Record<string, unknown>, any> | undefined, values, { ...values });
+      const decodedQuery = decodeWith(candidate.config.query as Schema.Codec<Record<string, unknown>, any> | undefined, query, {});
 
       if (params === undefined || decodedQuery === undefined) {
         continue;
@@ -217,18 +217,18 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
     return matchUrl(url)?.state ?? notFoundState(url);
   };
 
-  const encodeWith = (schema: Schema.Schema<any, any> | undefined, value: unknown, what: string, route: string): Record<string, unknown> => {
+  const encodeWith = (schema: Schema.Codec<any, any> | undefined, value: unknown, what: string, route: string): Record<string, unknown> => {
     if (schema === undefined) {
       return { ...(value as Record<string, unknown>) };
     }
 
-    const encoded = Schema.encodeUnknownEither(schema)(value);
+    const encoded = Schema.encodeUnknownExit(schema)(value);
 
-    if (Either.isLeft(encoded)) {
+    if (Exit.isFailure(encoded)) {
       throw new RouteDefinitionError(`the ${what} for route "${route}" do not fit its Schema`);
     }
 
-    return encoded.right as Record<string, unknown>;
+    return encoded.value as Record<string, unknown>;
   };
 
   /** The address for a route and its decoded parameters and query: `href(message, { id: 42 }, { tab: "unread" })` is `/inbox/42?tab=unread`. */

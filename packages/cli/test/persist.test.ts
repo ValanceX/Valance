@@ -72,7 +72,7 @@ const running = async <A>(
   const scope = await Effect.runPromise(Scope.make());
 
   try {
-    const handle = await Effect.runPromise(Valance.start(app, area === undefined ? {} : { platform: storePlatform(webStore("Test", area)) }).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app, area === undefined ? {} : { platform: storePlatform(webStore("Test", area)) }).pipe(Scope.provide(scope)));
 
     return await use(handle);
   } finally {

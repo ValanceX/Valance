@@ -13,7 +13,7 @@ const app = (state: string): string =>
 import { Redacted, Schema } from "effect";
 
 export default defineApp({
-  state: { schema: Schema.Struct({ token: Schema.RedactedFromSelf(Schema.String) }), initial: ${state} },
+  state: { schema: Schema.Struct({ token: Schema.Redacted(Schema.String) }), initial: ${state} },
 });
 `,
   });
@@ -33,7 +33,7 @@ describe("Redacted state fields", () => {
       "src/main.ts": `import { defineApp } from "@valancex/common";
 import { Redacted, Schema } from "effect";
 
-export default defineApp({ state: { schema: Schema.Struct({ auth: Schema.Struct({ token: Schema.RedactedFromSelf(Schema.String) }) }), initial: { auth: { token: Redacted.make("t") } } } });
+export default defineApp({ state: { schema: Schema.Struct({ auth: Schema.Struct({ token: Schema.Redacted(Schema.String) }) }), initial: { auth: { token: Redacted.make("t") } } } });
 `,
     });
 
@@ -47,7 +47,7 @@ export default defineApp({ state: { schema: Schema.Struct({ auth: Schema.Struct(
 import { Redacted, Schema } from "effect";
 import layout from "./layout.mprx";
 
-export default defineApp({ layout: component(layout), state: { schema: Schema.Struct({ token: Schema.RedactedFromSelf(Schema.String) }), initial: { token: Redacted.make("t") } } });
+export default defineApp({ layout: component(layout), state: { schema: Schema.Struct({ token: Schema.Redacted(Schema.String) }), initial: { token: Redacted.make("t") } } });
 `,
       "src/layout.mprx": `<shell class="x" theme="light">\n<text class="t">{token}</text>\n</shell>`,
     });

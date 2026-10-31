@@ -21,5 +21,5 @@ export const runGuard = <S>(guard: Guard<S>, context: GuardContext<S>): Effect.E
     return Effect.isEffect(answer) ? (answer as Effect.Effect<GuardResult, unknown>) : Effect.tryPromise(async () => answer as GuardResult | Promise<GuardResult>);
   }).pipe(
     Effect.map((answer): GuardResult => (isRedirect(answer) ? answer : answer === true)),
-    Effect.catchAllCause((cause) => Effect.logError("route guard failed", cause).pipe(Effect.as(false as GuardResult))),
+    Effect.catchCause((cause) => Effect.logError("route guard failed", cause).pipe(Effect.as(false as GuardResult))),
   );

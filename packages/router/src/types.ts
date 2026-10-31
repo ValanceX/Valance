@@ -13,12 +13,12 @@ export interface RouteState {
   readonly replace?: boolean;
 }
 
-export const RouteState: Schema.Schema<RouteState> = Schema.Struct({
+export const RouteState: Schema.Codec<RouteState> = Schema.Struct({
   name: Schema.String,
-  params: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-  query: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  params: Schema.Record(Schema.String, Schema.Unknown),
+  query: Schema.Record(Schema.String, Schema.Unknown),
   replace: Schema.optional(Schema.Boolean),
-}) as unknown as Schema.Schema<RouteState>;
+}) as unknown as Schema.Codec<RouteState>;
 
 /**
  * Where a navigation came from. `popstate`: the browser moved through its history on its own. `history`: the application moves along a list it keeps itself (Back and Forward on a target that

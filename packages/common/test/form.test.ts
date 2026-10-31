@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest";
 import { Form } from "../src/index.js";
 
 const Signup = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(2)).annotations({ title: "Name", message: () => "Enter at least 2 characters" }),
-  age: Schema.NumberFromString.pipe(Schema.int(), Schema.between(18, 120)).annotations({ title: "Age", message: () => "Enter a whole number from 18 to 120" }),
-  plan: Schema.Literal("free", "pro").annotations({ title: "Plan" }),
-  accept: Schema.Literal(true).annotations({ title: "I accept the terms", message: () => "You must accept the terms" }),
+  name: Schema.String.check(Schema.isMinLength(2)).annotate({ title: "Name", message: "Enter at least 2 characters" }),
+  age: Schema.NumberFromString.check(Schema.isInt(), Schema.isBetween({ minimum: 18, maximum: 120 })).annotate({ title: "Age", message: "Enter a whole number from 18 to 120" }),
+  plan: Schema.Literals(["free", "pro"]).annotate({ title: "Plan" }),
+  accept: Schema.Literal(true).annotate({ title: "I accept the terms", message: "You must accept the terms" }),
 });
 const signup = Form.make(Signup, { initial: { plan: "free" } });
 
@@ -38,10 +38,10 @@ describe("what the schema says about its fields", () => {
   });
 
   it("changes with the schema and nothing else: one edit of the schema moves the constraint, the message the form gives and what it accepts", () => {
-    const stricter = Form.make(Schema.Struct({ name: Schema.String.pipe(Schema.minLength(5)).annotations({ title: "Name" }) }), {
+    const stricter = Form.make(Schema.Struct({ name: Schema.String.check(Schema.isMinLength(5)).annotate({ title: "Name" }) }), {
       message: ({ params }) => `at least ${String(params["minLength"])} please`,
     });
-    const looser = Form.make(Schema.Struct({ name: Schema.String.pipe(Schema.minLength(1)).annotations({ title: "Name" }) }), {
+    const looser = Form.make(Schema.Struct({ name: Schema.String.check(Schema.isMinLength(1)).annotate({ title: "Name" }) }), {
       message: ({ params }) => `at least ${String(params["minLength"])} please`,
     });
     const state = (form: typeof stricter) => form.blur(form.edit(form.initial, "name", "abc"), "name");
@@ -55,16 +55,14 @@ describe("what the schema says about its fields", () => {
 
   it("is refused at the declaration when a field has no title, naming the field", () => {
     expect(() => Form.make(Schema.Struct({ name: Schema.String }))).toThrow(/field "name" has no title/);
-    expect(() => Form.make(Schema.Struct({ a: Schema.String.annotations({ title: "A" }), b: Schema.Array(Schema.String).annotations({ title: "B" }) }))).toThrow(
-      /field "b" is a list/,
-    );
+    expect(() => Form.make(Schema.Struct({ a: Schema.String.annotate({ title: "A" }), b: Schema.Array(Schema.String).annotate({ title: "B" }) }))).toThrow(/field "b" is a list/);
   });
 
   it("reads a nested record as dotted names, and an optional field as not required", () => {
     const nested = Form.make(
       Schema.Struct({
-        address: Schema.Struct({ zip: Schema.String.pipe(Schema.pattern(/^\d{5}$/)).annotations({ title: "Zip" }) }),
-        nick: Schema.optional(Schema.String.pipe(Schema.maxLength(5))).annotations({ title: "Nickname" }),
+        address: Schema.Struct({ zip: Schema.String.check(Schema.isPattern(/^\d{5}$/)).annotate({ title: "Zip" }) }),
+        nick: Schema.optional(Schema.String.check(Schema.isMaxLength(5))).annotate({ title: "Nickname" }),
       }),
     );
 
@@ -128,7 +126,7 @@ describe("one message per field, in the author's words (F6, F15)", () => {
 
   it("uses the application's words for a field with no message of its own, told the check and its parameters", () => {
     const told: Array<Form.Issue> = [];
-    const form = Form.make(Schema.Struct({ code: Schema.String.pipe(Schema.minLength(3)).annotations({ title: "Code" }) }), {
+    const form = Form.make(Schema.Struct({ code: Schema.String.check(Schema.isMinLength(3)).annotate({ title: "Code" }) }), {
       message: (issue) => (told.push(issue), `translated:${issue.code}:${String(issue.params["minLength"])}`),
     });
     const state = form.blur(form.edit(form.initial, "code", "ab"), "code");
@@ -139,7 +137,7 @@ describe("one message per field, in the author's words (F6, F15)", () => {
 
   it("says which constraints have no message of their own, for the author", () => {
     expect(signup.warnings).toEqual([expect.stringContaining("plan")].slice(0, 0));
-    expect(Form.make(Schema.Struct({ code: Schema.String.pipe(Schema.minLength(3)).annotations({ title: "Code" }) })).warnings).toEqual([
+    expect(Form.make(Schema.Struct({ code: Schema.String.check(Schema.isMinLength(3)).annotate({ title: "Code" }) })).warnings).toEqual([
       expect.stringContaining("code: its constraints (minLength)"),
     ]);
   });
@@ -147,8 +145,8 @@ describe("one message per field, in the author's words (F6, F15)", () => {
 
 describe("secrets (F14, F16)", () => {
   const Login = Schema.Struct({
-    user: Schema.String.annotations({ title: "User" }),
-    password: Schema.Redacted(Schema.String.pipe(Schema.minLength(8))).annotations({ title: "Password" }),
+    user: Schema.String.annotate({ title: "User" }),
+    password: Schema.RedactedFromValue(Schema.String.check(Schema.isMinLength(8))).annotate({ title: "Password" }),
   });
   const login = Form.make(Login);
 
@@ -188,9 +186,9 @@ describe("what a server says (F8)", () => {
 
 describe("a cross-field rule (F12)", () => {
   const Passwords = Schema.Struct({
-    password: Schema.String.pipe(Schema.minLength(2)).annotations({ title: "Password" }),
-    confirm: Schema.String.annotations({ title: "Confirm" }),
-  }).pipe(Schema.filter((value) => (value.password === value.confirm ? undefined : { path: ["confirm"], message: "Passwords must match" })));
+    password: Schema.String.check(Schema.isMinLength(2)).annotate({ title: "Password" }),
+    confirm: Schema.String.annotate({ title: "Confirm" }),
+  }).check(Schema.makeFilter((value) => (value.password === value.confirm ? undefined : { path: ["confirm"], issue: "Passwords must match" })));
   const form = Form.make(Passwords);
 
   it("is shown on the later field, once the rest is right", () => {

@@ -44,9 +44,9 @@ export const FrameScope = Schema.Struct({
   hasToc: Schema.Boolean,
   toc: Schema.Array(Schema.Struct({ id: Schema.String, href: Schema.String, label: Schema.String, level: Schema.Number })),
   /** How much room the page has: `"compact"`, `"medium"` or `"expanded"` (see `Viewport`). `{#if viewport == "compact"}` chooses a layout for a phone. The server renders `expanded`; the browser corrects it after it starts. */
-  viewport: Schema.Literal("compact", "medium", "expanded"),
+  viewport: Schema.Literals(["compact", "medium", "expanded"]),
   /** The colors the person's system asks for: `"light"` or `"dark"`. `theme={theme == "system" ? colorScheme : theme}` lets an application offer "follow the system" beside its own choices. The server renders `light`; the page corrects it after it starts. */
-  colorScheme: Schema.Literal("light", "dark"),
+  colorScheme: Schema.Literals(["light", "dark"]),
   /** Whether there is a page before this one in the trail (`back()` goes to it). `disabled={!canGoBack}` greys a Back button. */
   canGoBack: Schema.Boolean,
   /** Whether there is a page after this one in the trail (`forward()` goes to it), as there is after a `back()`. */

@@ -14,7 +14,7 @@ interface App {
 const home = route("/", { name: "home", title: "Home" });
 const inbox = route("/inbox", {
   name: "inbox",
-  query: Schema.Struct({ tab: Schema.optional(Schema.Literal("all", "unread")), q: Schema.optional(Schema.String), tag: Schema.optional(Schema.Array(Schema.String)) }),
+  query: Schema.Struct({ tab: Schema.optional(Schema.Literals(["all", "unread"])), q: Schema.optional(Schema.String), tag: Schema.optional(Schema.Array(Schema.String)) }),
   replaceQuery: true,
   title: ({ query }) => (query.tab === "unread" ? "Unread" : "Inbox"),
 });

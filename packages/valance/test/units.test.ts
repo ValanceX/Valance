@@ -170,13 +170,13 @@ const clicks = (render: { readonly tree: unknown }): ReadonlyArray<string> => {
 const open = async (page: string, units = true) => {
   const scope = await Effect.runPromise(Scope.make());
   const base = application(await compile(page));
-  const handle = await Effect.runPromise(Valance.start(units ? base : (({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(units ? base : (({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.provide(scope)));
   const running = runningOf(handle);
   const seen: Array<{
     readonly render: { readonly tree: unknown; readonly occurrences: ReadonlyArray<{ readonly occurrence: string; readonly state: Record<string, unknown> }> };
   }> = [];
 
-  Effect.runFork(Stream.runForEach(running.values, (viewed) => Effect.sync(() => void seen.push(viewed as never))).pipe(Scope.extend(scope)));
+  Effect.runFork(Stream.runForEach(running.values, (viewed) => Effect.sync(() => void seen.push(viewed as never))).pipe(Scope.provide(scope)));
 
   const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 
@@ -231,7 +231,7 @@ describe.skipIf(!supported)("the state of one occurrence", () => {
   it("is shown to fail without the feature: an application that does not register the units does not start, for the commands nothing binds", async () => {
     const scope = await Effect.runPromise(Scope.make());
     const base = application(await compile(KEYED));
-    const started = await Effect.runPromise(Effect.exit(Valance.start((({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.extend(scope))));
+    const started = await Effect.runPromise(Effect.exit(Valance.start((({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.provide(scope))));
 
     expect(Exit.isFailure(started)).toBe(true);
     expect(JSON.stringify(started)).toContain("ConformanceViolation");

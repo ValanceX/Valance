@@ -369,7 +369,7 @@ describe("a component's contract: declared once, in types, where it is defined",
   });
 
   it("reports a schema with no model type at the declaration, not as a crash", async () => {
-    const main = entry({ badge: "{ props: { label: Schema.String, count: Schema.Union(Schema.String, Schema.Number) }, events: { close: Schema.Void } }" }, COMMANDS);
+    const main = entry({ badge: "{ props: { label: Schema.String, count: Schema.Union([Schema.String, Schema.Number]) }, events: { close: Schema.Void } }" }, COMMANDS);
     const found = (await check(project({ ...files, "src/main.ts": main }))).diagnostics;
 
     expect(found).toHaveLength(1);
@@ -394,7 +394,7 @@ describe("state declared field by field", () => {
   it("builds the schema and the initial value from the fields, which a layout reads and a command changes", async () => {
     const main = entry(
       {},
-      '  state: { count: field(Schema.Number, 0), theme: field(Schema.Literal("light", "dark"), "light") },\n  commands: (command) => ({ bump: command((state) => ({ ...state, count: state.count + 1 })) }),\n',
+      '  state: { count: field(Schema.Number, 0), theme: field(Schema.Literals(["light", "dark"]), "light") },\n  commands: (command) => ({ bump: command((state) => ({ ...state, count: state.count + 1 })) }),\n',
     );
     const root = project(files(main));
 
@@ -436,7 +436,7 @@ describe("state declared field by field", () => {
   });
 
   it("reports a state field the model cannot hold at the field, not as a crash", async () => {
-    const main = entry({}, "  state: { when: field(Schema.DateFromSelf, new Date()) },\n");
+    const main = entry({}, "  state: { when: field(Schema.Date, new Date()) },\n");
     const found = (await check(project({ ...BASIC, "src/main.ts": main, "src/layout.mprx": '<shell class="x" theme="light"><paragraph class="y">x</paragraph></shell>' })))
       .diagnostics;
 

@@ -22,7 +22,7 @@ export interface Node {
   /** The interface the component declares: present when it declares one (an omitted side is none), absent when its contract is inferred from the template and where it is used. */
   readonly interface?: {
     readonly props: Readonly<Record<string, PropDeclaration>>;
-    readonly events: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+    readonly events: Readonly<Record<string, Schema.Codec<any, any, never>>>;
     /** The prop that is the component's accessible name, if it declares one. */
     readonly name?: string;
     /** The state and commands of one occurrence of the component, if it has any. */

@@ -21,7 +21,7 @@
   "author": "Jack Miller <jackmiller0899@gmail.com>",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.19"
   },
   "sideEffects": false,
   "exports": {

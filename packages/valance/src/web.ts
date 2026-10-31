@@ -16,7 +16,7 @@ import { event } from "./web-payload.js";
 import { restoreRedacted } from "./web-redacted.js";
 import { applyHead, cleanTitle, compose } from "./web-plugin.js";
 import type { GuardResult, HeadTags, Navigation, Plugin } from "./web-plugin.js";
-import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
+import { Cause, Effect, Exit, Fiber, Queue, Scope, Stream } from "effect";
 
 export type { HydrationResult, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 export { attribute, booleanAttribute, controlled, controlledBoolean, property, textProperty } from "@valancex/port-web";
@@ -146,7 +146,7 @@ const permitted = <S>(guard: NonNullable<HistoryOptions<S>["guard"]>, navigation
         return undefined;
       }
     }),
-    Effect.catchAllCause((cause) => Effect.logError("navigation guard failed", cause).pipe(Effect.as(undefined))),
+    Effect.catchCause((cause) => Effect.logError("navigation guard failed", cause).pipe(Effect.as(undefined))),
   );
 
 /**
@@ -225,7 +225,16 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         ? Effect.void
         : Effect.try(() => {
             options.onNavigated?.(navigation);
-          }).pipe(Effect.catchAllCause((cause) => Effect.logError("navigation hook failed", cause)));
+          }).pipe(Effect.catchCause((cause) => Effect.logError("navigation hook failed", cause)));
+
+    // The baseline is the state `history` starts with, read now: Effect 4 runs the follower (and its subscription) only after `history` returns, so a navigation made at once would
+    // otherwise be taken for the baseline and never written. A defect in `urlOf` leaves it unset, and the follower's first state is the baseline, as before.
+    yield* Effect.flatMap(running.state, (state) =>
+      Effect.sync(() => {
+        last = options.urlOf(state);
+        previous = state;
+      }),
+    ).pipe(Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)));
 
     const follower = yield* Stream.runForEach(
       Stream.merge(
@@ -286,7 +295,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
                 if (options.head !== undefined) {
                   applyHead(win.document, options.head(event.state));
                 }
-              }).pipe(Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause)));
+              }).pipe(Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)));
 
               if (landed !== undefined) {
                 yield* announce({ kind: "link", url: landed });
@@ -331,7 +340,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
               // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
               yield* running
                 .invoke(navigateKey, [{ value: options.stateOf(destination) }])
-                .pipe(Effect.catchAllCause((cause) => Effect.logError("popstate navigation failed", cause)));
+                .pipe(Effect.catchCause((cause) => Effect.logError("popstate navigation failed", cause)));
               // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
               last = options.urlOf(yield* running.state);
               yield* announce({ kind: "popstate", url: destination });
@@ -339,7 +348,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         ).pipe(
           // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
           // It never ends the follower, which would silently stop every later URL write; the baseline stays where it was.
-          Effect.catchAllCause((cause) => Effect.logError("history synchronization failed", cause)),
+          Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)),
         ),
     ).pipe(Effect.forkIn(scope));
 
@@ -350,7 +359,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         return;
       }
 
-      Queue.unsafeOffer(popped, { href: win.location.href, entry: entryOf(win.history.state) });
+      Queue.offerUnsafe(popped, { href: win.location.href, entry: entryOf(win.history.state) });
     };
 
     win.addEventListener("popstate", onPopState);
@@ -401,11 +410,11 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
               }
             }),
           ),
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.sync(() => {
               top = false;
               arrived = undefined;
-            }).pipe(Effect.zipRight(Effect.logError("link navigation failed", cause))),
+            }).pipe(Effect.andThen(Effect.logError("link navigation failed", cause))),
           ),
           Effect.forkIn(scope),
         ),
@@ -527,14 +536,14 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
 
     return { handle, mounted };
   });
-  const exit = await Effect.runPromiseExit(Scope.extend(startup, scope));
+  const exit = await Effect.runPromiseExit(Scope.provide(startup, scope));
 
   if (Exit.isFailure(exit)) {
     // What `start` and the presentation had already acquired belongs to this lifetime: release it, then report the startup failure itself (a failure
     // to release is a second, later fact, and does not replace it).
     await Effect.runPromiseExit(Scope.close(scope, exit));
 
-    throw Option.getOrElse(Cause.failureOption(exit.cause), () => Cause.squash(exit.cause));
+    throw Cause.squash(exit.cause);
   }
 
   let stopping: Promise<void> | undefined;

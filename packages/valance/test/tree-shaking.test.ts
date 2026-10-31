@@ -76,8 +76,11 @@ describe("the substrate keeps the promise those tests rely on", () => {
   const sideEffects = (name: string): unknown =>
     (JSON.parse(readFileSync(fileURLToPath(new URL(`../node_modules/${name}/package.json`, import.meta.url)), "utf8")) as { sideEffects?: unknown }).sideEffects;
 
+  // Effect 4 lists one module with an effect: `SchemaJITCompiler/enable`, which a program imports only to opt in to the schema compiler. Nothing here imports it, so the promise holds.
+  const optIn = (each: unknown): boolean => typeof each === "string" && /\/schema\/SchemaJITCompiler\/enable\.(js|ts)$/.test(each);
+
   it.each(["effect", "@valancex/mesh-runtime", "@valancex/port-web"])("%s declares that importing it does nothing", (name) => {
-    expect(sideEffects(name) === false || (Array.isArray(sideEffects(name)) && (sideEffects(name) as Array<unknown>).length === 0)).toBe(true);
+    expect(sideEffects(name) === false || (Array.isArray(sideEffects(name)) && (sideEffects(name) as Array<unknown>).every(optIn))).toBe(true);
   });
 
   // NEXUS 0.12.0 and 0.12.1 did not declare it; 0.12.2 and later do. The workspace resolves 0.12.3 since the MESH runtime ranges were aligned (W20), so the marker this test carried is gone.

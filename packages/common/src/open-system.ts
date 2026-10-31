@@ -28,7 +28,7 @@ export const systemOpen = (
 
     const { program, args } = openerFor(address, platform);
 
-    return Effect.async<void, OpenError>((resume) => {
+    return Effect.callback<void, OpenError>((resume) => {
       try {
         const child = spawn(program, args);
 

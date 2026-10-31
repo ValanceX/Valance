@@ -43,7 +43,7 @@ const boot = async () => {
     }),
   });
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.provide(scope)));
   const seen: Array<{ kind: string; tree: { root: { children?: Array<{ events?: Record<string, string>; key: string }>; key: string } } }> = [];
   let report: Valance.Report = () => undefined;
 
@@ -56,7 +56,7 @@ const boot = async () => {
         update: (tree) => void seen.push({ kind: "update", tree: tree as never }),
         unmount: () => undefined,
       };
-    }).pipe(Scope.extend(scope)),
+    }).pipe(Scope.provide(scope)),
   );
 
   return { handle, seen, scope, report: (handler: string) => report(handler), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };

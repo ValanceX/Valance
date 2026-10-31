@@ -12,7 +12,7 @@ export default defineApp({
   // The application's own state, beyond "which page is shown": each field is its type and its default, together. A field is a name the layout can read (`theme`), and the commands below are
   // names it can run (`toggleTheme()`).
   state: {
-    theme: field(Schema.Literal("light", "dark"), "light"),
+    theme: field(Schema.Literals(["light", "dark"]), "light"),
   },
   commands: (command) => ({
     toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),

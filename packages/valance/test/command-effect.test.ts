@@ -38,7 +38,7 @@ const app = Valance.define({
 
 const boot = async () => {
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
 
   return {
     state: () => Effect.runPromise(handle.state),

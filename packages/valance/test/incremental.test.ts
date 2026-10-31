@@ -3,7 +3,7 @@
 import type * as Mesh from "@valancex/nexus";
 
 import { compileProgram } from "@valancex/mesh-compiler";
-import { Chunk, Effect, Exit, Schema, Scope, Stream } from "effect";
+import { Effect, Exit, Schema, Scope, Stream } from "effect";
 import { Render } from "@valancex/mesh-runtime";
 import { describe, expect, it, vi } from "vitest";
 
@@ -88,7 +88,7 @@ const treeOf = (render: { readonly tree: unknown }) => JSON.stringify(render.tre
 const run = async (withPatch: boolean, steps: ReadonlyArray<readonly [string, string]>) => {
   const calls: Array<string> = [];
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
   const factory: Valance.TargetFactory<Valance.Target> = () => ({
     draw: () => {
       calls.push("draw");
@@ -106,7 +106,7 @@ const run = async (withPatch: boolean, steps: ReadonlyArray<readonly [string, st
     unmount: () => undefined,
   });
 
-  await Effect.runPromise(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, factory).pipe(Scope.provide(scope)));
 
   for (const [name, argument] of steps) {
     await Effect.runPromise(handle.invoke(`app/${name}`, [{ value: argument }]).pipe(Effect.orDie));
@@ -153,9 +153,9 @@ describe("only what changed is drawn", () => {
 
   it("the stream's last render is the render of the state, and only the later ones carry patches", async () => {
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
     const running = runningOf(handle);
-    const collected = Effect.runPromise(Stream.runCollect(Stream.take(running.values, 3)).pipe(Effect.map(Chunk.toReadonlyArray)));
+    const collected = Effect.runPromise(Stream.runCollect(Stream.take(running.values, 3)));
 
     await new Promise((resolve) => setTimeout(resolve, 25));
     await Effect.runPromise(handle.invoke("app/title", [{ value: "U" }]).pipe(Effect.orDie));

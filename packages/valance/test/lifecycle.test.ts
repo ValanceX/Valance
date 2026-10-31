@@ -4,7 +4,7 @@
 // VALANCE model (Stage 14: the owner scope is the only lifetime VALANCE has). It is pinned as a substrate fact VALANCE
 // tolerates, not as a VALANCE promise.
 import * as Nexus from "@valancex/nexus";
-import { Cause, Chunk, Effect, Exit, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Effect, Exit, Layer, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
@@ -31,7 +31,7 @@ const counting = () => {
   const counts = { acquired: 0, released: 0 };
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(
+    Layer.effectDiscard(
       Effect.acquireRelease(
         Effect.sync(() => {
           counts.acquired += 1;
@@ -51,12 +51,12 @@ const counting = () => {
 const open = async () => {
   const { counts, platform } = counting();
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application, { platform }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application, { platform }).pipe(Scope.provide(scope)));
   // `states` and `nexus` are the composition face and the substrate: reached on purpose, not through the application's handle.
   const running = runningOf(handle);
   const close = () => Effect.runPromise(Scope.close(scope, Exit.void));
   // `states` is the current state, then every commit, until the application ends: the follower's own signal of an ending.
-  const states = Effect.runPromise(Stream.runCollect(running.states).pipe(Effect.map(Chunk.toReadonlyArray)));
+  const states = Effect.runPromise(Stream.runCollect(running.states));
 
   return { running, counts, close, states };
 };
@@ -64,7 +64,7 @@ const open = async () => {
 const refused = async (running: Pick<Valance.ApplicationHandle<{ n: number }, unknown>, "invoke">): Promise<boolean> => {
   const exit = await Effect.runPromise(Effect.exit(running.invoke("app/bump", [])));
 
-  return Exit.isFailure(exit) && Cause.isDie(exit.cause);
+  return Exit.isFailure(exit) && Cause.hasDies(exit.cause);
 };
 
 describe("lifecycle: one lifetime, the caller's Scope", () => {
