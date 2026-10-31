@@ -1,6 +1,6 @@
 # North star measurement: ecosystem compliance on 2026-10-25
 
-A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last sections, [After Phase A](#after-phase-a), [After Phase B](#after-phase-b) and [After Phase B iteration](#after-phase-b-iteration), re-score the audits the refinements touched. It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
+A record of the current state, scored with the [scorecard](./NORTH_STAR_SCORECARD.md) against the [design north star](./DESIGN_NORTH_STAR.md), before any refinement is made. It records what is, and recommends nothing. Its last sections, [After Phase A](#after-phase-a), [After Phase B](#after-phase-b), [After Phase B iteration](#after-phase-b-iteration) and [After Phase C](#after-phase-c), re-score the audits the refinements touched; After Phase C re-scores all 19 and gives the final scores (ecosystem 88 on the branch, 74 without the unreleased packs). It is compared to the [2026-10-19 baseline](./north-star-validation-2026-10-19.md); the changes it prepares are in [north star refinements](./direction/north-star-refinements.md) §1.
 
 **Method and limits.** A static read of `main` in all four repos (Valance, Nexus, Mesh, Port), re-checking the 10-19 results and the audits the refinements plan §1 names. **Nothing was executed**, so no result was reproduced. Each `file:line` cited below was opened again on 2026-10-25 and holds. Results not named in §1 are carried from the baseline unchanged, and the † marks of 10-19 that §1 did not revisit are dropped only where this pass re-checked them (Nexus E3). Results are judgments against the scorecard's definitions, not measurements.
 
@@ -417,6 +417,209 @@ For the Phase C goal of 85: C-1 alone gives (76 + 7 + 3) ÷ 100 = 86; with C-3, 
 | Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
 | Data boundary | 10 | 80 | 80 | 100 | 100 | 100 |
 | Context | 10 | 0 | 0 | n/a | 0 | n/a |
+| Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
+| Tier 3: hatches | 7 | 100 | 100 | n/a | n/a | 100 |
+
+## After Phase C
+
+Re-scored on 2026-10-31 on the `north-star-refinements` branch, after Phase C of the [refinements plan](./direction/north-star-refinements.md) §5. Decisions K27 to K30 are recorded (Valance `8cbec02`, `cbfe751`). The changes:
+- **C-1, context channel.** Mesh 0.18.0 prepared (`dedf5da`, `b6b54a8`). The Nexus adapter's `context` (`5d45fa3`, `838244e`). Valance's `context` projection on `define` and `defineApp`, `uses`, the manifest's `context`, `docs/use/context.md` and the `context-not-recordable` refusal (`2d8b177`, `411bdd9`).
+- **C-2, opt-in web vocabulary.** `@valancex/port-web/vocabulary` (Port `42990f5`, `95aefd9`).
+- **C-3, Redacted masking.** Valance `a9f5dc0`, `d115809`, `79a25ef`.
+- **C-4, occurrence rename.** Mesh `f9e215c`, `b3de788`, with Nexus `occurrence` (`5d45fa3`, `838244e`).
+- **New packs.** Valance `c64a936` and `15dafd1` (mesh-runtime and mesh-compiler 0.18.0 from mesh `b6b54a8`, nexus from `838244e`) and Nexus `538d8e2` (Mesh 0.18.0).
+
+**All 19 audits were re-checked in every repo.** Cells that Phase C did not touch were checked again against the new code: new exports have tiers, the new names were checked for I1 and M2, and the new options for T1.2, E2 and X2. They did not move. The release notes' and reviewers' claims were checked against the code, not taken as given.
+
+**Run, all passing:**
+- `valance/packages/valance`: `npx vitest run test/context.test.ts test/redacted.test.ts test/stability-coverage.test.ts` (32 passed).
+- `valance/packages/cli`: `test/context.test.ts test/redacted.test.ts` (10 passed).
+- `valance/packages/common`: `test/context-types.test.ts test/redacted.test.ts` (2 passed).
+- `valance/examples/todo`: `test/redacted-hydrate.test.ts` (1 passed).
+- `mesh/packages/mesh-runtime`: `node --test test/context.test.mjs test/screen.test.mjs` (17 passed).
+- `port/packages/port-web`: `npx vitest run vocabulary readme` (9 passed).
+- `nexus`: `npx vitest run tests/mesh-context.test.ts tests/mesh-units.test.ts` (6 passed).
+
+The Rust tests were not run. All four trees were clean after the runs.
+
+| | After Phase B iteration | After Phase C | Band |
+|---|---|---|---|
+| **Ecosystem (weakest link)** | 78 | **88** | Needs improvement |
+| Valance | 88 | **98** | Good |
+| Port | 97 | 97 | Good |
+| Mesh | 86 | **94** | Good |
+| Nexus | 87 | 87 | Needs improvement |
+
+**The Phase C goal, ecosystem ≥ 85, is met on the branch**: 88 ÷ 100, so 88. It is met only with the DO-NOT-MERGE packs. Without them the ecosystem is 74 (below). Three audits move the ecosystem:
+- **C1** F→P (Valance and Mesh).
+- **C2**, which now applies, P (Valance and Mesh). The divisor becomes 100.
+- **D2** ◐→P (Valance).
+
+| Reading | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|
+| With the packs, H2 on the hatch the docs lead with (the ruling) | **88** | 98 | 87 | 94 | 97 |
+| With the packs, strict H2 (the weaker documented hatch) | **87** | 96 | 87 | 94 | 95 |
+| Without the packs, leading-hatch H2 | 74 | 86 | 87 | 94 | 92 |
+| Without the packs, strict H2 | 74 | 86 | 87 | 94 | 91 |
+
+Three judgment calls could lower the score. Each is taken below and stated with its alternative:
+- **Valance C2 ◐** (the `define` route's projection is untyped): ecosystem 87, or 85 with strict H2.
+- **Mesh M2 P** (deprecated aliases not counted): Mesh 97. The ecosystem does not change.
+- **Port T1.2 P** (the vocabulary accepted as essential): Port 100, ecosystem 91, or 90 with strict H2.
+
+The lowest reading that applies (strict H2 and Valance C2 ◐) is exactly 85.0, so the goal holds on every with-pack reading.
+
+**Unreleased upstream.** Five cells count code another repo has not released. Each comes from a local pack committed under `DO NOT MERGE BEFORE THE RELEASES`:
+- **Valance C1 and C2** need Mesh 0.18 (`context` in the manifest, `uses`, `context` on `render` and `update`) and the Nexus adapter's `context` (`Mesh.render(program, snapshot, units?, context?)`, `src/mesh/index.ts:125`). Released Mesh 0.17 refuses a manifest with `context` (`manifest-unknown-property`, `mesh/docs/releases/v0.18.md`, "Compatibility"). Released Nexus 0.16's `render` takes no fourth argument (`998a533:src/mesh/index.ts:104`). Without them no channel exists: Valance C1 F, C2 N/A.
+- **Valance I2** needs Mesh's argument names, now inside the 0.18 pack (`2a523d1` is an ancestor of `b6b54a8`), as after the Phase B iteration.
+- **Valance H2** needs PORT Web's `native` (`local-packs/valancex-port-web-0.14.0.tgz`), as before.
+- **Port E2** needs a Mesh with `openScreen` (`2d65e20`), as before.
+
+Valance D2 counts no pack. The masking is Valance's own code (`packages/valance/src/web-redacted.ts`) and landed before `c64a936`. Mesh's and Nexus's cells read only their own branch, as before.
+
+Without the packs the ecosystem has C1 F (Valance) and C2 P. C2 takes Mesh's P, because the scorecard makes an ecosystem audit N/A only if every repo is N/A. The sum is 73.5 ÷ 100, so **74**. If C2 is read as N/A while C1 fails (not the scorecard's rule), it is 70.5 ÷ 97, so 73. Releasing in steps:
+- **Mesh 0.18 alone**: Port E2 and Valance I2 rise, which gives 79.5 ÷ 100, 80.
+- **Then Nexus 0.17** (the adapter's `context`): Valance C1 and C2 rise, which gives 86.5, 87.
+- **Then PORT Web's `native`**: 88.
+
+Each downstream release also needs its peer range raised (see the finding on the Nexus range below).
+
+### Audit results after Phase C
+
+Cells that differ from the After Phase B iteration table are in **bold**.
+
+| ID | Audit | Eco | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| T1.1 | Zero-config path | ◐ | P | ◐ | P | P |
+| T1.2 | Nothing required with a default | ◐ | P | P | P | ◐ |
+| T1.3 | Docs lead with Tier 1 | P | P | P | P | P |
+| E1 | Boundaries enforced by a test | P | P | P | P | P |
+| E2 | No lifecycle step at Tier 1 | P | P | P | P | P |
+| E3 | Every export tiered | P | P | P | P | P |
+| I1 | Names say what | ◐ | P | ◐ | ◐ | P |
+| I2 | Typed, no stringly or positional coupling | P | P | P | P | P |
+| I3 | Command/query separation | P | P | P | P | P |
+| M1 | One source of truth, `UI = f(state)` | P | P | P | P | P |
+| M2 | One term per concept | ◐ | ◐ | ◐ | ◐ | P |
+| D1 | View models, not entities | P | P | P | P | P |
+| D2 | Wire data can be masked | **P** | **P** | – | – | – |
+| C1 | Value reaches a deep component without threading | **P** | **P** | – | **P** | – |
+| C2 | Channel explicit and checkable | **P** | **P** | – | **P** | – |
+| X1 | Opt-in knobs, behavior and performance | P | P | – | P | P |
+| X2 | Defaults correct without knobs | P | P | – | P | P |
+| H1 | Documented way down to the platform | P | P | – | – | P |
+| H2 | Hatch marked and safe | P | P | – | – | P |
+
+### What moved, and what did not, with evidence
+
+**Moved**
+- **Mesh C1 F→P, C2 –→P.** The channel and its checks:
+  - **Declared once.** The manifest's top-level `context` declares each name and its type.
+  - **Opt-in per component.** A component lists what it reads in `uses`, and those names join its scope read-only. A name it does not list is not in scope. `crates/mesh-manifest/tests/load.rs:1281-1294` asserts `!declared.scope.contains_key("user")` for a name the component does not use.
+  - **Checked before run.** `manifest-unknown-context` and `manifest-context-clash` are checked when the manifest loads (`crates/mesh-manifest/src/validate.rs:361-392`; fixtures `examples/fixtures/manifest/fail/{unknown-context,context-clash}.json`). Every read is then type-checked by `mesh check` like any scope name.
+  - **Values come from the host.** They are given beside the snapshot (`render`/`update` `context`, Rust `render_context`/`update_with_context`) and validated at `$context.<name>`. A change path `{ context: name }` re-evaluates the readers.
+  - **Tests.** `crates/mesh-runtime/tests/context.rs`, `packages/mesh-runtime/test/context.test.mjs` (3, including the screen's `show(snapshot, context?)`), and conformance vectors `examples/conformance/context/` in both runtimes.
+  - **Documented and tiered.** Spec §9.11, with §9.1 amended. Tiered Provisional, Tier 2 (`docs/manual/stability.md:31`).
+
+  This is an injection channel (C1 P), and it is declared and type-checked ahead of run (C2 P). The values a host passes are checked at render, as a snapshot's are. That is the runtime's boundary, not the channel's contract.
+- **Valance C1 F→P, C2 –→P (with the packs).** How the channel reaches Valance:
+  - **The projection.** `define` takes `context: (state) => values` beside each view's `scope` (`packages/valance/src/index.ts:122-128`). `start` passes the values to every render and update through `Nexus.Mesh.render`/`update` (`index.ts:619-655`).
+  - **`uses`.** `component(…, { uses })` writes the entry's `uses` (`packages/cli/src/contract.ts:25`).
+  - **The manifest.** The derived manifest's top-level `context` comes from the Schema passed to `manifest({ context })` (`web-manifest.ts`, `namesOf`). For `defineApp` it is the layout's own types for the names returned (`contextSchema`, `packages/common/src/app.ts`), and a name the layout does not read is refused.
+  - **Checked ahead of run.** `vlx check` reports a template that reads a name it does not list, and MESH's `manifest-unknown-context` (`packages/cli/test/context.test.ts`, 6 tests, including a run where a state change reaches a badge two levels down). `defineApp`'s `context` is typed by the layout names (`ContextValues`, `packages/common/src/index.ts:408`). A wrong type for a state field is a type error (`test/context-types.test.ts`, `@ts-expect-error`).
+  - **Documented and tiered.** `docs/use/context.md` repeats React's "props first" guidance, as C-1 required. Tiered Provisional (`docs/stability.md:42`).
+
+  P/P, with one stricter reading recorded. `Valance.define`'s `context` returns `Record<string, unknown>`, and nothing ties it to the Schema given to `manifest({ context })` at compile time. A wrong value is caught at render, as a MESH diagnostic at `$context.<name>`. That is the same typing as `define`'s `scope`, which every measurement since 10-19 has scored without objection. The reads are checked ahead of run on both routes, and the provided values are typed ahead of run on the Tier 1 `defineApp` route. Reading the `define` route as "checked at run time" gives Valance C2 ◐: Valance 96 (96 ÷ 100), ecosystem 87 (85 with strict H2).
+- **Valance D2 ◐→P (pack-independent).** A masking step now exists:
+  - **Omitted from the embed.** `renderToHtml` leaves every top-level `Schema.Redacted` field (or `NullOr` of one) out of the `state` it returns (`withoutRedacted`, `packages/valance/src/web-redacted.ts`; `web-server.ts:58`).
+  - **Head written from the masked state.** The head is written from the state the browser will have (`web-server.ts:60`).
+  - **Restored on hydrate.** `Web.run` with `present: "hydrate"` restores each field's declared default (`web.ts:516-517`).
+  - **Fails closed.** A Redacted that cannot be masked (below the top level, or under a schema that is not a plain struct) makes `renderToHtml` die with `ValanceError` `redacted-unmaskable` before anything starts (`web-server.ts:42-46`, `errors.ts:26`). So a server that never ran `vlx check` still cannot embed it.
+  - **`vlx check` codes.** `redacted-no-default`, `redacted-in-view` (a view's `scope`, the `view` selector and the `context` projection, run on the initial state) and `redacted-unmaskable`.
+  - **Context is masked too.** The `context` projection is given the state without Redacted fields (`index.ts:620`).
+  - **Documented.** `V1_CONTRACT.md:320` and `learn/mounting-and-hydration.md:41`.
+  - **Tests.** `packages/valance/test/redacted.test.ts` (8, including the head and fail-closed cases), `packages/cli/test/redacted.test.ts`, `packages/common/test/redacted.test.ts`, `examples/todo/test/redacted-hydrate.test.ts` (the hydrated tree adopts the server's), and `test/context.test.ts` (a secret read through `context` does not reach the HTML).
+
+  Every other field still crosses, but the audit's P is "a masking or projection step exists", and it does. Masking is by top-level field only, and the limit is refused rather than leaked.
+
+**Re-checked, unchanged**
+- **Mesh M2 ◐ (agree with Mesh's own corrected note, not its first draft).** The occurrence rename removes the third meaning of "instance" from what the runtime writes: `Render.occurrences`, `intent.occurrence`, `runtime-unknown-occurrence` (`docs/releases/v0.18.md`; `docs/manual/runtime.md:353`; glossary, "occurrence and instance"). The unit sense of "instance" is still on the public surface for this release, though:
+  - The JavaScript aliases `Render.instances` and `instance` are kept, non-enumerable.
+  - In Rust, the Stable `Intent`'s only field for the occurrence is still named `instance`, read through `Intent::occurrence()`.
+  - Nexus keeps `UnitOccurrence.instance` and `CommandIntent.instance`, deprecated.
+
+  Plan §5 refuses aliases "because two names for one concept costs M2 again". The rename is right and the aliases are a documented one-release bridge. Even so, while they exist the unit concept has two names in the API, so ◐. It becomes P in the release that removes them. Reading deprecated aliases as not counting gives Mesh M2 P: 86.5 ÷ 89, 97. The ecosystem does not change (Valance and Nexus hold M2 ◐).
+
+  Mesh's first draft of the changelog claimed I1 ◐→✓. `b3de788` corrected that to M2, and I1 stays ◐ for `Render` (an entity named after a process, deferred to 1.0).
+- **Port T1.2 ◐ (C-2, the plan's count).** `@valancex/port-web/vocabulary` (`src/vocabulary.ts`, tiered Provisional at `docs/stability.md:21`) is the portable core as data, with a manifest a test keeps equal to the Desktop vocabulary (`test/vocabulary.test.ts`). The README's Tier 1 example imports it in one line (`packages/port-web/README.md:9-17`).
+
+  `primitives` is still required by `createWebPort` and `composeWebPort`, and C-2 decided not to default it. So the README's first example now always passes the same table, which is the ◐ definition ("some required inputs have an obvious default") on a plain reading. The plan's case for P is that a PORT's vocabulary is its essential input, not a setting, and that MPRX §9.9 leaves the catalog out. That case is recorded and not taken, because the decision record itself counts ◐. Taking it gives Port 100 and ecosystem 91 (90 with strict H2). No default table is proposed here (C-2).
+- **Nexus M2 ◐, I1 ◐.** `occurrence` is added beside a deprecated `instance` (`src/mesh/index.ts`; `docs/releases/v0.17.md:21`). The identity-field, `Host` and unit collisions remain. The new `ContextValues` is the MESH sense.
+- **Valance M2 ◐, I1 P.** Nothing public named the unit sense of "instance" (`2d8b177`; glossary). `context` adds a meaning beside Effect's `Context` (service requirements) and the router's `GuardContext`/`NavigationContext`, which describe a navigation. Both are recorded below and are not scored, because M2 is already ◐ for `start`, `Host`, `scope` and `command`.
+- **E2 everywhere P.** Context adds no step at Tier 1. Mesh's screen keeps the last context shown (`b6b54a8`). Valance passes it itself.
+- **E3 everywhere P.** New exports have rows:
+  - Valance: `docs/stability.md:36`, `:42`. `test/stability-coverage.test.ts` passes.
+  - Mesh: `docs/manual/stability.md:21-22`, `:31-32`.
+  - Port: `docs/stability.md:21`.
+  - Nexus: `ContextValues` falls under `Mesh` (Stable, `docs/stability.md:21`), with the additions in `docs/releases/v0.17.md:22`.
+- **I2, I3, M1, D1 P.** `context` is a pure function of the state (a query, held to `UI = f(state)`), and MESH checks its values against declared types with stable codes. The recording refusal has its own code, `context-not-recordable` (`errors.ts`, `docs/use/README.md:24`).
+- **X1, X2 P.** `context` and `uses` are opt-in, and a program without them is unchanged. A context name is required only when the manifest declares it with a non-optional type.
+- **T1.1 ◐ (Nexus), T1.3 P, H1/H2 as before.**
+
+### Findings (recorded, not resolved)
+
+- **Valance's Nexus peer range admits a Nexus without `context`.** `packages/valance/package.json:66` and `packages/common/package.json:74` say `^0.14.0 || ^0.15.0 || ^0.16.0`, and the pack is labelled `valancex-nexus-0.16.0.tgz` although it carries 0.17's adapter. Released Nexus 0.16.0 satisfies the range. Its `Mesh.render` drops the fourth argument, so an application with `context` meets a MESH diagnostic at render instead of an install-time refusal. The stability row (`docs/stability.md:42`) says the channel "needs … the NEXUS with `context`". The floor has to move to 0.17 at release, as Task 29 M2 and Task 14 already defer for MESH and PORT.
+- **`composeWebPort` cannot give context.** Port's composer calls `screen.show(snapshot)` only (`packages/port-web/src/compose.ts:13`, `:102-104`). So a program whose manifest declares a non-optional context name cannot use Port's Tier 1 helper, and its author must drop to `draw`/`patch`. C1/C2 are N/A for Port, so this is not scored. The smallest fix is an optional `context` on the composer's `show`, passed through to the screen.
+- **"context" across the ecosystem.** It now names the MESH injection channel (Mesh, Nexus `ContextValues`, Valance `context`), Effect's `Context` (Nexus services, Valance's `R`) and the router's guard and navigation records. The glossary (`docs/understand/glossary.md`) has no entry. M2 is already ◐ wherever both meanings occur.
+- **The plan's "aliases are refused" (§5) and C-4's one-release deprecated aliases disagree.** The disagreement is recorded, not resolved. This measurement scores the aliases as keeping Mesh M2 ◐.
+- **An application with `context` cannot be recorded or replayed** (`docs/use/context.md`, "Not yet"). It is refused up front with a stable code, so nothing corrupts. It is a gap in the Tier 2 replay tool, and no audit is affected.
+
+### Blocking the next goals
+
+The Phase C goal is met on the branch. Off the branch it is blocked only by the releases: Mesh 0.18 (screen, argument names, context), Nexus 0.17 (the adapter's `context`) and PORT Web's `native`, each with its downstream peer floor raised. Still below P in the ecosystem, by the repo that holds each one down, with the smallest change that would close it and keep it extensible:
+
+| Audit | Held down by | Points to P | Smallest change |
+|---|---|---|---|
+| T1.1 | Nexus | 4 | A documented one-call first run that needs no Effect plumbing (for example, a helper that runs an `Application` definition and prints), or a judgment that `examples/hello` is one documented command. §6 keeps it ◐ |
+| T1.2 | Port | 3 | None proposed: C-2 decided against a default table. It moves only if the vocabulary is accepted as the essential input (see above) |
+| I1 | Nexus, Mesh | 2.5 | The 1.0 renames: `Render` (Mesh), the Nexus identity fields. Aliases are refused |
+| M2 | Valance, Nexus, Mesh | 2.5 | Mesh: drop the deprecated `instance` aliases in the release after 0.18 (Mesh then P). Valance and Nexus: the 1.0 renames of `start`, `Host`, `scope`, `command`, the identity fields and Nexus "unit". The ecosystem moves only when all three are P |
+
+Every with-pack reading is at or above 85. For the Good band (90) on the ruling reading, one of these is enough: T1.1 alone gives 92, and I1 or M2 alone gives 90.5, so 91. On strict H2, T1.1 alone gives 91, but I1 or M2 alone gives only 89.
+
+### Arithmetic after Phase C
+
+**Valance** (divisor 100: C2 now applies). T1: 20. Encapsulation: 20. Intention: 15. Mental model: 5 + 2.5 = 7.5. Data: 6 + 4 = 10. Context: 7 + 3 = 10. Tier 2: 8. Tier 3: 4 + 3 = 7. Sum 97.5, so **98**.
+- H2 ◐: 96, so 96.
+- C2 ◐: 96, so 96.
+- Without the packs (I2 ◐, H2 ◐, C1 F, C2 N/A, divisor 97): 83.5 ÷ 97 = 0.861, so 86.
+
+**Nexus** (divisor 71). Unchanged: 62 ÷ 71 = 0.873, so **87**.
+
+**Mesh** (divisor 89: C2 now applies). T1: 20. Encapsulation: 20. Intention: 2.5 + 5 + 5 = 12.5. Mental model: 7.5. Data: 6. Context: 7 + 3 = 10. Tier 2: 8. Sum 84. 84 ÷ 89 = 0.944, so **94**.
+- M2 P: 86.5 ÷ 89 = 0.972, so 97.
+
+**Port** (divisor 86). Unchanged: 83 ÷ 86 = 0.965, so **97**.
+- H2 ◐: 95.
+- Without the pack: 92. Without the pack and with strict H2: 91.
+- T1.2 P: 86 ÷ 86, so 100.
+
+**Ecosystem** (divisor 100). T1: 4 + 3 + 6 = 13. Encapsulation: 20. Intention: 2.5 + 5 + 5 = 12.5. Mental model: 7.5. Data: 6 + 4 = 10. Context: 7 + 3 = 10. Tier 2: 8. Tier 3: 7. Sum 88, so **88**.
+- H2 ◐: 86.5, so 87.
+- Valance C2 ◐: 86.5, so 87. With strict H2 as well: 85.0, so 85.
+- Port T1.2 P: 91 (strict 89.5, so 90).
+- Without the packs (E2 ◐, I2 ◐, H2 ◐, C1 F, C2 P through Mesh): 13 + 16.5 + 10 + 7.5 + 10 + 3 + 8 + 5.5 = 73.5, so 74.
+
+### By category after Phase C
+
+| Category | Weight | Ecosystem | Valance | Nexus | Mesh | Port |
+|---|---|---|---|---|---|---|
+| Tier 1: minimal surface | 20 | 65 | 100 | 80 | 100 | 85 |
+| Encapsulation | 20 | 100 | 100 | 100 | 100 | 100 |
+| Intention and contracts | 15 | 83 | 100 | 83 | 83 | 100 |
+| Mental model | 10 | 75 | 75 | 75 | 75 | 100 |
+| Data boundary | 10 | 100 | 100 | 100 | 100 | 100 |
+| Context | 10 | 100 | 100 | n/a | 100 | n/a |
 | Tier 2: opt-in tuning | 8 | 100 | 100 | n/a | 100 | 100 |
 | Tier 3: hatches | 7 | 100 | 100 | n/a | n/a | 100 |
 

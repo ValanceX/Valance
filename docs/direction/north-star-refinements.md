@@ -1,6 +1,6 @@
 # North star refinements: plan (2026-10-25)
 
-Status: **plan**, not started. Measured against the [design north star](../DESIGN_NORTH_STAR.md) with the [scorecard](../NORTH_STAR_SCORECARD.md); compared to the [baseline](../north-star-validation-2026-10-19.md). Goal: raise the score as far as possible without closing options for later work. Every change below states the audits it touches, before and after, as the scorecard requires.
+Status: **implemented on branch `north-star-refinements`, not released**. Final measurement: [After Phase C](../north-star-validation-2026-10-25.md#after-phase-c) (ecosystem 88 on the branch, 74 without the DO-NOT-MERGE packs). Measured against the [design north star](../DESIGN_NORTH_STAR.md) with the [scorecard](../NORTH_STAR_SCORECARD.md); compared to the [baseline](../north-star-validation-2026-10-19.md). Goal: raise the score as far as possible without closing options for later work. Every change below states the audits it touches, before and after, as the scorecard requires.
 
 ## 1. Re-measurement (static read of `main` in all four repos, nothing executed)
 
