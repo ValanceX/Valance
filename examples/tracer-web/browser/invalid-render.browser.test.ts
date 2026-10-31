@@ -183,5 +183,5 @@ it("the invalidity is observable WITHOUT any presentation, only by rendering tha
 
   expect(Exit.isSuccess(valid)).toBe(true);
   expect(diagnosticsOf(invalid)).toContain("runtime-value-mismatch"); // the same MESH diagnostic, with no target, mount or follower
-  expect(Object.keys(await run(Valance.start(app).pipe(Effect.scoped)))).toEqual(["state", "invoke"]); // nothing on the handle says whether a state renders
+  expect(Object.keys(await run(Valance.start(app).pipe(Effect.scoped)))).toEqual(["state", "invoke", "command"]); // nothing on the handle says whether a state renders
 });

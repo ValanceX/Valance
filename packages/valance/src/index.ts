@@ -7,7 +7,7 @@
  *   start(app, options)    starts the NEXUS application in the CALLER's Scope; supplies the platform;
  *                          creates the application's state and its MESH host; checks that every event the views' programs declare has
  *                          a command-table key (MESH says what is declared; Contract §2); returns the application's handle:
- *                          its `state` and `invoke`, and nothing of the composition (see ./internal).
+ *                          its `state`, `invoke` and `command`, and nothing of the composition (see ./internal).
  *   mount / hydrate        connects a PORT target to a started application: draws (or adopts server
  *                          server output for) the current render, follows later renders as updates, and
  *                          dispatches each reported event with the render that was drawn.
@@ -25,7 +25,8 @@ import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
+import { makeRegistry, type Deliver, type Registry, type Unit } from "./units.js";
+import { withoutRedacted } from "./web-redacted.js";
 import { Cause, Deferred, Duration, Effect, Equal, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
@@ -60,7 +61,23 @@ export interface View<S> {
  */
 export type CommandTable<E, R extends Ambient> = Readonly<Record<string, Nexus.Mesh.Binding<E, R> | Nexus.Command.Command<any, any, E, R>>>;
 
-export interface ApplicationDefinition<S, E, R extends Ambient, V extends string> {
+/** Carries an application's `invoke` keys in its definition's type, for `start` to read. Type only: no definition has it. */
+declare const invokeKeys: unique symbol;
+/** Carries what `ApplicationHandle.command` takes per key, in the definition's type, for `start` to read. Type only: no definition has it. */
+declare const commandInputs: unique symbol;
+
+export interface ApplicationDefinition<
+  S,
+  E,
+  R extends Ambient,
+  V extends string,
+  K extends string = string,
+  C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+> {
+  /** The keys `invoke` takes (see `ApplicationHandle.invoke`): set by `define` from the command table's type, read by `start`. Never present at run time. */
+  readonly [invokeKeys]?: K;
+  /** What `ApplicationHandle.command` takes, by key: set by `define` from the command table's type, read by `start`. Never present at run time. */
+  readonly [commandInputs]?: C;
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
   readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
@@ -77,9 +94,11 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
    * **Resolution**, for each declared `component/name` and for each `app/name`: the exact key in the table wins; otherwise the bare `name` is used; otherwise there is
    * no command, and `start` fails with `ConformanceViolation` (declared events) or the key is `UnmappedCommand` (everything else). One rule, no other precedence.
    *
-   * **Arguments of a bare command.** If its input is a struct, the arguments an event (or `invoke`) supplies are its fields **in the struct's field order**: the first
-   * argument is the first field, and so on. An argument the event does not supply is `undefined` (so a required field then fails validation), and arguments beyond the
-   * fields are ignored. The event's own parameter names are not used. If its input is not a struct, the first argument is the whole input. The input is validated by the
+   * **Arguments of a bare command.** If its input is a struct and every argument of the event's call carries a name (an argument written as a plain path, `to` or `row.id`,
+   * is named by its last segment) that is a field of the struct, each one fills the field of its name, wherever it stands: `move(to, from)` fills `to` and `from`. Otherwise
+   * (a literal or `$event` among the arguments, a name that is not a field, two arguments of one name, or an `invoke` whose arguments carry no `name`; `invoke` binds by name when they do) the arguments are its
+   * fields **in the struct's field order**: the first argument is the first field, and so on. An argument the event does not supply is `undefined` (so a required field then
+   * fails validation), and arguments beyond the fields are ignored. The declared parameter names are not used; the call site's argument names are, as above. If its input is not a struct, the first argument is the whole input. The input is validated by the
    * command's schema as always. (A single object argument is not unpacked into fields.)
    *
    * A bare name must hold a command object. A function there (such as an `entry`) is a mistake and `start` dies with a defect naming it.
@@ -101,6 +120,13 @@ export interface ApplicationDefinition<S, E, R extends Ambient, V extends string
    */
   readonly units?: Readonly<Record<string, Unit>>;
   /**
+   * The values of the manifest's context channel (MESH 0.18; Tier 2), worked out from the state beside each view's `scope`: `context: (state) => ({ theme: state.theme })`. A value many distant
+   * components need (a theme, a locale, the current user) reaches the components whose manifest entry lists it in `uses`, without being passed through every layer between. Pass props first: a
+   * value one or two levels down is a prop. The names and types are the manifest's top-level `context`, checked before anything runs. Like `scope`, it is a pure function of the state, run for every
+   * render, on the server and in the browser alike; it is given the state without its `Schema.Redacted` fields (C-3), so a secret cannot reach a component this way. Without it, no context is given.
+   */
+  readonly context?: (state: S) => Record<string, unknown>;
+  /**
    * Takes the person to the first field in error each time a count of the application's rises (Tier 2): a count, not a flag, so that a second failed submit, which changes no
    * message, still counts. A form keeps one (`attempts`), and `focusFirstInvalid: (state) => state.signup.attempts` is the whole of it. After the render that shows the rise
    * is applied, the target is asked to focus the first node in the tree that says it is `invalid` (a request to the platform, not a command, and not state); nothing is done
@@ -120,10 +146,48 @@ type RequirementOf<V> = V extends Nexus.Command.Command<any, any, any, infer Req
  * would otherwise claim that failure cannot happen. `R` is the union of the services the table needs. Both are read from the table's own type, so no command's
  * failure is narrowed to another's.
  */
-export const define = <S, T extends CommandTable<any, Ambient>, V extends string>(
-  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T },
-): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V> =>
-  definition as unknown as ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V>;
+export function define<S, T extends CommandTable<any, Ambient>, V extends string>(
+  // With exactly one view, `view` may be left out: it is that view (Tier 1, a default for what has only one answer). With more than one key it is required (omitting it is a type error).
+  definition: Omit<ApplicationDefinition<S, never, never, V>, "commands" | "view"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T } & (IsUnion<V> extends true
+      ? { readonly view: (state: S) => V }
+      : { readonly view?: (state: S) => V }),
+): ApplicationDefinition<S, ErrorOf<T[keyof T]> | Nexus.Command.CommandValidationError, Extract<RequirementOf<T[keyof T]>, Ambient>, V, InvokeKeys<T>, CommandInputs<T>>;
+export function define(definition: { readonly views: Record<string, unknown>; readonly view?: unknown }): unknown {
+  // Same rule as `defineApp`'s: the one view is the default. The runtime, which cannot see the types, defaults whenever `view` is absent and there is one key.
+  const keys = Object.keys(definition.views);
+
+  if (definition.view !== undefined) return definition;
+  // A JS caller (or a cast) can omit `view` with no views or several: say so here, not later as "app.view is not a function".
+  if (keys.length !== 1) throw new ValanceError("missing-view", "define: `view` is required unless `views` has exactly one entry");
+
+  return { ...definition, view: () => keys[0] };
+}
+
+/**
+ * The keys `invoke` takes, from a command table's type: an exact `"component/name"` key is itself, and a bare name `n` is `"app/n"` (what it is bound to outside a render).
+ * A table whose type has no literal keys (`Record<string, …>`) takes any string.
+ */
+type InvokeKeys<T> = string extends keyof T ? string : { readonly [N in keyof T & string]: N extends `${string}/${string}` ? N : `app/${N}` }[keyof T & string];
+
+/**
+ * What `ApplicationHandle.command` takes, by key, from a command table's type: a bare name `n` is `"app/n"` and takes the command's input whole (its schema's type), and an exact
+ * `"component/name"` key takes its entry's arguments, as `invoke` does. A table whose type has no literal keys takes any string and any input.
+ */
+type CommandInputs<T> = string extends keyof T
+  ? Readonly<Record<string, unknown>>
+  : {
+      readonly [N in keyof T & string as N extends `${string}/${string}` ? N : `app/${N}`]: N extends `${string}/${string}`
+        ? ReadonlyArray<Nexus.Mesh.IntentArgument>
+        : T[N] extends Nexus.Command.Command<infer I, any, any, any>
+          ? I
+          : never;
+    };
+
+/** The rest of `command`'s parameters for an input `I`: optional when the empty input is one (a command that takes none). */
+type InputArguments<I> = {} extends I ? [input?: I] : [input: I];
+
+/** True for a union of two or more literals (`"a" | "b"`), false for a single one. */
+type IsUnion<U, C = U> = [U] extends [never] ? false : U extends unknown ? ([C] extends [U] ? false : true) : never;
 
 /** How a waiting command's work ended: the value it produced, or what its Promise rejected with, as received. */
 export type Outcome<A> = { readonly ok: true; readonly value: A } | { readonly ok: false; readonly error: unknown };
@@ -262,11 +326,27 @@ const fieldsOf = (schema: Schema.Schema<any>): ReadonlyArray<string> | undefined
   return ast._tag === "TypeLiteral" ? ast.propertySignatures.map((property) => String(property.name)) : undefined;
 };
 
-/** The binding of a bare command name: the arguments are the struct's fields in order, or the whole input when the input is not a struct. */
+/**
+ * The binding of a bare command name. When the input is a struct and every argument carries a name (MESH writes one for an argument that is a plain path: `to`, `row.id`), each
+ * name is a different field of it, the arguments fill those fields BY NAME. Otherwise (a literal or `$event` has no name, a name is not a field, two share one, or an `invoke` passes
+ * arguments without `name`) a struct takes its arguments as its fields in order, and an input that is not a struct takes the first argument whole.
+ */
 const bareBinding = <E, R>(command: Nexus.Command.Command<any, any, E, R>): Nexus.Mesh.Binding<E | Nexus.Command.CommandValidationError, R> => {
   const fields = fieldsOf(command.input);
 
-  return entry(command, (...values) => (fields === undefined ? values[0] : Object.fromEntries(fields.map((field, index) => [field, values[index]]))));
+  return Nexus.Mesh.bind(command, (args) => {
+    const values = args.map(plain);
+
+    if (fields === undefined) {
+      return values[0];
+    }
+
+    const names = args.map((argument) => argument.name);
+
+    return args.length > 0 && names.every((name) => name !== undefined && fields.includes(name)) && new Set(names).size === names.length
+      ? Object.fromEntries(names.map((name, index) => [name, values[index]]))
+      : Object.fromEntries(fields.map((field, index) => [field, values[index]]));
+  });
 };
 
 /**
@@ -360,7 +440,7 @@ const failureIdentity = (cause: Cause.Cause<unknown>): string => {
  * It carries no runtime, no render, no dispatch, and no lifecycle: the application's lifetime is the `Scope` `start`
  * ran in, and nothing here ends it, restarts it, or reports on it.
  */
-export interface ApplicationHandle<S, E> {
+export interface ApplicationHandle<S, E, K extends string = string, C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
   /**
    * The application's current state: one read, as of when it runs. A read, not a subscription: the state a host sees
    * is the state commands have committed, whatever view is shown.
@@ -374,8 +454,23 @@ export interface ApplicationHandle<S, E> {
    * It executes in the application's own context, with the platform's FiberRefs, and nothing of that context flows
    * back to the caller (NEXUS I44). The caller needs no runtime and provides no services: interrupting the returned
    * effect interrupts the command, and typed failures and defects pass through unchanged.
+   *
+   * `key` is one of `K` (from `define`'s command table: `"app/name"` for a bare command, an exact key as written), which an editor completes, or any other string, as before: a key
+   * the table lacks is the typed `UnmappedCommand` at run time, not a type error (a table built by spreading another has keys its type does not show). A method, so a typed handle is
+   * still an `ApplicationHandle<S, E>`.
    */
-  readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  invoke(key: K | (string & {}), args: ReadonlyArray<Nexus.Mesh.IntentArgument>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  /**
+   * Runs the command bound to `key`, as `invoke` does (the same table, the same admission), with a key and an input the type CHECKS. Opt-in: `invoke` is unchanged.
+   *
+   *  - **`"app/name"` for a bare command** takes the command's input whole, typed by its schema: a struct by field name (`command("app/move", { from, to })`), never by
+   *    position; another input as itself; nothing for a command that takes none. It is validated by the command's schema as always.
+   *  - **an exact `"component/name"` key** takes its entry's arguments, as `invoke` does: what an `entry`'s adapter makes of them is not in its type.
+   *
+   * A key the table's type lacks is a type error. A table built by spreading one typed as the wide `CommandTable` has keys its type does not show: give the shared table its
+   * own literal keys (no annotation), or call those keys with `invoke`. A table whose type has no literal keys at all takes any string, and an unknown key is the typed `UnmappedCommand`.
+   */
+  command<N extends keyof C & string>(key: N, ...input: InputArguments<C[N]>): Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
 }
 
 /**
@@ -383,10 +478,10 @@ export interface ApplicationHandle<S, E> {
  * Valance keeps nothing that outlives that scope. (NEXUS can also end an application early; that is the substrate's,
  * is outside this model, and nothing here asks for it. The command drain below belongs to the Scope close, so that route does not pass it.)
  */
-export const start = <S, E, R extends Ambient, V extends string>(
-  app: ApplicationDefinition<S, E, R, V>,
+export const start = <S, E, R extends Ambient, V extends string, K extends string = string, C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>>(
+  app: ApplicationDefinition<S, E, R, V, K, C>,
   options: StartOptions<S> = {},
-): Effect.Effect<ApplicationHandle<S, E>, StartError, Scope.Scope> =>
+): Effect.Effect<ApplicationHandle<S, E, K, C>, StartError, Scope.Scope> =>
   Effect.gen(function* () {
     const definition = Nexus.Application.define({ name: app.name, runtime: Layer.empty });
     const nexus = yield* Nexus.Application.start(
@@ -514,20 +609,22 @@ export const start = <S, E, R extends Ambient, V extends string>(
     const attended = (value: S): { readonly attention?: number } => (app.focusFirstInvalid === undefined ? {} : { attention: app.focusFirstInvalid(value) });
     // The render of one given state. The adapter renders a host's scope value, not a value it is handed, and a
     // sequential stream must render each emitted state exactly: a constant scope does that.
+    // The context values of a state (absent without `context`): projected from the state without its Redacted fields, so a secret never reaches a tree (or what a server writes from it) this way (C-3).
+    const contextOf = (value: S): Record<string, unknown> | undefined => (app.context === undefined ? undefined : app.context(withoutRedacted(app.state.schema, value)));
     const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
       Effect.gen(function* () {
         const view = app.view(value);
         const snapshot = views[view]!.scope(value) as Record<string, unknown>;
         const generation = generations.get(view) ?? 0;
+        const context = contextOf(value);
 
         if (registry === undefined) {
-          const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
-          const render = yield* Nexus.Mesh.host<never, never>({ program: views[view]!.program, scope, commands: {} }).render;
+          const render = yield* Nexus.Mesh.render(views[view]!.program, snapshot, undefined, context);
 
           return { view, render, snapshot, generation, ...attended(value) };
         }
 
-        const render = yield* renderWithUnits(views[view]!.program, snapshot, yield* registry.units);
+        const render = yield* Nexus.Mesh.render(views[view]!.program, snapshot, yield* registry.units, context);
 
         yield* registry.observe(render);
 
@@ -546,8 +643,11 @@ export const start = <S, E, R extends Ambient, V extends string>(
         }
 
         const snapshot = views[view]!.scope(value) as Record<string, unknown>;
+        const context = contextOf(value);
         const { render, patches } =
-          registry === undefined ? yield* Nexus.Mesh.update(previous.render, snapshot) : yield* updateWithUnits(previous.render, snapshot, yield* registry.units);
+          registry === undefined
+            ? yield* Nexus.Mesh.update(previous.render, snapshot, undefined, context)
+            : yield* Nexus.Mesh.update(previous.render, snapshot, yield* registry.units, context);
 
         if (registry !== undefined) {
           yield* registry.observe(render);
@@ -590,6 +690,7 @@ export const start = <S, E, R extends Ambient, V extends string>(
 
     const running: Running<S, E> = {
       nexus,
+      hasContext: app.context !== undefined,
       render: Effect.flatMap(state.get, renderOf),
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
       // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
@@ -678,6 +779,14 @@ export const start = <S, E, R extends Ambient, V extends string>(
         const [component = "", name = ""] = key.split("/");
 
         return binding === undefined ? Effect.fail<Nexus.Mesh.UnmappedCommand>({ _tag: "UnmappedCommand", component, name }) : inApplication(binding(args));
+      },
+      // A bare command's `"app/name"` (no exact key of that name) runs the binding that takes the input whole; anything else is `invoke`, with the input as the arguments.
+      command: (key, input) => {
+        const name = key.startsWith("app/") ? key.slice("app/".length) : undefined;
+
+        return name !== undefined && !Object.hasOwn(given, key) && named.has(name)
+          ? running.invoke(INPUT_KEY(name), [{ value: (input ?? {}) as BoundaryValue }])
+          : running.invoke(key, (input ?? []) as ReadonlyArray<Nexus.Mesh.IntentArgument>);
       },
     };
 
@@ -864,6 +973,17 @@ const connect = <S, E, T extends Target, A>(
 ): Effect.Effect<Mounted<E> & { readonly first: A }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.gen(function* () {
     const running = runningOf(application);
+
+    // A session log holds the snapshot, not the context values, so a recorded session of an application with context could not be replayed: refused here, before anything is drawn.
+    if (options?.record !== undefined && running.hasContext === true) {
+      return yield* Effect.die(
+        new ValanceError(
+          "context-not-recordable",
+          "VALANCE: a session of an application with a `context` projection cannot be recorded yet: a session log holds no context values",
+        ),
+      );
+    }
+
     const scope = yield* Effect.scope;
     // The render whose tree is drawn: the only render an event may be dispatched with (NEXUS M1, M2).
     const drawn: { current: Viewed | undefined } = { current: undefined };
@@ -1059,3 +1179,5 @@ export const hydrate = <S, E, H>(
     connect(application, create, (target, tree) => target.hydrate(tree), options),
     (connected) => Object.defineProperties({ hydration: connected.first }, Object.getOwnPropertyDescriptors(without(connected, "first"))) as Mounted<E> & { readonly hydration: H },
   );
+
+export { redactedFields } from "./web-redacted.js";

@@ -207,6 +207,8 @@ export default defineApp({
 
 The others of that name are left out of the program; a library template that writes the tag gets the one you chose (two libraries whose internals depend on different `disclosure`s need different names, so a library's internal components should have names of its own).
 
+`vlx check`, `dev` and `build` write the qualified ids of the library components you list to `.valance/types/library-components.d.ts`, so an id `resolve` does not know is a type error in the editor. A project made by `vlx init` includes it (`"include": ["src", ".valance/types/*.d.ts"]` in `tsconfig.json`); add that to an older project's. Without it `resolve` takes any string, and the check still says `resolve-unknown`.
+
 * To replace a component with your own, put your template of that name in `override`: it replaces a built-in and a library component alike. `override` with a name that is neither is an error.
 
 ## What a library cannot do yet

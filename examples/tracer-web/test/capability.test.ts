@@ -149,7 +149,7 @@ describe("the capability through the application's existing boundary", () => {
           expect(page.container.querySelector("div")).toBe(alpha);
 
           // F: nothing was added to the application's face.
-          expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
+          expect(Object.keys(handle).sort()).toEqual(["command", "invoke", "state"]);
         }),
       ),
     );

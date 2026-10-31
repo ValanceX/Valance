@@ -50,7 +50,8 @@ describe("the renderers", () => {
   it("PORT Web knows no theme: nothing in it names the hook, a layer, a token or a recipe", () => {
     const dist = join(dirname(require.resolve("@valancex/port-web/package.json")), "dist");
     const text = readdirSync(dist)
-      .filter((file) => file.endsWith(".js"))
+      // `vocabulary.js` is PORT Web 0.15's opt-in `./vocabulary` entry: the portable core as data, which names the hook on purpose. The PORT's own code stays theme-free.
+      .filter((file) => file.endsWith(".js") && file !== "vocabulary.js")
       .map((file) => read(join(dist, file)))
       .join("\n");
 

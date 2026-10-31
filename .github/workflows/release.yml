@@ -51,7 +51,7 @@ permissions:
 env:
   # The PORT release this VALANCE release is built and checked against: the `conformance` job checks out this tag of ValanceX/Port for the Desktop's accessibility step (PORT_DIR), so
   # the gate does not change because PORT moved the day after. Raise it with the release (docs/releases/release-set-2026-10-f.md, "Before tagging"); it names the npm packages' tag.
-  PORT_REF: v0.14.0
+  PORT_REF: v0.15.0
 
 concurrency:
   group: release-${{ github.ref }}

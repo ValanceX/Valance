@@ -175,12 +175,19 @@ export interface ReplayOptions {
 
 const clone = <T>(value: T): T => structuredClone(value);
 
-/** Applies host-side changes to a plain snapshot: `set`, `insert` and `remove` at a path of field names and list indices. */
+/**
+ * Applies host-side changes to a plain snapshot: `set`, `insert` and `remove` at a path of field names and list indices. A path rooted at a context value (`{ context: name }`, MESH 0.18)
+ * edits no snapshot, and a session log holds no context values, so it is refused rather than misapplied.
+ */
 export const applyChanges = (snapshot: Record<string, unknown>, changes: ReadonlyArray<Change>): void => {
   for (const change of changes) {
     let at = snapshot as Record<string | number, unknown>;
 
-    for (const step of change.path.slice(0, -1)) {
+    if (change.path.some((step) => typeof step === "object")) {
+      throw new Error("replay: a change to a context value cannot be replayed; a session log holds the snapshot only");
+    }
+
+    for (const step of change.path.slice(0, -1) as ReadonlyArray<string | number>) {
       at = at[step] as Record<string | number, unknown>;
     }
 

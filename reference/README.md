@@ -11,4 +11,4 @@ Two repositories-to-be, built here as directories because the repositories canno
 
 Each directory keeps a `FRICTION.md` (K17). To move one out: `git subtree split --prefix=reference/components`, or copy the directory.
 
-**Until the 0.15 release set is on npm** a registry-only lockfile cannot exist for `components/`; the branch carries it in one commit marked "DO NOT MERGE BEFORE THE RELEASES" (local tarballs, overrides, lockfile), which is reverted on the branch. After the release, `pnpm install` in `components/` writes the registry lockfile.
+**Until the 0.16 release set (MESH 0.18, NEXUS 0.17, PORT 0.15) is on npm** a registry-only lockfile cannot exist for `components/`; the branch carries it in one commit marked "DO NOT MERGE BEFORE THE RELEASES" (local tarballs, overrides, lockfile), which is reverted on the branch. After the release, `pnpm install` in `components/` writes the registry lockfile.

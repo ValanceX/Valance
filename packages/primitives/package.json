@@ -34,16 +34,16 @@
     "test:browser": "vitest run -c vitest.browser.config.ts"
   },
   "peerDependencies": {
-    "@valancex/valance": "^0.15.0"
+    "@valancex/valance": "^0.16.0"
   },
   "devDependencies": {
     "@types/aria-query": "^5.0.4",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
-    "@valancex/mesh-compiler": "^0.17.0",
-    "@valancex/mesh-runtime": "^0.17.0",
+    "@valancex/mesh-compiler": "^0.18.0",
+    "@valancex/mesh-runtime": "^0.18.0",
     "@valancex/port-desktop-vocabulary": "^0.14.0",
-    "@valancex/port-web": "^0.14.0",
+    "@valancex/port-web": "^0.15.0",
     "@valancex/valance": "workspace:^",
     "@vitest/browser-playwright": "5.0.5",
     "ajv": "^8.17.1",

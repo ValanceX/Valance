@@ -98,7 +98,7 @@ describe("one application, every boundary at once", () => {
     const invoke = (key: string, value?: unknown) => Effect.runPromise(Effect.exit(handle.invoke(key, value === undefined ? [] : [{ value } as never])));
 
     expect(counts).toEqual({ acquired: 1, released: 0, uses: 0 });
-    expect(Object.keys(handle).sort()).toEqual(["invoke", "state"]);
+    expect(Object.keys(handle).sort()).toEqual(["command", "invoke", "state"]);
 
     // ── mounts: each owns a container, a target and its own retained render
     const mount = async () => {

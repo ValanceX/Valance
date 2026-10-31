@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "dist-tag or version of @valancex/* to test (next, latest, 0.15.0)"
+        description: "dist-tag or version of @valancex/* to test (next, latest, 0.16.0)"
         default: next
       suite:
         description: "one suite by name, or all"

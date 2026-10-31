@@ -144,6 +144,7 @@ const scenario = <A>(
         const invoked: Array<unknown> = [];
         const running: Running<App, never> = {
           nexus,
+          command: () => Effect.die("unused"),
           render: Effect.die("unused"),
           values: Stream.empty,
           dispatch: () => Effect.die("unused"),

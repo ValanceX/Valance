@@ -8,7 +8,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { check } from "./check.js";
 import { loadConfig } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
-import { diagnostic } from "./diagnostics.js";
+import { diagnostic, isProblem } from "./diagnostics.js";
 import { cliSpec, commonSpec, packageName, runCommand } from "./init.js";
 import type { PackageManager } from "./init.js";
 import { CONDITION, hasCondition, installedAt } from "./libraries.js";
@@ -190,7 +190,7 @@ The playground (\`../../playground\`) is an application that depends on this pac
         allowArbitraryExtensions: true,
         rootDirs: ["src", ".valance/types"],
       },
-      include: ["src"],
+      include: ["src", ".valance/types/*.d.ts"],
     }),
   );
   out.set("playground/.gitignore", "node_modules\ndist\n.valance\n");
@@ -395,7 +395,8 @@ export const checkLibrary = async (dir: string, options: { readonly app?: string
 
   const result = await check(app);
 
-  for (const each of result.diagnostics) {
+  // the playground's warnings are about the playground's own templates, not the library
+  for (const each of result.diagnostics.filter(isProblem)) {
     problems.push({ ...each, file: `${label}/${each.file}` });
   }
 

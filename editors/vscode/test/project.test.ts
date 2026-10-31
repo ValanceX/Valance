@@ -43,7 +43,8 @@ describe("reading a project", () => {
 describe("diagnostics from `vlx check`", () => {
   it("places a line-only diagnostic on the whole line, and a located one on its column", () => {
     expect(place({ file: "content/a.md", line: 12, column: 0, code: "link-broken", message: "x" })).toMatchObject({ startLine: 11, startColumn: 0, endColumn: -1 });
-    expect(place({ file: "valance.json", line: 0, column: 0, code: "config-missing", message: "x" })).toMatchObject({ startLine: 0 });
+    expect(place({ file: "valance.json", line: 0, column: 0, code: "config-missing", message: "x" })).toMatchObject({ startLine: 0, warning: false });
+    expect(place({ file: "src/layout.mprx", line: 2, column: 5, code: "command-argument-order", message: "x", severity: "warning" })).toMatchObject({ warning: true });
     expect(place({ file: "src/main.ts", line: 3, column: 5, code: "entry-load", message: "x" })).toMatchObject({ startLine: 2, startColumn: 4, endColumn: 5 });
   });
 

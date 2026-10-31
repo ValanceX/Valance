@@ -124,6 +124,8 @@ export interface Component {
   readonly name?: string;
   /** The state and commands of one occurrence of the component, when it has any (see `unit`). */
   readonly unit?: Valance.Unit;
+  /** The context names its template reads, when it reads any (see `Contract.uses`). */
+  readonly uses?: ReadonlyArray<string>;
 }
 
 export const SNIPPET = Symbol.for("valancex.common.snippet");
@@ -184,6 +186,12 @@ export interface Contract<P extends string, E extends string> {
    * by name, like any others; the application never sees them. A component with a unit states its interface (`props` and `events`, empty if it has none).
    */
   readonly unit?: Valance.Unit;
+  /**
+   * The context names the template reads (Tier 2): `uses: ["theme"]` reads `theme` from `defineApp`'s `context`, read only, as if it were a scope name, without a prop on this component or any
+   * between it and the layout. Only the names listed are readable here; nothing is inherited. Pass props first: context is for a value many distant components need (a theme, a locale, the
+   * current user). With `uses` the interface is what this contract writes: omitted `props` or `events` mean none, as with a `unit`. See docs/use/context.md.
+   */
+  readonly uses?: ReadonlyArray<string>;
 }
 
 /**
@@ -198,6 +206,7 @@ export function component<P extends string = string, E extends string = string>(
     ...(contract.events === undefined ? {} : { events: contract.events }),
     ...(contract.name === undefined ? {} : { name: contract.name }),
     ...(contract.unit === undefined ? {} : { unit: contract.unit }),
+    ...(contract.uses === undefined ? {} : { uses: contract.uses }),
   };
 }
 
@@ -299,6 +308,15 @@ export interface TargetParts {
   readonly override?: ReadonlyArray<Component>;
 }
 
+/**
+ * The qualified ids (`package/name`) of the library components the application lists, as keys. Empty here: `vlx check`, `dev` and `build` fill it for a project in
+ * `.valance/types/library-components.d.ts` (included by `"include": ["src", ".valance/types/*.d.ts"]` in tsconfig.json), from the `components` of `src/main.ts`.
+ */
+export interface LibraryComponentIds {}
+
+/** What `resolve` maps a tag to: one of `LibraryComponentIds`, or any string while there are none (a project whose types were not generated, or that lists no library component). */
+export type ResolveId = [keyof LibraryComponentIds] extends [never] ? string : Extract<keyof LibraryComponentIds, string>;
+
 export interface AppDefinition<S extends StateInput = {}> {
   /**
    * The templates of one target, for a project with more than one (`valance.web.json` and `valance.desktop.json`): `targets: { web: { layout, components }, desktop: { layout } }`. A target's
@@ -316,8 +334,9 @@ export interface AppDefinition<S extends StateInput = {}> {
    * Which component a tag means when two share a name (Tier 2: nothing to write until there is a collision). A library's component has the qualified id `package/name` (`acme-ui/disclosure`); two
    * libraries that both have a `disclosure`, or a library component named like a built-in, are a compile error that names both ids, and `resolve: { disclosure: "acme-ui/disclosure" }` says which one the
    * tag is. The others are left out of the program, and a library template that writes the tag gets the one chosen. A built-in is replaced by the chosen library component, as `override` would.
+   * The id is typed (`ResolveId`) once `vlx` has written `.valance/types/library-components.d.ts` and the project's tsconfig.json includes it.
    */
-  readonly resolve?: Readonly<Record<string, string>>;
+  readonly resolve?: Readonly<Record<string, ResolveId>>;
   /**
    * Application state beyond the page: `{ theme: field(Schema.Literal("light", "dark"), "light") }`. Its fields become names a layout can read. A hand-built `{ schema, initial }` is also accepted, for
    * hydration and shared schemas.
@@ -358,6 +377,13 @@ export interface AppDefinition<S extends StateInput = {}> {
    * be pure and must not throw.
    */
   readonly derived?: (derive: DeriveMaker<PageState & StateOf<S>>) => { readonly [name: string]: Derived<any> };
+  /**
+   * Values a component deep in the tree reads without a prop at every level between (Tier 2): `context: (state) => ({ theme: state.theme })`, read by a component that lists the name in its
+   * `uses`. Each name is one the layout reads (a state field, a derived value, or a framework name such as `colorScheme`) and has its type; the names are those the function returns for the
+   * initial state. It runs for every committed state, on every target, and is given the state without its `Schema.Redacted` fields. It must be pure and must not throw. Pass props first: see
+   * docs/use/context.md. A state field's, `viewport`'s or `colorScheme`'s value is typed as the layout reads it (`ContextValues`); another name's is checked when the manifest is built.
+   */
+  readonly context?: (state: PageState & StateOf<S>) => ContextValues<S>;
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */
   readonly commands?: (command: Valance.CommandMaker<PageState & StateOf<S>>) => Valance.CommandTable<any, Valance.Ambient>;
 }
@@ -373,6 +399,16 @@ export interface NavigationContext {
 
 /** `true` allows, `false` stops, and `{ _tag: "Redirect", name }` (the router's `redirect(page)`) goes to another page; it may answer now, later or as an Effect. */
 export type NavigationGuard = (context: NavigationContext) => unknown;
+
+/**
+ * What `context` returns: some of the names the layout reads, each with its type where this type knows it (the state's fields, `viewport` and `colorScheme`). A derived value's name and the
+ * framework's content names (`title`, `site`, …) are not in it (`derived` is not part of `S`, and the content's names live with the runtime), so any other name is accepted here and its type is
+ * checked when the manifest is built.
+ */
+export type ContextValues<S extends StateInput = {}> = { readonly [K in keyof Known<S>]?: Known<S>[K] } & Readonly<Record<string, unknown>>;
+
+/** The layout names whose types `ContextValues` knows. */
+type Known<S extends StateInput> = Pick<PageState, "viewport" | "colorScheme"> & StateOf<S>;
 
 /** The brand that says a value came from `defineApp`. */
 export const APP = Symbol.for("valancex.common");

@@ -426,7 +426,7 @@ describe("G, H, J, K: mount close, and what the application can see", () => {
     expect(await b.state()).toMatchObject({ value: "init" });
     expect(values).toEqual(["init"]);
     expect(b.page.container.innerHTML).toBe(before);
-    expect(Object.keys(b.handle).sort()).toEqual(["invoke", "state"]); // the public handle exposes no failure surface
+    expect(Object.keys(b.handle).sort()).toEqual(["command", "invoke", "state"]); // the public handle exposes no failure surface
     expect(b.mount.dispatched.map(show)).toEqual(["failed", "died"]); // the one place the failures exist
   });
 

@@ -26,6 +26,6 @@
     "check": "vlx library check"
   },
   "devDependencies": {
-    "@valancex/cli": "^0.15.0"
+    "@valancex/cli": "^0.16.0"
   }
 }

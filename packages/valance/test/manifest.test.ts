@@ -112,6 +112,18 @@ describe("what is derived", () => {
     expect(Object.keys(c).sort()).toEqual(["board", "button", "field", "link", "page", "row", "text"]);
   });
 
+  it("the context channel (MESH 0.18): the context Schema's fields as the top-level `context`, optional where they may be left out, and none without it", () => {
+    const m = manifest({
+      primitives: {},
+      scopes: { v: Schema.Struct({}) },
+      commands: () => ({}),
+      context: Schema.Struct({ theme: Schema.Literal("light", "dark"), user: Schema.optional(Schema.String) }),
+    });
+
+    expect(m.context).toEqual({ theme: { kind: "enum", values: ["light", "dark"] }, user: { kind: "optional", type: { kind: "string" } } });
+    expect("context" in derived).toBe(false);
+  });
+
   it("the plumbing nobody writes: version, no named types, and nothing for control flow (blocks lower to constructs MESH has built in)", () => {
     expect(derived.version).toBe(1);
     expect(derived.types).toEqual({});

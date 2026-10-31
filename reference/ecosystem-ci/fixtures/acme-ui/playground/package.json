@@ -10,13 +10,13 @@
     "prepare": "vlx sync"
   },
   "dependencies": {
-    "@valancex/common": "^0.15.0",
+    "@valancex/common": "^0.16.0",
     "effect": "^3.10.0",
     "acme-ui": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@valancex/cli": "^0.15.0",
+    "@valancex/cli": "^0.16.0",
     "typescript": "^5.6.0"
   }
 }

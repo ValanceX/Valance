@@ -196,7 +196,7 @@ State lives in memory per visible instance, as in LiveView. It is bounded by the
 | State inside templates (mutable locals) | Impure; against fixed point 1 |
 | Hide units in the snapshot under a reserved name | Instances are dynamic and records are exact, so it needs a special case in the type system anyway. An explicit input is simpler and honest |
 | Let the platform hold it (a native `<details>`) | Fine for transient browser state like scroll or focus, which already behave this way. Not for state that should replay, render on a server, or work on the Desktop |
-| A context or provide/inject mechanism | Hides dependencies. Props and snippet parameters make them visible |
+| A context or provide/inject mechanism | Hides dependencies. Props and snippet parameters make them visible. **Superseded by [K27](../decisions.md):** a declared, type-checked `uses` channel does not hide dependencies, and was adopted on 2026-10-25 |
 
 ## Experiment
 

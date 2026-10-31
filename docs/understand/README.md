@@ -33,6 +33,10 @@ VALANCE's own handle is Effect-shaped: `start` needs a `Scope`, `invoke` and `st
 
 The same split is stated normatively in [Contract §1](../V1_CONTRACT.md#1-what-valance-is) and held by tripwires in [`CONSTRAINTS.md`](../CONSTRAINTS.md) (C1 and C2: an author never wires NEXUS to PORT; behavior is NEXUS's, render semantics are MESH's, realization is PORT's). What each package's rules are belongs to that package's own documentation: [NEXUS](https://github.com/ValanceX/Nexus), [MESH](https://github.com/ValanceX/Mesh) (its manual covers `render-v1` and the compiler), [PORT](https://github.com/ValanceX/Port).
 
+## Glossary
+
+Words that mean more than one thing across the four repos, and which name is canonical: [glossary](./glossary.md).
+
 ## The evidence
 
 - [`CONSTRAINTS.md`](../CONSTRAINTS.md): the engineering constraints and tripwires the code is held to, each with the test that enforces it. A maintainer's record, not the user contract.

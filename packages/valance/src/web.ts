@@ -5,7 +5,7 @@
  */
 import type { HydrationResult, WebPort, WebPortOptions, WebPrimitive, WebPrimitives } from "@valancex/port-web";
 import type { BoundaryValue } from "@valancex/mesh-runtime";
-import type { Ambient, ApplicationDefinition, ApplicationHandle, Mounted, StartOptions, TargetFactory } from "./index.js";
+import type { Ambient, ApplicationDefinition, ApplicationHandle, HydratableTarget, Mounted, StartOptions, TargetFactory } from "./index.js";
 
 import * as PortWeb from "@valancex/port-web";
 import { attribute, controlled, createWebPort } from "@valancex/port-web";
@@ -13,6 +13,7 @@ import { hydrate, mount, start } from "./index.js";
 import type { SessionRecorder } from "./replay.js";
 import { INPUT_KEY, runningOf } from "./internal.js";
 import { event } from "./web-payload.js";
+import { restoreRedacted } from "./web-redacted.js";
 import { applyHead, cleanTitle, compose } from "./web-plugin.js";
 import type { GuardResult, HeadTags, Navigation, Plugin } from "./web-plugin.js";
 import { Cause, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
@@ -447,6 +448,18 @@ export interface RunOptions<S> extends StartOptions<S> {
    * are a `plugin-conflict`.
    */
   readonly plugins?: ReadonlyArray<Plugin<S>>;
+  /**
+   * PORT Web's native hatch (Tier 3, Provisional, Web only): a callback per component that gets each drawn element of that primitive and `{ key }`, and may return a cleanup.
+   * Handed to the PORT unread; the shape is PORT's `Native` (`@valancex/port-web/native`), whose README ("Leaving the portable layer") says when it runs and what it may touch.
+   * It gets nothing that reports or dispatches. Needs a PORT Web with the hatch: at release the peer range starts there. Absent: no callbacks.
+   */
+  readonly native?: { readonly [component: string]: (element: Element, info: { readonly key: string }) => (() => void) | void };
+  /**
+   * A wrapper of the target run builds (Tier 3, unprotected): it gets that factory (`Web.target` with `container`, `primitives` and `native`) and returns the one run mounts or
+   * hydrates with, so run keeps its duties (the `Mounted`, the URL, `stop`). What the wrapper writes to DOM the PORT owns is not protected: see docs/use/platform.md.
+   * Absent: run's own target.
+   */
+  readonly target?: (base: TargetFactory<WebPort>) => TargetFactory<HydratableTarget<HydrationResult>>;
 }
 
 /** One application running on one page: the core's handle, the presentation, and the one operation the host adds. */
@@ -471,7 +484,7 @@ export interface Host<S, E> {
  * defect), after the lifetime it began has been closed. Everything after startup is observed through what the core already gives: `handle`,
  * `mounted.followed` (how the presentation ended), `mounted.settled` and `mounted.dispatched`.
  *
- * It is a convenience for the ordinary page. Several mounts, independent lifetimes, a custom target and headless use are the core's own: `start`,
+ * It is a convenience for the ordinary page. `native` and `target` are its two ways down to the platform (Tier 3). Several mounts, independent lifetimes and headless use are the core's own: `start`,
  * `mount`, `hydrate` and `history`, composed by the caller.
  */
 export const run = async <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>, options: RunOptions<S>): Promise<Host<S, E>> => {
@@ -500,8 +513,11 @@ export const run = async <S, E, R extends Ambient, V extends string>(app: Applic
             ...(composed.head === undefined ? {} : { head: composed.head }),
           };
   const startup = Effect.gen(function* () {
-    const handle = yield* start(app, { ...options, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
-    const web = target({ container: options.container, primitives: composed.primitives });
+    // A server leaves a Redacted field out of the state it embeds; hydrating puts its declared default back (C-3).
+    const embedded = options.present === "hydrate" && options.state !== undefined ? { state: restoreRedacted(app.state.schema, app.state.initial, options.state) } : {};
+    const handle = yield* start(app, { ...options, ...embedded, ...(composed.platform === undefined ? {} : { platform: composed.platform }) });
+    const base = target({ container: options.container, primitives: composed.primitives, ...(options.native === undefined ? {} : { native: options.native }) });
+    const web = options.target === undefined ? base : options.target(base);
     const mountOptions = { ...(options.ledger === undefined ? {} : { ledger: options.ledger }), ...(options.record === undefined ? {} : { record: options.record }) };
     const mounted: Host<S, E>["mounted"] = options.present === "hydrate" ? yield* hydrate(handle, web, mountOptions) : yield* mount(handle, web, mountOptions);
 

@@ -5,6 +5,7 @@ import { Box, Text } from "ink";
 import type { BuildStage, Built } from "../build.js";
 import type { Checked } from "../check.js";
 import type { Diagnostic } from "../diagnostics.js";
+import { isProblem } from "../diagnostics.js";
 import { Spinner } from "./Spinner.js";
 
 const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -33,7 +34,7 @@ export const Diagnostics = ({ diagnostics }: { readonly diagnostics: ReadonlyArr
           {list.map((each, index) => (
             <Text key={`${each.line}:${each.column}:${each.code}:${index}`}>
               <Text dimColor>{each.line > 0 ? `${each.line}:${each.column}`.padEnd(8) : "".padEnd(8)}</Text>
-              <Text color="red">{each.code}</Text>
+              <Text color={each.severity === "warning" ? "yellow" : "red"}>{each.code}</Text>
               <Text> {each.message}</Text>
             </Text>
           ))}
@@ -44,21 +45,24 @@ export const Diagnostics = ({ diagnostics }: { readonly diagnostics: ReadonlyArr
 };
 
 export const CheckResult = ({ result }: { readonly result: Checked }) =>
-  result.diagnostics.length === 0 ? (
-    <Text>
-      <Text color="green" bold>
-        ✔ No problems
+  !result.diagnostics.some(isProblem) ? (
+    <Box flexDirection="column">
+      {result.diagnostics.length > 0 ? <Diagnostics diagnostics={result.diagnostics} /> : null}
+      <Text>
+        <Text color="green" bold>
+          ✔ No problems
+        </Text>
+        <Text dimColor>
+          {" "}
+          · {plural(result.pages, "page")}, {plural(result.components.length, "component")}
+        </Text>
       </Text>
-      <Text dimColor>
-        {" "}
-        · {plural(result.pages, "page")}, {plural(result.components.length, "component")}
-      </Text>
-    </Text>
+    </Box>
   ) : (
     <Box flexDirection="column">
       <Diagnostics diagnostics={result.diagnostics} />
       <Text color="red" bold>
-        ✖ {plural(result.diagnostics.length, "problem")}
+        ✖ {plural(result.diagnostics.filter(isProblem).length, "problem")}
       </Text>
     </Box>
   );

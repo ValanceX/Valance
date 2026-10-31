@@ -27,6 +27,8 @@ export interface Node {
     readonly name?: string;
     /** The state and commands of one occurrence of the component, if it has any. */
     readonly unit?: Component["unit"];
+    /** The context names its template reads (the contract's `uses`, the manifest entry's `uses`), if it reads any. Not the components it writes, which are the node's `uses`. */
+    readonly uses?: ReadonlyArray<string>;
   };
   /** The declared components its template writes. */
   readonly uses: ReadonlyArray<string>;
@@ -62,7 +64,8 @@ export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<C
 
     if (!found.has(name)) {
       const contract =
-        declared.props === undefined && declared.events === undefined && declared.unit === undefined
+        // A unit or context names make the interface declared: the model's entry carries them, and an inferred contract has no entry.
+        declared.props === undefined && declared.events === undefined && declared.unit === undefined && declared.uses === undefined
           ? {}
           : {
               interface: {
@@ -70,6 +73,7 @@ export const treeOf = (layout: Component | undefined, overrides: ReadonlyArray<C
                 events: declared.events ?? {},
                 ...(declared.name === undefined ? {} : { name: declared.name }),
                 ...(declared.unit === undefined ? {} : { unit: declared.unit }),
+                ...(declared.uses === undefined ? {} : { uses: declared.uses }),
               },
             };
 

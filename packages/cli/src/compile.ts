@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { commandTable, scopeSchema } from "@valancex/common/internal";
+import { commandTable, contextSchema, scopeSchema } from "@valancex/common/internal";
 import type { Diagnostic } from "./diagnostics.js";
 import { AppError, diagnostic } from "./diagnostics.js";
 import type { Component, DefinedApp } from "@valancex/common";
@@ -286,7 +286,10 @@ const reachable = (all: ReadonlyArray<Template>): ReadonlyArray<Template> => {
 };
 
 export const manifestOf = (author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary) => {
+  const context = contextSchema(author);
   const derived = manifest({
+    // The context channel: the names `defineApp`'s `context` gives, with the types the layout reads them under.
+    ...(context === undefined ? {} : { context }),
     // A web vocabulary is a table the manifest is derived from; any other is a manifest already, and its components are merged in as they are.
     primitives: "tags" in vocabulary ? vocabulary.tags : {},
     scopes: { [ROOT]: scopeSchema(author) },

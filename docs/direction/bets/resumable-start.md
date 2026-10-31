@@ -103,6 +103,8 @@ A small inline script, written into every document by `vlx build`, records the p
 
 **Why replay at the adopted nodes works.** Hydration "keeps every server node", so the element a person tapped is the element the PORT's listeners end up on. Because the server and the client start from the same state, the page the person saw is the page the tree describes, so the action means what they meant.
 
+*Restated 2026-10-25 ([K29](../decisions.md)):* the invariant is that the server and the client render the same tree. Fields typed `Schema.Redacted` are not embedded, but they cannot change the tree, so the argument above still holds.
+
 ### B. Cut the fixed cost (the real lever)
 
 Most of "interactive at" is the script arriving and the application starting. This belongs to [Bet 3](budgets.md), and this brief adds the metrics it needs:

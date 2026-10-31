@@ -6,7 +6,12 @@ export interface Diagnostic {
   readonly column: number;
   readonly code: string;
   readonly message: string;
+  /** `"warning"`: worth a look, and not a mistake, so it fails nothing (`command-argument-order`). Absent: a mistake. */
+  readonly severity?: "warning";
 }
+
+/** Whether a diagnostic is a mistake (what fails `vlx check`), not a warning. */
+export const isProblem = (each: Diagnostic): boolean => each.severity !== "warning";
 
 /** A failure that carries the diagnostics it is made of. */
 export class AppError extends Error {
@@ -19,7 +24,8 @@ export class AppError extends Error {
   }
 }
 
-export const format = ({ file, line, column, code, message }: Diagnostic): string => `${file}${line > 0 ? `:${line}${column > 0 ? `:${column}` : ""}` : ""} ${code}: ${message}`;
+export const format = ({ file, line, column, code, message, severity }: Diagnostic): string =>
+  `${file}${line > 0 ? `:${line}${column > 0 ? `:${column}` : ""}` : ""} ${severity === "warning" ? "warning " : ""}${code}: ${message}`;
 
 export const diagnostic = (file: string, line: number, code: string, message: string, column = 0): Diagnostic => ({ file, line, column, code, message });
 

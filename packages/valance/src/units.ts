@@ -11,11 +11,11 @@ import * as Nexus from "@valancex/nexus";
 import { Effect, Exit, Schema, Scope } from "effect";
 
 /**
- * One occurrence of a component with a unit in a render, as MESH 0.15 lists it (`Render.instances`). Written here and not imported, so that this package builds and
- * runs, for an application with no units, against the MESH and NEXUS it was released with before them.
+ * One occurrence of a component with a unit in a render, as MESH 0.18 lists it (`Render.occurrences`). Written here and not imported,
+ * so that this package builds and runs, for an application with no units, against the MESH and NEXUS it was released with before them.
  */
 export interface UnitOccurrence {
-  readonly instance: string;
+  readonly occurrence: string;
   readonly component: string;
   readonly state: Readonly<Record<string, any>>;
   readonly controlled?: ReadonlyArray<string>;
@@ -24,8 +24,8 @@ export interface UnitOccurrence {
 /** The state the host holds for the occurrences that have changed, by the occurrence's key. */
 export type UnitStates = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 
-/** A command intent as far as units are concerned: `instance` and `controlled` are in it from MESH 0.15. */
-export type UnitIntent = Nexus.Mesh.CommandIntent & { readonly instance?: string; readonly controlled?: ReadonlyArray<string> };
+/** A command intent as far as units are concerned: `controlled` and `occurrence` are in it from MESH 0.18. */
+export type UnitIntent = Nexus.Mesh.CommandIntent & { readonly occurrence?: string; readonly controlled?: ReadonlyArray<string> };
 
 /** The part of the NEXUS adapter that units use: NEXUS 0.14 has it. An older one has none, and an application without units never asks for it. */
 interface UnitsAdapter {
@@ -33,7 +33,7 @@ interface UnitsAdapter {
   readonly update: (previous: Nexus.Mesh.Render, snapshot: Record<string, unknown>, units?: UnitStates) => Effect.Effect<Nexus.Mesh.Updated, Nexus.Mesh.MeshDiagnostics>;
   readonly raise: (
     render: Nexus.Mesh.Render,
-    instance: string,
+    occurrence: string,
     event: string,
     payload?: unknown,
   ) => Effect.Effect<Nexus.Mesh.CommandIntent | undefined, Nexus.Mesh.MeshDiagnostics>;
@@ -49,15 +49,10 @@ const adapter = (): UnitsAdapter => {
   return found as UnitsAdapter;
 };
 
-/** Renders with the state of the occurrences. */
-export const renderWithUnits: UnitsAdapter["render"] = (program, snapshot, units) => Effect.suspend(() => adapter().render(program, snapshot, units));
-
-/** Updates with the state of the occurrences. */
-export const updateWithUnits: UnitsAdapter["update"] = (previous, snapshot, units) => Effect.suspend(() => adapter().update(previous, snapshot, units));
-
-/** The occurrences a render lists. */
-export const occurrencesOf = (render: Nexus.Mesh.Render): ReadonlyArray<UnitOccurrence> =>
-  (render as unknown as { readonly instances?: ReadonlyArray<UnitOccurrence> }).instances ?? [];
+/** The occurrences a render lists: MESH 0.18's `occurrences` (the 0.15 to 0.17 `instances` are no longer read: the peer range starts at 0.18). */
+export const occurrencesOf = (render: Nexus.Mesh.Render): ReadonlyArray<UnitOccurrence> => {
+  return (render as unknown as { readonly occurrences?: ReadonlyArray<UnitOccurrence> }).occurrences ?? [];
+};
 
 /** A unit command's binding: the arguments, and the intent (which names the occurrence). */
 export type UnitBinding = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>, intent?: UnitIntent) => Effect.Effect<unknown, never, never>;
@@ -167,7 +162,7 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
 
       return (args, intent) =>
         Effect.gen(function* () {
-          const key = intent?.instance;
+          const key = intent?.occurrence;
           const known = key === undefined ? undefined : seen.get(key);
 
           if (key === undefined || known === undefined) {
@@ -226,12 +221,12 @@ export const makeRegistry = (units: Readonly<Record<string, Unit>>, deliver: () 
       observe: (render) =>
         Effect.suspend(() => {
           const occurrences = occurrencesOf(render);
-          const present = new Set(occurrences.map((each) => each.instance));
+          const present = new Set(occurrences.map((each) => each.occurrence));
 
           seen.clear();
 
           for (const occurrence of occurrences) {
-            seen.set(occurrence.instance, { occurrence, render });
+            seen.set(occurrence.occurrence, { occurrence, render });
           }
 
           return Effect.forEach(

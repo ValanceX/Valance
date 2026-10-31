@@ -1,7 +1,7 @@
 /**
  * Server rendering for the Web target: start the application, take its current MESH render, and let
  * PORT's server entry write it as HTML. The state is returned so the application can embed it for the
- * client: serializing it into a page is the application's job, not NEXUS's, PORT's or Valance's.
+ * client: serializing it into a page is the application's job, not NEXUS's, PORT's or Valance's. The state leaves out fields typed `Schema.Redacted` (C-3).
  */
 import type { Mesh } from "@valancex/nexus";
 import type { WebPrimitives } from "@valancex/port-web/server";
@@ -13,6 +13,8 @@ import { Effect } from "effect";
 
 import { runningOf } from "./internal.js";
 import { start } from "./index.js";
+import { ValanceError } from "./errors.js";
+import { restoreRedacted, unmaskableFields, withoutRedacted } from "./web-redacted.js";
 import { compose } from "./web-plugin.js";
 
 export interface Served<S> {
@@ -37,6 +39,16 @@ export const renderToHtml = <S, E, R extends Ambient, V extends string>(
   options: RenderOptions<S>,
 ): Effect.Effect<Served<S>, StartError | Mesh.MeshDiagnostics> =>
   Effect.suspend(() => {
+    // Fail closed: a Redacted this cannot mask must not be embedded, whether or not `vlx check` ran.
+    const unmaskable = unmaskableFields(app.state.schema);
+
+    if (unmaskable.length > 0) {
+      throw new ValanceError(
+        "redacted-unmaskable",
+        `renderToHtml: the state holds a Schema.Redacted that is not a top-level struct field (${unmaskable.join(", ")}), and only top-level fields are masked`,
+      );
+    }
+
     // Composed before anything is acquired: a conflict fails the call with nothing started.
     const composed = compose<S>({ primitives: options.primitives, platform: options.platform, head: options.head }, options.plugins ?? []);
 
@@ -46,7 +58,11 @@ export const renderToHtml = <S, E, R extends Ambient, V extends string>(
         const viewed = yield* running.render;
         const state = yield* running.state;
 
-        return { html: realizeHtml(viewed.render.tree, composed.primitives), state, head: composed.head?.(state) ?? {} };
+        const embedded = withoutRedacted(app.state.schema, state);
+        // The head is written from the state the browser will have (each Redacted field at its default), so a secret cannot reach `<head>` or `<title>`.
+        const seen = restoreRedacted(app.state.schema, app.state.initial, embedded);
+
+        return { html: realizeHtml(viewed.render.tree, composed.primitives), state: embedded, head: composed.head?.(seen) ?? {} };
       }),
     );
   });

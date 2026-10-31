@@ -98,4 +98,4 @@ Not re-checked in this pass, and bearing on the † results: N7 and V7 (tiers of
 
 ## Next measurement
 
-Recompute with the [scorecard](./NORTH_STAR_SCORECARD.md) whenever a change touches an audit, and update this file in the same change.
+Recompute with the [scorecard](./NORTH_STAR_SCORECARD.md) whenever a change touches an audit, and update this file in the same change. The next measurement, taken 2026-10-25 before any refinement, is [north-star-validation-2026-10-25.md](./north-star-validation-2026-10-25.md).

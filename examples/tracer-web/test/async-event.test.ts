@@ -259,7 +259,7 @@ describe("A: the success baseline, through a real click", () => {
     expect(b.dispatched()).toEqual(["succeeded"]);
     const exit = b.mount.dispatched[0]!;
 
-    expect(Exit.isSuccess(exit) && exit.value.intent).toEqual({ command: { component: "home", name: "open" }, arguments: [{ value: "success" }] }); // the real MESH intent
+    expect(Exit.isSuccess(exit) && exit.value.intent).toEqual({ command: { component: "home", name: "open" }, arguments: [{ value: "success", name: "id" }] }); // the real MESH intent
   });
 });
 

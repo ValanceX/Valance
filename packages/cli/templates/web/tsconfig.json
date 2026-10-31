@@ -14,5 +14,5 @@
     "allowArbitraryExtensions": true,
     "rootDirs": ["src", ".valance/types"]
   },
-  "include": ["src"]
+  "include": ["src", ".valance/types/*.d.ts"]
 }

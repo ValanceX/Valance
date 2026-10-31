@@ -1,7 +1,7 @@
 /**
  * The composition protocol between Valance's core and the code that binds an application to something outside it
  * (a PORT target, browser history, a server render, a test). It is NOT the application's face: the public handle
- * (`ApplicationHandle`, from the package entry) carries only `state` and `invoke`, and does not reach this.
+ * (`ApplicationHandle`, from the package entry) carries only `state`, `invoke` and `command`, and does not reach this.
  *
  * `Running` is what `start` builds. A handle is registered against the `Running` it fronts in a module-private map,
  * so nothing reachable from a handle leads here; only code that imports this module (the package's own bindings and,
@@ -64,13 +64,17 @@ export interface Running<S, E> {
   readonly admit: (name: string, view: View<S>) => Effect.Effect<void, ConformanceViolation | Nexus.Mesh.MeshDiagnostics>;
   /** Runs the command bound to `key`, in the application's own context (see `ApplicationHandle.invoke`). */
   readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  /** Runs the command bound to `key` with a whole input or an entry's arguments (see `ApplicationHandle.command`). */
+  readonly command: (key: string, input?: unknown) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  /** Whether the application gives context values (`ApplicationDefinition.context`): a session of it cannot be recorded yet. */
+  readonly hasContext?: boolean;
 }
 
 const registry = new WeakMap<object, Running<never, never>>();
 
-/** The public face of a `Running`: its `state` and `invoke`, and nothing else. Registered, so bindings can resolve it. */
+/** The public face of a `Running`: its `state`, `invoke` and `command`, and nothing else. Registered, so bindings can resolve it. */
 export const handleOf = <S, E>(running: Running<S, E>): ApplicationHandle<S, E> => {
-  const handle: ApplicationHandle<S, E> = Object.freeze({ state: running.state, invoke: running.invoke });
+  const handle: ApplicationHandle<S, E> = Object.freeze({ state: running.state, invoke: running.invoke, command: running.command });
 
   registry.set(handle, running as unknown as Running<never, never>);
 
@@ -90,3 +94,4 @@ export const runningOf = <S, E>(handle: ApplicationHandle<S, E>): Running<S, E> 
 
 /** The registry key under which a bare command receives its input WHOLE (the navigation fact history reads from a URL). Reserved for history's `navigate`; not a key a MESH program declares or a caller needs. */
 export const INPUT_KEY = (name: string): string => `navigation/${name}`;
+export { problemsOf as redactedProblems } from "./web-redacted.js";

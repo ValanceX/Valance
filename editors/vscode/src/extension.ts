@@ -327,7 +327,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<Api> =
       for (const each of found) {
         const line = each.startLine;
         const range = new vscode.Range(line, each.startColumn, line, each.endColumn < 0 ? Number.MAX_SAFE_INTEGER : each.endColumn);
-        const diagnostic = new vscode.Diagnostic(range, each.message, vscode.DiagnosticSeverity.Error);
+        const diagnostic = new vscode.Diagnostic(range, each.message, each.warning ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error);
 
         diagnostic.code = each.code;
         diagnostic.source = "valance";

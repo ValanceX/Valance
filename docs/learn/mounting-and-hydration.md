@@ -38,7 +38,7 @@ A server can send ready-made HTML so the page shows something before any code ru
 const host = await Web.run(app, { container, primitives, present: "hydrate", state });
 ```
 
-`state` is what the server rendered from, carried in the page. If the markup does not match what the browser renders, that is not an error: the browser draws its own version and tells you through `hydration`. After the first draw, a hydrated mount behaves exactly like any other.
+`state` is what the server rendered from, carried in the page. It is the application's state **without its secrets**: a top-level field typed `Schema.Redacted` (or `NullOr` of one) is never embedded, and the browser starts it at the default the field declares. A secret field must have a default, and no view may read it (`vlx check` reports `redacted-no-default` and `redacted-in-view`), so the page the browser draws is the page the server wrote. Only top-level fields are masked: a Redacted inside a sub-struct, an array or a state schema that is not a plain struct is refused by `vlx check` (`redacted-unmaskable`). The default of `Schema.Redacted(S)` is written as the plain encoded value (`"secret"`), the default of `Schema.RedactedFromSelf(S)` as a `Redacted` (`Redacted.make("secret")`); the state is decoded as given. Everything else in the state is readable by anyone who can read the page. If the markup does not match what the browser renders, that is not an error: the browser draws its own version and tells you through `hydration`. After the first draw, a hydrated mount behaves exactly like any other.
 
 ## Server rendering and startup work
 

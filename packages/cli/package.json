@@ -1,6 +1,6 @@
 {
   "name": "@valancex/cli",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "vlx, the VALANCE command: make an application (vlx init), serve it as you edit (vlx dev), build it to a static site (vlx build), check it (vlx check). Content, layout, components and styles in, a website out.",
   "keywords": [
     "valance",
@@ -56,8 +56,8 @@
   },
   "dependencies": {
     "@valancex/common": "workspace:^",
-    "@valancex/mesh-compiler": "^0.15.0 || ^0.16.0 || ^0.17.0",
-    "@valancex/port-desktop-vocabulary": "^0.12.0 || ^0.13.0 || ^0.14.0",
+    "@valancex/mesh-compiler": "^0.18.0",
+    "@valancex/port-desktop-vocabulary": "^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0",
     "@valancex/style": "workspace:^",
     "@valancex/valance": "workspace:^",
     "effect": "^3.10.0",
@@ -70,7 +70,7 @@
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
     "@types/react": "19.3.0",
-    "@valancex/mesh-runtime": "^0.17.0",
+    "@valancex/mesh-runtime": "^0.18.0",
     "dom-accessibility-api": "^0.7.0",
     "ink-testing-library": "4.0.0",
     "jsdom": "^30.1.3",

@@ -51,6 +51,8 @@ export type MeshType =
 export interface Manifest {
   readonly version: 1;
   readonly types: Readonly<Record<string, never>>;
+  /** The context channel (MESH 0.18): each context name and its type, declared once. Absent when the application gives no context. */
+  readonly context?: Readonly<Record<string, MeshType>>;
   readonly components: Readonly<
     Record<
       string,
@@ -59,6 +61,8 @@ export interface Manifest {
         readonly events: Readonly<Record<string, { readonly payload?: MeshType }>>;
         readonly commands: Readonly<Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }>>;
         readonly scope: Readonly<Record<string, MeshType>>;
+        /** The context names the component reads (MESH 0.18): they join its scope, read only. */
+        readonly uses?: ReadonlyArray<string>;
       }
     >
   >;
@@ -73,6 +77,8 @@ export interface ManifestOptions {
   readonly commands: (state: Nexus.State.StateHandle<any>) => Readonly<Record<string, unknown>>;
   /** Plugins whose tags are part of the application's vocabulary: their `primitives` join `primitives`, composed as `compose` in `./web/plugin` says (a tag is declared once). */
   readonly plugins?: ReadonlyArray<Plugin<any>>;
+  /** The context values' Schema (MESH 0.18): a struct of every context name the application gives, typed as `define`'s `context` returns them. Absent: the manifest declares no context. */
+  readonly context?: Schema.Schema<any, any, never>;
 }
 
 // ---- Schema → MESH type -------------------------------------------------------------------------------------------------------------------------------------------
@@ -170,6 +176,16 @@ const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.Typ
 
   return ast;
 };
+
+/** A struct's fields as names a template reads, each with its type: optional when the field may be left out. */
+const namesOf = (schema: Schema.Schema<any, any, never>, path: string): Readonly<Record<string, MeshType>> =>
+  Object.fromEntries(
+    structOf(schema, path).propertySignatures.map((property) => {
+      const field = fieldOf(property, `${path}.${String(property.name)}`);
+
+      return [String(property.name), field.required ? field.type : { kind: "optional", type: field.type }];
+    }),
+  );
 
 // ---- the three sources ---------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -308,6 +324,7 @@ export const manifest = (given: ManifestOptions): Manifest => {
   return {
     version: 1,
     types: {},
+    ...(options.context === undefined ? {} : { context: namesOf(options.context, "context") }),
     components: {
       ...Object.fromEntries(Object.entries(options.primitives).map(([tag, primitive]) => [tag, tagOf(tag, primitive)])),
       ...Object.fromEntries(
@@ -317,13 +334,7 @@ export const manifest = (given: ManifestOptions): Manifest => {
             props: {},
             events: {},
             commands, // a bare command is every view's, as `start` binds it to every declared `component/name`
-            scope: Object.fromEntries(
-              structOf(schema, view).propertySignatures.map((property) => {
-                const field = fieldOf(property, `${view}.${String(property.name)}`);
-
-                return [String(property.name), field.required ? field.type : { kind: "optional", type: field.type }];
-              }),
-            ),
+            scope: namesOf(schema, view),
           },
         ]),
       ),

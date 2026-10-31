@@ -25,7 +25,7 @@ The documentation has three levels. Start at the first and go down only when you
 | look up exactly what an API does, and what happens when it fails | [API reference](use/README.md) |
 | know what VALANCE guarantees, and what it does not | [The contract](V1_CONTRACT.md) |
 | understand how it is implemented, and why | [Understand](understand/README.md) |
-| know the design rules every API is held to, and how the ecosystem measures up | [Design north star](DESIGN_NORTH_STAR.md), [scorecard](NORTH_STAR_SCORECARD.md), [baseline](north-star-validation-2026-10-19.md) |
+| know the design rules every API is held to, and how the ecosystem measures up | [Design north star](DESIGN_NORTH_STAR.md), [scorecard](NORTH_STAR_SCORECARD.md), [baseline](north-star-validation-2026-10-19.md), [latest measurement](north-star-validation-2026-10-25.md) |
 | find the evidence behind a design decision | [Concept → evidence](understand/README.md#from-a-concept-to-its-evidence) |
 | install it, with the right package versions | [Installation](V1_CONTRACT.md#13-installation-and-package-surface) |
 | see what changed in a release | [`releases/`](releases/) |
