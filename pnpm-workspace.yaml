@@ -19,6 +19,5 @@ minimumReleaseAgeExclude:
   - "@valancex/mesh-lsp-win32-x64@0.11.0 || 0.17.0 || 0.18.0"
   - "@valancex/mesh-lsp@0.11.0 || 0.17.0 || 0.18.0"
 overrides:
-  "@valancex/mesh-runtime": file:./local-packs/valancex-mesh-runtime-0.17.0.tgz
   "@valancex/port-web": file:./local-packs/valancex-port-web-0.14.0.tgz
   ignore: 7.0.12
