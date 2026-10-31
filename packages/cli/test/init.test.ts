@@ -163,7 +163,11 @@ describe("the scaffold", () => {
 
     expect(manifest["name"]).toBe("my-notes");
     expect(manifest["scripts"]).toMatchObject({ dev: "vlx dev", build: "vlx build", check: "vlx check", prepare: "vlx sync", typecheck: "vlx sync && tsc --noEmit" });
-    expect(manifest["dependencies"]).toMatchObject({ effect: expect.stringMatching(/^\^\d/) });
+    // In this checkout `effect` is the copy the linked `@valancex/common` resolves, so the project has one (a range would install a second, and their Schemas would not type-check together).
+    const effect = manifest["dependencies"]["effect"] as string;
+
+    expect(effect).toMatch(/^(file|link):/);
+    expect(realpathSync(effect.replace(/^(file|link):/, ""))).toBe(realpathSync(fileURLToPath(new URL("../../common/node_modules/effect", import.meta.url))));
     expect(Object.keys(manifest["dependencies"]).sort()).toEqual(["@valancex/common", "effect"]);
     expect(manifest["devDependencies"]["@valancex/cli"]).toBe("^1.2.3");
     expect(manifest["devDependencies"]["@valancex/mesh-lsp"]).toMatch(/^\^\d/);

@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* An application with a manifest: [Your first application](../tutorials/01-first-application.md).
+* An application with a manifest: [Without `vlx`](without-vlx.md).
 * MESH 0.17 or later.
 
 ---

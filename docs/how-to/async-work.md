@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* An application with at least one command: [Your first application](../tutorials/01-first-application.md).
+* An application with at least one command: [Without `vlx`](without-vlx.md).
 
 ---
 
@@ -199,7 +199,7 @@ Notes:
 
 ## Where the imports come from
 
-An ordinary command, one that only changes the state, is written with `Valance.command` ([Your first application](../tutorials/01-first-application.md)) and needs none of this. A command that **waits** is written as a general command instead, and that is the one place you meet two more imports:
+An ordinary command, one that only changes the state, is written with `Valance.command` ([Without `vlx`](without-vlx.md)) and needs none of this. A command that **waits** is written as a general command instead, and that is the one place you meet two more imports:
 
 ```ts
 import * as Nexus from "@valancex/nexus";   // Nexus.Command.define: a command that can wait, fail or use a resource

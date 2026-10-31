@@ -15,6 +15,7 @@
 | Wait for data, cancel it, show loading and failure | [Async work](async-work.md) |
 | Run something as soon as the application starts | [Startup work](startup-work.md) |
 | Draw the application, hydrate server HTML, render on a server | [Mounting and hydration](mounting-and-hydration.md) |
+| Use the engine without `vlx`: embed in an existing page, run headless | [Without `vlx`](without-vlx.md) |
 
 ## The interface
 

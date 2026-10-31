@@ -1,147 +1,111 @@
 # Your first desktop application
 
-> **TL;DR:** Build a to-do application that runs as a window on Linux and Windows, drawn with seven words and a ready-made window.
+> **TL;DR:** Add a desktop target to the to-do project with `vlx generate target desktop`, write its layout in the desktop vocabulary, open it in a window with `vlx dev --desktop`, and package it with `vlx package --desktop`. The state, commands, content and the two to-do components stay as they are.
 
 ## Prerequisites
 
-* JavaScript or TypeScript. No native toolkit knowledge.
+* [State, components and events](02-state-views-and-events.md), and its project.
+* Rust's `cargo`, once, to install the window program.
 
 ---
 
-You will build a to-do application that runs as a window on Linux and Windows. You need to know JavaScript or TypeScript. You do not need to know anything about native toolkits: the screen is described with seven words, and a ready-made window draws them.
+The finished application is [`examples/todo-multi`](../../examples/todo-multi), and blocks marked **File:** are checked against it. Starting fresh instead? `vlx init my-app --desktop` (or `--web --desktop`) makes a project with the target already in place. Steps 2 to 5 apply unchanged.
 
-The finished application is [`examples/todo`](../../examples/todo/README.md). Every code block on this page is a piece of a real file there, and a test checks that it still is.
+## How a desktop application runs
 
-## The pieces, in one paragraph
+The application is the same: one state, its commands and its content. Only the drawing differs. A **window** (the Desktop PORT's `vlx-window` program) draws the screen, and your application runs beside it in a small program called the **engine**. You write templates, and `vlx` builds the engine. You do not write the window.
 
-An application is **state** (what is true), **commands** (the only ways state changes) and **screens** (what to show). That is [the same model as on the web](../explanation/what-is-valance.md). What is new here is only how a screen is drawn: a **window** (the Desktop PORT) draws it, and your application runs beside it in a small program called the **engine**. You write screens, state and commands. You do not write the window.
+## 1. Add the target
 
-## The seven words
+```console
+$ vlx generate target desktop
+```
 
-A screen can use these and nothing else. There is no word for the window: the window belongs to the machine's desktop, and the application only says what it is called (step 4) (the [reference](../reference/desktop-vocabulary.md) has each one's details):
+This writes three things:
 
-| Word | What it is |
-|---|---|
-| `column`, `row` | children one under the next, or side by side |
-| `heading`, `text` | a title for what follows, and a run of text |
-| `button` | something to press |
-| `checkbox` | a box that is ticked or not |
-| `textfield` | a line of text a person edits |
+- `valance.desktop.json`, which gives the project the target, and `valance.web.json`, which a project needs once it has a second target.
+- `src/desktop/layout.mprx`, a layout of its own.
+- an entry in `targets` in `src/main.ts`: `targets: { desktop: { layout: component(desktopLayout) } }`.
 
-Repeating a part and showing a part only sometimes are not words. They are `{#each}` and `{#if}`, which you will see below.
+**The site moves.** A project with one target builds to `dist/`. A project with several builds to `dist/web/` and `dist/desktop/`. Point anything that deploys `dist/` at `dist/web/`.
 
-## 1. A screen
+## 2. The desktop vocabulary
 
-The smallest screen in the application is the one shown for an address that is nothing.
+A window has no `<div>`, `<shell>` or `class`. A desktop template uses the desktop's own words: `column`, `row`, `heading`, `text`, `button`, `checkbox`, `textfield`, `link`, plus the content layer (`paragraph`, `list`, `listitem`, …). The [desktop vocabulary](../reference/desktop-vocabulary.md) has each one. A web tag in a desktop template is an error:
 
-**File:** `examples/todo/src/screens/notFound.mprx`
+```
+src/desktop/layout.mprx:17:6 unknown-component: unknown component "div": the manifest doesn't declare it
+```
+
+The generated layout already draws the pages: Back and Forward buttons, the sections as lists of links, and the page's `<blocks />`. Your Markdown in `content/` shows in the window as it is.
+
+## 3. Put the to-do list in the window
+
+`todo-item` and `todo-add` were written with the portable core (`row`, `text`, `checkbox`, `textfield`, `button`), so they work here unchanged. Add the list to `src/desktop/layout.mprx`, after `<blocks items={blocks} />`:
+
+**File:** `src/desktop/layout.mprx`
 
 ```
 <column>
-  <heading>There is nothing here</heading>
-  <button on.click={go("/")}>Back to lists</button>
-</column>
-```
-
-A column holds a heading and a button. `on.click={go("/")}` says what clicking the button does: run the command `go` with the address `/`. A button has one event, `click`, and it is not only a mouse: it is also what a keyboard or a screen reader does to a button, and what a finger does on a touch screen.
-
-## 2. A list of things, and a place to type
-
-**File:** `examples/todo/src/screens/lists.mprx`
-
-```
-<column>
-  <heading>Your lists</heading>
-  {#if none}
-    <text>No lists yet. Name one below.</text>
-  {/if}
-  {#each lists as entryList (entryList.id)}
-    <row>
-      <button on.click={go(entryList.href)}>{entryList.name} ({entryList.open} of {entryList.total} open)</button>
-    </row>
+  <heading level={2}>To do</heading>
+  <text>{summary}</text>
+  <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} on.cancel={clearEntry()} />
+  {#each items as it (it.id)}
+    <todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} />
   {/each}
-  <row>
-    <textfield value={entry} placeholder="New list" on.change={setEntry($event)} />
-    <button on.click={createList()}>Add list</button>
-  </row>
+  <button on.click={clearDone()}>Clear done</button>
 </column>
 ```
 
-`{#if none}` shows its content only when `none` is true. `{#each lists as entryList (entryList.id)}` makes one row for each list, and the part in parentheses says which row is which when the lists change. The text field shows `entry` and, whenever its value changes, runs `setEntry` with the new value (`$event`). A checkbox works the same way: its `change` event carries `true` or `false`, and the application decides what to do with it. The values `none`, `lists` and `entry` come from the application's state; the next step says how.
+The same names are used as in the web layout, the same commands run, and the same `persist` keeps the items. On the desktop they go to a file in the user's data directory. `vlx check` now checks both layouts, each against its own vocabulary.
 
-## 3. A command
+Components in the top-level `components` list are shared by every target. Each target adds its own on top of them, so a component only the web uses can move to `targets: { web: { components: [themeToggle] } }`.
 
-A command is the only way state changes. This one makes a list from what was typed. `command.effect` is how a command whose body is an Effect is written (a pure change of state alone is `command((current) => next)`; one that waits is `command.waiting`): one way to write a command, whatever it needs.
+## 4. Open it in a window
 
-**File:** `examples/todo/src/app.ts`
+Install the window program once:
 
-```
-createList: command.effect(() =>
-  change((current) => {
-    const name = cleanText(current.entry);
-
-    return name === "" ? current : { ...current, lists: addList(current.lists, `l${current.seq}`, name), entry: "", seq: current.seq + 1 };
-  }),
-),
+```console
+$ cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window
 ```
 
-It takes the current state, and returns the next one: the same state if the name is empty, or the state with the new list added and the text field cleared. Nothing else in the program changes state.
+Then:
 
-## 4. Where you can be, and what may stop you
-
-An application has places: the lists, one list, an item being edited. A **route** names a place and its address. A **guard** says whether you may enter or leave one.
-
-**File:** `examples/todo/src/routes.ts`
-
-```
-const saved = ({ state }: { readonly state: TodoState }) => state.draft === null;
-
-export const router = createRouter<TodoState>({
-  routes: [
-    route("/", { name: "lists", title: "To-do" }),
-    route("/lists/:id", { name: "list", params: ListParams, title: "List", canActivate: listExists }),
-    route("/lists/:id/edit", { name: "listEdit", params: ListParams, title: "Rename list", canActivate: listExists, canDeactivate: saved }),
-    route("/lists/:id/items/:itemId", { name: "item", params: ItemParams, title: "Edit item", canActivate: itemExists, canDeactivate: saved }),
-  ],
-  notFound: { name: "notFound", title: "Not found" },
-});
+```console
+$ npm run dev -- --desktop
 ```
 
-`canDeactivate: saved` means: you cannot leave an edit while there is text that has not been saved. The same rule stops the window from closing: the person is told to save or discard first. Nobody wrote that twice; it is the guard.
+`vlx dev` builds the engine and opens the window on it. When you save a file, it builds again and the window restarts the engine in place, keeping its position and size. A mistake leaves the last good build running and shows in the terminal. Closing the window ends `vlx dev`. Without `--desktop` or `--web`, a project with both targets serves the site and opens the window.
 
-The window's title is the application's too, and it follows where you are:
+`vlx` finds the window program on your `PATH`. To use one somewhere else, set `VLX_WINDOW=/path/to/vlx-window`.
 
-**File:** `examples/todo/src/app.ts`
+## 5. Give it to someone
 
-```
-export const titleOf = (state: TodoState): string => {
-```
-
-It takes the state and returns the title (the list's name, then the application's), and the window shows it. A template never sets a title, because the window is not part of any screen.
-
-## 5. Run it
-
-In `examples/todo`:
-
-```
-pnpm build
-cd native
-TODO_ENGINE="node ../dist/main.js" cargo run
+```console
+$ vlx package --desktop --archive
 ```
 
-`pnpm build` compiles the screens and the engine. The engine's whole `main` is one call, `Native.run(app, { titleOf, mayClose })`, which serves the application for the window to talk to. `cargo run` opens the window, which starts the engine named by `TODO_ENGINE` and draws what it sends. Make a list by typing a name and pressing **Add list**. Open it, add an item, open the item, change its text, and then try **Back to list**: the guard says no until you save or discard.
+This writes `dist/package/<platform>/`: the engine as one executable (your application, Node and the MESH runtime) beside the window program. `--archive` also writes it as one file, a `.tar.gz` on Linux or a `.zip` on Windows, with its SHA-256 beside it. Nothing has to be installed on the other machine.
 
-## 6. Give it to someone
+For another platform, name it and give that platform's programs:
 
+```console
+$ vlx package --desktop --platform win32-x64 --node <node.exe for Windows> --window <vlx-window.exe> --archive
 ```
-scripts/dist.sh linux-x64
-scripts/dist.sh win32-x64
-```
 
-Each writes an archive holding two programs side by side: the window, and the engine (your application and everything it needs, as one file). Nothing has to be installed on the other machine.
+The package is **unsigned**. `vlx` does not sign or notarize it.
+
+## What you just used
+
+| You did | It is | Learn more |
+|---|---|---|
+| `vlx generate target desktop` | a second target over the same application | [Adding a target](../../packages/cli/README.md#adding-a-target-vlx-generate-target-desktop) |
+| `src/desktop/layout.mprx` | that target's layout, in its own vocabulary | [The desktop vocabulary](../reference/desktop-vocabulary.md) |
+| `vlx dev --desktop` | the window, rebuilt as you edit | [A desktop application](../../packages/cli/README.md#a-desktop-application-vlx-init---desktop) |
+| `vlx package --desktop` | a package to hand to someone | [A desktop application](../../packages/cli/README.md#a-desktop-application-vlx-init---desktop) |
 
 ## Next steps
-- [The desktop vocabulary](../reference/desktop-vocabulary.md): the eight words in full.
-- [State, views and events](02-state-views-and-events.md): the model underneath, on the web.
-- [Why these eight words](../explanation/application-model/native-vocabulary.md): how they were chosen and what is not here yet.
-- [What the web has that native does not yet](../explanation/application-model/native-parity.md).
+
+* [The desktop vocabulary](../reference/desktop-vocabulary.md): every word, with its props and events.
+* [What the web has that native does not yet](../explanation/application-model/native-parity.md).
+* [Multiple targets](../explanation/application-model/multi-target.md): how one application is built for several.

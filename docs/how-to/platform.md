@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* A page started with `Web.run`: [Your first application](../tutorials/01-first-application.md).
+* A page started with `Web.run`: [Without `vlx`](without-vlx.md).
 
 ---
 

@@ -30,14 +30,16 @@ flowchart LR
 | I want to… | Go to |
 |---|---|
 | build the smallest working application | [Your first application](tutorials/01-first-application.md) |
-| see how state, views and events fit together | [State, views and events](tutorials/02-state-views-and-events.md) |
+| see how state, components and events fit together | [State, components and events](tutorials/02-state-views-and-events.md) |
+| run the application in a window | [Your first desktop application](tutorials/03-desktop-application.md) |
 | wait for data, cancel it, or show loading and failure | [Async work](how-to/async-work.md) |
 | draw the application, hydrate server HTML, or render on a server | [Mounting and hydration](how-to/mounting-and-hydration.md) |
-| do a common task (add a view, a command, a resource, URLs) | [Common tasks](tutorials/README.md#common-tasks) |
+| do a common task (add a page, a component, state, a command, a target) | [Common tasks](tutorials/README.md#common-tasks) |
+| embed the engine in a page of your own, without `vlx` | [Without `vlx`](how-to/without-vlx.md) |
 | know what VALANCE guarantees, and what it does not | [The V1 contract](reference/v1-contract.md) |
 | install it, with the right package versions | [Installation](reference/v1-contract.md#13-installation-and-package-surface) |
 | see what changed in a release | [Changelog](../CHANGELOG.md) |
-| see a whole, runnable application | [`examples/docs-site`](../examples/docs-site) |
+| see a whole, runnable application | [`examples/todo-multi`](../examples/todo-multi) |
 
 <details>
 <summary><b>For maintainers: design rules, evidence and direction</b></summary>
@@ -51,4 +53,4 @@ flowchart LR
 
 ## Next steps
 
-* [Your first application](tutorials/01-first-application.md): a counter, from nothing to a page that works.
+* [Your first application](tutorials/01-first-application.md): `vlx init`, a page, state and a command, from nothing to a built site.

@@ -86,14 +86,14 @@ Everything you do to a Valance application starts here.
 
 | | Step | You'll learn |
 |---|---|---|
-| **1** | [The CLI guide](packages/cli/README.md) | Pages, a layout, components, state and commands: the application model |
-| **2** | [Your first application](docs/tutorials/01-first-application.md) | The counter written without the CLI, line by line: the engines Valance composes, running in a browser, on a server and in tests |
-| **3** | [State, views and events](docs/tutorials/02-state-views-and-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
+| **1** | [Your first application](docs/tutorials/01-first-application.md) | `vlx init`, `vlx dev`, a page, state and a command, `vlx check`, `vlx build` |
+| **2** | [State, components and events](docs/tutorials/02-state-views-and-events.md) | A to-do list: components with stated interfaces, events connected to commands, derived and persisted state |
+| **3** | [Your first desktop application](docs/tutorials/03-desktop-application.md) | The same project in a window: `vlx generate target desktop`, `vlx dev --desktop`, `vlx package --desktop` |
 | **4** | [Async work](docs/how-to/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
 | **5** | [API reference](docs/reference/api.md) | Every export, by name |
 | **6** | [The contract](docs/reference/v1-contract.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
 
-The [full learning path](docs/tutorials/README.md) has startup work, mounting and hydration and a table of common tasks. How Valance is built is in [`docs/understand`](docs/explanation/README.md); you do not need it to build applications.
+The [full learning path](docs/tutorials/README.md) has a table of common tasks. To use the engines directly, without the CLI, see [Without `vlx`](docs/how-to/without-vlx.md). How Valance is built is in [`docs/understand`](docs/explanation/README.md); you do not need it to build applications.
 
 ## Packages
 

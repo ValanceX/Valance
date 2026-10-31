@@ -1,164 +1,192 @@
-# State, views and events
+# State, components and events
 
-> **TL;DR:** Using a small two-view inbox, see how state, views and events fit together: state is the truth, a view is a function of it, and an event runs a command.
+> **TL;DR:** Add a to-do list to the project from [Your first application](01-first-application.md). You make two components with `vlx generate component`, state each one's interface, and connect their events to commands. You see how state, templates and events fit together: state is the truth, a template is a function of it, and an event runs a command.
 
 ## Prerequisites
 
-* [Your first application](01-first-application.md).
+* [Your first application](01-first-application.md), and its project with `vlx dev` running.
 
 ---
 
-[Your first application](01-first-application.md) had one view. This page uses a small inbox, with a list and a message, to show how state, views and events fit together. The whole example is in [`examples/tracer-web/src/inbox/`](../../examples/tracer-web/src/inbox/).
+The finished application is [`examples/todo-multi`](../../examples/todo-multi). Every block on this page marked **File:** is a piece of a real file there, and a test checks that it still is.
 
-## State is the truth
+## 1. The state
 
-```ts
-const AppState = Schema.Struct({ open: Schema.String, messages: Schema.Array(Message) });
-```
+A to-do list is a list of items, the text being typed and a counter that numbers new items. Add them to `src/main.ts`, above `defineApp` and in `state`:
 
-`open` is the id of the open message (`""` for none). *Which message is open* is a fact about the application, so it lives in state, not in the screen and not in the URL. Everything else is derived from state.
-
-Two rules follow:
-
-- State changes only through commands. Nothing that draws or follows the URL writes to it.
-- Reading state (`application.state`) is just a read. It starts nothing and nobody has to show it.
-
-## A view is a function of state
+**File:** `src/main.ts`
 
 ```ts
-views: {
-  list:    { program: programs.list,    scope: ({ messages }) => ({ title: "Inbox", unread: …, items: … }) },
-  message: { program: programs.message, scope: (state) => ({ title: "Message", subject: …, body: … }) },
-},
-view: (state) => opened(state) === undefined ? "list" : "message",
+const Item = Schema.Struct({ id: Schema.String, title: Schema.String, done: Schema.Boolean });
 ```
 
-Three separate questions, three places:
-
-| Question | Answered by |
-|---|---|
-| Which view is current? | `view(state)`: here, the message view when one is open, otherwise the list |
-| What values does that view show? | that view's `scope(state)` |
-| What does it look like? | that view's description (`program`) |
-
-You never "navigate to" a view. You change state, and the current view follows. The list and the message are one application, and its state survives moving between them.
-
-VALANCE decides one thing for you: whether the new screen **continues** the old one. Same view, new data: the screen is *updated*. Different view: it is *drawn afresh*. The decision is made from the view's name alone. (Which parts of the screen an update keeps is decided below VALANCE; see [Contract §5](../reference/v1-contract.md#5-views-and-presentation).)
-
-## An event runs a command
-
-In the list's description:
-
-```
-<button on.click={open(m.id)}>Open</button>
-```
-
-`open(m.id)` names a command. The application has a command with that name:
+**File:** `src/main.ts`
 
 ```ts
-commands: (state) => {
-  const command = Valance.command(state);
-
-  return {
-    open: command(
-      Schema.Struct({ open: Schema.String }),
-      ({ open }, current) => ({ open, messages: current.messages.map((m) => m.id === open ? { ...m, read: true } : m) })
-    ),
-    star: command((current) => ({ ...current, messages: current.messages.map((m) => m.id === current.open ? { ...m, starred: !m.starred } : m) })),
-  };
-},
+items: field(Schema.Array(Item), []),
+entry: field(Schema.String, ""), // what is typed in the new-item field, until it is added
+seq: field(Schema.Number, 1), // the next item's number
 ```
 
-So a click goes:
+Even the text in the box is state. *What has been typed so far* is a fact about the application, so it lives in one place with every other fact. Nothing on the screen holds a value of its own.
 
-1. The person clicks *Open* on a row. The screen reports the event with its argument (`m.id`).
-2. VALANCE finds the command named `open` and runs it. The argument fills the command's input: the first argument is the first field, so the input is `{ open: id }`.
-3. The input is checked; the command computes the next state.
-4. State is committed. `view(state)` is now `"message"`, so the screen redraws as the message.
+## 2. The commands
 
-The name is the contract between a description and the application: the `open` in the description is the command `open`. If the description uses a name the application has no command for, the application does not start (`ConformanceViolation`, Contract §2). Two views that both use `star()` run the same command.
+Each way the list can change is one command:
 
-From outside the screen (a test, a host page, the browser's Back button) the same command is reached as `"app/open"`: `"app/"` and its name. There is one way into behavior.
-
-## When an event's input needs adapting
-
-Sometimes several events should run one command with different inputs, or an input should be a constant. Then you tie an exact `"component/name"` key to the command with `Valance.entry`, which says how the event's arguments become its input. The example inbox ([`examples/tracer-web/src/inbox/`](../../examples/tracer-web/src/inbox/)) uses one transition, `enter`, for opening, closing and going Back:
+**File:** `src/main.ts`
 
 ```ts
-const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) =>
-  ({ open, messages: current.messages.map((m) => m.id === open ? { ...m, read: true } : m) }));
+setEntry: command(Schema.Struct({ text: Schema.String }), ({ text }, state) => ({ ...state, entry: text.slice(0, 200) })),
+// Escape in the field: back out of what was typed
+clearEntry: command((state) => ({ ...state, entry: "" })),
+addItem: command((state) => {
+  const title = state.entry.trim();
 
-return {
-  "list/open":     Valance.entry(enter, (open) => ({ open })),   // the click's argument becomes the input
-  "message/close": Valance.entry(enter, () => ({ open: "" })),   // a constant: closing "opens" nothing
-  "app/navigate":  Valance.entry(enter, (navigation) => navigation),   // an object from the URL (see below)
-};
+  return title === "" ? state : { ...state, items: [...state.items, { id: `i${state.seq}`, title, done: false }], entry: "", seq: state.seq + 1 };
+}),
+setDone: command(Schema.Struct({ id: Schema.String, done: Schema.Boolean }), ({ id, done }, state) => ({
+  ...state,
+  items: state.items.map((item) => (item.id === id ? { ...item, done } : item)),
+})),
+removeItem: command(Schema.Struct({ id: Schema.String }), ({ id }, state) => ({ ...state, items: state.items.filter((item) => item.id !== id) })),
+clearDone: command((state) => ({ ...state, items: state.items.filter((item) => !item.done) })),
 ```
 
-An exact key wins over a bare name for that event, so an entry can also give one view different behavior for a name the others share. `"app/navigate"` is how this example hands history an adapted binding; if the navigate command simply takes what `stateOf` reads as its input, you do not need an entry at all (see *URLs* below). You do not need entries for ordinary commands: a command named after its event, taking its arguments in order, is the normal form above.
+A command that takes input gives its schema first. The input is checked before the command runs, so a wrong value changes nothing. Each command returns the next state and does nothing else. That makes it easy to test: call it with a state and look at what comes back.
 
-## URLs are the application's decision
+## 3. Two components
+
+```console
+$ vlx generate component todo-item
+$ vlx generate component todo-add
+```
+
+Each one writes a template (`src/todo-item.mprx`), a file for its interface (`src/todo-item.ts`), and registers the component in `src/main.ts`. Replace the templates:
+
+**File:** `src/todo-item.mprx`
+
+```
+<row>
+  <checkbox label="Done" checked={done} on.change={tick($event)} />
+  <text>{title}</text>
+  <button on.click={remove()}>Remove</button>
+</row>
+```
+
+**File:** `src/todo-add.mprx`
+
+```
+<row>
+  <textfield label="New item" value={entry} placeholder="What needs doing?" on.change={type($event)} on.submit={add()} on.cancel={cancel()} />
+  <button on.click={add()}>Add</button>
+</row>
+```
+
+A component knows nothing about the application. `todo-item` reads two props (`title`, `done`) and raises two events: `tick` with the new checked value (`$event`) and `remove` with nothing. Say so in its interface. Add `import { Schema } from "effect";` and fill in the generated `component(...)` call:
+
+**File:** `src/todo-item.ts`
 
 ```ts
-const urlOf   = ({ open }) => open === "" ? "/inbox" : `/inbox?open=${encodeURIComponent(open)}`;
-const stateOf = (url: URL) => ({ open: url.searchParams.get("open") ?? "" });
-
-Web.run(app, { container, primitives, present: "mount", history: { window, urlOf, stateOf, navigate: "app/navigate" } });
+export default component(template, {
+  props: { title: Schema.String, done: Schema.Boolean },
+  events: { tick: Schema.Boolean, remove: Schema.Void },
+});
 ```
 
-State becomes a URL with `urlOf`; the browser's Back and Forward become a command with what `stateOf` read. VALANCE has no router: it moves the URL when your state's URL changes and runs your command when the browser goes back.
-
-**Naming the navigate command.** The simplest form: `navigate` is a bare command name, and the object `stateOf` returns **is that command's input**:
+**File:** `src/todo-add.ts`
 
 ```ts
-const enter = command(Schema.Struct({ open: Schema.String }), ({ open }, current) => ({ ...current, open }));
-// commands: { enter, … }       history: { window, urlOf, stateOf, navigate: "enter" }   with   stateOf = (url) => ({ open: … })
+export default component(template, {
+  props: { entry: Schema.String },
+  events: { type: Schema.String, add: Schema.Void, cancel: Schema.Void },
+});
 ```
 
-No adapter is needed. The input is checked by the command's schema like any other. (The inbox above passes an exact key, `"app/navigate"`, which is the form for a command whose arguments need adapting.)
+The interface is a contract that both sides are checked against. `vlx check` reports a template that reads a prop the contract leaves out. It also reports a use that passes a prop the component does not have, leaves a required one out, or handles an event it never raises.
 
-**A link is a destination.** Put `Web.link` in your `primitives` and write `<link href={…}>` in the view description. A click on it is the same request as the browser going to that URL: your navigate command runs with what `stateOf` reads from the `href`. You write no event, no command and no `preventDefault`, and a Ctrl-click, a middle click, `target="_blank"` or a link to another site still does what the browser does. A plain click also starts the new page at the top, as a page load does, and the browser's Back and Forward restore the position they left. Without `history`, the link is a plain anchor and loads the page.
+`row`, `text`, `checkbox`, `textfield` and `button` are the *portable core*. These tags have the same props and events on the web and in a desktop window. A component written only with them runs on both, as [the next tutorial](03-desktop-application.md) shows.
 
-**The title** is not part of a view: it lives in the document's head. Give history a function and it keeps `document.title` in step with the state, Back and Forward included: `history: { …, titleOf: (state) => state.page === "home" ? "Docs" : `${titleOfPage(state)} · Docs` }`. The server's document writes the same function's result for the state it rendered, so the first paint already has the right title and hydration does not touch it.
+## 4. Use them
 
-## A text field
+Put the list in `src/layout.mprx`, inside `<main>`, after `<blocks items={blocks} />`:
 
-A text field is a primitive too. Put `Web.textField` in your `primitives` and write `<field value={query} on.input={search($event)} />`: the box shows the application's `query`, and what the person types arrives as a string. The box always shows what the state says: if a command resets the query (the reader went to another page), the box empties; if a command declines an edit, the next time the screen is redrawn it shows the application's value again. The server writes the value into the page, so a reload keeps it.
-
-## Repeated and conditional parts
-
-A list of items and a part that shows only sometimes are written in the view description as **blocks**: syntax of the template language, not elements. The block syntax is stable (MESH 0.11); how the runtime treats a repeated or conditional part (identity, ordering) is provisional.
+**File:** `src/layout.mprx`
 
 ```
-{#each nav as n (n.id)}                         repeat the body for each item; (n.id) is the item's identity
-  <listitem><link href={n.href}>{n.label}</link></listitem>
-{/each}
-
-{#if search.status == "failed"}                 shown when the condition is true
-  <text>Search failed</text>
-{:else if search.status == "idle"}
-  <text>Type to search</text>
-{:else}
-  <text>Searching</text>
-{/if}
+<section>
+  <paragraph class="todo-title">To do</paragraph>
+  <paragraph class="todo-summary">{summary}</paragraph>
+  <todo-add entry={entry} on.type={setEntry($event)} on.add={addItem()} on.cancel={clearEntry()} />
+  <list class="todo-list">
+    {#each items as it (it.id)}
+      <listitem><todo-item title={it.title} done={it.done} on.tick={setDone(it.id, $event)} on.remove={removeItem(it.id)} /></listitem>
+    {/each}
+  </list>
+  <button class="todo-button" pressed="false" on.click={clearDone()}>Clear done</button>
+</section>
 ```
 
-- **The key is the identity.** An item keeps its on-screen element through reordering and removal; an item that leaves and returns is new. A `{#each}` without a key is refused when the view is compiled (`missing-repeat-key`).
-- **A branch or a body is one element**; several are wrapped in a fragment for you. A block cannot be the whole document, and text cannot contain `{#`, `{:` or `{/`.
-- **The condition and the list are ordinary expressions** over what `scope` supplies: `search.status == "failed"`, `code != ""`, `!loading`. There is no length operator, so "the list is empty" is a value your `scope` computes. `as n` names the item inside the body.
-- You declare nothing: the blocks are built in. The elements `mesh-if`, `mesh-each`, `mesh-switch`, `mesh-case` and `mesh-default` are retired and rejected with the block to write instead.
+`{#each items as it (it.id)}` repeats its body once for each item. The part in parentheses is the item's identity: an item keeps its place on the screen when the list is reordered. A `{#each}` with no key is refused (`missing-repeat-key`).
+
+`{summary}` is not state yet, so `vlx check` reports it. That is the next step.
+
+## 5. Values worked out from state
+
+A template reads names and calls nothing. A count such as "2 of 3 open" is worked out in `src/main.ts`, next to `state`:
+
+```ts
+derived: (derive) => ({
+  summary: derive(Schema.String, (state) => `${state.items.filter((item) => !item.done).length} of ${state.items.length} open`),
+}),
+```
+
+A derived value is read like a field (`{summary}`), with its type checked, and it is kept current as the state changes. Use one whenever a template needs a question answered about the state. For example, `{#if items.length == 0}` is an error (`unknown-member`: a list has no `length`). Derive the answer instead:
+
+```ts
+none: derive(Schema.Boolean, (state) => state.items.length === 0),
+```
+
+```
+{#if none}<paragraph class="todo-empty">Nothing to do.</paragraph>{/if}
+```
+
+`{#if}` takes `{:else if …}` and `{:else}` as well. Its condition is an ordinary expression over the names the template can read: `it.done`, `entry != ""`, `!none`.
+
+Save, and the list works. Type an item and press Enter (`submit`) to add it, or Escape (`cancel`) to clear the box.
+
+## 6. Keep it between visits
+
+Reload the page and the list is gone, because state starts at its defaults. Name the fields that should outlive a visit:
+
+**File:** `src/main.ts`
+
+```ts
+persist: ["items", "seq", "theme"],
+```
+
+The platform keeps them: the page's storage on the web, a file in the user's data directory on the desktop. `entry` is a draft, so it is left out.
+
+## How an event becomes a new state
+
+Take a click on an item's checkbox:
+
+1. The checkbox reports `change` with `true`. `todo-item` turns it into its own event, `tick($event)`.
+2. The layout handles `on.tick={setDone(it.id, $event)}`, so the command `setDone` runs with `it.id` and `true`.
+3. The arguments fill the command's input in field order, so the input is `{ id, done: true }`. It is checked, and the command returns the next state.
+4. The state is committed. `summary` is worked out again, and the screen shows the new state.
+
+The names are the contract at every step. `setDone` in the template is the command `setDone` in `src/main.ts`. `tick` is the event in `todo-item`'s interface. Misspell either and `vlx check` says where. The types are checked too: swap the arguments (`setDone($event, it.id)`) and you get `type-mismatch: the argument "id" of command "setDone" needs string, found boolean`.
 
 ## What to take away
 
-- One state; commands write it; views read it.
-- `view(state)` picks the view; `scope(state)` feeds it; the description draws it.
-- Events run commands by name; the same names are open to anything outside the screen.
-- The application is data, so the same definition runs in a page, on a server, or in a test.
-- A command can wait. Its progress is state like any other: see [Async work](../how-to/async-work.md) and [Startup work](../how-to/startup-work.md).
-
-Exact rules for each of these are in the [API reference](../reference/api.md) and the [contract](../reference/v1-contract.md). How VALANCE is built, and the evidence for these rules, is in [Explanation](../explanation/README.md).
+- One state, in `src/main.ts`. Commands write it, and templates read it.
+- A component states its interface (props in, events out) and knows nothing else. The layout connects its events to commands.
+- A question about the state is a derived value, not template logic.
+- `vlx check` checks every name between a template, a component and the application before anything runs.
 
 ## Next steps
 
-* [Async work](../how-to/async-work.md): commands that wait.
-* [API reference](../reference/api.md): the exact rules for each name used here.
+* [Your first desktop application](03-desktop-application.md): the same project, in a window.
+* [Forms](../how-to/forms.md), [Units](../how-to/units.md) and [Context](../how-to/context.md) for more components.
+* [Talking to a backend](../../packages/cli/README.md#talking-to-a-backend): a command that waits for data.
