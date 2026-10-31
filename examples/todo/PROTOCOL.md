@@ -1,6 +1,6 @@
 # The host protocol, from the engine's side
 
-The window is the **Desktop PORT** ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop)), and the protocol between an engine and a PORT is specified there: [the architecture note](https://github.com/ValanceX/Port/blob/main/docs/architecture/2026-10-14-port-desktop.md#the-host-protocol). The engine's half is `Native.run` in `@valancex/valance/native` ([contract §20](../../docs/V1_CONTRACT.md#20-the-native-host-nativerun)); this page is what is specific to this example.
+The window is the **Desktop PORT** ([`valancex-port-desktop`](https://github.com/ValanceX/Port/tree/main/packages/port-desktop)), and the protocol between an engine and a PORT is specified there: [the architecture note](https://github.com/ValanceX/Port/blob/main/docs/explanation/design-records/2026-10-14-port-desktop.md#the-host-protocol). The engine's half is `Native.run` in `@valancex/valance/native` ([contract §20](../../docs/reference/v1-contract.md#20-the-native-host-nativerun)); this page is what is specific to this example.
 
 One JSON object per line over the engine's stdin and stdout. The engine sends `hello`, `title`, `draw`, `update`, `unmount` and `closeAnswer`; it reads `event`, `closeRequested` and `close` (and accepts `ready`, ignored in version 1).
 
@@ -20,4 +20,4 @@ The renderer is a separate program, so nothing it sends is trusted until it has 
 
 ## The vocabulary
 
-`src/desktop-vocabulary.json` is a copy of the PORT's `vocabulary.json` (a test in `native/` holds it to the original); `src/vocabulary.ts` adds this application's screens to it. The components are described in [the desktop vocabulary](../../docs/use/desktop-vocabulary.md).
+`src/desktop-vocabulary.json` is a copy of the PORT's `vocabulary.json` (a test in `native/` holds it to the original); `src/vocabulary.ts` adds this application's screens to it. The components are described in [the desktop vocabulary](../../docs/reference/desktop-vocabulary.md).

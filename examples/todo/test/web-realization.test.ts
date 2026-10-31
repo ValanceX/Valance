@@ -1,5 +1,5 @@
 // Is the to-do vocabulary the desktop's alone? The same application, with the same compiled screens, is realized on the web by a table of seven entries (PORT Web's own mechanism) and used in a
-// DOM. What it takes, and what it cannot do, is the evidence for the vocabulary investigation (docs/application-model/NATIVE-VOCABULARY.md).
+// DOM. What it takes, and what it cannot do, is the evidence for the vocabulary investigation (docs/explanation/application-model/native-vocabulary.md).
 import * as Web from "@valancex/valance/web";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it } from "vitest";

@@ -187,9 +187,9 @@ export interface Contract<P extends string, E extends string> {
    */
   readonly unit?: Valance.Unit;
   /**
-   * The context names the template reads (Tier 2): `uses: ["theme"]` reads `theme` from `defineApp`'s `context`, read only, as if it were a scope name, without a prop on this component or any
+   * The context names the template reads: `uses: ["theme"]` reads `theme` from `defineApp`'s `context`, read only, as if it were a scope name, without a prop on this component or any
    * between it and the layout. Only the names listed are readable here; nothing is inherited. Pass props first: context is for a value many distant components need (a theme, a locale, the
-   * current user). With `uses` the interface is what this contract writes: omitted `props` or `events` mean none, as with a `unit`. See docs/use/context.md.
+   * current user). With `uses` the interface is what this contract writes: omitted `props` or `events` mean none, as with a `unit`. See docs/how-to/context.md.
    */
   readonly uses?: ReadonlyArray<string>;
 }
@@ -243,7 +243,7 @@ export const unitCommand = <S, P extends Schema.Struct.Fields>(spec: {
 }): UnitCommandSpec<S, P> => spec;
 
 /**
- * Declares the state and commands of one occurrence of a component (Tier 2; a component with no unit needs none of it). The state is typed with defaults, as application state is; a command is a
+ * Declares the state and commands of one occurrence of a component (a component with no unit needs none of it). The state is typed with defaults, as application state is; a command is a
  * pure function of the state as the person saw it that returns the fields it changes:
  *
  *   export default component(template, {
@@ -331,7 +331,7 @@ export interface AppDefinition<S extends StateInput = {}> {
   /** Built-in components (`heading`, `runs`, …) you replace with your own template of the same name. */
   readonly override?: ReadonlyArray<Component>;
   /**
-   * Which component a tag means when two share a name (Tier 2: nothing to write until there is a collision). A library's component has the qualified id `package/name` (`acme-ui/disclosure`); two
+   * Which component a tag means when two share a name (nothing to write until there is a collision). A library's component has the qualified id `package/name` (`acme-ui/disclosure`); two
    * libraries that both have a `disclosure`, or a library component named like a built-in, are a compile error that names both ids, and `resolve: { disclosure: "acme-ui/disclosure" }` says which one the
    * tag is. The others are left out of the program, and a library template that writes the tag gets the one chosen. A built-in is replaced by the chosen library component, as `override` would.
    * The id is typed (`ResolveId`) once `vlx` has written `.valance/types/library-components.d.ts` and the project's tsconfig.json includes it.
@@ -378,10 +378,10 @@ export interface AppDefinition<S extends StateInput = {}> {
    */
   readonly derived?: (derive: DeriveMaker<PageState & StateOf<S>>) => { readonly [name: string]: Derived<any> };
   /**
-   * Values a component deep in the tree reads without a prop at every level between (Tier 2): `context: (state) => ({ theme: state.theme })`, read by a component that lists the name in its
+   * Values a component deep in the tree reads without a prop at every level between: `context: (state) => ({ theme: state.theme })`, read by a component that lists the name in its
    * `uses`. Each name is one the layout reads (a state field, a derived value, or a framework name such as `colorScheme`) and has its type; the names are those the function returns for the
    * initial state. It runs for every committed state, on every target, and is given the state without its `Schema.Redacted` fields. It must be pure and must not throw. Pass props first: see
-   * docs/use/context.md. A state field's, `viewport`'s or `colorScheme`'s value is typed as the layout reads it (`ContextValues`); another name's is checked when the manifest is built.
+   * docs/how-to/context.md. A state field's, `viewport`'s or `colorScheme`'s value is typed as the layout reads it (`ContextValues`); another name's is checked when the manifest is built.
    */
   readonly context?: (state: PageState & StateOf<S>) => ContextValues<S>;
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */

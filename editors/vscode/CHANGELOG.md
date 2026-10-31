@@ -4,7 +4,7 @@ All notable changes to the VALANCE extension. It is versioned on its own (not wi
 
 ## [0.1.0] - unreleased
 
-The first release, after a feasibility spike (`docs/application-model/EDITOR-FEASIBILITY.md`).
+The first release, after a feasibility spike (`docs/explanation/application-model/editor-feasibility.md`).
 
 ### Added
 

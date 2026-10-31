@@ -27,7 +27,7 @@ export const recordingNotice = (root: string, file: string, config: Config): Rea
     "  It holds what is typed and shown: names, passwords, anything on the page. It is for you, on this machine. Do not commit it, attach it to an issue or share it.",
     redacting
       ? `  Redacted (valance.json "record"): ${[...redact.scope.map((path) => path.join(".")), ...redact.commands].join(", ")}. Everything else is written as it is.`
-      : '  Nothing is redacted. Mark what must not be written in valance.json: { "record": { "redact": { "scope": [["password"]], "commands": ["login/type"] } } } (docs/use/replay.md).',
+      : '  Nothing is redacted. Mark what must not be written in valance.json: { "record": { "redact": { "scope": [["password"]], "commands": ["login/type"] } } } (docs/how-to/replay-and-conformance.md).',
     ...(trackedByMistake(root, file) ? [`  git does NOT ignore ${shown}: add it to .gitignore before you commit anything.`] : []),
   ];
 };

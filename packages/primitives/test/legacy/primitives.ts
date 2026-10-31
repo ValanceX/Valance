@@ -9,7 +9,7 @@ const klass = Web.attribute("class");
 const id = Web.attribute("id");
 const label = Web.attribute("aria-label");
 
-// A prop a tag declares is a prop every use of it must write (docs/application-model/HANDOFF.md, finding D1: MESH derives "required" from the realization and has no optional prop). So the
+// A prop a tag declares is a prop every use of it must write (docs/explanation/application-model/handoff.md, finding D1: MESH derives "required" from the realization and has no optional prop). So the
 // table is many narrow tags rather than a few wide ones: a tag carries only what its uses always have.
 export const primitives: Web.WebPrimitives = {
   // The portable core (the same names, props, events and payloads as the Desktop PORT's vocabulary: a component written with only these runs on both targets). `column` and `row` are custom

@@ -23,7 +23,7 @@
 3. **X3**, once X1, X2 and X7 are packages (it depends on all three).
 4. **X6**, with the decision on templates.
 
-For each, the same steps: move the files and their tests; make the dependency an optional peer of VALANCE if VALANCE is to re-export it (`web/<name>`, never from the root, `docs/V1_CONTRACT.md` §19); give it `sideEffects: false` and a `stability.md` with the shared tiers, **Provisional** at birth; write its release notes; add its row to VALANCE's `stability.md` as a re-export, with the tier of what it re-exports.
+For each, the same steps: move the files and their tests; make the dependency an optional peer of VALANCE if VALANCE is to re-export it (`web/<name>`, never from the root, `docs/reference/v1-contract.md` §19); give it `sideEffects: false` and a `stability.md` with the shared tiers, **Provisional** at birth; write its release notes; add its row to VALANCE's `stability.md` as a re-export, with the tier of what it re-exports.
 
 ## What is decided, and what is not
 

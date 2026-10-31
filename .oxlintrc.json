@@ -16,7 +16,7 @@
     "es2022": true
   },
   "ignorePatterns": [
-    "docs/direction/evidence/**",
+    "docs/explanation/evidence/**",
     "**/dist/**",
     "**/dist-host/**",
     "**/.valance/**",

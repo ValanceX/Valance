@@ -30,7 +30,7 @@ export const generateDocs = (specifications: Readonly<Record<string, Specificati
     "",
     "# The primitives",
     "",
-    "What each primitive is: its role, how it is named, the states it carries, its props, events and keys. This page is generated from the specifications in `packages/primitives/specs`, which are checked against the HTML Standard, ARIA in HTML and the Accessible Name and Description Computation by the primitives' tests (`docs/direction/implementation.md`, WP3). A primitive is **portable** when it is the same on every target, **web-only** or **desktop-only** when it is on one.",
+    "What each primitive is: its role, how it is named, the states it carries, its props, events and keys. This page is generated from the specifications in `packages/primitives/specs`, which are checked against the HTML Standard, ARIA in HTML and the Accessible Name and Description Computation by the primitives' tests (`docs/explanation/direction/implementation.md`, WP3). A primitive is **portable** when it is the same on every target, **web-only** or **desktop-only** when it is on one.",
     "",
     "| Primitive | Status | Role | Web tag | Named by |",
     "| --- | --- | --- | --- | --- |",

@@ -1,4 +1,4 @@
-// The content layer on a native vocabulary. The hypothesis (docs/application-model/NATIVE-VOCABULARY.md): what Markdown produces is a closed set (six blocks, five inlines) whose names are ARIA's,
+// The content layer on a native vocabulary. The hypothesis (docs/explanation/application-model/native-vocabulary.md): what Markdown produces is a closed set (six blocks, five inlines) whose names are ARIA's,
 // so a project can draw a whole content site from the controls vocabulary plus ten content components, with the application model unchanged. This builds such a project the way `vlx` would: its own
 // layout, the built-in views overridden by native templates, compiled against a native vocabulary, run with no DOM and no PORT Web, and navigated by the application's own `go` command.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";

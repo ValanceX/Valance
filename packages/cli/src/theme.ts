@@ -1,5 +1,5 @@
-// The project's theme. A project that writes none has the default theme (Tier 1: nothing to do, and every primitive of the portable core is styled); a project that has a `theme/` directory with a
-// `theme.json` (Tier 2) uses it instead, whole: its token documents by mode and its recipes. A recipe's `escape` block (Tier 3) is the marked way to a CSS property outside the contract, for the web.
+// The project's theme. A project that writes none has the default theme (nothing to do, and every primitive of the portable core is styled); a project that has a `theme/` directory with a
+// `theme.json` uses it instead, whole: its token documents by mode and its recipes. A recipe's `escape` block is the marked way to a CSS property outside the contract, for the web.
 // The stylesheet is compiled here, at build time; nothing is computed in the browser.
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";

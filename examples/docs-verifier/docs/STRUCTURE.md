@@ -249,4 +249,4 @@ Behaviour is unchanged where it was not meant to change. Built from the commit b
 - `scripts/with-local-packs.mjs` copies the project's directories by name exclusion; it was updated, not run.
 
 **Documentation:**
-- `docs/ROADMAP.md` and `docs/FINDINGS.md` are records: their file paths are those of the time they were written. Where the old directories went is in the table above.
+- `docs/ROADMAP.md` and `docs/explanation/findings.md` are records: their file paths are those of the time they were written. Where the old directories went is in the table above.

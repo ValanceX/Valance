@@ -1,5 +1,5 @@
 /**
- * The list of places an application has been, and the position in it: the model every target's navigation is made of (docs/application-model/NAVIGATION.md). It is plain data and pure
+ * The list of places an application has been, and the position in it: the model every target's navigation is made of (docs/explanation/application-model/navigation.md). It is plain data and pure
  * functions, so a target that owns its list (a window has none of its own) keeps it in the application's state, and one that does not (the web's session history, a phone's back stack)
  * can still describe, validate and restore what it has with the same rules.
  *

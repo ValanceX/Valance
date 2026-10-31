@@ -1,6 +1,6 @@
 # docs-app: a VALANCE application
 
-A small documentation site, written the way a VALANCE application is written. It is the canonical example of the developer experience proposed in [`docs/application-model/`](../../docs/application-model/); the machinery it hides is in [`@valancex/cli`](../../packages/cli) (read its README for the conventions).
+A small documentation site, written the way a VALANCE application is written. It is the canonical example of the developer experience proposed in [`docs/explanation/application-model/`](../../docs/explanation/application-model/); the machinery it hides is in [`@valancex/cli`](../../packages/cli) (read its README for the conventions).
 
 ```console
 $ pnpm install

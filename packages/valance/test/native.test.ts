@@ -1,4 +1,4 @@
-// The native host: `serve` and `run` over in-memory streams, with a stand-in PORT on the far end. The protocol is the Desktop PORT's (github.com/ValanceX/Port, docs/architecture/2026-10-14-port-desktop.md).
+// The native host: `serve` and `run` over in-memory streams, with a stand-in PORT on the far end. The protocol is the Desktop PORT's (github.com/ValanceX/Port, docs/explanation/design-records/2026-10-14-port-desktop.md).
 import { compileProgram } from "@valancex/mesh-compiler";
 import * as Nexus from "@valancex/nexus";
 import { Effect, Schema } from "effect";

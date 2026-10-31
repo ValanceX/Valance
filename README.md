@@ -11,7 +11,7 @@
 <p align="center">
   <a href="#quick-start"><strong>Quick start</strong></a> ·
   <a href="#learning-path"><strong>Learn</strong></a> ·
-  <a href="docs/use/README.md"><strong>API reference</strong></a> ·
+  <a href="docs/reference/api.md"><strong>API reference</strong></a> ·
   <a href="https://github.com/ValanceX/Valance/issues">Report an issue</a>
 </p>
 
@@ -23,7 +23,7 @@
 
 <hr>
 
-> Valance is pre-1.0. The API may change between minor releases; every change is listed in the [release notes](docs/releases/). What is not built yet, and where it is going: [Direction](docs/direction/README.md).
+> Valance is pre-1.0. The API may change between minor releases; every change is listed in the [release notes](docs/reference/releases/). What is not built yet, and where it is going: [Direction](docs/explanation/direction/README.md).
 
 ## Start
 
@@ -59,7 +59,7 @@ $ npm run build                       # dist/web/ and dist/desktop/
 $ vlx package --desktop --archive     # one executable beside the window, as a .tar.gz or .zip (unsigned)
 ```
 
-The desktop window is the [Desktop PORT](https://github.com/ValanceX/Port), built from its source for now (`cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`). How it was designed, what it found and what is left: [`docs/application-model/MULTI-TARGET-PLAN.md`](docs/application-model/MULTI-TARGET-PLAN.md); how navigation, keys and stored state work on each target: [`NAVIGATION.md`](docs/application-model/NAVIGATION.md).
+The desktop window is the [Desktop PORT](https://github.com/ValanceX/Port), built from its source for now (`cargo install --git https://github.com/ValanceX/Port valancex-port-desktop --bin vlx-window`). How it was designed, what it found and what is left: [`docs/explanation/application-model/multi-target-plan.md`](docs/explanation/application-model/multi-target-plan.md); how navigation, keys and stored state work on each target: [`NAVIGATION.md`](docs/explanation/application-model/navigation.md).
 
 ## The editor
 
@@ -87,13 +87,13 @@ Everything you do to a Valance application starts here.
 | | Step | You'll learn |
 |---|---|---|
 | **1** | [The CLI guide](packages/cli/README.md) | Pages, a layout, components, state and commands: the application model |
-| **2** | [Your first application](docs/learn/first-application.md) | The counter written without the CLI, line by line: the engines Valance composes, running in a browser, on a server and in tests |
-| **3** | [State, views and events](docs/learn/state-views-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
-| **4** | [Async work](docs/learn/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
-| **5** | [API reference](docs/use/README.md) | Every export, by name |
-| **6** | [The contract](docs/V1_CONTRACT.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
+| **2** | [Your first application](docs/tutorials/01-first-application.md) | The counter written without the CLI, line by line: the engines Valance composes, running in a browser, on a server and in tests |
+| **3** | [State, views and events](docs/tutorials/02-state-views-and-events.md) | A two-screen inbox: switching screens, commands that take input, URLs |
+| **4** | [Async work](docs/how-to/async-work.md) | Waiting for data, loading and failure as state, cancelling, ignoring out-of-date answers |
+| **5** | [API reference](docs/reference/api.md) | Every export, by name |
+| **6** | [The contract](docs/reference/v1-contract.md) | Exact behavior, lifecycle and error handling, for when you need to be sure |
 
-The [full learning path](docs/learn/README.md) has startup work, mounting and hydration and a table of common tasks. How Valance is built is in [`docs/understand`](docs/understand/README.md); you do not need it to build applications.
+The [full learning path](docs/tutorials/README.md) has startup work, mounting and hydration and a table of common tasks. How Valance is built is in [`docs/understand`](docs/explanation/README.md); you do not need it to build applications.
 
 ## Packages
 
@@ -114,4 +114,4 @@ The [full learning path](docs/learn/README.md) has startup work, mounting and hy
 
 ## Releases, contributing, license
 
-Release notes for every version are in [`docs/releases/`](docs/releases/). Bug reports and pull requests are welcome on [GitHub](https://github.com/ValanceX/Valance/issues); to work on Valance itself, read [CONTRIBUTING.md](CONTRIBUTING.md). [MIT](packages/valance/package.json).
+Release notes for every version are in [`docs/reference/releases/`](docs/reference/releases/). Bug reports and pull requests are welcome on [GitHub](https://github.com/ValanceX/Valance/issues); to work on Valance itself, read [CONTRIBUTING.md](CONTRIBUTING.md). [MIT](packages/valance/package.json).

@@ -33,10 +33,10 @@ export interface Config {
   };
   /** The application's backend: the address its requests are made to (a path on the site's own origin, or an absolute https address), and, for `vlx dev`, where a path is proxied to. */
   readonly api: { readonly base: string; readonly proxy: string };
-  /** The size budgets a production build is held to (Tier 2): the project's own, or none, in which case the framework's start-up budgets apply (W14). Never checked by `vlx dev`. */
+  /** The size budgets a production build is held to: the project's own, or none, in which case the framework's start-up budgets apply (W14). Never checked by `vlx dev`. */
   readonly budgets: ReadonlyArray<Budget> | undefined;
-  /** What `vlx dev --record` leaves out of a session log (Tier 2; R9, R14): nothing, unless the project says. */
-  /** The theme package the project uses instead of the default theme (Tier 2; K12): an installed package whose `valance` field is `{ "kind": "theme" }`. Absent: the `theme/` directory, else the default. */
+  /** What `vlx dev --record` leaves out of a session log (R9, R14): nothing, unless the project says. */
+  /** The theme package the project uses instead of the default theme (K12): an installed package whose `valance` field is `{ "kind": "theme" }`. Absent: the `theme/` directory, else the default. */
   readonly theme: string | undefined;
   readonly record: { readonly redact: { readonly scope: ReadonlyArray<ReadonlyArray<string>>; readonly commands: ReadonlyArray<string> } };
 }

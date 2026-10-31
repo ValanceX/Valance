@@ -13,7 +13,7 @@
  *                          dispatches each reported event with the render that was drawn.
  *
  * Command lifetime: commands admitted through `invoke` or MESH dispatch are owned by the application until they exit; closing the
- * caller's Scope closes admission and drains them before NEXUS terminates and platform resources release (docs/FINDINGS.md, "Canonical lifecycle architecture").
+ * caller's Scope closes admission and drains them before NEXUS terminates and platform resources release (docs/explanation/findings.md, "Canonical lifecycle architecture").
  *
  * Nothing here is target-specific. A target is whatever satisfies `Target`, which is PORT's
  * contract (draw / update / unmount, plus hydrate where a PORT has one) and nothing more.
@@ -113,21 +113,21 @@ export interface ApplicationDefinition<
    */
   readonly start?: string;
   /**
-   * The units of the components the views' programs use, by component name (Tier 2): state and commands that belong to one occurrence of a component, such as whether a disclosure is open.
+   * The units of the components the views' programs use, by component name: state and commands that belong to one occurrence of a component, such as whether a disclosure is open.
    * `start` keeps the state of the occurrences that have changed, gives it to every render beside the state of the application, binds each unit's commands to
    * `"component/name"` (an exact key of `commands` for the same name wins) and lets go of an occurrence's state when a later render no longer has it. The application never sees any of it.
    * Without `units`, nothing about them is done.
    */
   readonly units?: Readonly<Record<string, Unit>>;
   /**
-   * The values of the manifest's context channel (MESH 0.18; Tier 2), worked out from the state beside each view's `scope`: `context: (state) => ({ theme: state.theme })`. A value many distant
+   * The values of the manifest's context channel (MESH 0.18), worked out from the state beside each view's `scope`: `context: (state) => ({ theme: state.theme })`. A value many distant
    * components need (a theme, a locale, the current user) reaches the components whose manifest entry lists it in `uses`, without being passed through every layer between. Pass props first: a
    * value one or two levels down is a prop. The names and types are the manifest's top-level `context`, checked before anything runs. Like `scope`, it is a pure function of the state, run for every
    * render, on the server and in the browser alike; it is given the state without its `Schema.Redacted` fields (C-3), so a secret cannot reach a component this way. Without it, no context is given.
    */
   readonly context?: (state: S) => Record<string, unknown>;
   /**
-   * Takes the person to the first field in error each time a count of the application's rises (Tier 2): a count, not a flag, so that a second failed submit, which changes no
+   * Takes the person to the first field in error each time a count of the application's rises: a count, not a flag, so that a second failed submit, which changes no
    * message, still counts. A form keeps one (`attempts`), and `focusFirstInvalid: (state) => state.signup.attempts` is the whole of it. After the render that shows the rise
    * is applied, the target is asked to focus the first node in the tree that says it is `invalid` (a request to the platform, not a command, and not state); nothing is done
    * when no node is, or when the target cannot focus. The count at the first render is the baseline: a page that opens with attempts already made does not move focus.
@@ -147,7 +147,7 @@ type RequirementOf<V> = V extends Nexus.Command.Command<any, any, any, infer Req
  * failure is narrowed to another's.
  */
 export function define<S, T extends CommandTable<any, Ambient>, V extends string>(
-  // With exactly one view, `view` may be left out: it is that view (Tier 1, a default for what has only one answer). With more than one key it is required (omitting it is a type error).
+  // With exactly one view, `view` may be left out: it is that view (a default for what has only one answer). With more than one key it is required (omitting it is a type error).
   definition: Omit<ApplicationDefinition<S, never, never, V>, "commands" | "view"> & { readonly commands: (state: Nexus.State.StateHandle<S>) => T } & (IsUnion<V> extends true
       ? { readonly view: (state: S) => V }
       : { readonly view?: (state: S) => V }),
@@ -843,7 +843,7 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
   });
 
 /**
- * Late admission (Tier 2, Provisional; decision W19): puts a view's program into a running application, under `name`, and draws it. For code that arrives after the application has
+ * Late admission (Provisional; decision W19): puts a view's program into a running application, under `name`, and draws it. For code that arrives after the application has
  * started (a route's program in a chunk loaded once the page is running): the application shows a placeholder view while it loads, and admits the real one when it has.
  *
  * - The program is held to the invariant `start` holds every view to: what MESH says it declares must be in the command table. If not, this fails with the same `ConformanceViolation`
@@ -886,7 +886,7 @@ export type TargetFactory<T extends Target> = (report: Report) => T;
  * What `mount` returns (and `hydrate` returns with `hydration` added): a host's view of ONE mount, owned by that mount's Scope. Every member is
  * mount-owned information that no other public surface gives a host: `followed` is the only way to learn how the mount ended (the application ended, a render
  * failed, or its Scope closed), `settled` the only way to wait for the event dispatches the mount made, `dispatched` the only record of their outcomes.
- * Hosts that need none of them can ignore the value. The lifecycle of each member is stated in "Canonical lifecycle architecture" (docs/FINDINGS.md).
+ * Hosts that need none of them can ignore the value. The lifecycle of each member is stated in "Canonical lifecycle architecture" (docs/explanation/findings.md).
  */
 export interface Mounted<E> {
   /**
