@@ -66,6 +66,8 @@ export interface Running<S, E> {
   readonly invoke: (key: string, args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
   /** Runs the command bound to `key` with a whole input or an entry's arguments (see `ApplicationHandle.command`). */
   readonly command: (key: string, input?: unknown) => Effect.Effect<unknown, Nexus.Mesh.UnmappedCommand | E>;
+  /** Whether the application gives context values (`ApplicationDefinition.context`): a session of it cannot be recorded yet. */
+  readonly hasContext?: boolean;
 }
 
 const registry = new WeakMap<object, Running<never, never>>();

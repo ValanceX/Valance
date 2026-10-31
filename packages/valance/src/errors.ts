@@ -23,7 +23,9 @@ export type ValanceErrorCode =
   /** `define` got no `view` and its `views` do not have exactly one entry. A mistake in the definition. */
   | "missing-view"
   /** `renderToHtml` was given a state schema with a `Schema.Redacted` it cannot mask (not a top-level struct field). A mistake in the definition. */
-  | "redacted-unmaskable";
+  | "redacted-unmaskable"
+  /** `mount` or `hydrate` was given a session recorder for an application with a `context` projection: a session log holds no context values, so it could not be replayed. A mistake in the call. */
+  | "context-not-recordable";
 
 /**
  * The defect VALANCE dies with for misuse and for work refused because the application is closing. It is a defect, never a typed
@@ -51,6 +53,7 @@ const CODES: ReadonlySet<string> = new Set<ValanceErrorCode>([
   "invalid-ledger",
   "missing-view",
   "redacted-unmaskable",
+  "context-not-recordable",
 ]);
 
 /** Whether `value` is a `ValanceError`, by its shape and not its class, so it works across two installed copies of the package. */

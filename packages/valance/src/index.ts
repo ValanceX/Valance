@@ -695,6 +695,7 @@ export const start = <
 
     const running: Running<S, E> = {
       nexus,
+      hasContext: app.context !== undefined,
       render: Effect.flatMap(state.get, renderOf),
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
       // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
@@ -977,6 +978,14 @@ const connect = <S, E, T extends Target, A>(
 ): Effect.Effect<Mounted<E> & { readonly first: A }, Nexus.Mesh.MeshDiagnostics, Scope.Scope> =>
   Effect.gen(function* () {
     const running = runningOf(application);
+
+    // A session log holds the snapshot, not the context values, so a recorded session of an application with context could not be replayed: refused here, before anything is drawn.
+    if (options?.record !== undefined && running.hasContext === true) {
+      return yield* Effect.die(
+        new ValanceError("context-not-recordable", "VALANCE: a session of an application with a `context` projection cannot be recorded yet: a session log holds no context values"),
+      );
+    }
+
     const scope = yield* Effect.scope;
     // The render whose tree is drawn: the only render an event may be dispatched with (NEXUS M1, M2).
     const drawn: { current: Viewed | undefined } = { current: undefined };

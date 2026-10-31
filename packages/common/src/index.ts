@@ -189,7 +189,7 @@ export interface Contract<P extends string, E extends string> {
   /**
    * The context names the template reads (Tier 2): `uses: ["theme"]` reads `theme` from `defineApp`'s `context`, read only, as if it were a scope name, without a prop on this component or any
    * between it and the layout. Only the names listed are readable here; nothing is inherited. Pass props first: context is for a value many distant components need (a theme, a locale, the
-   * current user). A component that uses context states its interface (`props` and `events`, empty if it has none). See docs/use/context.md.
+   * current user). With `uses` the interface is what this contract writes: omitted `props` or `events` mean none, as with a `unit`. See docs/use/context.md.
    */
   readonly uses?: ReadonlyArray<string>;
 }
@@ -381,9 +381,9 @@ export interface AppDefinition<S extends StateInput = {}> {
    * Values a component deep in the tree reads without a prop at every level between (Tier 2): `context: (state) => ({ theme: state.theme })`, read by a component that lists the name in its
    * `uses`. Each name is one the layout reads (a state field, a derived value, or a framework name such as `colorScheme`) and has its type; the names are those the function returns for the
    * initial state. It runs for every committed state, on every target, and is given the state without its `Schema.Redacted` fields. It must be pure and must not throw. Pass props first: see
-   * docs/use/context.md.
+   * docs/use/context.md. A state field's, `viewport`'s or `colorScheme`'s value is typed as the layout reads it (`ContextValues`); another name's is checked when the manifest is built.
    */
-  readonly context?: (state: PageState & StateOf<S>) => Readonly<Record<string, unknown>>;
+  readonly context?: (state: PageState & StateOf<S>) => ContextValues<S>;
   /** The commands a layout can run. `command` makes one: `command((state) => nextState)` or `command(InputSchema, (input, state) => nextState)`. */
   readonly commands?: (command: Valance.CommandMaker<PageState & StateOf<S>>) => Valance.CommandTable<any, Valance.Ambient>;
 }
@@ -399,6 +399,16 @@ export interface NavigationContext {
 
 /** `true` allows, `false` stops, and `{ _tag: "Redirect", name }` (the router's `redirect(page)`) goes to another page; it may answer now, later or as an Effect. */
 export type NavigationGuard = (context: NavigationContext) => unknown;
+
+/**
+ * What `context` returns: some of the names the layout reads, each with its type where this type knows it (the state's fields, `viewport` and `colorScheme`). A derived value's name and the
+ * framework's content names (`title`, `site`, …) are not in it (`derived` is not part of `S`, and the content's names live with the runtime), so any other name is accepted here and its type is
+ * checked when the manifest is built.
+ */
+export type ContextValues<S extends StateInput = {}> = { readonly [K in keyof Known<S>]?: Known<S>[K] } & Readonly<Record<string, unknown>>;
+
+/** The layout names whose types `ContextValues` knows. */
+type Known<S extends StateInput> = Pick<PageState, "viewport" | "colorScheme"> & StateOf<S>;
 
 /** The brand that says a value came from `defineApp`. */
 export const APP = Symbol.for("valancex.common");

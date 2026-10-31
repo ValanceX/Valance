@@ -37,10 +37,10 @@ export default defineApp({
 ## Read them: `uses` on the component
 
 ```html
-<!-- layout.mprx: passes nothing -->
+<!-- layout.mprx: reads `theme` itself (it is a state field), and passes nothing to the card -->
 <shell theme={theme}><card /></shell>
 
-<!-- card.mprx: passes nothing -->
+<!-- card.mprx: passes nothing to the badge -->
 <column><badge /></column>
 
 <!-- badge.mprx: lists `theme` in `uses`, so it reads it like a scope name -->
@@ -50,7 +50,7 @@ export default defineApp({
 - `uses: ["theme"]` makes `theme` a name the badge's template reads. It is read only.
 - **Nothing is inherited.** The card does not list `theme`, so the card cannot read it, even though the badge inside it can. A component that reads a name it does not list is an unknown-name diagnostic at its template.
 - A `uses` name the context does not declare is MESH's `manifest-unknown-context`. A name that is also one of the component's props or scope names is `manifest-context-clash`.
-- A component with `uses` states its interface (`props` and `events`, empty when it has none), as a component with a `unit` does.
+- `uses` makes the component's interface the one its contract writes: omitted `props` or `events` mean none, as with a `unit`. Write the props it takes beside `uses`.
 - A snippet or a slot's content reads the context of the template that wrote it, not the template that renders it. Commands are not context: a template runs a command by name, as before.
 
 ## With `define`
@@ -68,6 +68,6 @@ export default defineApp({
 
 - **No override inside a subtree.** One value per name for the whole tree. A later `{#with theme=expr}` block may add one.
 - **No providers per subtree.**
-- **Replay** does not record context values. A session log holds the snapshot only, so a recorded session of an application that uses context replays its snapshot changes but cannot replay a change made to a context value.
+- **Recording and replay.** An application with `context` cannot be recorded or replayed yet: a session log holds the snapshot only, not the context values. `mount` and `hydrate` refuse a recorder for such an application up front (`ValanceError` code `context-not-recordable`), so `vlx dev --record` stops before anything is drawn instead of writing a log that would not replay.
 
 See also: [Units](units.md), the other per-component channel. Background: direction decisions K27 (context) and K29 (masking).

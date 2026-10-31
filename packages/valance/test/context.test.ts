@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
 import { redactedProblems, runningOf } from "../src/internal.js";
+import { recorder } from "../src/replay.js";
 import { renderToHtml } from "../src/web-server.js";
 
 const model = JSON.stringify({
@@ -86,5 +87,19 @@ describe("define's context projection (C-1)", () => {
     expect(served.html).toContain("dark nobody");
     expect(redactedProblems(leaking)).toMatchObject([{ code: "redacted-in-view", field: "token", message: expect.stringContaining("the context projection") }]);
     expect(redactedProblems(app((state) => ({ theme: state.theme })))).toEqual([]);
+  });
+
+  it("refuses to record a session up front: a session log holds no context values, so it could not be replayed", async () => {
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(app((state) => ({ theme: state.theme }))).pipe(Scope.extend(scope)));
+    const recording = recorder({ write: () => undefined, runtime: "test", programs: () => ({ templates: program.templates, model: program.model }) });
+    const target = () => ({ draw: () => undefined, update: () => undefined, unmount: () => undefined });
+    const exit = await Effect.runPromiseExit(Valance.mount(handle, target, { record: recording }).pipe(Scope.extend(scope)));
+
+    expect(exit._tag).toBe("Failure");
+    expect(JSON.stringify(exit)).toContain("context-not-recordable");
+    // Without a recorder it mounts.
+    expect((await Effect.runPromiseExit(Valance.mount(handle, target).pipe(Scope.extend(scope))))._tag).toBe("Success");
+    await Effect.runPromise(Scope.close(scope, Exit.void));
   });
 });
