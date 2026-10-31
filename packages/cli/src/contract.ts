@@ -22,6 +22,8 @@ export interface Entry {
     readonly state: Readonly<Record<string, { readonly type: MeshType; readonly default: unknown; readonly controllable?: boolean }>>;
     readonly commands: Readonly<Record<string, { readonly parameters: ReadonlyArray<{ readonly name: string; readonly type: MeshType }> }>>;
   };
+  /** The context names the template reads (MESH 0.18): they join the scope, read only, and MESH checks each against the manifest's `context`. */
+  readonly uses?: ReadonlyArray<string>;
 }
 
 /** A schema with no model type, said at the declaration. */
@@ -142,7 +144,7 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
     }
   }
 
-  return { entry: { props, events, commands: {}, scope, ...(unit === undefined ? {} : { unit }) }, problems };
+  return { entry: { props, events, commands: {}, scope, ...(unit === undefined ? {} : { unit }), ...(declared.uses === undefined ? {} : { uses: declared.uses }) }, problems };
 };
 
 /** The model's `unit` of a component: each state field with its type and default, each command with its parameters. A field whose schema has no model type is a problem at the declaration. */

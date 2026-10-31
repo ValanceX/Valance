@@ -5,7 +5,7 @@ import * as Valance from "@valancex/valance";
 import { redactedFields } from "@valancex/valance";
 import { History, permit } from "@valancex/router";
 import * as Nexus from "@valancex/nexus";
-import { Effect, Schema, Stream } from "effect";
+import { Effect, Schema, SchemaAST, Stream } from "effect";
 
 import type { DefinedApp, PageState, TitleParts } from "./index.js";
 import type { Content } from "./model.js";
@@ -58,6 +58,29 @@ const STORE_KEY = "state";
 /** The derived values for a state, by name. */
 const derivedValues = (author: DefinedApp | undefined, state: AppState): Readonly<Record<string, unknown>> =>
   Object.fromEntries(Object.entries(derivedOf(author)).map(([name, each]) => [name, each.from(state)]));
+
+/**
+ * The type of the context values (`defineApp`'s `context`), for the manifest's top-level `context`: each name the projection returns for the initial state, with the type the layout reads it
+ * under. Absent without `context`. A name the layout does not read has no type, so it is a mistake in the definition.
+ */
+export const contextSchema = (author: DefinedApp | undefined): Schema.Schema<any, any, never> | undefined => {
+  if (author?.context === undefined) {
+    return undefined;
+  }
+
+  const names = Object.keys(author.context(initialState(author) as never));
+  const scope = scopeSchema(author);
+  const known = new Set(SchemaAST.getPropertySignatures(SchemaAST.typeAST(scope.ast)).map((each) => String(each.name)));
+  const unknown = names.filter((name) => !known.has(name));
+
+  if (unknown.length > 0) {
+    throw new AppDefinitionError(
+      `src/main.ts: the context name${unknown.length > 1 ? "s" : ""} ${unknown.map((name) => `"${name}"`).join(", ")} ${unknown.length > 1 ? "are" : "is"} not a name the layout reads; a context name is a state field, a derived value or a framework name, and has its type`,
+    );
+  }
+
+  return scope.pipe(Schema.pick(...names)) as unknown as Schema.Schema<any, any, never>;
+};
 
 /** Checks the author's definition against the names the framework owns. */
 export const checkDefinition = (author: DefinedApp | undefined): void => {
@@ -363,6 +386,8 @@ export const application = (content: Content, program: Valance.Program, author?:
     commands: commandTable(author, (page) => pageAt(content, page) !== undefined) as never,
     ...(persisted(author).length === 0 ? {} : { start: "persist" }),
     ...(Object.keys(units).length === 0 ? {} : { units }),
+    // `start` gives it the state without its Redacted fields (C-3).
+    ...(author?.context === undefined ? {} : { context: author.context as (state: AppState) => Record<string, unknown> }),
     // A form takes the person to its first field in error each time a submit is tried (Bet 9, I13): nothing for the author to write.
     ...(forms.length === 0
       ? {}

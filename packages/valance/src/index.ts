@@ -25,7 +25,8 @@ import * as Nexus from "@valancex/nexus";
 import { ValanceError } from "./errors.js";
 import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
-import { makeRegistry, renderWithUnits, updateWithUnits, type Deliver, type Registry, type Unit } from "./units.js";
+import { makeRegistry, type Deliver, type Registry, type Unit } from "./units.js";
+import { withoutRedacted } from "./web-redacted.js";
 import { Cause, Deferred, Duration, Effect, Equal, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
@@ -118,6 +119,13 @@ export interface ApplicationDefinition<
    * Without `units`, nothing about them is done.
    */
   readonly units?: Readonly<Record<string, Unit>>;
+  /**
+   * The values of the manifest's context channel (MESH 0.18; Tier 2), worked out from the state beside each view's `scope`: `context: (state) => ({ theme: state.theme })`. A value many distant
+   * components need (a theme, a locale, the current user) reaches the components whose manifest entry lists it in `uses`, without being passed through every layer between. Pass props first: a
+   * value one or two levels down is a prop. The names and types are the manifest's top-level `context`, checked before anything runs. Like `scope`, it is a pure function of the state, run for every
+   * render, on the server and in the browser alike; it is given the state without its `Schema.Redacted` fields (C-3), so a secret cannot reach a component this way. Without it, no context is given.
+   */
+  readonly context?: (state: S) => Record<string, unknown>;
   /**
    * Takes the person to the first field in error each time a count of the application's rises (Tier 2): a count, not a flag, so that a second failed submit, which changes no
    * message, still counts. A form keeps one (`attempts`), and `focusFirstInvalid: (state) => state.signup.attempts` is the whole of it. After the render that shows the rise
@@ -608,20 +616,22 @@ export const start = <
     const attended = (value: S): { readonly attention?: number } => (app.focusFirstInvalid === undefined ? {} : { attention: app.focusFirstInvalid(value) });
     // The render of one given state. The adapter renders a host's scope value, not a value it is handed, and a
     // sequential stream must render each emitted state exactly: a constant scope does that.
+    // The context values of a state (absent without `context`): projected from the state without its Redacted fields, so a secret never reaches a tree (or what a server writes from it) this way (C-3).
+    const contextOf = (value: S): Record<string, unknown> | undefined => (app.context === undefined ? undefined : app.context(withoutRedacted(app.state.schema, value)));
     const renderOf = (value: S): Effect.Effect<Viewed, Nexus.Mesh.MeshDiagnostics> =>
       Effect.gen(function* () {
         const view = app.view(value);
         const snapshot = views[view]!.scope(value) as Record<string, unknown>;
         const generation = generations.get(view) ?? 0;
+        const context = contextOf(value);
 
         if (registry === undefined) {
-          const scope = { value: Effect.succeed(snapshot), changes: Stream.empty, values: Stream.make(snapshot) };
-          const render = yield* Nexus.Mesh.host<never, never>({ program: views[view]!.program, scope, commands: {} }).render;
+          const render = yield* Nexus.Mesh.render(views[view]!.program, snapshot, undefined, context);
 
           return { view, render, snapshot, generation, ...attended(value) };
         }
 
-        const render = yield* renderWithUnits(views[view]!.program, snapshot, yield* registry.units);
+        const render = yield* Nexus.Mesh.render(views[view]!.program, snapshot, yield* registry.units, context);
 
         yield* registry.observe(render);
 
@@ -640,8 +650,9 @@ export const start = <
         }
 
         const snapshot = views[view]!.scope(value) as Record<string, unknown>;
+        const context = contextOf(value);
         const { render, patches } =
-          registry === undefined ? yield* Nexus.Mesh.update(previous.render, snapshot) : yield* updateWithUnits(previous.render, snapshot, yield* registry.units);
+          registry === undefined ? yield* Nexus.Mesh.update(previous.render, snapshot, undefined, context) : yield* Nexus.Mesh.update(previous.render, snapshot, yield* registry.units, context);
 
         if (registry !== undefined) {
           yield* registry.observe(render);

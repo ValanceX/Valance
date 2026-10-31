@@ -1,6 +1,6 @@
 // Masking the embedded state (north-star refinements C-3). A state field typed `Schema.Redacted` is a secret: `renderToHtml` leaves it out of the `state` it returns, `Web.run` puts the
-// field's declared default back when it hydrates, and `vlx check` refuses a Redacted field with no default or one a view's `scope` reads. A view cannot read it, so the tree does not depend on it.
-// ponytail: `context` (Task 19) is a second projection that crosses to the client; add its reads to `problemsOf` the way `scope`'s are checked.
+// field's declared default back when it hydrates, and `vlx check` refuses a Redacted field with no default or one a view's `scope` or the `context` projection reads. A view cannot read it, so
+// the tree does not depend on it. `start` also gives `context` the state without its Redacted fields, so a projection that reads one anyway gets nothing to show.
 import type { Schema, SchemaAST } from "effect";
 
 import type { Ambient, ApplicationDefinition } from "./index.js";
@@ -92,7 +92,10 @@ export interface RedactedProblem {
   readonly message: string;
 }
 
-/** What `vlx check` reports about Redacted fields: one that cannot be masked, one with no default, and a view whose `scope` or `view` selector reads one (run on the initial state, through a proxy that notes each read). */
+/**
+ * What `vlx check` reports about Redacted fields: one that cannot be masked, one with no default, and a view's `scope`, the `view` selector or the `context` projection that reads one (run on
+ * the initial state, through a proxy that notes each read).
+ */
 export const problemsOf = <S, E, R extends Ambient, V extends string>(app: ApplicationDefinition<S, E, R, V>): ReadonlyArray<RedactedProblem> => {
   const hidden = redactedFields(app.state.schema);
   const initial = app.state.initial as Record<string, unknown>;
@@ -129,6 +132,11 @@ export const problemsOf = <S, E, R extends Ambient, V extends string>(app: Appli
   }
 
   report("the view selector", readsOf(app.view));
+
+  // The context values cross to the client with the snapshot, so the context projection is held to the same rule as a view's scope.
+  if (app.context !== undefined) {
+    report("the context projection", readsOf(app.context));
+  }
 
   return found;
 };
