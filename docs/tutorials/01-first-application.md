@@ -1,171 +1,148 @@
 # Your first application
 
-> **TL;DR:** Build a counter from nothing to a working page in about fifty lines: describe the view, compile it, define the application and run it.
+> **TL;DR:** Make an application with `vlx init`, serve it with `vlx dev`, add a page with `vlx generate`, give it state and a command in `src/main.ts`, let `vlx check` catch a mistake, and build it with `vlx build`. You write no compiler step, manifest, server or bundler config.
 
 ## Prerequisites
 
-* Node.js and a package manager.
+* Node.js 22 or newer and a package manager (npm, pnpm, yarn or bun).
 * Some TypeScript.
 
 ---
 
-> This page builds an application from the engines up, with no command line: the route for embedding Valance in an application you already have. To make a site of Markdown pages and components, start with [`vlx init`](../../packages/cli/README.md), which writes the compile step, the manifest and the browser entry you see below for you.
+You will make a small site with a counter in its header. Every step uses `vlx`, the VALANCE command line. It writes and runs everything between your files and the browser.
 
-A counter: one view, one number, one command. It runs in a browser page, renders as HTML on a server, and can be driven headless. Install the packages listed in [Installation](../reference/v1-contract.md#13-installation-and-package-surface). The list includes a few packages VALANCE is built on: a strict package manager needs you to declare them, but nothing on this page requires you to learn them.
+## 1. Install `vlx`
 
-## 1. Describe the view
-
-A view description says what the view looks like and which command an event runs. `counter.mprx`:
-
-```
-<page>
-  <text>Count: {count}</text>
-  <button on.click={increment()}>Add one</button>
-</page>
+```console
+$ npm install -g @valancex/cli      # or: pnpm add -g @valancex/cli
+$ vlx --version
 ```
 
-It may only use building blocks the application declares, and say which values and commands each has. You do not write that declaration: `manifest` (from `@valancex/valance/web/build`) derives it from three things the application states anyway. Write them once, in one file the build and the page both import (`counter.ts`):
+You install it once. Inside a project, `vlx dev`, `build` and `check` run the copy of `@valancex/cli` that the project depends on, so the project builds the same on every machine. (Working from a clone of this repository? See [Install `vlx`](../../packages/cli/README.md#install-vlx-once-use-it-everywhere).)
+
+## 2. Make the application
+
+```console
+$ vlx init notes --web
+```
+
+It asks a few questions, such as the base path, the package manager, whether to install and whether to make a git repository. Press Enter to take each default. (`--yes` skips the questions.) Then it writes the project, installs it and prints what to type next:
+
+```
+notes/
+  valance.json            the application's name
+  content/                the pages, as Markdown: a file's path is its address
+    index.md
+    404.md
+    guide/getting-started.md
+    guide/writing-pages.md
+  public/logo.svg         served as it is
+  src/
+    main.ts               the application: its layout, components, state and commands
+    layout.mprx           the page around every page
+    theme-toggle.mprx     a component's template...
+    theme-toggle.ts       ...and its interface
+    styles.css            the look
+```
+
+Generated files go in `.valance/` and the built site in `dist/`. You never edit either.
+
+## 3. Serve it
+
+```console
+$ cd notes
+$ npm run dev
+```
+
+Open the address it prints. While it runs, save `content/index.md` with a new sentence and the page reloads with it. Save a colour change in `src/styles.css` and the page changes in place, with no reload. Leave `vlx dev` running for the rest of this page.
+
+## 4. Add a page
+
+```console
+$ vlx generate page guide/counter
+```
+
+This writes `content/guide/counter.md`, front matter included. It appears in the sidebar under *Guide* at once. Edit it like any Markdown file. Links are checked: `[back](/guide/getting-started)` works, and a link to a page that does not exist is an error naming the file and line.
+
+## 5. Give it state and a command
+
+Open `src/main.ts`. It is the whole application, from the top:
 
 ```ts
-import * as Valance from "@valancex/valance";
-import * as Web from "@valancex/valance/web";
-import { Schema } from "effect";
-
-// Which page element each building block becomes (it belongs to where the application is drawn, not to the application).
-export const primitives: Web.WebPrimitives = {
-  page: { element: "main" },
-  text: { element: "p" },
-  button: { element: "button", events: { click: { type: "click" } } },
-};
-
-// What the view may read: `counter`'s scope.
-export const CounterScope = Schema.Struct({ count: Schema.Number });
-
-// What the view may run: the command table. `define` takes this same function (step 3).
-export const commands = (state: Valance.StateHandle<{ readonly count: number }>) => {
-  const command = Valance.command(state);
-
-  return { increment: command((current) => ({ count: current.count + 1 })) };
-};
-```
-
-`counter` is the view itself: its `scope` is the values the description may use (`count`), and its `commands` are the ones it may run (`increment`).
-
-> **Aside: the manifest by hand.** `manifest` returns the declaration MESH checks templates against, as data (`components.json`, manifest format 1). For the counter it is the file below. Writing it yourself is possible, and shows what is derived, but a hand-written file can drift from the primitives and commands; derive it. ([Contract §15.1](../reference/v1-contract.md#151-the-manifest-can-be-derived) says what comes from where; the [docs-site example](../../examples/docs-site) derives its own.)
->
-> ```json
-> {
->   "version": 1,
->   "types": {},
->   "components": {
->     "page":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
->     "text":    { "props": {}, "events": {}, "commands": {}, "scope": {} },
->     "button":  { "props": {}, "events": { "click": {} }, "commands": {}, "scope": {} },
->     "counter": { "props": {}, "events": {}, "commands": { "increment": { "parameters": [] } }, "scope": { "count": { "kind": "number" } } }
->   }
-> }
-> ```
-
-## 2. Compile it, before the application runs
-
-```ts
-import { compileProgram } from "@valancex/mesh-compiler";   // build time only
-import { manifest } from "@valancex/valance/web/build";
-import { readFileSync } from "node:fs";
-import { commands, CounterScope, primitives } from "./counter.js";
-
-const derived = JSON.stringify(manifest({ primitives, scopes: { counter: CounterScope }, commands }));
-
-const built = await compileProgram({
-  model: { manifest: derived, path: "derived-manifest.json" },
-  root: "counter",
-  components: [{ component: "counter", source: readFileSync("counter.mprx", "utf8"), path: "counter.mprx" }],
-});
-
-if (built.program === undefined) {
-  throw new Error(JSON.stringify(built.assembly ?? built.components));   // what is wrong, and where
-}
-```
-
-`built.program` is the view's description, ready to use. A mistake (an unknown value, a mismatched tag) stops here with a diagnostic, not in a user's browser. See [§15](../reference/v1-contract.md#15-building-a-view-description).
-
-## 3. Define the application
-
-```ts
-import * as Valance from "@valancex/valance";
-import { Schema } from "effect";
-import { commands } from "./counter.js";
-
-const State = Schema.Struct({ count: Schema.Number });
-
-const app = Valance.define({
-  name: "counter",
-  state: { schema: State, initial: { count: 0 } },
-  views: { counter: { program: built.program, scope: ({ count }) => ({ count }) } },
-  commands,
+export default defineApp({
+  layout: component(layout),
+  components: [themeToggle],
+  state: {
+    theme: field(Schema.Literal("light", "dark"), "light"),
+  },
+  commands: (command) => ({
+    toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
+  }),
 });
 ```
 
-Read it top to bottom: state is `{ count }`, starting at 0. There is one view, `counter`, drawn from `count`; with one view, `view` (which view the state shows) is left out and is that view. A **command** is how the application changes: `increment` takes the current state and returns the next one. Its name is how the screen finds it: the button's `increment()` in the description runs the command called `increment`.
-
-A command that needs input says what it takes (put it in the table in `counter.ts`), and the event's arguments fill it: by name when each is a plain name of a field (`add(amount)`), otherwise in field order:
+**State** is what is true about the application. Each field gives its type and its default in one place. A **command** is the only way state changes: it takes the current state and returns the next one. Add a field and a command:
 
 ```ts
-add: command(
-  Schema.Struct({ amount: Schema.Number }),
-  ({ amount }, current) => ({ count: current.count + amount })
-),
+  state: {
+    theme: field(Schema.Literal("light", "dark"), "light"),
+    count: field(Schema.Number, 0),
+  },
+  commands: (command) => ({
+    toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
+    increment: command((state) => ({ ...state, count: state.count + 1 })),
+  }),
 ```
 
-The input is checked before the command runs, so a wrong argument changes nothing. (`Schema` comes from the `effect` package, which VALANCE uses to describe state and input.)
+Now `count` is a name a template can read and `increment()` is a command it can run. Put a button in the header of `src/layout.mprx`:
 
-## 4. Run it in a page
-
-```ts
-import * as Web from "@valancex/valance/web";
-import { primitives } from "./counter.js";
-
-const host = await Web.run(app, { container: document.getElementById("root")!, primitives, present: "mount" });
-// the page shows "Count: 0"; clicking "Add one" shows "Count: 1"
-// await host.stop();   // ends the screen, then the application
+```
+<header class="bar">
+  <link class="brand" href={home} current="false">{site}</link>
+  <button class="counter" pressed="false" on.click={increment()}>Clicked {count} times</button>
+  <theme-toggle theme={theme} on.toggle={toggleTheme()} />
+</header>
 ```
 
-`primitives` is the table from step 1: the same one the manifest was derived from.
+Save. The page reloads, and each click adds one. Go to another page: the count stays, because it is the application's state, not the page's.
 
-## 5. The same application, elsewhere
+Note what you did not do. You did not register an event handler, wire a store to the screen or tell anything to redraw. The screen is a function of the state, and VALANCE keeps it current.
 
-```ts
-// On a server: HTML plus the state it was rendered from.
-import { renderToHtml } from "@valancex/valance/web/server";
-import { Effect } from "effect";
-const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }));
-// html === '<main><p>Count: 0</p><button>Add one</button></main>'
+## 6. Make a mistake on purpose
 
-// Headless: no screen at all. (This form uses Effect directly, as a test or a custom host does; `Web.run` hides it for an ordinary page.)
-import { Exit, Scope } from "effect";
-const scope = await Effect.runPromise(Scope.make());
-const application = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
-await Effect.runPromise(application.command("app/increment"));   // from outside the screen: "app/" and the command's name, checked by the type
-await Effect.runPromise(application.state);                       // { count: 1 }
-// With the `add` command from step 3 in the table, its input is typed from the command:
-// await Effect.runPromise(application.command("app/add", { amount: 5 }));   // then the state is { count: 6 }
-await Effect.runPromise(Scope.close(scope, Exit.void));           // ends the application
+Change `{count}` to `{cout}` and save. The page keeps showing the last good build. The terminal and an overlay in the page both say:
+
+```
+src/layout.mprx:4:77 unknown-reference: unknown reference "cout": it isn't in the template's scope (did you mean "count"?)
 ```
 
-A server-rendered page is taken over in the browser with `present: "hydrate"` and the state `renderToHtml` returned (`state` option).
+Templates are checked against your state and commands. A misspelled command (`incremnt()`) is `unknown-command`, and a broken link is `link-broken`. Each is caught here, not by someone using the site. The same check runs without a server:
+
+```console
+$ vlx check          # every file, every mistake; --json for editors and CI
+```
+
+Fix the typo and the overlay goes away. For the same errors inside the editor as you type, install the [VS Code extension](../../editors/vscode). It also gives completion, and Ctrl-click from `increment()` to its command.
+
+## 7. Build it
+
+```console
+$ npm run build
+```
+
+`dist/` is now a static site: HTML for every page, the browser program and a `_headers` file with a strict security policy. Any host that serves files can serve it.
 
 ## What you just used
 
-| You wrote | It is | Learn more |
+| You did | It is | Learn more |
 |---|---|---|
-| `State` + `initial` | the single state | [State, views and events](02-state-views-and-events.md) |
-| `counter.mprx` + `manifest(...)` | a view description and the declaration it is checked against | [Contract §15](../reference/v1-contract.md#15-building-a-view-description) |
-| `Valance.command` and the name `increment` | a command, found by its name | [Contract §14](../reference/v1-contract.md#14-authoring-helpers-command-and-entry) |
-| `Valance.define` | the application, as data | [Contract §2](../reference/v1-contract.md#2-application) |
-| `Web.run` | one page, one lifetime | [Contract §16](../reference/v1-contract.md#16-the-browser-host-webrun) |
-
-Next: [State, views and events](02-state-views-and-events.md). Later: [Async work](../how-to/async-work.md), [Startup work](../how-to/startup-work.md), [Mounting and hydration](../how-to/mounting-and-hydration.md).
+| `vlx init`, `vlx dev`, `vlx build` | the project's whole toolchain | [The CLI guide](../../packages/cli/README.md) |
+| `content/**/*.md` | the pages; a path is an address | [Content](../../packages/cli/README.md#content) |
+| `field(...)` in `state` | the application's state, one place for its truth | [State and commands](../../packages/cli/README.md#state-and-commands) |
+| `command(...)` in `commands` | the only way state changes | [State and commands](../../packages/cli/README.md#state-and-commands) |
+| `{count}`, `on.click={increment()}` | a template reading state and running a command | [Layout and components](../../packages/cli/README.md#layout-and-components) |
+| `vlx check` | every mistake, with file, line and code | [Diagnostics](../../packages/cli/README.md#diagnostics) |
 
 ## Next steps
 
-* [State, views and events](02-state-views-and-events.md): the same ideas with two views.
+* [State, components and events](02-state-views-and-events.md): make your own components and build a to-do list in this project.

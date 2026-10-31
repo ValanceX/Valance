@@ -6,6 +6,14 @@ Each entry links to the version's full release notes: what changed, how to upgra
 
 ## [Unreleased]
 
+### Changed
+
+- The tutorials are written with `vlx` from start to finish: `init`, `dev`, `generate`, `check`, `build`, then a second target and `package --desktop`. The engine-level walkthrough is now the how-to [Without `vlx`](docs/how-to/without-vlx.md).
+
+### Fixed
+
+- `vlx init` and `vlx init library` run from a checkout of this repository link the `effect` that `@valancex/common` resolves, instead of installing a second copy that made `tsc` reject every Schema.
+
 ## [0.16.0] - 2026-10-31
 
 See the [0.16.0 release notes](docs/reference/releases/v0.16.md#v0160).

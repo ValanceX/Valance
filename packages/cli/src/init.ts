@@ -1,7 +1,7 @@
 // `vlx init`: a new application on disk. This file is the work (names, what the questions mean, the files written, the install); the interface that asks the questions is `ui/init.tsx`, and
 // answers can equally come from flags, so everything here takes plain answers and nothing here prints.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -119,6 +119,17 @@ export const commonSpec = (manager: PackageManager): string => {
   return `${manager === "pnpm" ? "link" : "file"}:${fileURLToPath(new URL("../common/", PACKAGE)).replace(/[\\/]$/, "")}`;
 };
 
+/**
+ * What `effect` is in the new package.json: the range this package depends on; in a checkout, the very copy `@valancex/common` resolves, by path. A linked `@valancex/common` resolves `effect`
+ * from the checkout, so a range would install a second copy beside it, and TypeScript refuses a Schema from one copy where the other's is expected.
+ */
+export const effectSpec = (manager: PackageManager): string => {
+  const range = own().dependencies["effect"] ?? "^3.10.0";
+  const linked = fileURLToPath(new URL("../common/node_modules/effect", PACKAGE));
+
+  return inCheckout() && existsSync(linked) ? `${manager === "pnpm" ? "link" : "file"}:${realpathSync(linked)}` : range;
+};
+
 const mesh = (): string => own().dependencies["@valancex/mesh-compiler"] ?? "^0.11.0";
 
 const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
@@ -193,7 +204,7 @@ export const plan = (answers: Answers): Plan => {
       private: true,
       type: "module",
       scripts: { dev: "vlx dev", build: "vlx build", check: "vlx check", typecheck: "vlx sync && tsc --noEmit", prepare: "vlx sync" },
-      dependencies: { "@valancex/common": commonSpec(answers.packageManager), effect: own().dependencies["effect"] ?? "^3.10.0" },
+      dependencies: { "@valancex/common": commonSpec(answers.packageManager), effect: effectSpec(answers.packageManager) },
       devDependencies: { "@types/node": "^22.0.0", "@valancex/cli": cliSpec(answers.packageManager, answers.cli), "@valancex/mesh-lsp": mesh(), typescript: "^5.6.0" },
     }),
   );

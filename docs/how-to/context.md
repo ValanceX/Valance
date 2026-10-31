@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* An application with components: [State, views and events](../tutorials/02-state-views-and-events.md).
+* An application with components: [State, components and events](../tutorials/02-state-views-and-events.md).
 
 ---
 

@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* A command: [Your first application](../tutorials/01-first-application.md).
+* A command: [Without `vlx`](without-vlx.md).
 
 ---
 
@@ -29,7 +29,7 @@ The complete application is on [Async work](async-work.md#a-profile-that-loads).
 ## What it means
 
 - **It is a command.** It uses the same table, the same validation and the same way of changing state as any command. There is no second way for the application to do things.
-- **It takes no arguments.** There is no caller to supply any. (If the command needs input, supply a constant with an explicit entry, as in [State, views and events](../tutorials/02-state-views-and-events.md#when-an-events-input-needs-adapting): `"app/startup": Valance.entry(load, () => ({ id: "me" }))`.)
+- **It takes no arguments.** There is no caller to supply any. (If the command needs input, supply a constant with an explicit entry, as in [Without `vlx`](without-vlx.md#when-an-events-input-needs-adapting): `"app/startup": Valance.entry(load, () => ({ id: "me" }))`.)
 - **The application owns it.** The host that started the application does not wait for it and is not responsible for it. Closing the application interrupts it and waits for it to stop, like any other command ([Async work](async-work.md#cancelling)).
 - **It starts with the application.** `start` has returned the application only after every check has passed, and the startup command is the last thing it does. If starting fails, nothing runs.
 - **It may finish before anything is on screen.** A mount made afterwards simply draws the state it finds.

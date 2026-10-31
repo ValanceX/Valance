@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* A component of your own: [State, views and events](../tutorials/02-state-views-and-events.md).
+* A component of your own: [State, components and events](../tutorials/02-state-views-and-events.md).
 
 ---
 

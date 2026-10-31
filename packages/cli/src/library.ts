@@ -9,7 +9,7 @@ import { check } from "./check.js";
 import { loadConfig } from "./config.js";
 import type { Diagnostic } from "./diagnostics.js";
 import { diagnostic, isProblem } from "./diagnostics.js";
-import { cliSpec, commonSpec, packageName, runCommand } from "./init.js";
+import { cliSpec, commonSpec, effectSpec, packageName, runCommand } from "./init.js";
 import type { PackageManager } from "./init.js";
 import { CONDITION, hasCondition, installedAt } from "./libraries.js";
 import { themeFileProblems } from "./theme.js";
@@ -46,7 +46,7 @@ export const planLibrary = (answers: LibraryAnswers): ReadonlyMap<string, string
   const common = own().dependencies["@valancex/common"];
   const range = common === undefined || common.startsWith("workspace:") ? `^${own().version}` : common;
   const link = manager === "pnpm" ? "workspace:*" : "*";
-  const effect = own().dependencies["effect"] ?? "^3.10.0";
+  const effect = effectSpec(manager);
   const q = '"';
 
   out.set(

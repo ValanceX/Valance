@@ -14,7 +14,7 @@ The list is the [primitives reference](primitives.md), generated from the specif
 
 - **Repeating** a part: `{#each items as item (item.id)}` … `{/each}`. The part in parentheses must be different for each item.
 - **Showing a part only sometimes**: `{#if flag}` … `{/if}`.
-- **A different screen**: the application's `view` function chooses which screen shows; a route says where you are. See [your first desktop application](../tutorials/03-desktop-application.md#4-where-you-can-be-and-what-may-stop-you).
+- **A different screen**: the application's `view` function chooses which screen shows; a route says where you are. See [`examples/todo`](../../examples/todo/README.md) for routes and guards.
 
 ## What a screen reads and can do
 
@@ -30,7 +30,7 @@ One word per thing, lower case. Events are few: **click** (a button), **dismiss*
 
 ## Where the web is different
 
-The web's vocabulary is a different, larger table (26 tags, with `class`, `theme` and the like). A template written in this one can also run in a browser, with a realization table of eight entries; see [the investigation](../explanation/application-model/native-vocabulary.md#evidence).
+The web's vocabulary is a different, larger table (26 tags, with `class`, `theme` and the like). A template written in this one can also run in a browser, with a realization table of eight entries; see [the investigation](../explanation/application-model/native-vocabulary.md#evidence-from-this-repository).
 
 ## The content layer
 

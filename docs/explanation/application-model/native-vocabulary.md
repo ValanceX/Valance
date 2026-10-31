@@ -161,7 +161,7 @@ The principles ask for three layers (§13.1) and examples that run (§13.2):
 
 | Layer | Where | What it is |
 |---|---|---|
-| **Learn** | [Your first desktop application](../../tutorials/03-desktop-application.md) | the to-do app in six steps, in the vocabulary and nothing else; every code block is checked against the real file by a test |
+| **Learn** | [Your first desktop application](../../tutorials/03-desktop-application.md) | the to-do project in a window, from `vlx generate target desktop` to `vlx package --desktop`; every **File:** block is checked against `examples/todo-multi` by a test |
 | **Use** | [The desktop vocabulary](../../reference/desktop-vocabulary.md) | one table: each component, its props, its events, and what it is |
 | **Understand** | the PORT's [architecture note](https://github.com/ValanceX/Port/blob/main/docs/explanation/design-records/2026-10-14-port-desktop.md) and this note | why the names, why the protocol, what is not yet |
 

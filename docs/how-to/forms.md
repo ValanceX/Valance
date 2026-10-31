@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* A command with an input schema: [State, views and events](../tutorials/02-state-views-and-events.md).
+* A command with an input schema: [State, components and events](../tutorials/02-state-views-and-events.md).
 
 ---
 

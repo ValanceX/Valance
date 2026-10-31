@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* An application definition: [Your first application](../tutorials/01-first-application.md).
+* An application definition: [Without `vlx`](without-vlx.md).
 
 ---
 
@@ -14,7 +14,7 @@ An application can run with no screen at all. A **mount** is one drawing of it s
 const mounted = yield* Valance.mount(application, Web.target({ container, primitives }));
 ```
 
-Most pages use `Web.run`, which starts the application and mounts it for you ([Your first application](../tutorials/01-first-application.md#4-run-it-in-a-page)). `mount` and `hydrate` are what it does underneath, and what you use for several mounts or a custom target.
+Most pages use `Web.run`, which starts the application and mounts it for you ([Without `vlx`](without-vlx.md#4-run-it-in-a-page)). `mount` and `hydrate` are what it does underneath, and what you use for several mounts or a custom target.
 
 ## What a mount does
 
