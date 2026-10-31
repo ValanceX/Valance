@@ -23,7 +23,8 @@ const primitives: Web.WebPrimitives = {
     events: { change: Web.event("input", { kind: "string", of: (_event, element) => (element as HTMLInputElement).value }) },
   },
 };
-const withSecret = () => ({ ...application(programs, initial()), state: { schema: Secret, initial: { ...initial(), secret: Redacted.make("default") } } }) as never as ReturnType<typeof application>;
+const withSecret = () =>
+  ({ ...application(programs, initial()), state: { schema: Secret, initial: { ...initial(), secret: Redacted.make("default") } } }) as never as ReturnType<typeof application>;
 
 describe("hydrating a state with a Redacted field", () => {
   it("restores the default and adopts the server's tree", async () => {

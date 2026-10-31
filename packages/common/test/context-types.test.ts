@@ -6,7 +6,10 @@ import { expect, it } from "vitest";
 import { defineApp, field } from "../src/index.js";
 
 it("types a context value by the layout name it is given under", () => {
-  const ok = defineApp({ state: { theme: field(Schema.Literal("light", "dark"), "light") }, context: (state) => ({ theme: state.theme, colorScheme: state.colorScheme, open: 1 }) });
+  const ok = defineApp({
+    state: { theme: field(Schema.Literal("light", "dark"), "light") },
+    context: (state) => ({ theme: state.theme, colorScheme: state.colorScheme, open: 1 }),
+  });
 
   defineApp({
     state: { theme: field(Schema.Literal("light", "dark"), "light") },

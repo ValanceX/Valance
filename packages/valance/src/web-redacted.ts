@@ -67,9 +67,17 @@ export const unmaskableFields = (schema: Schema.Schema<any, any, any>): Readonly
     return contains(ast) ? ["(state)"] : [];
   }
 
-  return ast.propertySignatures.flatMap((each) =>
-    isMasked(each.type) ? (each.type._tag === "Union" && each.type.types.some((member) => !isRedacted(member) && contains(member)) ? [String(each.name)] : []) : contains(each.type) ? [String(each.name)] : [],
-  ).concat(ast.indexSignatures.some((each) => contains(each.type)) ? ["(index signature)"] : []);
+  return ast.propertySignatures
+    .flatMap((each) =>
+      isMasked(each.type)
+        ? each.type._tag === "Union" && each.type.types.some((member) => !isRedacted(member) && contains(member))
+          ? [String(each.name)]
+          : []
+        : contains(each.type)
+          ? [String(each.name)]
+          : [],
+    )
+    .concat(ast.indexSignatures.some((each) => contains(each.type)) ? ["(index signature)"] : []);
 };
 
 /** The state without its Redacted fields: what a server may embed. */
@@ -107,7 +115,11 @@ export const problemsOf = <S, E, R extends Ambient, V extends string>(app: Appli
     })),
     ...hidden
       .filter((name) => initial[name] === undefined)
-      .map((field): RedactedProblem => ({ code: "redacted-no-default", field, message: `the state field "${field}" is Schema.Redacted and has no default: a client hydrates it to its default, so give it one` })),
+      .map((field): RedactedProblem => ({
+        code: "redacted-no-default",
+        field,
+        message: `the state field "${field}" is Schema.Redacted and has no default: a client hydrates it to its default, so give it one`,
+      })),
   ];
   // Reads of a hidden field by `read`, run on the initial state; a function that throws for it is not this check's to report.
   const readsOf = (run: (state: S) => unknown): ReadonlySet<string> => {
@@ -123,7 +135,11 @@ export const problemsOf = <S, E, R extends Ambient, V extends string>(app: Appli
   };
   const report = (what: string, read: ReadonlySet<string>) => {
     for (const field of read) {
-      found.push({ code: "redacted-in-view", field, message: `${what} reads the state field "${field}", which is Schema.Redacted: a view (and what it shows) may not depend on a secret` });
+      found.push({
+        code: "redacted-in-view",
+        field,
+        message: `${what} reads the state field "${field}", which is Schema.Redacted: a view (and what it shows) may not depend on a secret`,
+      });
     }
   };
 

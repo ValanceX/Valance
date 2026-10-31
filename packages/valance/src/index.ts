@@ -478,14 +478,7 @@ export interface ApplicationHandle<S, E, K extends string = string, C extends Re
  * Valance keeps nothing that outlives that scope. (NEXUS can also end an application early; that is the substrate's,
  * is outside this model, and nothing here asks for it. The command drain below belongs to the Scope close, so that route does not pass it.)
  */
-export const start = <
-  S,
-  E,
-  R extends Ambient,
-  V extends string,
-  K extends string = string,
-  C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
->(
+export const start = <S, E, R extends Ambient, V extends string, K extends string = string, C extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>>(
   app: ApplicationDefinition<S, E, R, V, K, C>,
   options: StartOptions<S> = {},
 ): Effect.Effect<ApplicationHandle<S, E, K, C>, StartError, Scope.Scope> =>
@@ -652,7 +645,9 @@ export const start = <
         const snapshot = views[view]!.scope(value) as Record<string, unknown>;
         const context = contextOf(value);
         const { render, patches } =
-          registry === undefined ? yield* Nexus.Mesh.update(previous.render, snapshot, undefined, context) : yield* Nexus.Mesh.update(previous.render, snapshot, yield* registry.units, context);
+          registry === undefined
+            ? yield* Nexus.Mesh.update(previous.render, snapshot, undefined, context)
+            : yield* Nexus.Mesh.update(previous.render, snapshot, yield* registry.units, context);
 
         if (registry !== undefined) {
           yield* registry.observe(render);
@@ -982,7 +977,10 @@ const connect = <S, E, T extends Target, A>(
     // A session log holds the snapshot, not the context values, so a recorded session of an application with context could not be replayed: refused here, before anything is drawn.
     if (options?.record !== undefined && running.hasContext === true) {
       return yield* Effect.die(
-        new ValanceError("context-not-recordable", "VALANCE: a session of an application with a `context` projection cannot be recorded yet: a session log holds no context values"),
+        new ValanceError(
+          "context-not-recordable",
+          "VALANCE: a session of an application with a `context` projection cannot be recorded yet: a session log holds no context values",
+        ),
       );
     }
 

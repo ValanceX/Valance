@@ -28,7 +28,7 @@ const built = await compileProgram({
   components: [
     { component: "page", source: "<box><text>{title}</text><card /></box>", path: "page.mprx" },
     { component: "card", source: "<box><badge /></box>", path: "card.mprx" },
-    { component: "badge", source: "<text>{theme} {user ?? \"nobody\"}</text>", path: "badge.mprx" },
+    { component: "badge", source: '<text>{theme} {user ?? "nobody"}</text>', path: "badge.mprx" },
   ],
 });
 

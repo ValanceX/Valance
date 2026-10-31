@@ -33,7 +33,7 @@ const app = (call: string): string =>
 
 describe("command-argument-order", () => {
   it("warns where the binding is positional and an argument's name is another field's, at the handler", async () => {
-    const found = (await check(app("move(to, \"a\")"))).diagnostics;
+    const found = (await check(app('move(to, "a")'))).diagnostics;
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ file: "src/layout.mprx", line: 2, code: "command-argument-order", severity: "warning" });
@@ -53,7 +53,7 @@ describe("command-argument-order", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     vi.spyOn(console, "log").mockImplementation(() => undefined);
-    expect(await main(["check"], app("move(to, \"a\")"))).toBe(0);
+    expect(await main(["check"], app('move(to, "a")'))).toBe(0);
     expect(errors.mock.calls.flat().join("\n")).toContain("warning command-argument-order");
   });
 });

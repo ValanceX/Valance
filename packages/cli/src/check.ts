@@ -59,7 +59,9 @@ export const check = async (root: string): Promise<Checked> => {
         }
       } catch (error) {
         // building the application for this check threw (a definition mistake the other stages did not name): a diagnostic, not an abort
-        problems.push(diagnostic("src/main.ts", 1, "redacted-check-failed", `the Redacted check could not build the application: ${error instanceof Error ? error.message : String(error)}`));
+        problems.push(
+          diagnostic("src/main.ts", 1, "redacted-check-failed", `the Redacted check could not build the application: ${error instanceof Error ? error.message : String(error)}`),
+        );
       }
     }
 

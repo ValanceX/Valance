@@ -372,7 +372,11 @@ export const application = (content: Content, program: Valance.Program, author?:
         scope: (state: AppState) => {
           const { page } = state;
           // A Redacted field is a secret the layout may not read (C-3), so it is not in the scope.
-          const own = Object.fromEntries(Object.keys(state).filter((name) => name !== "page" && !hidden.includes(name)).map((name) => [name, state[name]]));
+          const own = Object.fromEntries(
+            Object.keys(state)
+              .filter((name) => name !== "page" && !hidden.includes(name))
+              .map((name) => [name, state[name]]),
+          );
 
           return {
             ...frame(content, page, state.viewport, state.colorScheme, { canGoBack: state.cursor > 0, canGoForward: state.cursor < state.trail.length - 1 }),

@@ -32,7 +32,10 @@ const run = async (key: string, args: ReadonlyArray<Mesh.IntentArgument>) => {
 
 describe("a bare command's arguments", () => {
   it("fill the fields they are named after, in any order", async () => {
-    const { state } = await run("app/move", [{ value: "b", name: "to" }, { value: "a", name: "from" }]);
+    const { state } = await run("app/move", [
+      { value: "b", name: "to" },
+      { value: "a", name: "from" },
+    ]);
 
     expect(state).toEqual({ from: "a", to: "b" });
   });
@@ -40,8 +43,14 @@ describe("a bare command's arguments", () => {
   it("fall back to position when a name is missing, not a field, or repeated", async () => {
     for (const args of [
       [{ value: "a", name: "to" }, { value: "b" }],
-      [{ value: "a", name: "x" }, { value: "b", name: "to" }],
-      [{ value: "a", name: "to" }, { value: "b", name: "to" }],
+      [
+        { value: "a", name: "x" },
+        { value: "b", name: "to" },
+      ],
+      [
+        { value: "a", name: "to" },
+        { value: "b", name: "to" },
+      ],
       [{ value: "a" }, { value: "b" }],
     ] as ReadonlyArray<ReadonlyArray<Mesh.IntentArgument>>) {
       expect((await run("app/move", args)).state).toEqual({ from: "a", to: "b" });
@@ -64,7 +73,14 @@ describe("a template's call, through MESH", () => {
         main: {
           props: {},
           events: {},
-          commands: { move: { parameters: [{ name: "from", type: { kind: "string" } }, { name: "to", type: { kind: "string" } }] } },
+          commands: {
+            move: {
+              parameters: [
+                { name: "from", type: { kind: "string" } },
+                { name: "to", type: { kind: "string" } },
+              ],
+            },
+          },
           scope: { from: { kind: "string" }, to: { kind: "string" } },
         },
       },

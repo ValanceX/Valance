@@ -43,7 +43,10 @@ export const renderToHtml = <S, E, R extends Ambient, V extends string>(
     const unmaskable = unmaskableFields(app.state.schema);
 
     if (unmaskable.length > 0) {
-      throw new ValanceError("redacted-unmaskable", `renderToHtml: the state holds a Schema.Redacted that is not a top-level struct field (${unmaskable.join(", ")}), and only top-level fields are masked`);
+      throw new ValanceError(
+        "redacted-unmaskable",
+        `renderToHtml: the state holds a Schema.Redacted that is not a top-level struct field (${unmaskable.join(", ")}), and only top-level fields are masked`,
+      );
     }
 
     // Composed before anything is acquired: a conflict fails the call with nothing started.

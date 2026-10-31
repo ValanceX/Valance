@@ -172,8 +172,9 @@ const open = async (page: string, units = true) => {
   const base = application(await compile(page));
   const handle = await Effect.runPromise(Valance.start(units ? base : (({ units: _omitted, ...rest }) => rest)(base)).pipe(Scope.extend(scope)));
   const running = runningOf(handle);
-  const seen: Array<{ readonly render: { readonly tree: unknown; readonly occurrences: ReadonlyArray<{ readonly occurrence: string; readonly state: Record<string, unknown> }> } }> =
-    [];
+  const seen: Array<{
+    readonly render: { readonly tree: unknown; readonly occurrences: ReadonlyArray<{ readonly occurrence: string; readonly state: Record<string, unknown> }> };
+  }> = [];
 
   Effect.runFork(Stream.runForEach(running.values, (viewed) => Effect.sync(() => void seen.push(viewed as never))).pipe(Scope.extend(scope)));
 
