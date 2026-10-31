@@ -7,8 +7,8 @@ settings:
 overrides:
   '@valancex/mesh-runtime': file:./local-packs/valancex-mesh-runtime-0.18.0.tgz
   '@valancex/mesh-compiler': file:./local-packs/valancex-mesh-compiler-0.18.0.tgz
-  '@valancex/nexus': file:./local-packs/valancex-nexus-0.16.0.tgz
-  '@valancex/port-web': file:./local-packs/valancex-port-web-0.14.0.tgz
+  '@valancex/nexus': file:./local-packs/valancex-nexus-0.17.0.tgz
+  '@valancex/port-web': file:./local-packs/valancex-port-web-0.15.0.tgz
   ignore: 7.0.12
 
 importers:
@@ -57,7 +57,7 @@ importers:
     dependencies:
       '@valancex/valance':
         specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)(@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz))(effect@3.22.2)
+        version: 0.5.0(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)(@valancex/port-web@file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz))(effect@3.22.2)
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -69,11 +69,11 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.16.0.tgz
-        version: file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-nexus-0.17.0.tgz
+        version: file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -115,11 +115,11 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.16.0.tgz
-        version: file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-nexus-0.17.0.tgz
+        version: file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       effect:
         specifier: ^3.10.0
         version: 3.22.2
@@ -186,11 +186,11 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.16.0.tgz
-        version: file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-nexus-0.17.0.tgz
+        version: file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@vitest/browser-playwright':
         specifier: 5.0.5
         version: 5.0.5(playwright@1.64.1)(vite@7.3.6(@types/node@26.6.5))(vitest@5.0.5)
@@ -286,11 +286,11 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.16.0.tgz
-        version: file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-nexus-0.17.0.tgz
+        version: file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/router':
         specifier: workspace:^
         version: link:../router
@@ -335,8 +335,8 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/primitives':
         specifier: workspace:^
         version: link:../primitives
@@ -398,8 +398,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -434,8 +434,8 @@ importers:
   packages/router:
     dependencies:
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.16.0.tgz
-        version: file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-nexus-0.17.0.tgz
+        version: file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
     devDependencies:
       '@types/jsdom':
         specifier: ^30.0.0
@@ -450,8 +450,8 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -487,8 +487,8 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/valance':
         specifier: workspace:^
         version: link:../valance
@@ -517,11 +517,11 @@ importers:
         specifier: file:../../local-packs/valancex-mesh-runtime-0.18.0.tgz
         version: file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.16.0.tgz
-        version: file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-nexus-0.17.0.tgz
+        version: file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       '@valancex/port-web':
-        specifier: file:../../local-packs/valancex-port-web-0.14.0.tgz
-        version: file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+        specifier: file:../../local-packs/valancex-port-web-0.15.0.tgz
+        version: file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -1412,9 +1412,9 @@ packages:
     version: 0.18.0
     engines: {node: '>=22'}
 
-  '@valancex/nexus@file:local-packs/valancex-nexus-0.16.0.tgz':
-    resolution: {integrity: sha512-uwMNGCOj/E2wXun4HebFEikxeayrhnCqkZFexDYJsC0CRLM5g+r7x/eDQnDqvPLPtw2CPTJ0eDPt1G/G4zky6A==, tarball: file:local-packs/valancex-nexus-0.16.0.tgz}
-    version: 0.16.0
+  '@valancex/nexus@file:local-packs/valancex-nexus-0.17.0.tgz':
+    resolution: {integrity: sha512-SQVZDmSel3SL7cC8v3rptebSfnzFB5ludRKZSEWVTwKiqAXyW4EJRz8bqobur3g/eyOfzuSa342EBxwnq5OzPQ==, tarball: file:local-packs/valancex-nexus-0.17.0.tgz}
+    version: 0.17.0
     engines: {node: '>=22'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.14.0 || ^0.15.0 || ^0.16.0 || ^0.17.0 || ^0.18.0
@@ -1423,12 +1423,12 @@ packages:
     resolution: {integrity: sha512-jN703BXg8S49UVD8Ih3x7Q3/2lvONDFIMDSoHmyVLdlhKksHVtBjFU4iXXd0km0im/T93h85shSfRAv8U2gDZw==}
     engines: {node: '>=22'}
 
-  '@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz':
-    resolution: {integrity: sha512-KXhf52SG2oOjML9NwpEcP4UdeoUdrCOEw5f0JnWejdaCKn3FQh080CfVu1AGaRJbJxQO9mKlt6bKg1XXc4G65A==, tarball: file:local-packs/valancex-port-web-0.14.0.tgz}
-    version: 0.14.0
+  '@valancex/port-web@file:local-packs/valancex-port-web-0.15.0.tgz':
+    resolution: {integrity: sha512-u8YFhg846KoasbCeMb8BI00Slc8uFH1mqprQA0Y/CrZ+YFjkMjaqwUkFgbQAeCC7C8ytZlKoZiHBNI4XWHtU5Q==, tarball: file:local-packs/valancex-port-web-0.15.0.tgz}
+    version: 0.15.0
     engines: {node: '>=22'}
     peerDependencies:
-      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0 || ^0.16.0 || ^0.17.0
+      '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0 || ^0.16.0 || ^0.17.0 || ^0.18.0
 
   '@valancex/valance@0.5.0':
     resolution: {integrity: sha512-yq9rNKRL3W6+SMUs3g9jDv8LOGOpQ8Q8Hk+kV1PR60mb+108g0GgYww+e9S1N9YPM/kBV9Sl9MOQvN77w9cVsQ==}
@@ -2886,24 +2886,24 @@ snapshots:
 
   '@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz': {}
 
-  '@valancex/nexus@file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)':
+  '@valancex/nexus@file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)':
     dependencies:
       '@valancex/mesh-runtime': file:local-packs/valancex-mesh-runtime-0.18.0.tgz
       effect: 3.22.2
 
   '@valancex/port-desktop-vocabulary@0.14.0': {}
 
-  '@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)':
+  '@valancex/port-web@file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)':
     dependencies:
       '@valancex/mesh-runtime': file:local-packs/valancex-mesh-runtime-0.18.0.tgz
 
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)(@valancex/port-web@file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz))(effect@3.22.2)':
+  '@valancex/valance@0.5.0(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)(@valancex/port-web@file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz))(effect@3.22.2)':
     dependencies:
       '@valancex/mesh-runtime': file:local-packs/valancex-mesh-runtime-0.18.0.tgz
-      '@valancex/nexus': file:local-packs/valancex-nexus-0.16.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+      '@valancex/nexus': file:local-packs/valancex-nexus-0.17.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
       effect: 3.22.2
     optionalDependencies:
-      '@valancex/port-web': file:local-packs/valancex-port-web-0.14.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
+      '@valancex/port-web': file:local-packs/valancex-port-web-0.15.0.tgz(@valancex/mesh-runtime@file:local-packs/valancex-mesh-runtime-0.18.0.tgz)
 
   '@vitest/browser-playwright@5.0.5(playwright@1.64.1)(vite@7.3.6(@types/node@26.6.5))(vitest@5.0.5)':
     dependencies:
