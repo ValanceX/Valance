@@ -1,5 +1,5 @@
 // Masking the embedded state (north-star refinements C-3). A state field typed `Schema.Redacted` is a secret: `renderToHtml` leaves it out of the `state` it returns, `Web.run` puts the
-// field's declared default back when it hydrates, and `vlx check` refuses a Redacted field with no default or one a view's `scope` or the `context` projection reads. A view cannot read it, so
+// field's declared default back when it hydrates, and `vlx check` refuses a Redacted field with no default or one a view's `scope` or the `context` projection reads. `vlx check` refuses a view that reads it on the initial state, so
 // the tree does not depend on it. `start` also gives `context` the state without its Redacted fields, so a projection that reads one anyway gets nothing to show.
 import type { Schema, SchemaAST } from "effect";
 
