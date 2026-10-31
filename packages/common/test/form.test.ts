@@ -135,6 +135,25 @@ describe("one message per field, in the author's words (F6, F15)", () => {
     expect(told[0]).toMatchObject({ path: ["code"], actual: "ab", params: { minLength: 3 } });
   });
 
+  it("tells the application the check's code and parameters by the names Effect 3 gave them", () => {
+    const told: Array<Form.Issue> = [];
+    const form = Form.make(
+      Schema.Struct({
+        code: Schema.String.check(Schema.isBetweenLength(2, 10)).annotate({ title: "Code" }),
+        even: Schema.NumberFromString.check(Schema.isMultipleOf(2)).annotate({ title: "Even" }),
+        mine: Schema.String.check(Schema.makeFilter((value) => value !== "no")).annotate({ title: "Mine" }),
+      }),
+      { message: (issue) => (told.push(issue), issue.code) },
+    );
+
+    expect(form.fields.map((field) => field.constraints)).toEqual([{ minLength: 2, maxLength: 10 }, { multipleOf: 2 }, {}]);
+
+    const state = form.blur(form.blur(form.blur(form.edit(form.edit(form.edit(form.initial, "code", "a"), "even", "3"), "mine", "no"), "code"), "even"), "mine");
+
+    expect(form.view(state).fields.map((field) => field.error)).toEqual(["Length", "MultipleOf", "Refinement"]);
+    expect(told.find((issue) => issue.code === "Length")?.params).toEqual({ minLength: 2, maxLength: 10 });
+  });
+
   it("says which constraints have no message of their own, for the author", () => {
     expect(signup.warnings).toEqual([expect.stringContaining("plan")].slice(0, 0));
     expect(Form.make(Schema.Struct({ code: Schema.String.check(Schema.isMinLength(3)).annotate({ title: "Code" }) })).warnings).toEqual([

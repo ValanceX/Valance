@@ -53,7 +53,7 @@ const contains = (ast: SchemaAST.AST, seen = new Set<SchemaAST.AST>()): boolean 
 
 /**
  * The Redacted fields that cannot be masked: a Redacted below a top-level field (in a sub-struct, an array, a union with other members), or anywhere under a state schema that is not a plain
- * struct (a class, a filter, an `optionalWith` default). Each is a name, or `"(state)"` when the whole schema is not a struct. Masking is by top-level field name only.
+ * struct (a class, a filter on the struct). Each is a name, or `"(state)"` when the whole schema is not a struct. Masking is by top-level field name only.
  */
 export const unmaskableFields = (schema: Schema.Codec<any, any, any, any>): ReadonlyArray<string> => {
   const ast = schema.ast;

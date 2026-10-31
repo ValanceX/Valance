@@ -164,7 +164,7 @@ export type PropDeclaration = Schema.Codec<any, any, never> | Field<any> | Snipp
 /** Whether a prop is declared with a default. */
 export const isFormField = (value: unknown): boolean => typeof value === "object" && value !== null && FORM in value;
 
-export const isField = (value: unknown): value is Field<any> => typeof value === "object" && value !== null && FIELD in value;
+export const isField = (value: unknown): value is Field => typeof value === "object" && value !== null && FIELD in value;
 
 export interface Contract<P extends string, E extends string> {
   /**

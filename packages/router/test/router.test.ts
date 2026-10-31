@@ -1,5 +1,5 @@
 import * as Nexus from "@valancex/nexus";
-import { Effect, Ref, Schema } from "effect";
+import { Effect, Ref, Schema, SchemaTransformation } from "effect";
 import { describe, expect, it, vi } from "vitest";
 
 import { createRouter, redirect, route, RouteDefinitionError } from "../src/index.js";
@@ -140,6 +140,26 @@ describe("building addresses", () => {
     expect(() => router.href("message", {})).toThrow(RouteDefinitionError);
     expect(() => router.href(inbox, {}, { tab: "nope" })).toThrow(RouteDefinitionError);
     expect(() => router.href("nowhere")).toThrow(/no route named/);
+  });
+
+  it("lets a Schema that throws surface, rather than read it as an address or a value that does not fit", () => {
+    const boom = Schema.String.pipe(
+      Schema.decodeTo(
+        Schema.String,
+        SchemaTransformation.transform({
+          decode: (): string => {
+            throw new Error("decode boom");
+          },
+          encode: (): string => {
+            throw new Error("encode boom");
+          },
+        }),
+      ),
+    );
+    const broken = createRouter<App>({ routes: [route("/broken/:id", { name: "broken", params: Schema.Struct({ id: boom }) })] });
+
+    expect(() => broken.match("/broken/1")).toThrow("decode boom");
+    expect(() => broken.href("broken", { id: "1" })).toThrow("encode boom");
   });
 });
 

@@ -12,7 +12,7 @@ import { restoreRedacted } from "../src/web-redacted.js";
 import { renderToHtml } from "../src/web-server.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
-// `RedactedFromSelf`: its encoded side is a Redacted too, so a Redacted default and a Redacted `state` option decode as they are (NEXUS decodes both).
+// `Schema.Redacted`: its encoded side is a Redacted too, so a Redacted default and a Redacted `state` option decode as they are (NEXUS decodes both).
 const State = Schema.Struct({ name: Schema.String, token: Schema.Redacted(Schema.String) });
 type State = typeof State.Type;
 
@@ -88,7 +88,9 @@ describe("Schema.Redacted state fields (C-3)", () => {
     // top-level ones, and a struct with none, are fine
     expect(codes(Schema.Struct({ a: R, b: Schema.NullOr(R), c: Schema.String }))).toEqual([]);
     // A decoding default sits on the field in Effect 4 (in Effect 3 it wrapped the whole struct), so the field is a top-level one and is masked.
-    expect(codes(Schema.Struct({ token: R.pipe(Schema.withDecodingDefaultKey(Effect.succeed(Redacted.make("d")))) }))).toEqual([]);
+    const defaulted = Schema.Struct({ token: R.pipe(Schema.withDecodingDefaultKey(Effect.succeed(Redacted.make("d")))) });
+    expect(codes(defaulted)).toEqual([]);
+    expect(redactedFields(defaulted)).toEqual(["token"]);
 
     const nested = Valance.define({
       name: "nested",

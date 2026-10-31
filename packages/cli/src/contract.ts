@@ -83,7 +83,8 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
         throw new Error("`children` is reserved for the content between the component's tags: declare it `snippet()`");
       }
 
-      const schema = isField(declaration) ? declaration.schema : declaration;
+      // Asked of the schema rather than the field: `isField` narrows to `Field<unknown>`, which does not take the `Field<any>` out of the other branch.
+      const schema = Schema.isSchema(declaration) ? declaration : declaration.schema;
       const type = typeOf(schema);
       const optional = type.kind === "optional";
 

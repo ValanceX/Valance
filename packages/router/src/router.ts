@@ -2,7 +2,7 @@
 // decides whether a navigation may happen (matching conditions, guards for leaving and entering), titles a route, and offers the two commands that change where the application is.
 import * as Nexus from "@valancex/nexus";
 import type { Plugin, RouteTable } from "@valancex/valance/web/plugin";
-import { Effect, Exit, Schema } from "effect";
+import { Cause, Effect, Exit, Schema } from "effect";
 
 import { runGuard } from "./guards.js";
 import { bySpecificity, buildPath, LIMITS, matchSegments, RouteDefinitionError, segmentsOf } from "./pattern.js";
@@ -146,6 +146,11 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
 
     const decoded = Schema.decodeUnknownExit(schema)(raw);
 
+    // A transformation that throws is a defect in the application's schema, not an address that does not match: it surfaces, as it did when Effect 3 threw it.
+    if (Exit.isFailure(decoded) && Cause.hasDies(decoded.cause)) {
+      throw Cause.squash(decoded.cause);
+    }
+
     return Exit.isSuccess(decoded) && jsonSafe(decoded.value) ? decoded.value : undefined;
   };
 
@@ -223,6 +228,10 @@ export const createRouter = <S extends Record<string, any>, C = undefined>(optio
     }
 
     const encoded = Schema.encodeUnknownExit(schema)(value);
+
+    if (Exit.isFailure(encoded) && Cause.hasDies(encoded.cause)) {
+      throw Cause.squash(encoded.cause);
+    }
 
     if (Exit.isFailure(encoded)) {
       throw new RouteDefinitionError(`the ${what} for route "${route}" do not fit its Schema`);

@@ -275,6 +275,15 @@ const keywordsOf = (check: AST.Check<unknown>): Record<string, unknown> => {
     return { pattern: payload.source };
   }
 
+  // Effect 4 names these bounds after the check, not after the JSON Schema keywords Effect 3 gave them.
+  if (representation?.id === "effect/schema/isBetweenLength" && typeof payload === "object" && payload !== null && "minimum" in payload && "maximum" in payload) {
+    return { minLength: payload.minimum, maxLength: payload.maximum };
+  }
+
+  if (representation?.id === "effect/schema/isMultipleOf" && typeof payload === "object" && payload !== null && "divisor" in payload) {
+    return { multipleOf: payload.divisor };
+  }
+
   return typeof payload === "object" && payload !== null && !Array.isArray(payload) ? { ...payload } : {};
 };
 
@@ -427,14 +436,18 @@ const leaves = (issue: SchemaIssue.Issue, path: ReadonlyArray<string>, spoken = 
 /** Effect 3's names for the kinds of report that are not a check, which `Issue.code` has always said. */
 const KINDS: Readonly<Record<string, string>> = { InvalidType: "Type", MissingKey: "Missing", UnexpectedKey: "Unexpected" };
 
+// The codes Effect 3 gave the same failures, so applications' message tables keep working: a check without an id was a "Refinement", and a length range was "Length".
+const CHECK_CODES: Readonly<Record<string, string>> = { BetweenLength: "Length" };
+
 const codeOf = (issue: SchemaIssue.Issue): { readonly code: string; readonly params: Record<string, unknown> } => {
   if (issue._tag !== "Filter") {
     return { code: KINDS[issue._tag] ?? issue._tag, params: {} };
   }
 
   const id = issue.filter.annotations?.representation?.id;
+  const name = id?.replace(/^effect\/schema\/(is)?/, "");
 
-  return { code: id === undefined ? issue._tag : id.replace(/^effect\/schema\/(is)?/, ""), params: keywordsOf(issue.filter) };
+  return { code: name === undefined ? "Refinement" : (CHECK_CODES[name] ?? name), params: keywordsOf(issue.filter) };
 };
 
 /** The message the author gave the failed check (or the node, or a rule over the struct gave the leaf), if any. */
