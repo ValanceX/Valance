@@ -150,13 +150,13 @@ describe("vlx dev", () => {
 
 describe("the release check", () => {
   const budgets = JSON.parse(readFileSync(new URL("../src/budgets.json", import.meta.url), "utf8"));
-  // The measurements of 2026-10-24, before WP8: the baseline the ceilings were set from.
+  // The measurements of 2026-11-06 on Effect 4 (`--tree --runs 3`, runtime 0.18.0): the baseline the ceilings were set from. The runtime is 187,380 bytes (0.18 grew it from 183,629), under its unchanged ceiling.
   const results = {
-    counter: { deduped: { js: { brotli: 93722 }, css: { brotli: 1053 }, wasm: { brotli: 183629 } } },
-    docsApp: { js: { brotli: 98520 }, css: { brotli: 1542 }, perAddedPage: { jsRawPerPage: 2471.5 } },
+    counter: { deduped: { js: { brotli: 67049 }, css: { brotli: 1096 }, wasm: { brotli: 187380 } } },
+    docsApp: { js: { brotli: 71997 }, css: { brotli: 1588 }, perAddedPage: { jsRawPerPage: 2471.5 } },
     browser: {
       deduped: {
-        noThrottling: { interactiveAtMs: 321.9, firstPaintMs: 68, bytesTransferredBrotli: 279594, afterUpdates: { jsHeapUsedBytes: 4575160, wasmMemoryBytes: 1310720 } },
+        noThrottling: { interactiveAtMs: 321.9, firstPaintMs: 68, bytesTransferredBrotli: 257311, afterUpdates: { jsHeapUsedBytes: 2973128, wasmMemoryBytes: 1310720 } },
         cpu4x: { interactiveAtMs: 1346.7 },
       },
       docsApp: { noThrottling: { afterUpdates: { wasmMemoryBytes: 2293760 } } },
@@ -178,7 +178,7 @@ describe("the release check", () => {
   it("fails each gate on a deliberate regression: a dependency added (JavaScript), a runtime that grew (WebAssembly), a stray 'known' fixed, a patch that got bigger", () => {
     const grown = structuredClone(results);
 
-    grown.counter.deduped.js.brotli = 99000; // a new dependency of about 5 kB brotli
+    grown.counter.deduped.js.brotli = 72000; // a new dependency of about 5 kB brotli
     grown.counter.deduped.wasm.brotli = 193000;
     grown.wire[1000].patchBytes = 203;
     grown.browser.deduped.noThrottling.afterUpdates.wasmMemoryBytes = 5000000; // the leak of W18 back

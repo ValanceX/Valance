@@ -49,7 +49,7 @@ const PUBLISHED = { "@valancex/cli": "0.13.0", "@valancex/common": "0.13.0", eff
 /** The workspace packages `--tree` packs: tarball paths by package name, filled in below. */
 const PACKED = {};
 const WORKSPACE_PACKAGES = ["cli", "common", "valance", "router", "style"];
-const LATEST = ["effect@3", "@valancex/mesh-runtime", "@valancex/mesh-compiler", "@valancex/nexus", "@valancex/valance", "@valancex/port-web"];
+const LATEST = ["effect@4.1.0", "@valancex/mesh-runtime", "@valancex/mesh-compiler", "@valancex/nexus", "@valancex/valance", "@valancex/port-web"];
 const made = [];
 
 const run = (command, commandArgs, cwd) => execFileSync(command, commandArgs, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -118,7 +118,7 @@ if (TREE) {
 }
 
 /** What a project installs to build with, as `dependencies`: the published tooling, or the workspace's tarballs for `cli` and `common`, and `effect`. */
-const BUILD_WITH = TREE ? { "@valancex/cli": `file:${PACKED["@valancex/cli"]}`, "@valancex/common": `file:${PACKED["@valancex/common"]}`, effect: "3" } : PUBLISHED;
+const BUILD_WITH = TREE ? { "@valancex/cli": `file:${PACKED["@valancex/cli"]}`, "@valancex/common": `file:${PACKED["@valancex/common"]}`, effect: "4.1.0" } : PUBLISHED;
 /** `overrides` that make every other workspace package, wherever the tree asks for it, the tarball (the direct ones are not overridden: npm refuses a second spelling of a direct dependency). */
 const PACKS = option("--packs");
 /** The prepared releases that are not published: `valancex-mesh-runtime-0.17.0.tgz` is `@valancex/mesh-runtime`. */
