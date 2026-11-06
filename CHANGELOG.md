@@ -20,7 +20,7 @@ See the [0.17.0 release notes](docs/reference/releases/v0.17.md#v0170). Prepared
 
 ### Changed
 
-- **Effect 4.** `effect` is a peer dependency at `^4.1.0` in all five packages (the CLI included), developed against 4.1.0; Nexus is `^0.18.0`; Node is `>=22.19`.
+- **Effect 4.** `effect` is a peer dependency at `^4.1.0` in `valance`, `common`, `router` and `cli`, developed against 4.1.0; Nexus is `^0.18.0`; Node is `>=22.19`.
 - Schema spellings an author writes change: `Schema.Literal("a", "b")` is `Schema.Literals(["a", "b"])`, `Schema.Union(A, B)` is `Schema.Union([A, B])`, and `.pipe(Schema.minLength(2))` is `.check(Schema.isMinLength(2))`.
 - The form `message` annotation is a string (`message: "Enter a name"`), not a function (`message: () => "Enter a name"`).
 - The framework's size budgets are tightened to the Effect 4 build (counter JavaScript 98,500 to 67,584 bytes, docs-app JavaScript 103,500 to 72,704 bytes).

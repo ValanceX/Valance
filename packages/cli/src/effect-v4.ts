@@ -24,10 +24,16 @@ const installed = (root: string): string | undefined => {
   }
 };
 
+const atLeast41 = (version: string): boolean => {
+  const [major, minor] = version.split(".").map(Number);
+
+  return major === 4 && minor! >= 1;
+};
+
 export const effectVersion = (root: string): ReadonlyArray<Diagnostic> => {
   const version = installed(root);
 
-  if (version === undefined || version.startsWith("4.")) {
+  if (version === undefined || atLeast41(version)) {
     return [];
   }
 
@@ -75,10 +81,9 @@ const blank = (source: string): string => {
 };
 
 /** The number of top-level arguments of the call whose `(` is at `open` (brackets respected), and the first character of the first one. */
-const argumentsAt = (text: string, open: number): { readonly count: number; readonly first: string } => {
+const argumentsAt = (text: string, open: number): { readonly count: number } => {
   let depth = 0;
   let count = 0;
-  let first = "";
   let any = false;
 
   for (let at = open + 1; at < text.length; at += 1) {
@@ -92,13 +97,12 @@ const argumentsAt = (text: string, open: number): { readonly count: number; read
       count += any ? 1 : 0;
       any = false;
     } else if (!/\s/.test(char)) {
-      first = count === 0 && !any ? char : first;
       any = true;
       depth += "([{".includes(char) ? 1 : ")]}".includes(char) ? -1 : 0;
     }
   }
 
-  return { count: count + (any ? 1 : 0), first };
+  return { count: count + (any ? 1 : 0) };
 };
 
 const CALL = /\bSchema\.(Literal|Union|Tuple)\s*\(/g;
@@ -110,9 +114,10 @@ export const v3Calls = (file: string, source: string): ReadonlyArray<Diagnostic>
 
   for (const match of text.matchAll(CALL)) {
     const name = match[1]!;
-    const { count, first } = argumentsAt(text, match.index + match[0].length - 1);
+    const { count } = argumentsAt(text, match.index + match[0].length - 1);
 
-    if (name === "Literal" ? count > 1 : first !== "[") {
+    // More than one argument is unambiguously Effect 3. A single non-array argument (`Schema.Union(members)`) may be valid Effect 4 (a variable holding the array) and throws at load if not.
+    if (count > 1) {
       const lines = text.slice(0, match.index).split("\n");
       const message =
         name === "Literal" ? "Schema.Literal takes one value in effect 4: write Schema.Literals([...])" : `Schema.${name} takes an array in effect 4: write Schema.${name}([...])`;

@@ -26,7 +26,7 @@ describe("effect-v3-schema", () => {
   });
 
   it("reports Schema.Union and Schema.Tuple given members instead of an array", async () => {
-    const root = withSchema("Schema.Struct({ a: Schema.Union(Schema.String, Schema.Number), b: Schema.Tuple(Schema.String) })");
+    const root = withSchema("Schema.Struct({ a: Schema.Union(Schema.String, Schema.Number), b: Schema.Tuple(Schema.String, Schema.Number) })");
 
     expect((await found(root, "effect-v3-schema")).map((each) => each.message)).toEqual([
       "Schema.Union takes an array in effect 4: write Schema.Union([...])",
@@ -42,7 +42,7 @@ describe("effect-v3-schema", () => {
 
   it("is silent on the v4 spelling, and on a call in a comment or string", async () => {
     const root = withSchema(
-      'Schema.Struct({ a: Schema.Literal("x"), b: Schema.Union([Schema.String, Schema.Number]), c: Schema.Literals(["x", "y"]), d: Schema.Tuple([Schema.String]) })',
+      'Schema.Struct({ a: Schema.Literal("x"), b: Schema.Union([Schema.String, Schema.Number]), c: Schema.Literals(["x", "y"]), d: Schema.Tuple([Schema.String]), e: Schema.Union(members), f: Schema.Tuple(elements) })',
       {
         "src/note.ts": '// Schema.Literal("a", "b")\nexport const note = "Schema.Union(a, b)";\n',
       },
