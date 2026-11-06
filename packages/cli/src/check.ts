@@ -6,6 +6,7 @@ import { loadAuthor } from "./author.js";
 import { application } from "@valancex/common/internal";
 import { redactedProblems } from "@valancex/valance/internal";
 import { argumentOrder } from "./argument-order.js";
+import { effectV3Schema, effectVersion } from "./effect-v4.js";
 import { loadConfig } from "./config.js";
 import { librariesOf } from "./libraries.js";
 import { generateContent, generateEntries, generateProgram } from "./emit.js";
@@ -41,6 +42,8 @@ export const check = async (root: string): Promise<Checked> => {
 
   // a library whose marker is wrong is reported first: when the application cannot even be loaded, it is the likely reason (a package the build does not process)
   problems.push(...librariesOf(root).problems);
+  // effect 3 in the project: reported even when main.ts then fails to load, which it likely does
+  problems.push(...effectVersion(root), ...effectV3Schema(root));
   generateEntries(root, config);
 
   const content = await collect(problems, () => generateContent(root, config));

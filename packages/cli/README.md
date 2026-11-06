@@ -395,6 +395,11 @@ Four codes report a `Schema.Redacted` state field (north-star refinements C-3), 
 - `redacted-in-view`: a view's `scope` or `view` selector reads a Redacted field (found by running them on the initial state).
 - `redacted-check-failed`: the check could not build the application to look.
 
+Two codes catch a project still written for effect 3 (Valance needs effect `^4.1.0`). `vlx check` loads `src/main.ts` without tsc, so the one v3 spelling that still runs would otherwise go unnoticed:
+
+- `effect-version`: the `effect` installed for the project is not 4.x, reported once at `package.json` (the `effect` line, else line 1): `effect <installed> is installed; Valance needs effect ^4.1.0`. A missing `effect` is `entry-load`'s.
+- `effect-v3-schema`: in a `.ts` file under `src/`, `Schema.Literal(...)` with more than one value (effect 4 keeps only the first: write `Schema.Literals([...])`), or `Schema.Union(...)` / `Schema.Tuple(...)` whose first argument is not an array literal (write `Schema.Union([...])`). Found by a scan that skips comments and strings, not by tsc, so a call built some other way (`const S = Schema; S.Literal(...)`) is not seen.
+
 ## Limits (this cycle)
 
 - The whole content model ships in the page bundle. Fine for tens of pages; a per-page payload is the known answer for hundreds (the documentation verifier does it).
