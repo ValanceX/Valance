@@ -6,7 +6,6 @@ settings:
 
 overrides:
   ignore: 7.0.12
-  '@valancex/nexus': file:./local-packs/valancex-nexus-0.18.0.tgz
 
 importers:
 
@@ -66,8 +65,8 @@ importers:
         specifier: ^0.18.0
         version: 0.18.0
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
+        specifier: ^0.18.0
+        version: 0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
@@ -112,8 +111,8 @@ importers:
         specifier: ^0.18.0
         version: 0.18.0
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
+        specifier: ^0.18.0
+        version: 0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
@@ -183,8 +182,8 @@ importers:
         specifier: ^0.18.0
         version: 0.18.0
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
+        specifier: ^0.18.0
+        version: 0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
@@ -283,8 +282,8 @@ importers:
         specifier: ^0.18.0
         version: 0.18.0
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
+        specifier: ^0.18.0
+        version: 0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
@@ -431,8 +430,8 @@ importers:
   packages/router:
     dependencies:
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
+        specifier: ^0.18.0
+        version: 0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
     devDependencies:
       '@types/jsdom':
         specifier: ^30.0.0
@@ -508,8 +507,8 @@ importers:
   packages/valance:
     dependencies:
       '@valancex/nexus':
-        specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
+        specifier: ^0.18.0
+        version: 0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -1404,9 +1403,8 @@ packages:
     resolution: {integrity: sha512-gfIXGEXCqgXvbJUIzMI+Bw9G+KIADZM2BCWQDLmAiYwpfq18UjZUIgxtWaMRUJAFG7alg/bhFncya9aZTiScpQ==}
     engines: {node: '>=22'}
 
-  '@valancex/nexus@file:local-packs/valancex-nexus-0.18.0.tgz':
-    resolution: {integrity: sha512-zoZe6rgAwBkUletdwccYdA5EJkPSsBkqZoensLIh7bsfdhhKyJPYJIpmmDVe5NWePtkf6KuzSVgHqid9b1AOGg==, tarball: file:local-packs/valancex-nexus-0.18.0.tgz}
-    version: 0.18.0
+  '@valancex/nexus@0.18.0':
+    resolution: {integrity: sha512-zoZe6rgAwBkUletdwccYdA5EJkPSsBkqZoensLIh7bsfdhhKyJPYJIpmmDVe5NWePtkf6KuzSVgHqid9b1AOGg==}
     engines: {node: '>=22.19'}
     peerDependencies:
       '@valancex/mesh-runtime': ^0.14.0 || ^0.15.0 || ^0.16.0 || ^0.17.0 || ^0.18.0
@@ -2857,7 +2855,7 @@ snapshots:
 
   '@valancex/mesh-runtime@0.18.0': {}
 
-  '@valancex/nexus@file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)':
+  '@valancex/nexus@0.18.0(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.18.0
       effect: 4.1.0

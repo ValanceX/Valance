@@ -503,7 +503,7 @@ describe("what an editor reads", () => {
   it("follows the state even while a template is wrong, so the editor reports the mistake the check does", async () => {
     const files = (values: string) => ({
       ...BASIC,
-      "src/main.ts": entry({ badge: '{ props: { theme: Schema.Literal("light", "dark") } }' }, `  state: { theme: field(Schema.Literal(${values}), "light") },\n`),
+      "src/main.ts": entry({ badge: '{ props: { theme: Schema.Literals(["light", "dark"]) } }' }, `  state: { theme: field(Schema.Literals([${values}]), "light") },\n`),
       "src/layout.mprx": '<shell class="x" theme="light"><badge theme={theme} /></shell>',
       "src/badge.mprx": '<span class="b">{theme}</span>',
     });
