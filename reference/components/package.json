@@ -12,7 +12,7 @@
   "description": "The reference component library of VALANCE: five components, two themes, a terminal PORT and a playground, built as an outsider with published packages only.",
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@valancex/cli": "^0.16.0",
+    "@valancex/cli": "^0.17.0",
     "@valancex/mesh-compiler": "^0.18.0",
     "@valancex/mesh-runtime": "^0.18.0",
     "@valancex/port-terminal": "workspace:*",
