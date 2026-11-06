@@ -6,20 +6,13 @@ Each entry links to the version's full release notes: what changed, how to upgra
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-06
+
+See the [0.17.0 release notes](docs/reference/releases/v0.17.md#v0170). Released 2026-11-06.
+
 ### Changed
 
 - The tutorials are written with `vlx` from start to finish: `init`, `dev`, `generate`, `check`, `build`, then a second target and `package --desktop`. The engine-level walkthrough is now the how-to [Without `vlx`](docs/how-to/without-vlx.md).
-
-### Fixed
-
-- `vlx init` and `vlx init library` run from a checkout of this repository link the `effect` that `@valancex/common` resolves, instead of installing a second copy that made `tsc` reject every Schema.
-
-## [0.17.0] - 2026-11-06
-
-See the [0.17.0 release notes](docs/reference/releases/v0.17.md#v0170). Prepared, not tagged.
-
-### Changed
-
 - **Effect 4.** `effect` is a peer dependency at `^4.1.0` in `valance`, `common`, `router` and `cli`, developed against 4.1.0; Nexus is `^0.18.0`; Node is `>=22.19`.
 - Schema spellings an author writes change: `Schema.Literal("a", "b")` is `Schema.Literals(["a", "b"])`, `Schema.Union(A, B)` is `Schema.Union([A, B])`, and `.pipe(Schema.minLength(2))` is `.check(Schema.isMinLength(2))`.
 - The form `message` annotation is a string (`message: "Enter a name"`), not a function (`message: () => "Enter a name"`).
@@ -31,6 +24,7 @@ See the [0.17.0 release notes](docs/reference/releases/v0.17.md#v0170). Prepared
 
 ### Fixed
 
+- `vlx init` and `vlx init library` run from a checkout of this repository link the `effect` that `@valancex/common` resolves, instead of installing a second copy that made `tsc` reject every Schema.
 - The history follower no longer skips a URL entry when a navigation follows `Web.run` at once.
 
 ## [0.16.0] - 2026-10-31
