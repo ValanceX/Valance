@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 import { textTarget } from "./non-dom-target.js";
 
 // ---- prototype -------------------------------------------------------------------------------------------------------------------------------------
-type Fields = Record<string, Schema.Schema.All>;
+type Fields = Record<string, Schema.Top>;
 /** What the application can do, named by its property. `I` is the input the caller supplies (`void` when none). */
 interface Cap<I = any> {
   readonly _input?: I | undefined;
@@ -53,7 +53,7 @@ const named = (names: ReadonlyArray<string>, values: ReadonlyArray<unknown>) => 
 type Spec<S> = Cap | ((state: S) => S);
 interface AppDefinition<S, V extends string, Caps extends Record<string, Spec<S>>> {
   readonly name: string;
-  readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
+  readonly state: { readonly schema: Schema.Codec<S>; readonly initial: NoInfer<S> };
   readonly views: { readonly [K in V]: Valance.View<S> };
   readonly view: (state: S) => V;
   /** An object of capabilities, or a function of the helpers `can`. A bare `(state) => state` is a pure capability with no input. */
@@ -153,7 +153,7 @@ if (built.program === undefined) {
   throw new Error(JSON.stringify(built.assembly ?? built.components));
 }
 
-const State = Schema.Struct({ count: Schema.Number, phase: Schema.Literal("idle", "loading", "ready", "failed"), note: Schema.String });
+const State = Schema.Struct({ count: Schema.Number, phase: Schema.Literals(["idle", "loading", "ready", "failed"]), note: Schema.String });
 type State = typeof State.Type;
 const initial = { count: 0, phase: "idle", note: "" } as const;
 const label = ({ count, phase, note }: State) => `Count: ${count} (${phase}${note === "" ? "" : `: ${note}`})`;
@@ -182,13 +182,13 @@ const b = defineB({
         const feed = yield* Nexus.Capability.require(Feed);
 
         yield* state.update((s) => Effect.succeed({ ...s, phase: "loading" as const }));
-        const result = yield* feed.get(topic).pipe(Effect.either);
+        const result = yield* feed.get(topic).pipe(Effect.result);
 
         if (mine !== latest) {
           return;
         }
         yield* state.update((s) =>
-          Effect.succeed(result._tag === "Right" ? { ...s, phase: "ready" as const, note: result.right } : { ...s, phase: "failed" as const, note: "offline" }),
+          Effect.succeed(result._tag === "Success" ? { ...s, phase: "ready" as const, note: result.success } : { ...s, phase: "failed" as const, note: "offline" }),
         );
       });
 
@@ -277,7 +277,7 @@ const world = () => {
         );
       }),
   };
-  const platform: Nexus.Application.Platform = Layer.scoped(
+  const platform: Nexus.Application.Platform = Layer.effect(
     Nexus.Capability.Environment,
     Effect.gen(function* () {
       const scope = yield* Scope.make();
@@ -287,7 +287,7 @@ const world = () => {
       return {
         resolutions: new Map<string, Nexus.Capability.CapabilityResolution<unknown>>([
           [Feed.id, { _tag: "Available", implementation: feed }],
-          [Owner.id, { _tag: "Available", implementation: { own: (acquire) => Scope.extend(acquire, scope) } satisfies Owner }],
+          [Owner.id, { _tag: "Available", implementation: { own: (acquire) => Scope.provide(acquire, scope) } satisfies Owner }],
         ]),
       };
     }),
@@ -303,11 +303,11 @@ const world = () => {
 const boot = async () => {
   const w = world();
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(b.application, { platform: w.platform }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(b.application, { platform: w.platform }).pipe(Scope.provide(scope)));
   const factory = textTarget();
   let screen!: ReturnType<typeof factory>;
 
-  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
 
   return {
     ...w,
@@ -377,7 +377,7 @@ describe("B: the capability-shaped (name-keyed) model on the real runtime", () =
     await until(() => x.calls.length === 4);
     await x.close();
     expect(x.calls[3]!.interrupted).toBe(true);
-    expect(Exit.isInterrupted(await third)).toBe(true);
+    expect(Exit.hasInterrupts(await third)).toBe(true);
   });
 
   it("8. a longer-lived thing: acquired through the platform's capability, owned by the application, released when it closes", async () => {
@@ -446,11 +446,11 @@ describe("B, smallest form: a bare function is a pure capability", () => {
       commands: { increment: (s) => ({ count: s.count + 1 }) }, // no wrapper, no schema, no entry, no "counter/increment"
     });
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(counter.application).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(counter.application).pipe(Scope.provide(scope)));
     const factory = textTarget();
     let screen!: ReturnType<typeof factory>;
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
     screen.activate("Add one");
     await until(() => screen.screen().includes("Count: 1"));
     await Effect.runPromise(counter.call(handle).increment()); // the same capability, called by name, typed

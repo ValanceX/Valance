@@ -33,7 +33,7 @@ const world = async () => {
     commands: (state: Nexus.State.StateHandle<State>) => {
       const bind = (
         name: string,
-        schema: Schema.Schema<never, never>,
+        schema: Schema.Codec<never, never>,
         body: (input: never) => Effect.Effect<unknown, unknown>,
         input: (args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => unknown,
       ) => Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, body as never), input as never);
@@ -51,7 +51,7 @@ const world = async () => {
           "slowInc",
           Schema.Struct({}) as never,
           (() =>
-            Effect.zipRight(
+            Effect.andThen(
               Effect.promise(() => sleep(15)),
               Effect.asVoid(state.update((c): Effect.Effect<State> => Effect.succeed({ n: c.n + 1 }))),
             )) as never,
@@ -86,8 +86,8 @@ const world = async () => {
     },
   });
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
-  const fibers: Array<Fiber.RuntimeFiber<void, never>> = [];
+  const handle = await run(Valance.start(app).pipe(Scope.provide(appScope)));
+  const fibers: Array<Fiber.Fiber<void, never>> = [];
   /** A stream observer, attached and PROVEN attached (its first element, the current state, has arrived). `lag` makes it slow. */
   const observe = async (lag = 0) => {
     const seen: Array<number> = [];
@@ -96,7 +96,7 @@ const world = async () => {
     fibers.push(
       Effect.runFork(
         Stream.runForEach(runningOf(handle).states, (s) =>
-          Effect.zipRight(
+          Effect.andThen(
             lag > 0 ? Effect.promise(() => sleep(lag)) : Effect.void,
             Effect.sync(() => {
               seen.push((s as State).n);
@@ -131,7 +131,7 @@ const world = async () => {
             port.unmount();
           },
         };
-      }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)),
+      }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.provide(scope)),
     );
 
     return { ops, label: () => page.container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
@@ -162,7 +162,7 @@ describe("reading versus streaming", () => {
 
     expect(seen).toEqual([1]); // B: the first element is the current state, not the history
     await w.invoke("app/incAndProbe");
-    expect(w.probes).toEqual([{ state: 2, streamLength: 1 }]); // A: the commit was readable; the observer had not received it yet
+    expect(w.probes).toEqual([{ state: 2, streamLength: 2 }]); // A: the commit was readable, and (Effect 4 wakes the subscriber inside the commit) the observer already had it
     await until(() => seen.length === 2);
     await sleep(30);
     expect(seen).toEqual([1, 2]); // delivered, once
@@ -277,7 +277,7 @@ describe("observation versus its consumers", () => {
         urlOf: (s: { readonly n: number }) => `/${s.n}`,
         stateOf: (url: URL) => ({ n: Number(url.pathname.slice(1)) }),
         navigate: "app/navigate",
-      } as never).pipe(Scope.extend(scope)),
+      } as never).pipe(Scope.provide(scope)),
     );
     await sleep(40);
     expect(seen).toEqual([0]); // attaching added nothing
@@ -302,7 +302,10 @@ describe("observation across lifetimes", () => {
     await w.close();
     expect((await w.state()).n).toBe(1);
     const late = await Effect.runPromise(
-      Stream.runCollect(runningOf(w.handle).states).pipe(Effect.timeoutTo({ duration: "500 millis", onSuccess: (chunk) => [...chunk], onTimeout: () => "hung" as const })),
+      Stream.runCollect(runningOf(w.handle).states).pipe(
+        Effect.map((chunk) => [...chunk]),
+        Effect.timeoutOrElse({ duration: "500 millis", orElse: () => Effect.succeed("hung" as const) }),
+      ),
     );
 
     expect(late).toEqual([]); // finished, not hung, and no replay of a new lifecycle

@@ -163,7 +163,7 @@ describe("report time vs execution time", () => {
     await until(() => m.mounted.dispatched.length === 1);
     const exit = m.mounted.dispatched[0]!;
 
-    expect(Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true);
     release();
     await settle();
     expect(b.taps).toEqual([]); // never ran, even after the gate opened

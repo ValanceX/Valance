@@ -10,7 +10,7 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
-import { Cause, Deferred, Effect, ExecutionStrategy, Exit, Fiber, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { compilePrograms } from "../src/catalog/compile.js";
@@ -28,18 +28,18 @@ const firstValue = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => 
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isFailType(exit.cause)
+    : Cause.hasFails(exit.cause)
       ? "failed"
-      : Cause.isDieType(exit.cause)
-        ? `died: ${(exit.cause.defect as Error).message}`
-        : Cause.isInterruptedOnly(exit.cause)
+      : Cause.hasDies(exit.cause)
+        ? `died: ${(Cause.squash(exit.cause) as Error).message}`
+        : Cause.hasInterruptsOnly(exit.cause)
           ? "interrupted"
           : "other";
 const yields = (n: number) =>
   Effect.runPromise(
     Effect.forEach(
       Array.from({ length: n }, (_, index) => index),
-      () => Effect.yieldNow(),
+      () => Effect.yieldNow,
       { discard: true },
     ),
   );
@@ -143,7 +143,7 @@ const boot = async (topology: Topology = "independent") => {
       }),
     ),
   );
-  const handle = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.extend(appScope)))) as Valance.ApplicationHandle<State, never>;
+  const handle = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.provide(appScope)))) as Valance.ApplicationHandle<State, never>;
   // Two independent subscribers to the application's state stream: are they given the same commit?
   const seen: [Array<State>, Array<State>] = [[], []];
 
@@ -191,13 +191,8 @@ const boot = async (topology: Topology = "independent") => {
         },
       };
     };
-    const scope =
-      topology === "shared"
-        ? appScope
-        : topology === "parented"
-          ? await Effect.runPromise(Scope.fork(appScope, ExecutionStrategy.sequential))
-          : await Effect.runPromise(Scope.make());
-    const mounted = await Effect.runPromise(Effect.exit(Valance.mount(handle as never, target).pipe(Scope.extend(scope))));
+    const scope = topology === "shared" ? appScope : topology === "parented" ? await Effect.runPromise(Scope.fork(appScope, "sequential")) : await Effect.runPromise(Scope.make());
+    const mounted = await Effect.runPromise(Effect.exit(Valance.mount(handle as never, target).pipe(Scope.provide(scope))));
 
     return {
       scope,

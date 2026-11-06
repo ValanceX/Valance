@@ -29,7 +29,7 @@ const world = async (only?: string) => {
     views: { only: { program: titleProgram, scope: (s: State) => ({ title: `n${s.n}` }) } },
     view: () => "only" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
-      const bind = <I, A>(name: string, schema: Schema.Schema<I, A>, body: (input: I) => Effect.Effect<unknown, unknown>) =>
+      const bind = <I, A>(name: string, schema: Schema.Codec<I, A>, body: (input: I) => Effect.Effect<unknown, unknown>) =>
         Nexus.Mesh.bind(
           Nexus.Command.define(
             name,
@@ -45,7 +45,7 @@ const world = async (only?: string) => {
       const all = {
         "app/set": bind("set", Schema.Struct({ value: Schema.Number }), ({ value }: { value: number }) => Effect.asVoid(setN(value))),
         "app/failBefore": bind("failBefore", Schema.Struct({ value: Schema.Number }), () =>
-          Effect.zipRight(
+          Effect.andThen(
             Effect.sync(() => {
               log.push("work");
             }),
@@ -53,13 +53,13 @@ const world = async (only?: string) => {
           ),
         ),
         "app/commitThenFail": bind("commitThenFail", Schema.Struct({ value: Schema.Number }), ({ value }: { value: number }) =>
-          Effect.zipRight(setN(value), Effect.fail("failed after commit")),
+          Effect.andThen(setN(value), Effect.fail("failed after commit")),
         ),
         "app/commitThenDie": bind("commitThenDie", Schema.Struct({ value: Schema.Number }), ({ value }: { value: number }) =>
-          Effect.zipRight(setN(value), Effect.die(new Error("died after commit"))),
+          Effect.andThen(setN(value), Effect.die(new Error("died after commit"))),
         ),
         "app/slowAdd": bind("slowAdd", Schema.Struct({ value: Schema.Number }), ({ value }: { value: number }) =>
-          Effect.zipRight(
+          Effect.andThen(
             Effect.promise(() => sleep(20)),
             state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + value })),
           ),
@@ -70,7 +70,7 @@ const world = async (only?: string) => {
     },
   });
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(app).pipe(Scope.provide(appScope)));
   const mount = async () => {
     const page = load("");
     const ops: Array<string> = [];
@@ -93,7 +93,7 @@ const world = async (only?: string) => {
             port.unmount();
           },
         };
-      }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)),
+      }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.provide(scope)),
     );
 
     return { ops, label: () => page.container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
@@ -105,12 +105,12 @@ const world = async (only?: string) => {
 const kind = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasInterruptsOnly(exit.cause)
       ? "interrupted"
-      : Cause.isDieType(exit.cause)
-        ? `die ${String((exit.cause.defect as Error).message).slice(0, 60)}`
-        : Cause.isFailType(exit.cause)
-          ? `fail ${typeof exit.cause.error === "string" ? exit.cause.error : (exit.cause.error as { _tag: string })._tag}`
+      : Cause.hasDies(exit.cause)
+        ? `die ${String((Cause.squash(exit.cause) as Error).message).slice(0, 60)}`
+        : Cause.hasFails(exit.cause)
+          ? `fail ${typeof Cause.squash(exit.cause) === "string" ? Cause.squash(exit.cause) : (Cause.squash(exit.cause) as { _tag: string })._tag}`
           : "other";
 
 describe("the command boundary", () => {

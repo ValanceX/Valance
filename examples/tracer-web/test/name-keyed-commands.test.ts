@@ -40,7 +40,7 @@ const programs = {
   right: await compile("right", `<page><text>{label}</text><button on.click={increment()}>Right+1</button></page>`),
 };
 
-const State = Schema.Struct({ view: Schema.Literal("left", "right"), count: Schema.Number, last: Schema.String });
+const State = Schema.Struct({ view: Schema.Literals(["left", "right"]), count: Schema.Number, last: Schema.String });
 type State = typeof State.Type;
 const label = (s: State) => `${s.view}: ${s.count} (${s.last})`;
 const views = {
@@ -56,7 +56,7 @@ const make = (state: Nexus.State.StateHandle<State>) => {
     increment: command(Schema.Struct({}), (_i, s) => ({ ...s, count: s.count + 1 })),
     incrementByHundred: command(Schema.Struct({}), (_i, s) => ({ ...s, count: s.count + 100 })),
     add: command(Schema.Struct({ first: Schema.Number, second: Schema.Number }), ({ first, second }, s) => ({ ...s, last: `${first}|${second}` })),
-    show: command(Schema.Struct({ view: Schema.Literal("left", "right") }), ({ view }, s) => ({ ...s, view })),
+    show: command(Schema.Struct({ view: Schema.Literals(["left", "right"]) }), ({ view }, s) => ({ ...s, view })),
   };
 };
 
@@ -80,11 +80,11 @@ const until = async (done: () => boolean | Promise<boolean>) => {
 };
 const boot = async (definition: ReturnType<typeof app>) => {
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.provide(scope)));
   const factory = textTarget();
   let screen!: ReturnType<typeof factory>;
 
-  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
 
   return {
     handle,
@@ -157,7 +157,7 @@ describe("conformance and mistakes", () => {
   it("5. a declared command with neither an exact key nor a bare name is the existing ConformanceViolation, naming the key", async () => {
     const exit = await Effect.runPromise(Effect.scoped(Effect.exit(Valance.start(app((c) => ({ increment: c.increment }))))));
 
-    expect(Exit.isFailure(exit) && Cause.failureOption(exit.cause)).toMatchObject({
+    expect(Exit.isFailure(exit) && Cause.findErrorOption(exit.cause)).toMatchObject({
       _tag: "Some",
       value: { _tag: "ConformanceViolation", missing: [{ view: "left", key: "left/add" }] },
     });
@@ -238,6 +238,6 @@ describe("startup", () => {
 
     const unknown = await Effect.runPromise(Effect.scoped(Effect.exit(Valance.start(app((c) => ({ increment: c.increment, add: c.add, show: c.show }), "nope")))));
 
-    expect(Exit.isFailure(unknown) && Cause.failureOption(unknown.cause)).toMatchObject({ _tag: "Some", value: { _tag: "UnmappedCommand", component: "app", name: "nope" } });
+    expect(Exit.isFailure(unknown) && Cause.findErrorOption(unknown.cause)).toMatchObject({ _tag: "Some", value: { _tag: "UnmappedCommand", component: "app", name: "nope" } });
   });
 });

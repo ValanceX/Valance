@@ -153,7 +153,7 @@ describe("concurrent commits and presentation", () => {
 
     await run(
       Web.history(b.handle, { window: dom.window as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(
-        Scope.extend(scope),
+        Scope.provide(scope),
       ),
     );
     await sleep(20);

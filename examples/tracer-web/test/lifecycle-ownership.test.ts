@@ -31,14 +31,14 @@ describe("lifecycle ownership", () => {
           const handle = yield* Valance.start(app, { platform });
           const first = yield* Scope.make();
 
-          yield* Valance.mount(handle, recording(page.container, operations[0]!)).pipe(Scope.extend(first));
+          yield* Valance.mount(handle, recording(page.container, operations[0]!)).pipe(Scope.provide(first));
           yield* handle.invoke("a/bump", []);
           yield* Effect.promise(() => until(() => shown(page) === "A 1 via resource-1"));
           yield* Scope.close(first, Exit.void);
           expect(page.container.innerHTML).toBe(""); // the closed mount took its presentation with it
 
           const second = yield* Scope.make();
-          const mounted = yield* Valance.mount(handle, recording(page.container, operations[1]!)).pipe(Scope.extend(second));
+          const mounted = yield* Valance.mount(handle, recording(page.container, operations[1]!)).pipe(Scope.provide(second));
 
           expect(shown(page)).toBe("A 1 via resource-1"); // the application's state, not the first mount's
           page.click(page.container.querySelectorAll("button")[0]!);
@@ -145,7 +145,7 @@ describe("lifecycle ownership", () => {
     // navigate: the popstate changes no state, writes no URL, and the listener goes with its own Scope.
     const own = counted();
     const [appScope, historyScope] = await Promise.all([Effect.runPromise(Scope.make()), Effect.runPromise(Scope.make())]);
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(appScope)));
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(appScope)));
     const writes: Array<string> = [];
     const push = own.win.history.pushState.bind(own.win.history);
 
@@ -153,7 +153,7 @@ describe("lifecycle ownership", () => {
       writes.push(String(target));
       push(data, unused, target);
     };
-    await Effect.runPromise(Web.history(handle, { window: own.win, ...options }).pipe(Scope.extend(historyScope)));
+    await Effect.runPromise(Web.history(handle, { window: own.win, ...options }).pipe(Scope.provide(historyScope)));
     await settle(); // the follower takes its baseline (the first state it sees) before the navigation
     await Effect.runPromise(navigateAbout(handle));
     await settle();

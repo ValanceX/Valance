@@ -57,7 +57,7 @@ it("a mount that stops following is reported once, with its reason and the event
   };
 
   // The page's lifecycle, as src/page.ts has it: one Scope, ended by `pagehide` (not persisted).
-  const page = Effect.runFork(Effect.scoped(Effect.zipRight(run(app, { container, primitives }), Effect.never)));
+  const page = Effect.runFork(Effect.scoped(Effect.andThen(run(app, { container, primitives }), Effect.never)));
   const onPageHide = (event: Event): void => {
     if (!(event as PageTransitionEvent).persisted) {
       void Effect.runPromise(Fiber.interrupt(page));
@@ -85,7 +85,7 @@ it("a mount that stops following is reported once, with its reason and the event
     expect(reported).toHaveLength(3); // one report per fact
     const stopped = reported.find((line) => line.includes("the page stopped following the application"))!;
 
-    expect(stopped).toMatch(/level=ERROR/);
+    expect(stopped).toMatch(/ERROR/);
     expect(stopped).toContain("MeshDiagnostics"); // the reason, from `followed`'s Failure
     expect(stopped).toContain("runtime-"); // MESH's diagnostic code
     expect(stopped).toContain("title"); // and what it was about

@@ -16,7 +16,7 @@ export interface Resource {
 
 export const Shared = Nexus.Capability.define<Resource>("example/shared");
 
-export const State = Schema.Struct({ view: Schema.Literal("a", "b"), n: Schema.Number, via: Schema.String });
+export const State = Schema.Struct({ view: Schema.Literals(["a", "b"]), n: Schema.Number, via: Schema.String });
 export type State = Schema.Schema.Type<typeof State>;
 
 export const manifest = JSON.stringify({
@@ -89,7 +89,7 @@ export const definition = async (seen: Array<Resource>) => {
 /** The platform: one resource per application start, counted. Its identity is the instance, not a name. */
 export const platformOf = () => {
   const counts = { acquired: 0, released: 0 };
-  const platform: Nexus.Application.Platform = Layer.scoped(
+  const platform: Nexus.Application.Platform = Layer.effect(
     Nexus.Capability.Environment,
     Effect.map(
       Effect.acquireRelease(

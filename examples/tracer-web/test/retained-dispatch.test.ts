@@ -39,8 +39,9 @@ describe("the retained render is the source of interaction identity", () => {
       await b.invoke("app/tag", "a");
       await settle();
       fails = when;
-      await b.invoke("app/tag", "b");
+      // The structural commit goes first: Effect 4 wakes the follower at the first commit, so that is the update that fails, and the one after it is not presented at all.
       await b.invoke("app/ids", ["A", "C"]); // physically (after) there is a row the retained render does not have
+      await b.invoke("app/tag", "b");
       await settle();
       expect(m.ops).toEqual(["draw", "update"]);
       expect(m.rowEls().length).toBe(when === "after" ? 2 : 1);

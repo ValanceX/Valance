@@ -35,12 +35,11 @@ const run = async <A>(
     push(data, unused, target);
   };
   const app = application(await compilePrograms());
-  const logger = Logger.replace(
-    Logger.defaultLogger,
+  const logger = Logger.layer([
     Logger.make(({ message, cause }) => {
       logs.push(`${String(message)} ${String(cause)}`);
     }),
-  );
+  ]);
 
   return Effect.runPromise(
     Effect.scoped(

@@ -28,12 +28,12 @@ const delivered = async (w: { readonly stream: ReadonlyArray<unknown> }, count: 
 const kind = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasInterruptsOnly(exit.cause)
       ? "interrupted"
-      : Cause.isDieType(exit.cause)
-        ? `die ${String((exit.cause.defect as Error).message).slice(0, 60)}`
-        : Cause.isFailType(exit.cause)
-          ? `fail ${typeof exit.cause.error === "string" ? exit.cause.error : (exit.cause.error as { _tag: string })._tag}`
+      : Cause.hasDies(exit.cause)
+        ? `die ${String((Cause.squash(exit.cause) as Error).message).slice(0, 60)}`
+        : Cause.hasFails(exit.cause)
+          ? `fail ${typeof Cause.squash(exit.cause) === "string" ? Cause.squash(exit.cause) : (Cause.squash(exit.cause) as { _tag: string })._tag}`
           : "other";
 
 const world = async () => {
@@ -45,7 +45,7 @@ const world = async () => {
     commands: (state: Nexus.State.StateHandle<State>) => {
       const bind = (
         name: string,
-        schema: Schema.Schema<never, never>,
+        schema: Schema.Codec<never, never>,
         body: (input: never) => Effect.Effect<unknown, unknown>,
         input: (args: ReadonlyArray<Nexus.Mesh.IntentArgument>) => unknown,
       ) => Nexus.Mesh.bind(Nexus.Command.define(name, schema as never, body as never), input as never);
@@ -88,7 +88,7 @@ const world = async () => {
     },
   });
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(app).pipe(Scope.provide(appScope)));
   const stream: Array<unknown> = [];
   const watcher = Effect.runFork(
     Stream.runForEach(runningOf(handle).states, (s) =>
@@ -103,7 +103,7 @@ const world = async () => {
 
     await run(
       Valance.mount(handle, ((report) => Web.target({ container: page.container, primitives })(report)) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(
-        Scope.extend(scope),
+        Scope.provide(scope),
       ),
     );
 
@@ -195,7 +195,7 @@ describe("who mutates", () => {
         urlOf: (s: { readonly n: number }) => `/${s.n}`,
         stateOf: (url: URL) => ({ n: Number(url.pathname.slice(1)) }),
         navigate: "app/navigate",
-      } as never).pipe(Scope.extend(scope)),
+      } as never).pipe(Scope.provide(scope)),
     );
     await sleep(60);
     expect(w.stream).toEqual([{ n: 0 }]); // attaching changed nothing; the presentation fed nothing back

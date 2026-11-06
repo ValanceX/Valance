@@ -34,7 +34,7 @@ export const application = (program: Parameters<typeof Valance.define>[0]["views
     commands: (state) => ({
       // history's `navigate: "go"`: the navigation fact is this command's input
       go: Nexus.Command.define("links.go", Schema.Struct({ page: Schema.String }), ({ page }) =>
-        Effect.zipRight(
+        Effect.andThen(
           state.update((current) => Effect.succeed({ ...current, page })),
           gate === undefined ? Effect.void : Deferred.await(gate),
         ),

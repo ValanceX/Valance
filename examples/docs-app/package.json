@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@valancex/common": "workspace:*",
-    "effect": "^3.10.0"
+    "effect": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

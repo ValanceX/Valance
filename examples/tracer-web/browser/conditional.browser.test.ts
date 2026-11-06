@@ -55,7 +55,7 @@ const boot = async () => {
   document.body.append(main);
 
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
   const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: main, primitives })(report);
 
@@ -75,7 +75,7 @@ const boot = async () => {
     };
   };
 
-  await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.provide(scope)));
 
   const section = () => main.firstElementChild as HTMLElement;
   const kids = () => Array.from(section().children) as Array<HTMLElement>;

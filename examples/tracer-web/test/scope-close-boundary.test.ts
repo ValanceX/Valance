@@ -69,7 +69,7 @@ describe("a mount's Scope.close", () => {
         };
       };
       const scope = await run(Scope.make());
-      const mounting = Effect.runFork(Effect.exit(Valance.mount(app.handle, target).pipe(Scope.extend(scope))));
+      const mounting = Effect.runFork(Effect.exit(Valance.mount(app.handle, target).pipe(Scope.provide(scope))));
 
       await sleep(delay);
       await run(Scope.close(scope, Exit.void));
@@ -129,11 +129,7 @@ describe("a mount's Scope.close", () => {
     }
     const effect = kind === "mount" ? Valance.mount(app.handle, factory) : Valance.hydrate(app.handle, factory as never);
     const exit = await Effect.runPromise(
-      effect.pipe(
-        Scope.extend(scope),
-        Effect.exit,
-        Effect.timeoutTo({ duration: "1 seconds", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const }),
-      ),
+      effect.pipe(Scope.provide(scope), Effect.exit, Effect.timeoutOrElse({ duration: "1 seconds", orElse: () => Effect.succeed("hung" as const) })),
     );
 
     await sleep(40);
@@ -149,7 +145,7 @@ describe("a mount's Scope.close", () => {
       const { exit, ops, html } = await attempt(kind, "already");
 
       expect(exit).not.toBe("hung");
-      expect(exit !== "hung" && Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true); // the existing lifecycle signal: what closing a Scope during start already gives
+      expect(exit !== "hung" && Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true); // the existing lifecycle signal: what closing a Scope during start already gives
       expect(ops).toEqual([]); // no draw, update, hydrate or unmount
       expect(html).toBe("");
     });
@@ -160,7 +156,7 @@ describe("a mount's Scope.close", () => {
 
         expect(exit).not.toBe("hung");
         if (exit !== "hung" && Exit.isFailure(exit)) {
-          expect(Cause.isInterruptedOnly(exit.cause)).toBe(true);
+          expect(Cause.hasInterruptsOnly(exit.cause)).toBe(true);
         }
         expect(ops.length === 0 || (ops[0] === (kind === "mount" ? "draw" : "hydrate") && ops.at(-1) === "unmount")).toBe(true); // nothing, or a first render that was then unmounted
         expect(html).toBe("");

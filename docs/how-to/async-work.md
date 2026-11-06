@@ -53,7 +53,7 @@ import * as Nexus from "@valancex/nexus";
 import { Effect, Schema } from "effect";
 
 const State = Schema.Struct({
-  phase: Schema.Literal("loading", "ready", "failed"),
+  phase: Schema.Literals(["loading", "ready", "failed"]),
   name: Schema.String,
 });
 type State = typeof State.Type;
@@ -74,10 +74,10 @@ const app = (fetchName: (id: string, signal: AbortSignal) => Promise<string>) =>
     const fetchProfile = (id: string) => Effect.gen(function* () {
       const mine = ++latest;
       yield* set((current) => ({ ...current, phase: "loading" }));
-      const result = yield* Effect.tryPromise({ try: (signal) => fetchName(id, signal), catch: String }).pipe(Effect.either);
+      const result = yield* Effect.tryPromise({ try: (signal) => fetchName(id, signal), catch: String }).pipe(Effect.result);
 
       if (mine !== latest) return;                     // a newer request started meanwhile: drop this result
-      yield* set(() => result._tag === "Right" ? { phase: "ready", name: result.right } : { phase: "failed", name: result.left });
+      yield* set(() => result._tag === "Success" ? { phase: "ready", name: result.success } : { phase: "failed", name: result.failure });
     });
 
     const reload = Nexus.Command.define("profile.reload", Schema.Struct({}), () => fetchProfile("me"));
@@ -173,12 +173,12 @@ interface Owner {
 const Owner = Nexus.Capability.define<Owner>("my-app/owner");
 
 // The platform builds it once; its Scope closes when the application ends, after the commands have finished.
-const platform: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.gen(function* () {
+const platform: Nexus.Application.Platform = Layer.effect(Nexus.Capability.Environment, Effect.gen(function* () {
   const scope = yield* Scope.make();
 
   yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void));
 
-  const owner: Owner = { own: (acquire) => Scope.extend(acquire, scope) as never };
+  const owner: Owner = { own: (acquire) => Scope.provide(acquire, scope) as never };
 
   return { resolutions: new Map([[Owner.id, { _tag: "Available" as const, implementation: owner }]]) };
 }));

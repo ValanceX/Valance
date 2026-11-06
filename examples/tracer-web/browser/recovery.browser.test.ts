@@ -23,8 +23,8 @@ it("a shared invalid state: the mount goes inert; a mount cannot start while the
 
   try {
     const [appScope, firstScope] = await Promise.all([Scope.make(), Scope.make()].map(run));
-    const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
-    const first = await run(Valance.mount(handle, healthy(root)).pipe(Scope.extend(firstScope!)));
+    const handle = await run(Valance.start(application()).pipe(Scope.provide(appScope!)));
+    const first = await run(Valance.mount(handle, healthy(root)).pipe(Scope.provide(firstScope!)));
 
     await run(handle.invoke("app/break", []));
     await expect.poll(() => following(first)).toBe("failed: diagnostics");
@@ -32,9 +32,9 @@ it("a shared invalid state: the mount goes inert; a mount cannot start while the
 
     // While the state is still invalid, a replacement mount fails BY ITSELF (its first render): nothing is mounted, the application is untouched.
     const blocked = await run(Scope.make());
-    const attempt = await run(Effect.exit(Valance.mount(handle, healthy(document.createElement("main"))).pipe(Scope.extend(blocked))));
+    const attempt = await run(Effect.exit(Valance.mount(handle, healthy(document.createElement("main"))).pipe(Scope.provide(blocked))));
 
-    expect(Exit.isFailure(attempt) && Cause.isFailType(attempt.cause)).toBe(true); // a typed MESH diagnostic from `mount`
+    expect(Exit.isFailure(attempt) && Cause.hasFails(attempt.cause)).toBe(true); // a typed MESH diagnostic from `mount`
     await run(Scope.close(blocked, Exit.void));
     expect(await run(handle.state)).toEqual({ n: 0, bad: true });
 
@@ -49,7 +49,7 @@ it("a shared invalid state: the mount goes inert; a mount cannot start while the
     await run(Scope.close(firstScope!, Exit.void));
     expect(root.innerHTML).toBe("");
     const secondScope = await run(Scope.make());
-    const second = await run(Valance.mount(handle, healthy(root)).pipe(Scope.extend(secondScope)));
+    const second = await run(Valance.mount(handle, healthy(root)).pipe(Scope.provide(secondScope)));
 
     expect(label(root)).toBe("n1"); // the current state
     await run(handle.invoke("app/bump", []));
@@ -69,9 +69,9 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
 
   try {
     const [appScope, scopeA, scopeB] = await Promise.all([Scope.make(), Scope.make(), Scope.make()].map(run));
-    const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
-    const mountedA = await run(Valance.mount(handle, healthy(rootA)).pipe(Scope.extend(scopeA!)));
-    const mountedB = await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.extend(scopeB!)));
+    const handle = await run(Valance.start(application()).pipe(Scope.provide(appScope!)));
+    const mountedA = await run(Valance.mount(handle, healthy(rootA)).pipe(Scope.provide(scopeA!)));
+    const mountedB = await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.provide(scopeB!)));
 
     // Shared state: both go inert; after the repair, A is replaced and B is still inert until it is replaced too.
     await run(handle.invoke("app/break", []));
@@ -82,7 +82,7 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
     expect([label(rootA), label(rootB)]).toEqual(["n0", "n0"]);
     await run(Scope.close(scopeA!, Exit.void));
     const scopeA2 = await run(Scope.make());
-    const mountedA2 = await run(Valance.mount(handle, healthy(rootA)).pipe(Scope.extend(scopeA2)));
+    const mountedA2 = await run(Valance.mount(handle, healthy(rootA)).pipe(Scope.provide(scopeA2)));
 
     expect([label(rootA), label(rootB)]).toEqual(["n1", "n0"]); // each mount is recovered on its own
     await run(handle.invoke("app/bump", []));
@@ -90,7 +90,7 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
     expect(label(rootB)).toBe("n0");
     await run(Scope.close(scopeB!, Exit.void));
     const scopeB2 = await run(Scope.make());
-    const mountedB2 = await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.extend(scopeB2)));
+    const mountedB2 = await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.provide(scopeB2)));
 
     expect(label(rootB)).toBe("n2");
 
@@ -119,7 +119,7 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
       };
     await run(Scope.close(scopeB2, Exit.void));
     const scopeB3 = await run(Scope.make());
-    const flakyB = await run(Valance.mount(handle, flaky(rootB)).pipe(Scope.extend(scopeB3)));
+    const flakyB = await run(Valance.mount(handle, flaky(rootB)).pipe(Scope.provide(scopeB3)));
 
     await run(handle.invoke("app/bump", []));
     await expect.poll(() => label(rootA)).toBe("n3");
@@ -130,7 +130,7 @@ it("several mounts failed by the shared state are recovered one by one; a PORT-l
     failing = false; // the host's repair of the target, then its replacement
     await run(Scope.close(scopeB3, Exit.void));
     const scopeB4 = await run(Scope.make());
-    await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.extend(scopeB4)));
+    await run(Valance.mount(handle, healthy(rootB)).pipe(Scope.provide(scopeB4)));
 
     expect([label(rootA), label(rootB)]).toEqual(["n3", "n3"]);
     await run(handle.invoke("app/bump", []));

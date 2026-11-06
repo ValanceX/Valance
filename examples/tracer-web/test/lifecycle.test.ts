@@ -12,11 +12,19 @@ import { load, until } from "./helpers.js";
 
 // A complete Clock (sleep included) that reads `n`.
 const fixed = (n: number): Clock.Clock => {
-  const base = Clock.make();
+  const live = Clock.Clock.defaultValue();
 
-  return Object.assign(Object.create(Object.getPrototypeOf(base) as object) as Clock.Clock, base, { currentTimeMillis: Effect.succeed(n), unsafeCurrentTimeMillis: () => n });
+  return {
+    currentTimeMillis: Effect.succeed(n),
+    currentTimeMillisUnsafe: () => n,
+    currentTimeNanos: live.currentTimeNanos,
+    currentTimeNanosUnsafe: () => live.currentTimeNanosUnsafe(),
+    monotonicTimeNanos: live.monotonicTimeNanos,
+    monotonicTimeNanosUnsafe: () => live.monotonicTimeNanosUnsafe(),
+    sleep: (duration) => live.sleep(duration),
+  };
 };
-const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.setClock(fixed(42)));
+const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.succeed(Clock.Clock, fixed(42)));
 
 const clickHandler = (viewed: Viewed): string => (viewed.render.tree.root as unknown as { children: ReadonlyArray<{ events: { click: string } }> }).children[1]!.events.click;
 
@@ -72,7 +80,7 @@ describe("lifecycle", () => {
 
     expect(page.container.innerHTML).toBe("");
     // Valance's own finalizer stopped the follower: interrupted, not completed.
-    expect(Exit.isInterrupted(await Effect.runPromise(out.mounted.followed))).toBe(true);
+    expect(Exit.hasInterrupts(await Effect.runPromise(out.mounted.followed))).toBe(true);
     expect(await Effect.runPromise(Nexus.Application.status(out.running.nexus))).toEqual({ _tag: "Stopped" });
   });
 

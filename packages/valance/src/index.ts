@@ -27,7 +27,7 @@ import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { makeRegistry, type Deliver, type Registry, type Unit } from "./units.js";
 import { withoutRedacted } from "./web-redacted.js";
-import { Cause, Deferred, Duration, Effect, Equal, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export { isUnit, UNIT } from "./units.js";
@@ -680,12 +680,16 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
             }),
           ),
       );
+    // Effect 4 starts a forked fiber at once, so it can already have told someone it is running when the caller gets to wait for it: an interruption of the caller must not
+    // land between the fork and the handler that interrupts the command, or the command would be left running with nobody to stop it. Only the wait is interruptible.
     const inApplication = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F> =>
-      Effect.suspend(() => {
-        const handle = Nexus.Runtime.runFork(nexus.runtime, admit(effect));
+      Effect.uninterruptibleMask((restore) =>
+        Effect.suspend(() => {
+          const handle = Nexus.Runtime.runFork(nexus.runtime, admit(effect));
 
-        return Fiber.join(handle).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
-      });
+          return restore(Fiber.join(handle)).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
+        }),
+      );
 
     const running: Running<S, E> = {
       nexus,
@@ -705,7 +709,7 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
                     Effect.sync(() => admissions),
                   ),
                 ),
-                (left, right) => Equal.equals(left[0], right[0]) && left[1] === right[1],
+                (left, right) => left[0] === right[0] && left[1] === right[1],
               ),
               (): Viewed | undefined => undefined,
               (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, ReadonlyArray<Viewed>] => [viewed, [viewed]])),

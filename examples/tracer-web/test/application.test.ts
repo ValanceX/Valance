@@ -37,7 +37,7 @@ const countingPlatform = () => {
   const counts = { acquired: 0, released: 0 };
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(
+    Layer.effectDiscard(
       Effect.acquireRelease(
         Effect.sync(() => {
           counts.acquired += 1;
@@ -185,7 +185,7 @@ describe("the application model", () => {
     // Shutdown: the scope closing released the platform's resource, stopped the application, and ended the follower.
     expect(result.counts).toEqual({ acquired: 1, released: 1 });
     expect(await Effect.runPromise(Nexus.Application.status(result.ended.running.nexus))).toEqual({ _tag: "Stopped" });
-    expect(Exit.isInterrupted(await Effect.runPromise(result.ended.mounted.followed))).toBe(true);
+    expect(Exit.hasInterrupts(await Effect.runPromise(result.ended.mounted.followed))).toBe(true);
   });
 
   it("through PORT Web: MESH intents and external events drive the same state; DOM survives update, is replaced by draw", async () => {

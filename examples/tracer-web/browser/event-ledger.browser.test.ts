@@ -23,7 +23,13 @@ const ids = ["gate"] as const;
 const State = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })), value: Schema.String });
 type State = Schema.Schema.Type<typeof State>;
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
-  Exit.isSuccess(exit) ? "succeeded" : Cause.isFailType(exit.cause) ? `failed ${JSON.stringify(exit.cause.error)}` : Cause.isInterruptedOnly(exit.cause) ? "interrupted" : "other";
+  Exit.isSuccess(exit)
+    ? "succeeded"
+    : Cause.hasFails(exit.cause)
+      ? `failed ${JSON.stringify(Cause.squash(exit.cause))}`
+      : Cause.hasInterruptsOnly(exit.cause)
+        ? "interrupted"
+        : "other";
 const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 
 const setup = async (outcome: "commit" | "fail") => {
@@ -65,12 +71,12 @@ const setup = async (outcome: "commit" | "fail") => {
   });
   const appScope = await run(Scope.make());
   const mountScope = await run(Scope.make());
-  const handle = (await run(Valance.start(app as never, { state: initial }).pipe(Scope.extend(appScope)))) as Valance.ApplicationHandle<State, never>;
+  const handle = (await run(Valance.start(app as never, { state: initial }).pipe(Scope.provide(appScope)))) as Valance.ApplicationHandle<State, never>;
   const root = document.createElement("main");
 
   document.body.append(root);
   const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => Web.target({ container: root, primitives })(report);
-  const mounted = (await run(Valance.mount(handle as never, target).pipe(Scope.extend(mountScope)))) as Valance.Mounted<never>;
+  const mounted = (await run(Valance.mount(handle as never, target).pipe(Scope.provide(mountScope)))) as Valance.Mounted<never>;
 
   return {
     root,

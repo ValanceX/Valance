@@ -51,10 +51,10 @@ interface Bundle {
 }
 
 const State = Schema.Struct({
-  phase: Schema.Literal("idle", "loading", "ready", "rejected", "failed"),
+  phase: Schema.Literals(["idle", "loading", "ready", "rejected", "failed"]),
   ticket: Schema.Number,
   detail: Schema.String,
-  shown: Schema.Literal("shell", "extra", "quiet"),
+  shown: Schema.Literals(["shell", "extra", "quiet"]),
 });
 type State = typeof State.Type;
 const initial: State = { phase: "idle", ticket: 0, detail: "", shown: "shell" };
@@ -115,21 +115,21 @@ const app = (loader: ReturnType<typeof fakeLoader>, options: { readonly start?: 
       let issued = 0; // tickets: the application's own, taken atomically (synchronously)
       const table: Record<string, Nexus.Mesh.Binding<never, never>> = {};
       const set = (change: (c: State) => State) => state.update((c): Effect.Effect<State> => Effect.succeed(change(c)));
-      const load = Nexus.Command.define("lazy.load", Schema.Struct({ name: Schema.Literal("quiet", "extra", "rogue") }), ({ name }) =>
+      const load = Nexus.Command.define("lazy.load", Schema.Struct({ name: Schema.Literals(["quiet", "extra", "rogue"]) }), ({ name }) =>
         Effect.gen(function* () {
           const mine = ++issued;
 
           yield* set((c) => ({ ...c, phase: "loading", ticket: mine, detail: name }));
-          const bundle = yield* loader.load(name).pipe(Effect.either);
+          const bundle = yield* loader.load(name).pipe(Effect.result);
 
-          if (bundle._tag === "Left") {
-            yield* set((c) => (c.ticket === mine ? { ...c, phase: "failed", detail: bundle.left } : c));
+          if (bundle._tag === "Failure") {
+            yield* set((c) => (c.ticket === mine ? { ...c, phase: "failed", detail: bundle.failure } : c));
             return;
           }
 
           // ADMISSION: D ⊆ B for the loaded program, evaluated now against the table's keys. The loaded value is not usable until this passes.
           const declared = yield* Effect.promise(() =>
-            declaredEvents({ program: { root: bundle.right.program.root, templates: bundle.right.program.templates }, model: bundle.right.program.model }),
+            declaredEvents({ program: { root: bundle.success.program.root, templates: bundle.success.program.templates }, model: bundle.success.program.model }),
           );
           const missing =
             declared.diagnostics !== undefined ? ["<diagnostics>"] : declared.events.map((e) => `${e.component}/${e.command}`).filter((key) => !Object.hasOwn(table, key));
@@ -143,7 +143,7 @@ const app = (loader: ReturnType<typeof fakeLoader>, options: { readonly start?: 
             }
 
             admitted.clear();
-            admitted.set(name, bundle.right);
+            admitted.set(name, bundle.success);
 
             return { ...c, phase: "ready", detail: name };
           });
@@ -203,14 +203,14 @@ const boot = async (options: { readonly start?: Name; readonly mount?: boolean }
       }),
     ),
   );
-  const handle = await Effect.runPromise(Valance.start(a.definition).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(a.definition).pipe(Scope.provide(scope)));
   let target: TextTarget | undefined;
   let mounted: Valance.Mounted<unknown> | undefined;
 
   if (options.mount === true) {
     const factory = textTarget();
 
-    mounted = await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
+    mounted = await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.provide(scope)));
   }
 
   return {
@@ -361,7 +361,7 @@ describe("part 3: a lazily acquired capability with a finalizer", () => {
       }),
     });
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(definition).pipe(Scope.provide(scope)));
 
     await Effect.runPromise(handle.invoke("app/acquire", []));
     expect(log).toEqual(["acquired", "released"]); // ...but the finalizer ran when the command ended, application alive

@@ -180,7 +180,7 @@ export const world = async () => {
       };
     };
     const text = (): string => container.querySelector("section")?.getAttribute("aria-label") ?? "";
-    const mounted = await run(Valance.mount(handle, target).pipe(Scope.extend(scope)));
+    const mounted = await run(Valance.mount(handle, target).pipe(Scope.provide(scope)));
 
     return {
       index,
@@ -198,14 +198,14 @@ export const world = async () => {
   const attachHistory = async (handle: Valance.ApplicationHandle<State, unknown>, navigate = "app/navigate") => {
     const scope = await run(Scope.make());
 
-    await run(Web.history(handle, { window: win, urlOf, stateOf, navigate }).pipe(Scope.extend(scope)));
+    await run(Web.history(handle, { window: win, urlOf, stateOf, navigate }).pipe(Scope.provide(scope)));
     await sleep(40);
 
     return { scope, close: () => run(Scope.close(scope, Exit.void)) };
   };
   const startApp = async () => {
     const scope = await run(Scope.make());
-    const handle = await run(Valance.start(app).pipe(Scope.extend(scope)));
+    const handle = await run(Valance.start(app).pipe(Scope.provide(scope)));
 
     return { scope, handle, close: () => run(Scope.close(scope, Exit.void)) };
   };

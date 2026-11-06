@@ -16,7 +16,7 @@ type Mounted = Awaited<ReturnType<Booted["mountOn"]>>;
 const diagnosticOf = async (m: Mounted): Promise<string> => {
   const exit = await Effect.runPromise(m.mounted.followed);
 
-  return Exit.isFailure(exit) && Cause.isFailType(exit.cause) ? JSON.stringify(exit.cause.error) : "none";
+  return Exit.isFailure(exit) && Cause.hasFails(exit.cause) ? JSON.stringify(Cause.squash(exit.cause)) : "none";
 };
 
 describe("shared MESH render failure versus mount-local target failure", () => {

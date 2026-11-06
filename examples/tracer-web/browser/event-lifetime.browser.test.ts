@@ -25,9 +25,9 @@ type State = Schema.Schema.Type<typeof State>;
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isDieType(exit.cause)
-      ? `died: ${(exit.cause.defect as Error).message}`
-      : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasDies(exit.cause)
+      ? `died: ${(Cause.squash(exit.cause) as Error).message}`
+      : Cause.hasInterruptsOnly(exit.cause)
         ? "interrupted"
         : "other";
 const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
@@ -95,7 +95,7 @@ const setup = async () => {
       }),
     ),
   ); // registered before start: runs after NEXUS terminates
-  const handle = (await run(Valance.start(app as never, { state: initial }).pipe(Scope.extend(appScope)))) as Valance.ApplicationHandle<State, never>;
+  const handle = (await run(Valance.start(app as never, { state: initial }).pipe(Scope.provide(appScope)))) as Valance.ApplicationHandle<State, never>;
   const mountIn = async (name: string) => {
     const root = document.createElement("main");
 
@@ -118,7 +118,7 @@ const setup = async () => {
         },
       };
     };
-    const mounted = (await run(Valance.mount(handle as never, target).pipe(Scope.extend(scope)))) as Valance.Mounted<never>;
+    const mounted = (await run(Valance.mount(handle as never, target).pipe(Scope.provide(scope)))) as Valance.Mounted<never>;
     const row = (id: string) => root.querySelectorAll("div")[ids.indexOf(id as never)]!.querySelector("button")!;
 
     return {

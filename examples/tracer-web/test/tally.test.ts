@@ -20,7 +20,7 @@ import { until } from "./helpers.js";
 /** The platform: a Ticker backed by something with a lifetime, acquired at start and released with the application. */
 const tickerPlatform = () => {
   const counts = { acquired: 0, released: 0 };
-  const platform: Nexus.Application.Platform = Layer.scoped(
+  const platform: Nexus.Application.Platform = Layer.effect(
     Nexus.Capability.Environment,
     Effect.map(
       Effect.acquireRelease(

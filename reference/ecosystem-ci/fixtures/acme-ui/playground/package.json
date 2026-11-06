@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@valancex/common": "^0.16.0",
-    "effect": "^3.10.0",
+    "effect": "^4.1.0",
     "acme-ui": "workspace:*"
   },
   "devDependencies": {

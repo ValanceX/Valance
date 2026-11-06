@@ -34,7 +34,7 @@ const pair = async (options: { readonly dFails?: () => boolean; readonly hFails?
 const standing = (followed: Effect.Effect<Exit.Exit<void, unknown>>) =>
   Effect.runPromise(
     Effect.race(
-      Effect.map(followed, (e): string => (Exit.isSuccess(e) ? "ended" : Cause.isDieType(e.cause) ? `defect ${(e.cause.defect as Error).message}` : "other")),
+      Effect.map(followed, (e): string => (Exit.isSuccess(e) ? "ended" : Cause.hasDies(e.cause) ? `defect ${(Cause.squash(e.cause) as Error).message}` : "other")),
       Effect.succeed("following"),
     ),
   );

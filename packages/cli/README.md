@@ -178,14 +178,14 @@ import { Schema } from "effect";
 import template from "./theme-toggle.mprx";
 
 export default component(template, {
-  props: { theme: field(Schema.Literal("light", "dark"), "light") },
+  props: { theme: field(Schema.Literals(["light", "dark"]), "light") },
   events: { toggle: Schema.Void },
 });
 ```
 
 - `import x from "./x.mprx"` names a template file; `component(x, …)` defines it. The tag is the file's name (`theme-toggle.mprx` is `<theme-toggle>`). Register it once, in `components`.
 - **Which components a template uses is read from the template.** Write `<theme-toggle … />` in the layout (or in another component) and it is used; there is no list of uses to keep in step. A registered component no template writes yet is not part of the program, and is not an error. A file under `src/` that is not registered is an error (`template-unused`).
-- **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and where it is used. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`. A **string-literal union is a closed set**: `Schema.Literal("info", "danger")` becomes the MESH type `"info" | "danger"`, and MESH reports any other literal written for the prop at the use (`unknown-variant`, with a did-you-mean when one is close); a number or boolean literal keeps its primitive type. A prop gets a **default** with `field(schema, value)` (`props: { tone: field(Schema.Literal("info", "danger"), "info") }`): a use of the component that leaves the prop out gets the value, the prop may then be left out, and TypeScript refuses a default that is not a member. A default is for a component with a template; on a primitive it is ignored. A schema with no MESH type, for example a union of a string literal and a number, or a default that is not a value of the prop's type, is a diagnostic at the declaration (`component-schema`). Both need MESH 0.14 or later (`@valancex/mesh-compiler` `^0.14.0`, which the packages depend on). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
+- **The contract.** `props` maps a prop name to its Effect Schema and `events` an event name to its payload Schema (`Schema.Void` is no payload). Declare either and the contract is exactly what you wrote (an omitted side is none), overriding inference; declare neither and MESH infers it from the template and where it is used. Schemas are converted by the same rules as state; a prop is optional when its schema admits `undefined`. A **string-literal union is a closed set**: `Schema.Literals(["info", "danger"])` becomes the MESH type `"info" | "danger"`, and MESH reports any other literal written for the prop at the use (`unknown-variant`, with a did-you-mean when one is close); a number or boolean literal keeps its primitive type. A prop gets a **default** with `field(schema, value)` (`props: { tone: field(Schema.Literals(["info", "danger"]), "info") }`): a use of the component that leaves the prop out gets the value, the prop may then be left out, and TypeScript refuses a default that is not a member. A default is for a component with a template; on a primitive it is ignored. A schema with no MESH type, for example a union of a string literal and a number, or a default that is not a value of the prop's type, is a diagnostic at the declaration (`component-schema`). Both need MESH 0.14 or later (`@valancex/mesh-compiler` `^0.14.0`, which the packages depend on). MESH reports an undeclared or missing prop, a prop of the wrong type and a handler for an undeclared event at the use. The layout takes no contract (`layout-contract`). That declared interface is where an editor takes you from `on.toggle=` or `theme=` at a use, and where *Find All References* starts.
 - `override: [component(runs, { props: { spans: … } })]` replaces a built-in (`runs`, `heading-block`, …) with your template of the same name.
 - **One MESH runtime.** `vlx build` (never `vlx dev`) stops with `runtime-duplicate` when the packages resolve more than one copy of `@valancex/mesh-runtime`: each copy is a 765 KB WebAssembly module (171 KB of brotli) that the site would ship and the browser fetch. The message names each copy, its version and who uses it, and says to add an `overrides` entry (npm; `pnpm.overrides`, or `resolutions` with yarn) so there is one. `@valancex/common`, `@valancex/valance` and `@valancex/nexus` accept the same range (`^0.12.0`) so a plain install has one.
 - **One name is one component.** Two registered files with the same name (for example `a/disclosure.mprx` and `b/disclosure.mprx`, whether yours or from two libraries) are `template-duplicate`, and a registered component named like a built-in is `template-builtin` unless it is in `override`: neither silently replaces the other, and the first one listed does not win. Rename one of the files; qualified ids for a library's components (`acme-ui/disclosure`, decision K14) are not built yet. `override` is only for built-ins: for any other name it is `override-unknown`, and the component belongs in `components`.
@@ -257,7 +257,7 @@ import { Schema } from "effect";
 
 export default defineApp({
   // (and `layout`, if you own one: see above)
-  state: { theme: field(Schema.Literal("light", "dark"), "light") },
+  state: { theme: field(Schema.Literals(["light", "dark"]), "light") },
   commands: (command) => ({
     toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
   }),
@@ -272,7 +272,7 @@ A state field is its type and its default in one declaration. Hand-building `sta
 
 ```ts
 export default defineApp({
-  state: { items: field(Schema.Array(Item), []), theme: field(Schema.Literal("system", "light", "dark"), "system") },
+  state: { items: field(Schema.Array(Item), []), theme: field(Schema.Literals(["system", "light", "dark"]), "system") },
   // Worked out from the state, with their types, for a template to read: `{summary}`.
   derived: (derive) => ({ summary: derive(Schema.String, (state) => `${state.items.length} items`) }),
   // Kept between runs through the platform's `Store` (the page's storage; a file in the user's data directory on the desktop).
@@ -390,7 +390,7 @@ A diagnostic with `"severity": "warning"` is worth a look and is not a mistake: 
 
 Four codes report a `Schema.Redacted` state field (north-star refinements C-3), all errors, at `src/main.ts`:
 
-- `redacted-unmaskable`: a Redacted that is not a top-level field of a struct state (inside a sub-struct, an array, a record, a union with other members, or under a class, filter or `optionalWith` default). Only top-level fields are masked.
+- `redacted-unmaskable`: a Redacted that is not a top-level field of a struct state (inside a sub-struct, an array, a record, a union with other members, or under a class, a check or a `withDecodingDefault`). Only top-level fields are masked.
 - `redacted-no-default`: a Redacted field with no default, which a client needs to hydrate it to.
 - `redacted-in-view`: a view's `scope` or `view` selector reads a Redacted field (found by running them on the initial state).
 - `redacted-check-failed`: the check could not build the application to look.

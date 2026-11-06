@@ -5,7 +5,7 @@ import type { HydrationResult } from "@valancex/port-web";
 import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import * as Web from "@valancex/valance/web";
-import { Cause, Effect, Exit, Fiber, FiberRef, Layer, Schema, Scope } from "effect";
+import { Cause, Context, Effect, Exit, Fiber, Layer, Schema, Scope } from "effect";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -26,7 +26,7 @@ const start = { view: "home" as const, items };
  */
 const catalogPlatform = () => {
   const counts = { acquired: 0, released: 0 };
-  const platform: Nexus.Application.Platform = Layer.scoped(
+  const platform: Nexus.Application.Platform = Layer.effect(
     Nexus.Capability.Environment,
     Effect.map(
       Effect.acquireRelease(
@@ -53,6 +53,14 @@ const catalogPlatform = () => {
 
 const source = (file: string): string => readFileSync(new URL(`../src/catalog/${file}`, import.meta.url), "utf8");
 
+// What a FiberRef write was in Effect 3: a change to the Context of the fiber that runs it, which every later step of that fiber sees.
+const writeIntoFiber = <S>(reference: Context.Reference<S>, value: S): Effect.Effect<void> =>
+  Effect.withFiber((fiber) =>
+    Effect.sync(() => {
+      fiber.setContext(Context.add(fiber.context, reference, value));
+    }),
+  );
+
 describe("Tripwire A: the application owns the contract; nothing platform-shaped is needed to define or use it", () => {
   it("the contract imports only NEXUS; the application that uses it names no Web, PORT or MESH runtime", () => {
     const importsOf = (text: string) => [...text.matchAll(/from "([^"]+)"/g)].map((match) => match[1]);
@@ -72,7 +80,7 @@ describe("the capability through the application's existing boundary", () => {
 
     expect(counts).toEqual({ acquired: 0, released: 0 }); // before start
 
-    const handle = await Effect.runPromise(Valance.start(app, { platform, state: start }).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app, { platform, state: start }).pipe(Scope.provide(scope)));
 
     expect(counts).toEqual({ acquired: 1, released: 0 }); // running: acquired by start, not by first use
     await Effect.runPromise(handle.invoke("app/lookupItem", [{ value: "Z9" }]));
@@ -99,7 +107,7 @@ describe("the capability through the application's existing boundary", () => {
         ),
       );
 
-      expect(Exit.isFailure(result.exit) && Cause.isFailType(result.exit.cause) && result.exit.cause.error).toMatchObject({
+      expect(Exit.isFailure(result.exit) && Cause.hasFails(result.exit.cause) && Cause.squash(result.exit.cause)).toMatchObject({
         _tag: "CapabilityUnavailableError",
         id: "example/catalog",
       });
@@ -157,8 +165,8 @@ describe("the capability through the application's existing boundary", () => {
     expect(counts).toEqual({ acquired: 1, released: 1 });
   });
 
-  it("isolation intact: a command holding the capability is interrupted with its caller, the caller sees none of its FiberRefs, and the resource stays until the Scope closes", async () => {
-    const probe = FiberRef.unsafeMake("initial");
+  it("isolation intact: a command holding the capability is interrupted with its caller, the caller sees none of its context writes, and the resource stays until the Scope closes", async () => {
+    const probe = Context.Reference("capability/probe", { defaultValue: () => "initial" });
     const hold = { started: false, interrupted: false };
     const base = applicationWithCatalog(await compilePrograms());
     const app = Valance.define({
@@ -169,7 +177,7 @@ describe("the capability through the application's existing boundary", () => {
           Nexus.Command.define("t.hold", Schema.Struct({}), () =>
             Effect.gen(function* () {
               yield* Nexus.Capability.require(Catalog);
-              yield* FiberRef.set(probe, "written by the application");
+              yield* writeIntoFiber(probe, "written by the application");
               hold.started = true;
               yield* Effect.never;
             }).pipe(
@@ -190,10 +198,10 @@ describe("the capability through the application's existing boundary", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const handle = yield* Valance.start(app, { platform, state: start });
-          const event = yield* Effect.fork(handle.invoke("app/hold", []));
+          const event = yield* Effect.forkChild(handle.invoke("app/hold", []));
 
           yield* Effect.promise(() => until(() => hold.started));
-          expect(yield* FiberRef.get(probe)).toBe("initial"); // the application's write did not reach the caller
+          expect(yield* Effect.service(probe)).toBe("initial"); // the application's write did not reach the caller
           yield* Fiber.interrupt(event);
           yield* Effect.promise(() => until(() => hold.interrupted));
           expect(counts).toEqual({ acquired: 1, released: 0 }); // interrupting a command does not end the application's resource

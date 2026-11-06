@@ -14,7 +14,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const state = (m: Mounted): Promise<string> =>
   Effect.runPromise(
     Effect.race(
-      Effect.map(m.mounted.followed, (e): string => (Exit.isSuccess(e) ? "ended" : Cause.isDieType(e.cause) ? `defect ${(e.cause.defect as Error).message}` : "other")),
+      Effect.map(m.mounted.followed, (e): string => (Exit.isSuccess(e) ? "ended" : Cause.hasDies(e.cause) ? `defect ${(Cause.squash(e.cause) as Error).message}` : "other")),
       Effect.succeed("following"),
     ),
   );
@@ -104,8 +104,9 @@ describe("the update commit boundary", () => {
   it("a same-view structural update that mutates the structure and throws: the logical retained render is still the previous one", async () => {
     const { b, m } = await failing("after");
 
-    await b.invoke("app/show");
+    // The structural commit goes first: Effect 4 wakes the follower at the first commit, so that is the update that fails, and the one after it is not presented at all.
     await b.invoke("app/ids", ["A", "B", "C"]);
+    await b.invoke("app/show");
     await sleep(60);
     expect(await state(m)).toBe("defect update failed after mutation");
     expect(m.ops).toEqual(["draw"]);

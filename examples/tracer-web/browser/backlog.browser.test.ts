@@ -31,7 +31,7 @@ const burst = async (key: "app/bump" | "app/toggle", commits: number) => {
   const timeline: Array<string> = [];
   const { definition, intents } = app(timeline);
   const scope = await run(Scope.make());
-  const handle = await run(Valance.start(definition).pipe(Scope.extend(scope)));
+  const handle = await run(Valance.start(definition).pipe(Scope.provide(scope)));
   const log: Array<string> = [];
 
   await run(
@@ -40,7 +40,7 @@ const burst = async (key: "app/bump" | "app/toggle", commits: number) => {
       recording(root, log, timeline, 0, () => {
         spin(1);
       }),
-    ).pipe(Scope.extend(scope)),
+    ).pipe(Scope.provide(scope)),
   );
   await run(Effect.forEach(Array.from({ length: commits }), () => handle.invoke(key, []), { discard: true }));
   const deadline = performance.now() + 20_000;

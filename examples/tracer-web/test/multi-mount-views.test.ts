@@ -39,7 +39,7 @@ const scenario = async <A>(
           Effect.gen(function* () {
             const scope = yield* Scope.make();
             const operations: Array<Operation> = [];
-            const mounted = yield* Valance.mount(handle, recording(page.container, operations)).pipe(Scope.extend(scope));
+            const mounted = yield* Valance.mount(handle, recording(page.container, operations)).pipe(Scope.provide(scope));
 
             return { mounted, operations, close: Scope.close(scope, Exit.void) };
           });

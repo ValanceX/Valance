@@ -9,7 +9,8 @@ import { application, initial, TodoState_ } from "../src/app.js";
 import { compilePrograms } from "../src/compile.js";
 
 const programs = await compilePrograms();
-const Secret = Schema.extend(TodoState_, Schema.Struct({ secret: Schema.RedactedFromSelf(Schema.String) }));
+// TodoState_ is typed by its state type, not as a struct; its fields are what the extension needs.
+const Secret = Schema.Struct({ ...(TodoState_ as unknown as Schema.Struct<Schema.Struct.Fields>).fields, secret: Schema.Redacted(Schema.String) });
 const primitives: Web.WebPrimitives = {
   column: { element: "div" },
   row: { element: "div" },

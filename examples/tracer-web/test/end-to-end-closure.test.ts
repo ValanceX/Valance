@@ -21,19 +21,19 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const kind = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasInterruptsOnly(exit.cause)
       ? "interrupted"
-      : Cause.isDieType(exit.cause)
-        ? `die ${String((exit.cause.defect as Error).message).slice(0, 50)}`
-        : Cause.isFailType(exit.cause)
-          ? `fail ${(exit.cause.error as { _tag: string })._tag}`
+      : Cause.hasDies(exit.cause)
+        ? `die ${String((Cause.squash(exit.cause) as Error).message).slice(0, 50)}`
+        : Cause.hasFails(exit.cause)
+          ? `fail ${(Cause.squash(exit.cause) as { _tag: string })._tag}`
           : "other";
 
 describe("one application, every boundary at once", () => {
   it("start → capability command → presentation → events and view changes → capability failures → history → two mounts → closes → application close", async () => {
     const programs = await compilePrograms();
     const counts = { acquired: 0, released: 0, uses: 0 };
-    const platform: Nexus.Application.Platform = Layer.scoped(
+    const platform: Nexus.Application.Platform = Layer.effect(
       Nexus.Capability.Environment,
       Effect.map(
         Effect.acquireRelease(
@@ -85,15 +85,15 @@ describe("one application, every boundary at once", () => {
                 yield* state.update((current): Effect.Effect<AppState> => Effect.succeed({ ...current, items: [...before.items, { id, name }] }));
               }) as never,
           ),
-          "app/failBeforeCommit": define("failBeforeCommit", (id) => Effect.zipRight(lookup(`BOOM-${id}`), add(id)) as never),
-          "app/failAfterCommit": define("failAfterCommit", (id) => Effect.zipRight(add(id), lookup(`BOOM-${id}`)) as never),
+          "app/failBeforeCommit": define("failBeforeCommit", (id) => Effect.andThen(lookup(`BOOM-${id}`), add(id)) as never),
+          "app/failAfterCommit": define("failAfterCommit", (id) => Effect.andThen(add(id), lookup(`BOOM-${id}`)) as never),
         } as unknown as Record<string, Nexus.Mesh.Binding<never, never>>;
       },
     });
 
     // ── start: one application, its resource acquired by start, nothing presented yet
     const appScope = await run(Scope.make());
-    const handle = await run(Valance.start(app, { platform }).pipe(Scope.extend(appScope)));
+    const handle = await run(Valance.start(app, { platform }).pipe(Scope.provide(appScope)));
     const stateNow = () => run(handle.state);
     const invoke = (key: string, value?: unknown) => Effect.runPromise(Effect.exit(handle.invoke(key, value === undefined ? [] : [{ value } as never])));
 
@@ -124,7 +124,7 @@ describe("one application, every boundary at once", () => {
               ops.push("unmount");
             },
           };
-        }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.extend(scope)),
+        }) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(Scope.provide(scope)),
       );
 
       return {
@@ -181,7 +181,7 @@ describe("one application, every boundary at once", () => {
     };
     const historyScope = await run(Scope.make());
 
-    await run(Web.history(handle, { window: dom.window as unknown as Window, urlOf, stateOf, navigate: "app/navigate" }).pipe(Scope.extend(historyScope)));
+    await run(Web.history(handle, { window: dom.window as unknown as Window, urlOf, stateOf, navigate: "app/navigate" }).pipe(Scope.provide(historyScope)));
     await sleep(30);
     expect(pushed).toEqual([]); // baseline = current state
     expect(kind(await invoke("app/navigate", { view: "details", id: "Z9" }))).toBe("success");

@@ -14,7 +14,7 @@ import { Effect, Schema } from "effect";
 
 export const Ticker = Nexus.Capability.define<{ readonly next: () => number }>("tally/ticker");
 
-export const AppState = Schema.Struct({ path: Schema.Literal("/", "/details", "/settings"), label: Schema.String, count: Schema.Number, tick: Schema.Number });
+export const AppState = Schema.Struct({ path: Schema.Literals(["/", "/details", "/settings"]), label: Schema.String, count: Schema.Number, tick: Schema.Number });
 export type AppState = Schema.Schema.Type<typeof AppState>;
 export type Path = AppState["path"];
 
@@ -66,7 +66,7 @@ export const application = (programs: Programs) =>
       const relabel = Nexus.Command.define("tally.relabel", Schema.Struct({}), () =>
         state.update((current) => Effect.succeed({ ...current, label: current.label === "Tally" ? "Totals" : "Tally" })).pipe(Effect.asVoid),
       );
-      const navigate = Nexus.Command.define("tally.navigate", Schema.Struct({ path: Schema.Literal("/", "/details", "/settings") }), ({ path }) =>
+      const navigate = Nexus.Command.define("tally.navigate", Schema.Struct({ path: Schema.Literals(["/", "/details", "/settings"]) }), ({ path }) =>
         state.update((current) => Effect.succeed({ ...current, path })).pipe(Effect.asVoid),
       );
       const go = (path: Path) => Nexus.Mesh.bind(navigate, () => ({ path }));

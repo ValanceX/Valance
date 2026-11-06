@@ -13,7 +13,9 @@ import { A0, boot, hydrateOn, scopeHook, served, sleep } from "./structure-fixtu
 import { until } from "./helpers.js";
 
 type Booted = Awaited<ReturnType<typeof boot>>;
-const closeApp = (b: Booted) => Effect.runPromise(Scope.close(b.appScope, Exit.void));
+// Started from a promise turn, not from the caller's stack: `closeApp` is also called inside a view's scope function, which runs on the follower's fiber, and a
+// fiber started there is interrupted with it when the close ends the follower.
+const closeApp = (b: Booted) => Promise.resolve().then(() => Effect.runPromise(Scope.close(b.appScope, Exit.void)));
 const titles = (trees: ReadonlyArray<string>) => trees.map((t) => /"title":"(\w+)"/.exec(t)![1]!);
 const reset = () => {
   scopeHook.current = undefined;
@@ -39,8 +41,10 @@ describe("application close: state boundary, not presentation boundary", () => {
       await sleep(60);
       reset();
       expect(committed).toBe(3);
-      expect(titles(m.trees).at(-1)).toBe("A3"); // the latest committed state was presented...
-      expect(m.ops.length).toBeGreaterThan(atClose.length); // ...after the close resolved (observed with this scheduling: possible, not required)
+      // Which of the committed states was the last one presented is the follower's scheduling, not a promise: Effect 4 wakes it inside the first commit, so it is already
+      // presenting A1 when the other two commit, and the close can end its stream before it comes back for them. What is promised is that nothing later than the committed state is shown.
+      expect(Number(titles(m.trees).at(-1)!.slice(1))).toBeLessThanOrEqual(3);
+      expect(m.ops.length).toBeGreaterThanOrEqual(atClose.length);
       expect(renderedAfterClose.length).toBeGreaterThan(0); // (MESH began rendering it before the close resolved in this scheduling; the target operation came after: not claimed either way)
       expect((await b.state()).n).toBe(3); // and nothing committed
       expect(await m.standing()).toBe("ended");
@@ -176,7 +180,7 @@ describe("a mount's Scope close is the awaited boundary", () => {
     expect((await b.state()).n).toBe(3);
     const exit = await Effect.runPromise(m.mounted.followed);
 
-    expect(Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true);
   });
 
   it("H'. mount close during the render of a state (read, MESH not yet run): the presentation is dropped or finished before the close resolves, never after", async () => {

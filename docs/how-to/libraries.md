@@ -148,7 +148,7 @@ Two things in `package.json`:
     ".": { "types": "./dist/index.d.ts", "valance": "./dist/index.js" }
   },
   "sideEffects": ["**/*.css"],
-  "peerDependencies": { "@valancex/common": "^0.15.0", "effect": ">=3.10.0 <4" },
+  "peerDependencies": { "@valancex/common": "^0.15.0", "effect": "^4.1.0" },
   "valance": { "kind": "components", "targets": ["web", "desktop"], "styles": ["./dist/badge.css"] }
 }
 ```

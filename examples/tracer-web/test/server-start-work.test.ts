@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import { titleProgram } from "./title-program.js";
 
-const State = Schema.Struct({ phase: Schema.Literal("loading", "ready") });
+const State = Schema.Struct({ phase: Schema.Literals(["loading", "ready"]) });
 type State = typeof State.Type;
 
 describe("start-time work during a server render", () => {
@@ -67,7 +67,8 @@ describe("start-time work during a server render", () => {
     });
     const served = await Effect.runPromise(renderToHtml(app, { primitives: { page: { element: "main", props: { title: Web.attribute("aria-label") } }, text: { element: "p" } } }));
 
-    expect(served.html).toContain("loading"); // rendered from the state the render read
+    // Rendered from the state the render read: Effect 4 runs the start-time work before the render reads, so the commit is in the html as well as in the state read after it.
+    expect(served.html).toContain("ready");
     expect(served.state).toEqual({ phase: "ready" }); // read after: the start-time commit has landed
   });
 });

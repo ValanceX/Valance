@@ -17,8 +17,8 @@ import { load } from "./helpers.js";
 type Booted = Awaited<ReturnType<typeof boot>>;
 const closeApp = (b: Booted) => Effect.runPromise(Scope.close(b.appScope, Exit.void));
 const message = (exit: unknown): string =>
-  Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.isDieType((exit as { cause: Cause.Cause<unknown> }).cause)
-    ? (exit as { cause: { defect: Error } }).cause.defect.message
+  Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.hasDies((exit as { cause: Cause.Cause<unknown> }).cause)
+    ? (Cause.squash((exit as { cause: Cause.Cause<unknown> }).cause) as Error).message
     : "not a defect";
 /** A plain `mount` over a recording target, settled with its Exit (the fixture's `mountOn` throws on failure). */
 const attempt = async (b: Booted) => {
@@ -45,11 +45,7 @@ const attempt = async (b: Booted) => {
     };
   };
   const exit = await Effect.runPromise(
-    Valance.mount(b.handle, factory).pipe(
-      Scope.extend(scope),
-      Effect.exit,
-      Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<Valance.Mounted<never>, unknown> | "hung", onTimeout: () => "hung" as const }),
-    ),
+    Valance.mount(b.handle, factory).pipe(Scope.provide(scope), Effect.exit, Effect.timeoutOrElse({ duration: "800 millis", orElse: () => Effect.succeed("hung" as const) })),
   );
 
   return { exit, ops, page, scope };
@@ -87,7 +83,10 @@ describe("mounting after the application closed", () => {
     await attempt(b);
     await attempt(b);
     const seen = await Effect.runPromise(
-      Stream.runCollect(runningOf(b.handle).states).pipe(Effect.timeoutTo({ duration: "500 millis", onSuccess: (chunk) => [...chunk], onTimeout: () => "hung" as const })),
+      Stream.runCollect(runningOf(b.handle).states).pipe(
+        Effect.map((chunk) => [...chunk]),
+        Effect.timeoutOrElse({ duration: "500 millis", orElse: () => Effect.succeed("hung" as const) }),
+      ),
     );
 
     expect(seen).toEqual([]); // no element, and it ends (not "hung")
@@ -121,7 +120,7 @@ describe("mounting after the application closed", () => {
     expect(message(invoked)).toBe("NEXUS: the runtime has begun terminating");
     expect(message(mounted.exit)).toBe("the application ended before its first render");
     expect(message(hydrated.exit)).toBe("the application ended before its first render");
-    expect(Exit.isFailure(unknown) && Cause.isFailType(unknown.cause)).toBe(true);
+    expect(Exit.isFailure(unknown) && Cause.hasFails(unknown.cause)).toBe(true);
     expect((await b.state()).n).toBe(0); // and the state is readable throughout
   });
 });

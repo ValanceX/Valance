@@ -46,7 +46,7 @@ const countingPlatform = () => {
   const counts = { acquired: 0, released: 0 };
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(
+    Layer.effectDiscard(
       Effect.acquireRelease(
         Effect.sync(() => {
           counts.acquired += 1;

@@ -18,7 +18,7 @@ export const TodoState_ = Schema.Struct({
   entry: Schema.String,
   draft: Schema.NullOr(Schema.String),
   seq: Schema.Number,
-}) as unknown as Schema.Schema<TodoState>;
+}) as unknown as Schema.Codec<TodoState>;
 
 const blank = (at: string): TodoState => ({ lists: [], route: router.match(at), entry: "", draft: null, seq: 1 });
 

@@ -28,8 +28,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/common
       effect:
-        specifier: ^3.10.0
-        version: 3.22.2
+        specifier: ^4.1.0
+        version: 4.1.0
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -53,8 +53,8 @@ importers:
   examples/docs-site:
     dependencies:
       '@valancex/valance':
-        specifier: ^0.5.0
-        version: 0.5.0(@valancex/mesh-runtime@0.18.0)(@valancex/port-web@0.15.0(@valancex/mesh-runtime@0.18.0))(effect@3.22.2)
+        specifier: workspace:*
+        version: link:../../packages/valance
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -67,13 +67,13 @@ importers:
         version: 0.18.0
       '@valancex/nexus':
         specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@3.22.2)
+        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
       effect:
-        specifier: ^3.10.0
-        version: 3.22.2
+        specifier: 4.1.0
+        version: 4.1.0
       playwright:
         specifier: 1.64.1
         version: 1.64.1
@@ -113,13 +113,13 @@ importers:
         version: 0.18.0
       '@valancex/nexus':
         specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@3.22.2)
+        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
       effect:
-        specifier: ^3.10.0
-        version: 3.22.2
+        specifier: 4.1.0
+        version: 4.1.0
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
@@ -142,8 +142,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/common
       effect:
-        specifier: ^3.10.0
-        version: 3.22.2
+        specifier: ^4.1.0
+        version: 4.1.0
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
@@ -184,7 +184,7 @@ importers:
         version: 0.18.0
       '@valancex/nexus':
         specifier: file:../../local-packs/valancex-nexus-0.18.0.tgz
-        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@3.22.2)
+        version: file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)
       '@valancex/port-web':
         specifier: ^0.15.0
         version: 0.15.0(@valancex/mesh-runtime@0.18.0)
@@ -192,8 +192,8 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(playwright@1.64.1)(vite@7.3.6(@types/node@26.6.5))(vitest@5.0.5)
       effect:
-        specifier: ^3.10.0
-        version: 3.22.2
+        specifier: 4.1.0
+        version: 4.1.0
       jsdom:
         specifier: ^30.1.3
         version: 30.1.3
@@ -1218,9 +1218,6 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@standard-schema/spec@1.1.0':
-    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
-
   '@types/aria-query@5.0.4':
     resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
 
@@ -1425,17 +1422,6 @@ packages:
     peerDependencies:
       '@valancex/mesh-runtime': ^0.6.0 || ^0.7.0 || ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^0.14.0 || ^0.15.0 || ^0.16.0 || ^0.17.0 || ^0.18.0
 
-  '@valancex/valance@0.5.0':
-    resolution: {integrity: sha512-yq9rNKRL3W6+SMUs3g9jDv8LOGOpQ8Q8Hk+kV1PR60mb+108g0GgYww+e9S1N9YPM/kBV9Sl9MOQvN77w9cVsQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      '@valancex/mesh-runtime': ^0.8.0 || ^0.9.0
-      '@valancex/port-web': ^0.3.0
-      effect: ^3.10.0
-    peerDependenciesMeta:
-      '@valancex/port-web':
-        optional: true
-
   '@vitest/browser-playwright@5.0.5':
     resolution: {integrity: sha512-lcdThFUUcMV9mGGV1SUiZXPxfjgW4CssA7o3STxzh8WK0tT2r526kc12tZIBRZfoLMwkhxjLmMXkWXONzdsDQw==}
     peerDependencies:
@@ -1625,9 +1611,6 @@ packages:
   dom-accessibility-api@0.7.1:
     resolution: {integrity: sha512-vdnCeZD+3wZ+8h8xXL/ZtBlvvoobOFyPzSiIfO6sGOZDqjFx4aLMAjZhl4rawj5xYz3UwP6Tgvyh0iH4IOCVnQ==}
 
-  effect@3.22.2:
-    resolution: {integrity: sha512-fm1CQXCs7GTMwpadZxwU5rnAb2bN6mbQpknq/pXBGCzSKkosNYb9k0wsoL0TfB10rSa5xOEZJjo77u/KLXSANg==}
-
   effect@4.1.0:
     resolution: {integrity: sha512-lGx2MJJyrXA8RZb2UpQ/0Nkb5Utaimby7oD92+18noBxLPE85IFOvptdzau8dvcxAOwfwHo9iqapbKeFzqQM/Q==}
 
@@ -1670,10 +1653,6 @@ packages:
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
-
-  fast-check@3.23.2:
-    resolution: {integrity: sha512-h5+1OzzfCC3Ef7VbtKdcv7zsstUQwUDlYpUTvjeUsJAssPgLn7QzbboPtL5ro04Mq0rPOsMzl7q5hIbRs2wD1A==}
-    engines: {node: '>=8.0.0'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -2030,9 +2009,6 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
-
-  pure-rand@6.1.0:
-    resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
 
   qified@0.10.1:
     resolution: {integrity: sha512-+Owyggi9IxT1ePKGafcI87ubSmxol6smwJ+RAHDQlx9+9cPwFWDiKFFCPuWhr9ignlGpZ9vDQLw67N4dcTVFEA==}
@@ -2764,8 +2740,6 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@standard-schema/spec@1.1.0': {}
-
   '@types/aria-query@5.0.4': {}
 
   '@types/chai@5.2.3':
@@ -2883,11 +2857,6 @@ snapshots:
 
   '@valancex/mesh-runtime@0.18.0': {}
 
-  '@valancex/nexus@file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@3.22.2)':
-    dependencies:
-      '@valancex/mesh-runtime': 0.18.0
-      effect: 3.22.2
-
   '@valancex/nexus@file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@4.1.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.18.0
@@ -2898,14 +2867,6 @@ snapshots:
   '@valancex/port-web@0.15.0(@valancex/mesh-runtime@0.18.0)':
     dependencies:
       '@valancex/mesh-runtime': 0.18.0
-
-  '@valancex/valance@0.5.0(@valancex/mesh-runtime@0.18.0)(@valancex/port-web@0.15.0(@valancex/mesh-runtime@0.18.0))(effect@3.22.2)':
-    dependencies:
-      '@valancex/mesh-runtime': 0.18.0
-      '@valancex/nexus': file:local-packs/valancex-nexus-0.18.0.tgz(@valancex/mesh-runtime@0.18.0)(effect@3.22.2)
-      effect: 3.22.2
-    optionalDependencies:
-      '@valancex/port-web': 0.15.0(@valancex/mesh-runtime@0.18.0)
 
   '@vitest/browser-playwright@5.0.5(playwright@1.64.1)(vite@7.3.6(@types/node@26.6.5))(vitest@5.0.5)':
     dependencies:
@@ -3092,11 +3053,6 @@ snapshots:
 
   dom-accessibility-api@0.7.1: {}
 
-  effect@3.22.2:
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      fast-check: 3.23.2
-
   effect@4.1.0: {}
 
   emoji-regex@8.0.0: {}
@@ -3151,10 +3107,6 @@ snapshots:
       '@types/estree': 1.0.9
 
   expect-type@1.4.0: {}
-
-  fast-check@3.23.2:
-    dependencies:
-      pure-rand: 6.1.0
 
   fast-deep-equal@3.1.3: {}
 
@@ -3501,8 +3453,6 @@ snapshots:
       commander: 9.5.0
 
   punycode@2.3.1: {}
-
-  pure-rand@6.1.0: {}
 
   qified@0.10.1:
     dependencies:

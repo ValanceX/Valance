@@ -21,12 +21,11 @@ const world = () => {
     pushed.push(String(target));
     push(data, unused, target);
   };
-  const logger = Logger.replace(
-    Logger.defaultLogger,
+  const logger = Logger.layer([
     Logger.make(({ message }) => {
       logs.push(String(message));
     }),
-  );
+  ]);
 
   return { win: dom.window, pushed, logs, logger };
 };
@@ -37,7 +36,7 @@ const history = async (b: Booted, w: World) => {
   await run(
     Web.history(b.handle, { window: w.win as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(
       Effect.provide(w.logger),
-      Scope.extend(scope),
+      Scope.provide(scope),
     ),
   );
   await sleep(30); // the baseline (the first state) is taken asynchronously

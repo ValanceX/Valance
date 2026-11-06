@@ -59,7 +59,7 @@ const program = async (root: "va" | "vb") => {
 const programs = { va: await program("va"), vb: await program("vb") };
 
 const State = Schema.Struct({
-  view: Schema.Literal("a", "b"),
+  view: Schema.Literals(["a", "b"]),
   show: Schema.Boolean,
   ids: Schema.Array(Schema.String),
   n: Schema.Number,
@@ -151,7 +151,7 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
     },
   });
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(app).pipe(Scope.provide(appScope)));
   const mountOn = async (
     options: {
       readonly patch?: boolean;
@@ -214,7 +214,7 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
       };
     };
     const scope = await run(Scope.make());
-    const mounted = await run(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
+    const mounted = await run(Valance.mount(handle, factory).pipe(Scope.provide(scope)));
 
     return {
       page,
@@ -233,7 +233,9 @@ export const boot = async (initial: State = { view: "a", show: false, ids: ["A",
       standing: () =>
         run(
           Effect.race(
-            Effect.map(mounted.followed, (e): string => (Exit.isSuccess(e) ? "ended" : Cause.isFailType(e.cause) ? `failed ${(e.cause.error as { _tag: string })._tag}` : "other")),
+            Effect.map(mounted.followed, (e): string =>
+              Exit.isSuccess(e) ? "ended" : Cause.hasFails(e.cause) ? `failed ${(Cause.squash(e.cause) as { _tag: string })._tag}` : "other",
+            ),
             Effect.succeed("following"),
           ),
         ),
@@ -326,15 +328,7 @@ export const hydrateOn = async (
     };
   };
   const exit = await Effect.runPromise(
-    Valance.hydrate(b.handle, factory).pipe(
-      Scope.extend(scope),
-      Effect.exit,
-      Effect.timeoutTo({
-        duration: "800 millis",
-        onSuccess: (e) => e as Exit.Exit<Valance.Mounted<never> & { readonly hydration: { readonly adopted: boolean } }, unknown> | "hung",
-        onTimeout: () => "hung" as const,
-      }),
-    ),
+    Valance.hydrate(b.handle, factory).pipe(Scope.provide(scope), Effect.exit, Effect.timeoutOrElse({ duration: "800 millis", orElse: () => Effect.succeed("hung" as const) })),
   );
   const ok = exit !== "hung" && Exit.isSuccess(exit) ? exit.value : undefined;
 
@@ -354,6 +348,6 @@ export const hydrateOn = async (
   };
 };
 export const defectOf = (exit: unknown): string =>
-  Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.isDieType((exit as { cause: Cause.Cause<unknown> }).cause)
-    ? (exit as { cause: { defect: Error } }).cause.defect.message
+  Exit.isFailure(exit as Exit.Exit<unknown, unknown>) && Cause.hasDies((exit as { cause: Cause.Cause<unknown> }).cause)
+    ? (Cause.squash((exit as { cause: Cause.Cause<unknown> }).cause) as Error).message
     : "not a defect";

@@ -25,10 +25,10 @@ type State = Schema.Schema.Type<typeof State>;
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isFailType(exit.cause)
-      ? `failed ${JSON.stringify(exit.cause.error)}`
-      : Cause.isDieType(exit.cause)
-        ? `died: ${(exit.cause.defect as Error).message}`
+    : Cause.hasFails(exit.cause)
+      ? `failed ${JSON.stringify(Cause.squash(exit.cause))}`
+      : Cause.hasDies(exit.cause)
+        ? `died: ${(Cause.squash(exit.cause) as Error).message}`
         : "other";
 
 describe("event-driven command failure, in Chromium", () => {
@@ -57,7 +57,7 @@ describe("event-driven command failure, in Chromium", () => {
                   ? Effect.fail("typed-boom")
                   : id === "defect"
                     ? Effect.die(new Error("defect-boom"))
-                    : Effect.catchAll(Effect.fail("caught-boom") as Effect.Effect<void, string>, (error) =>
+                    : Effect.catch(Effect.fail("caught-boom") as Effect.Effect<void, string>, (error) =>
                         Effect.asVoid(state.update((current): Effect.Effect<State> => Effect.succeed({ ...current, value: `error: ${error}` }))),
                       ),
               ),

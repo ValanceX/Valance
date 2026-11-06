@@ -40,7 +40,7 @@ interface QuoteService {
 const QuoteService = Nexus.Capability.define<QuoteService>("example/quotes");
 
 // 3. The application (Learn: async work, startup work).
-const State = Schema.Struct({ phase: Schema.Literal("loading", "ready", "failed"), quote: Schema.String });
+const State = Schema.Struct({ phase: Schema.Literals(["loading", "ready", "failed"]), quote: Schema.String });
 type State = typeof State.Type;
 
 const app = Valance.define({
@@ -57,12 +57,12 @@ const app = Valance.define({
         const quotes = yield* Nexus.Capability.require(QuoteService);
 
         yield* set((current) => ({ ...current, phase: "loading" }));
-        const result = yield* quotes.fetch(topic).pipe(Effect.either);
+        const result = yield* quotes.fetch(topic).pipe(Effect.result);
 
         if (mine !== latest) {
           return;
         }
-        yield* set(() => (result._tag === "Right" ? { phase: "ready", quote: result.right } : { phase: "failed", quote: "" }));
+        yield* set(() => (result._tag === "Success" ? { phase: "ready", quote: result.success } : { phase: "failed", quote: "" }));
       });
     const reload = Nexus.Command.define("quotes.reload", Schema.Struct({ topic: Schema.String }), ({ topic }) => load(topic));
     const startup = Nexus.Command.define("quotes.startup", Schema.Struct({}), () =>
@@ -118,11 +118,11 @@ const until = async (done: () => boolean) => {
 const boot = async (options: { readonly state?: State } = {}) => {
   const w = world();
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, ...(options.state === undefined ? {} : { state: options.state }) }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app, { platform: w.platform, ...(options.state === undefined ? {} : { state: options.state }) }).pipe(Scope.provide(scope)));
   const factory = textTarget();
   let screen!: ReturnType<typeof factory>;
 
-  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
 
   return {
     ...w,
@@ -200,11 +200,11 @@ describe("a small realistic application through the public model", () => {
 describe("the easy mistake: no platform", () => {
   it("startup work needs the capability; without a platform it fails with nobody to tell: the screen stays Loading…, and only a direct invoke reports why", async () => {
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope))); // no platform
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope))); // no platform
     const factory = textTarget();
     let screen!: ReturnType<typeof factory>;
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(screen.screen()).toContain("Loading…"); // startup failed unseen: no state says so
     expect(await Effect.runPromise(handle.state)).toEqual({ phase: "loading", quote: "" });
@@ -236,7 +236,8 @@ describe("server rendering of the same application", () => {
     );
     const served = await Effect.runPromise(renderToHtml(app, { primitives, platform: instant }));
 
-    expect(served.html).toContain("Loading…");
+    // Effect 4 runs the start-time work before the render reads the state, so an answer that is immediate is in the html too; `state` is still read after the render.
+    expect(served.html).toContain("already here");
     expect(served.state).toEqual({ phase: "ready", quote: "already here" });
     void w;
   });

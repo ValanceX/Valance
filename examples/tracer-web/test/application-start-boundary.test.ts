@@ -40,18 +40,18 @@ const app = Valance.define({
 const shape = (e: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(e)
     ? "success"
-    : Cause.isInterruptedOnly(e.cause)
+    : Cause.hasInterruptsOnly(e.cause)
       ? "interrupted"
-      : Cause.isDieType(e.cause)
-        ? `died ${(e.cause.defect as Error).message}`
-        : Cause.isFailType(e.cause)
-          ? `failed ${(e.cause.error as { _tag: string })._tag}`
+      : Cause.hasDies(e.cause)
+        ? `died ${(Cause.squash(e.cause) as Error).message}`
+        : Cause.hasFails(e.cause)
+          ? `failed ${(Cause.squash(e.cause) as { _tag: string })._tag}`
           : "other";
-const closeScope = (scope: Scope.CloseableScope) => Effect.runPromise(Scope.close(scope, Exit.void));
+const closeScope = (scope: Scope.Closeable) => Effect.runPromise(Scope.close(scope, Exit.void));
 /** A platform that counts what it acquired and released; `gate` holds its acquisition open. */
 const platform = (gate?: Promise<void>) => {
   const counts = { acquired: 0, released: 0 };
-  const layer: Nexus.Application.Platform = Layer.scoped(
+  const layer: Nexus.Application.Platform = Layer.effect(
     Nexus.Capability.Environment,
     Effect.map(
       Effect.acquireRelease(
@@ -71,8 +71,8 @@ const platform = (gate?: Promise<void>) => {
 
   return { counts, layer };
 };
-const starting = (scope: Scope.CloseableScope, options: Parameters<typeof Valance.start<State, never, never, "only">>[1] = {}) =>
-  Effect.runPromise(Effect.exit(Valance.start(app, options).pipe(Scope.extend(scope))));
+const starting = (scope: Scope.Closeable, options: Parameters<typeof Valance.start<State, never, never, "only">>[1] = {}) =>
+  Effect.runPromise(Effect.exit(Valance.start(app, options).pipe(Scope.provide(scope))));
 
 describe("start", () => {
   it("A/G. a successful start returns a ready application and does nothing else: state readable, commands commit, no render, no consumer; it closes cleanly with its state still readable", async () => {
@@ -142,7 +142,7 @@ describe("start", () => {
   });
 
   it("E. a platform that fails to initialize fails start with the typed ServiceGraphFailed and no handle", async () => {
-    const failing: Nexus.Application.Platform = Layer.scoped(Nexus.Capability.Environment, Effect.fail("platform boom") as never);
+    const failing: Nexus.Application.Platform = Layer.effect(Nexus.Capability.Environment, Effect.fail("platform boom") as never);
     const scope = await Effect.runPromise(Scope.make());
     const exit = await starting(scope, { platform: failing });
 

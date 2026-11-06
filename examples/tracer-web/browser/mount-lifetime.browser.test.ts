@@ -23,9 +23,9 @@ beforeAll(async () => {
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isDieType(exit.cause)
-      ? `died: ${(exit.cause.defect as Error).message}`
-      : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasDies(exit.cause)
+      ? `died: ${(Cause.squash(exit.cause) as Error).message}`
+      : Cause.hasInterruptsOnly(exit.cause)
         ? "interrupted"
         : "other";
 const names = (root: Element) => [...root.querySelectorAll("div span")].map((span) => span.textContent);
@@ -50,14 +50,14 @@ describe("mount lifetime, in Chromium, with independent Scopes", () => {
       const appScope = await run(Scope.make());
       const scopeA = await run(Scope.make());
       const scopeB = await run(Scope.make());
-      const handle = await run(Valance.start(application(catalog), { state }).pipe(Scope.extend(appScope)));
+      const handle = await run(Valance.start(application(catalog), { state }).pipe(Scope.provide(appScope)));
       const target =
         (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> =>
         (report) =>
           Web.target({ container: root, primitives })(report);
 
       // 1. application alive, mount A alive: a real click reaches the application and the page follows.
-      const mountedA = await run(Valance.mount(handle, target(rootA)).pipe(Scope.extend(scopeA)));
+      const mountedA = await run(Valance.mount(handle, target(rootA)).pipe(Scope.provide(scopeA)));
 
       expect(names(rootA)).toEqual(["Alpha", "Beta"]);
       await userEvent.click(reverse(rootA));
@@ -78,7 +78,7 @@ describe("mount lifetime, in Chromium, with independent Scopes", () => {
         ]),
       );
       expect((await run(handle.state)).items.map((item) => item.id)).toEqual(["C", "D"]);
-      const mountedB = await run(Valance.mount(handle, target(rootB)).pipe(Scope.extend(scopeB)));
+      const mountedB = await run(Valance.mount(handle, target(rootB)).pipe(Scope.provide(scopeB)));
 
       expect(names(rootB)).toEqual(["Gamma", "Delta"]);
 

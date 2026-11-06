@@ -144,7 +144,7 @@ const { html, state } = await Effect.runPromise(renderToHtml(app, { primitives }
 // Headless: no screen at all. (This form uses Effect directly, as a test or a custom host does; `Web.run` hides it for an ordinary page.)
 import { Exit, Scope } from "effect";
 const scope = await Effect.runPromise(Scope.make());
-const application = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+const application = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
 await Effect.runPromise(application.command("app/increment"));   // from outside the screen: "app/" and the command's name, checked by the type
 await Effect.runPromise(application.state);                       // { count: 1 }
 // With the `add` command from step 3 in the table, its input is typed from the command:

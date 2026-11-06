@@ -2,13 +2,13 @@
 // command, forks nothing, and owns nothing. No DOM, no Web: the non-DOM text target draws the view; the resource is a gate the test opens.
 import * as Valance from "@valancex/valance";
 import * as Nexus from "@valancex/nexus";
-import { Deferred, Effect, Exit, Logger, Schema, Scope } from "effect";
+import { Deferred, Effect, Exit, Logger, References, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { textTarget, type TextTarget } from "./non-dom-target.js";
 import { titleProgram } from "./title-program.js";
 
-const State = Schema.Struct({ phase: Schema.Literal("loading", "ready", "failed"), detail: Schema.String });
+const State = Schema.Struct({ phase: Schema.Literals(["loading", "ready", "failed"]), detail: Schema.String });
 type State = typeof State.Type;
 type Outcome = { readonly _tag: "Ok"; readonly value: string } | { readonly _tag: "Err"; readonly reason: string };
 
@@ -82,13 +82,12 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
   const logs: Array<string> = [];
   /** Everything a log line could carry: the message, its annotations and its cause, written out. */
   const everything: Array<string> = [];
-  const logger = Logger.replace(
-    Logger.defaultLogger,
-    Logger.make(({ message, annotations, cause }) => {
+  const logger = Logger.layer([
+    Logger.make(({ message, cause, fiber }) => {
       logs.push(String(message));
-      everything.push(JSON.stringify({ message, annotations: Object.fromEntries(annotations), cause: String(cause) }));
+      everything.push(JSON.stringify({ message, annotations: fiber.getRef(References.CurrentLogAnnotations), cause: String(cause) }));
     }),
-  );
+  ]);
 
   await Effect.runPromise(
     Scope.addFinalizer(
@@ -103,14 +102,14 @@ const boot = async (options: Parameters<typeof app>[1] & { readonly state?: Stat
     Valance.start(app(resource, options), {
       ...(options.state === undefined ? {} : { state: options.state }),
       ...(options.onStartFailure === undefined ? {} : { onStartFailure: options.onStartFailure }),
-    }).pipe(Effect.provide(logger), Scope.extend(scope)),
+    }).pipe(Effect.provide(logger), Scope.provide(scope)),
   ); // the host's ONLY act
   let target: TextTarget | undefined;
 
   if (options.mount !== false) {
     const factory = textTarget();
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.provide(scope)));
   }
 
   return {
@@ -150,7 +149,7 @@ describe("start-time work declared by the application", () => {
     const factory = textTarget();
     let target!: TextTarget;
 
-    await Effect.runPromise(Valance.mount(b.handle, (report) => (target = factory(report))).pipe(Scope.extend(b.scope)));
+    await Effect.runPromise(Valance.mount(b.handle, (report) => (target = factory(report))).pipe(Scope.provide(b.scope)));
     expect(target.screen()).toContain("ready: early");
     await b.close();
   });
@@ -174,9 +173,9 @@ describe("start-time work declared by the application", () => {
     const resource = fakeResource();
     const scope = await Effect.runPromise(Scope.make());
     const mountScope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.provide(scope)));
 
-    await Effect.runPromise(Valance.mount(handle, textTarget()).pipe(Scope.extend(mountScope)));
+    await Effect.runPromise(Valance.mount(handle, textTarget()).pipe(Scope.provide(mountScope)));
     await wait(() => resource.log.includes("started"));
     await Effect.runPromise(Scope.close(mountScope, Exit.void));
     expect(resource.log).toEqual(["started"]);
@@ -260,7 +259,7 @@ describe("start-time work declared by the application", () => {
     for (let run = 0; run < 25; run += 1) {
       const resource = fakeResource();
       const scope = await Effect.runPromise(Scope.make());
-      const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
+      const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.provide(scope)));
 
       if (run % 2 === 0) {
         await Promise.resolve();

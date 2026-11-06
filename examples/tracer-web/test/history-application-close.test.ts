@@ -24,12 +24,11 @@ const world = () => {
     pushed.push(String(target));
     push(data, unused, target);
   };
-  const logger = Logger.replace(
-    Logger.defaultLogger,
+  const logger = Logger.layer([
     Logger.make(({ message }) => {
       logs.push(String(message));
     }),
-  );
+  ]);
 
   return { win: dom.window, pushed, logs, logger, path: () => dom.window.location.pathname };
 };
@@ -42,7 +41,7 @@ const attach = (b: Booted, w: World, scope: Scope.Scope) =>
       urlOf: (s: { readonly n: number; readonly note?: string }) => `/n${s.n}${s.note ?? ""}`,
       stateOf: () => ({}),
       navigate: "app/bump",
-    } as never).pipe(Effect.provide(w.logger), Scope.extend(scope)),
+    } as never).pipe(Effect.provide(w.logger), Scope.provide(scope)),
   );
 /** A browser navigation that fires popstate: an entry the application did not write, then back. */
 const popstate = async (w: World) => {
