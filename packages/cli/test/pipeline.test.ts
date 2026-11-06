@@ -499,4 +499,25 @@ describe("what an editor reads", () => {
       wiring: ".valance/wiring.json",
     });
   });
+
+  it("follows the state even while a template is wrong, so the editor reports the mistake the check does", async () => {
+    const files = (values: string) => ({
+      ...BASIC,
+      "src/main.ts": entry({ badge: '{ props: { theme: Schema.Literal("light", "dark") } }' }, `  state: { theme: field(Schema.Literal(${values}), "light") },\n`),
+      "src/layout.mprx": '<shell class="x" theme="light"><badge theme={theme} /></shell>',
+      "src/badge.mprx": '<span class="b">{theme}</span>',
+    });
+    const root = project(files('"light", "dark"'));
+    const scope = () =>
+      (JSON.parse(readFileSync(join(root, ".valance/manifest.json"), "utf8")) as { components: Record<string, { scope: Record<string, unknown> }> }).components["layout"]!.scope[
+        "theme"
+      ];
+
+    expect((await check(root)).diagnostics).toEqual([]);
+
+    writeFileSync(join(root, "src/main.ts"), files('"light", "dark", "grey"')["src/main.ts"]);
+
+    expect((await check(root)).diagnostics.map(({ code }) => code)).toEqual(["type-mismatch"]);
+    expect(scope()).toEqual({ kind: "enum", values: ["light", "dark", "grey"] });
+  });
 });

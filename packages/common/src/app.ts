@@ -22,7 +22,7 @@ export type AppState = PageState & Record<string, unknown>;
 export interface Built {
   /** The address of the page script. */
   readonly script: string;
-  /** Stylesheet addresses, in order. Empty in development, where the script brings its styles. */
+  /** Stylesheet addresses, in order. Empty in development, where `vlx dev` links them in the HTML itself. */
   readonly styles: ReadonlyArray<string>;
   /** The address of the MESH runtime's WebAssembly module in a production build, which the head starts compiling at once (W11). Absent in development. */
   readonly wasm?: string | undefined;

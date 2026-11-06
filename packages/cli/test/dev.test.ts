@@ -45,6 +45,26 @@ describe("vlx dev", () => {
     }
   });
 
+  it("links the styles in the page itself, so it is never shown unstyled while the script loads", async () => {
+    const root = project({ "content/index.md": PAGE("Home"), "src/styles.css": "body { color: red; }\n" });
+    const running = await dev(root, { port: 6200 + Math.floor(Math.random() * 300), log: () => undefined });
+
+    try {
+      const origin = new URL(running.url).origin;
+      const html = await (await fetch(running.url)).text();
+
+      for (const href of ["/.valance/theme.css", "/.valance/core.css", "/src/styles.css"]) {
+        expect(html).toContain(`<link rel="stylesheet" href="${href}"`);
+      }
+
+      // a linked stylesheet is served as CSS (what a browser's `<link>` asks for), and the script does not bring a second copy
+      expect(await (await fetch(`${origin}/src/styles.css`, { headers: { accept: "text/css" } })).text()).toContain("color: red");
+      expect(await (await fetch(`${origin}/.valance/client.ts`)).text()).not.toContain("styles.css");
+    } finally {
+      await running.close();
+    }
+  });
+
   it("starts even when the content is wrong, and reports it where it is", async () => {
     const lines: Array<string> = [];
     const root = project({ "content/index.md": PAGE("Home", "[x](/nowhere)") });
