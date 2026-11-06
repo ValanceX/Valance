@@ -259,7 +259,8 @@ describe("the workflows", () => {
   it("the release holds the tree to its budgets before it packs: the job runs the check, and `pack` waits for it", () => {
     expect(release).toMatch(/\n {2}budgets:\n {4}needs: ci\n/);
     expect(release).toContain("node scripts/check-budgets.mjs --rule");
-    expect(release).toContain("node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json");
+    expect(release).toContain("node scripts/check-budgets.mjs --results budgets-results.json");
+    expect(release).toContain("--against budgets-previous.json"); // the ratio gates, when the previous release could be measured (it is on another Effect major for one release)
     expect(release).toMatch(/\n {2}pack:\n {4}needs: \[ci, conformance, budgets\]\n/);
     // a real release (a tag push) also needs the known reds that have an expected value to be green; a dry run reports them
     expect(release).toContain("github.event_name == 'push' && '--strict-known'");
