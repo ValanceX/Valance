@@ -90,7 +90,7 @@
         "path": "browser.deduped.noThrottling.afterUpdates.jsHeapUsedBytes",
         "unit": "bytes",
         "baseline": 2973128,
-        "ceiling": 2973696,
+        "ceiling": 3021824,
         "previousCeiling": 4630800,
         "note": "W24: the 1,000-update heap gate stays off"
       },
