@@ -45,7 +45,7 @@ const RUNS = Number(option("--runs", "7"));
 const ONLY_COUNTER = option("--only") === "counter";
 
 // What an application is built with: the published tooling, at versions whose peer ranges accept each other. Update it when the ranges move.
-const PUBLISHED = { "@valancex/cli": "0.13.0", "@valancex/common": "0.13.0", effect: "3" };
+const PUBLISHED = { "@valancex/cli": "0.17.0", "@valancex/common": "0.17.0", effect: "4.1.0" };
 /** The workspace packages `--tree` packs: tarball paths by package name, filled in below. */
 const PACKED = {};
 const WORKSPACE_PACKAGES = ["cli", "common", "valance", "router", "style"];
