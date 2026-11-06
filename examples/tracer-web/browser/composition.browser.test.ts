@@ -18,7 +18,7 @@ beforeAll(async () => {
 });
 
 const Item = Schema.Struct({ id: Schema.String, label: Schema.String });
-const State = Schema.Struct({ items: Schema.Array(Item), selected: Schema.String, status: Schema.Literal("idle", "loading", "done", "failed"), result: Schema.String });
+const State = Schema.Struct({ items: Schema.Array(Item), selected: Schema.String, status: Schema.Literals(["idle", "loading", "done", "failed"]), result: Schema.String });
 type State = typeof State.Type;
 type Outcome = { readonly ok: true; readonly value: string } | { readonly ok: false };
 
@@ -91,7 +91,7 @@ const boot = async () => {
   document.body.append(main);
 
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
   const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => {
     const port = Web.target({ container: main, primitives })(report);
 
@@ -111,7 +111,7 @@ const boot = async () => {
     };
   };
 
-  await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.provide(scope)));
 
   const rows = () => Array.from(main.querySelectorAll("section > div")) as Array<HTMLElement>;
   const input = (row: HTMLElement) => row.querySelector("input") as HTMLInputElement;

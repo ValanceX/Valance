@@ -117,6 +117,7 @@ describe("the browser: hydrate a guide, then use the site", () => {
 
     expect(event.defaultPrevented).toBe(true);
     await until(() => p.title() === "API");
+    await until(() => p.win.document.title === "API · Valance"); // the render and the title and URL writes follow the state independently
     expect(p.win.document.title).toBe("API · Valance"); // client navigation updated the document's title with the URL
     expect(p.win.location.pathname).toBe("/docs/reference/api");
     expect(p.active()).toBe("Reference: API");

@@ -27,7 +27,7 @@ import type { SessionRecorder } from "./replay.js";
 import { handleOf, INPUT_KEY, runningOf, type DispatchExit, type Running, type Viewed } from "./internal.js";
 import { makeRegistry, type Deliver, type Registry, type Unit } from "./units.js";
 import { withoutRedacted } from "./web-redacted.js";
-import { Cause, Deferred, Duration, Effect, Equal, Exit, Fiber, Layer, Option, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect";
 
 export { isRefusal, isValanceError, ValanceError } from "./errors.js";
 export { isUnit, UNIT } from "./units.js";
@@ -80,7 +80,7 @@ export interface ApplicationDefinition<
   readonly [commandInputs]?: C;
   readonly name: string;
   /** The application's one NEXUS state. `initial` is the default; `start` may be given another (hydration). */
-  readonly state: { readonly schema: Schema.Schema<S>; readonly initial: NoInfer<S> };
+  readonly state: { readonly schema: Schema.Codec<S>; readonly initial: NoInfer<S> };
   /** The MESH programs the application can show. The application's state outlives a change of program. */
   readonly views: { readonly [K in V]: View<S> };
   /** Which program the current state shows. A function of application state: what the active view is, is the application's. */
@@ -215,19 +215,19 @@ export interface Waiting<S, I, A, R extends Ambient = never> {
 /** What `command(state)` returns: the pure-transition forms, and `waiting`. */
 export interface CommandMaker<S> {
   (transition: (current: S) => S): Nexus.Command.Command<{}, void, never, never>;
-  <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
+  <I>(input: Schema.Codec<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never>;
   /**
    * A command whose body is an Effect: for what a pure transition cannot say. It may read the state, change it in several steps, move the route, wait on something it needs from the
    * platform (`Nexus.Capability.require`), or fail with its own typed error. Without an input schema it takes none. It is an ordinary NEXUS command, so a bare name binds it like any other.
    */
   effect<E = never, R extends Ambient = never>(run: () => Effect.Effect<void, E, R>): Nexus.Command.Command<{}, void, E, R>;
-  effect<I, E = never, R extends Ambient = never>(input: Schema.Schema<I>, run: (input: I) => Effect.Effect<void, E, R>): Nexus.Command.Command<I, void, E, R>;
+  effect<I, E = never, R extends Ambient = never>(input: Schema.Codec<I>, run: (input: I) => Effect.Effect<void, E, R>): Nexus.Command.Command<I, void, E, R>;
   /**
    * A command that waits. Once admitted it belongs to the application until it settles or is interrupted; closing the application aborts `work`'s signal and nothing commits afterwards.
    * **A newer run of the same command supersedes an older one**: the older run is NOT cancelled (its work continues, and its caller sees it complete) but its result is discarded,
    * success or failure. Whether a result is still wanted by the state is `wanted`'s question, answered per run.
    */
-  waiting<I, A, R extends Ambient = never>(input: Schema.Schema<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R>;
+  waiting<I, A, R extends Ambient = never>(input: Schema.Codec<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R>;
 }
 
 /** The diagnostic id of a command made by `command`: it has no author-chosen id, and the id only decorates `CommandValidationError.command`. */
@@ -260,21 +260,21 @@ const NO_INPUT = Schema.Struct({});
  * A returned object is not checked for excess properties, the same as returning it from `state.update`.
  */
 export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> => {
-  const make = <I>(input: Schema.Schema<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never> =>
+  const make = <I>(input: Schema.Codec<I>, transition: (input: I, current: S) => S): Nexus.Command.Command<I, void, never, never> =>
     Nexus.Command.define(TRANSITION_COMMAND, input, (decoded) => Effect.asVoid(state.update((current) => Effect.sync(() => transition(decoded, current)))));
 
   // The one-argument form is the two-argument form with the empty input: the same `Command`, validated, admitted and run in the same way.
   const transition = ((a: unknown, b?: unknown) =>
     b === undefined
       ? make(NO_INPUT, (_input, current) => (a as (current: S) => S)(current))
-      : make(a as Schema.Schema<unknown>, b as (input: unknown, current: S) => S)) as unknown as (...args: ReadonlyArray<unknown>) => unknown;
+      : make(a as Schema.Codec<unknown>, b as (input: unknown, current: S) => S)) as unknown as (...args: ReadonlyArray<unknown>) => unknown;
 
   return Object.assign(transition, {
     effect: (a: unknown, b?: unknown) =>
       b === undefined
         ? Nexus.Command.define(EFFECT_COMMAND, NO_INPUT, () => (a as () => Effect.Effect<void, unknown, Ambient>)())
-        : Nexus.Command.define(EFFECT_COMMAND, a as Schema.Schema<unknown>, (decoded) => (b as (input: unknown) => Effect.Effect<void, unknown, Ambient>)(decoded)),
-    waiting: <I, A, R extends Ambient = never>(input: Schema.Schema<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R> => {
+        : Nexus.Command.define(EFFECT_COMMAND, a as Schema.Codec<unknown>, (decoded) => (b as (input: unknown) => Effect.Effect<void, unknown, Ambient>)(decoded)),
+    waiting: <I, A, R extends Ambient = never>(input: Schema.Codec<I>, spec: Waiting<S, I, A, R>): Nexus.Command.Command<I, void, never, R> => {
       let latest = 0; // this command's newest run: created with the command, so there is one per started application
 
       return Nexus.Command.define(WAITING_COMMAND, input, (decoded) =>
@@ -296,7 +296,7 @@ export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> =
               return Effect.isEffect(produced) ? { effect: produced as Effect.Effect<A, unknown, R> } : { value: await produced };
             },
             catch: (error) => error,
-          }).pipe(Effect.catchAll((error) => Effect.succeed({ failed: error })));
+          }).pipe(Effect.catch((error) => Effect.succeed({ failed: error })));
           const outcome: Outcome<A> =
             "failed" in started
               ? { ok: false, error: started.failed }
@@ -304,7 +304,7 @@ export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> =
                 ? { ok: true, value: started.value }
                 : yield* started.effect.pipe(
                     Effect.map((value): Outcome<A> => ({ ok: true, value })),
-                    Effect.catchAll((error) => Effect.succeed<Outcome<A>>({ ok: false, error })),
+                    Effect.catch((error) => Effect.succeed<Outcome<A>>({ ok: false, error })),
                   );
 
           // Both questions are asked in the same atomic step as the commit: is this still the newest run of this command, and is the result still wanted by the state as it is now.
@@ -316,14 +316,11 @@ export const command = <S>(state: Nexus.State.StateHandle<S>): CommandMaker<S> =
 };
 
 /** The field names of a command's struct input, in order; `undefined` when the input is not a struct. */
-const fieldsOf = (schema: Schema.Schema<any>): ReadonlyArray<string> | undefined => {
-  let ast = schema.ast;
+const fieldsOf = (schema: Schema.Codec<any>): ReadonlyArray<string> | undefined => {
+  const ast = schema.ast;
 
-  while (ast._tag === "Refinement") {
-    ast = ast.from;
-  }
-
-  return ast._tag === "TypeLiteral" ? ast.propertySignatures.map((property) => String(property.name)) : undefined;
+  // Effect 4 keeps a refinement's checks on the struct's own node, so there is no wrapper to see through.
+  return ast._tag === "Objects" ? ast.propertySignatures.map((property) => String(property.name)) : undefined;
 };
 
 /**
@@ -419,10 +416,12 @@ export interface StartOptions<S> {
 
 /** What a failure is called in a log without saying what it carried: its `_tag`, `code` or `name` when it has one, else the kind of failure. Never a message or a value. */
 const failureIdentity = (cause: Cause.Cause<unknown>): string => {
-  const found = Option.orElse(Cause.failureOption(cause), () => Cause.dieOption(cause));
+  const failed = cause.reasons.find(Cause.isFailReason);
+  const died = cause.reasons.find(Cause.isDieReason);
+  const found = failed !== undefined ? failed.error : died?.defect;
 
-  if (Option.isSome(found) && typeof found.value === "object" && found.value !== null) {
-    const named = found.value as { readonly _tag?: unknown; readonly code?: unknown; readonly name?: unknown };
+  if (typeof found === "object" && found !== null) {
+    const named = found as { readonly _tag?: unknown; readonly code?: unknown; readonly name?: unknown };
     const label = [named._tag, named.code, named.name].find((each) => typeof each === "string" && /^[\w.:-]{1,64}$/.test(each));
 
     if (typeof label === "string") {
@@ -430,7 +429,7 @@ const failureIdentity = (cause: Cause.Cause<unknown>): string => {
     }
   }
 
-  return Option.isSome(Cause.failureOption(cause)) ? "failure" : Option.isSome(Cause.dieOption(cause)) ? "defect" : "unknown";
+  return failed !== undefined ? "failure" : died !== undefined ? "defect" : "unknown";
 };
 
 /**
@@ -451,7 +450,7 @@ export interface ApplicationHandle<S, E, K extends string = string, C extends Re
    * through the same table, so there is one way into application behavior. For input that does not come from a MESH
    * render (a browser event, a host page, a headless caller).
    *
-   * It executes in the application's own context, with the platform's FiberRefs, and nothing of that context flows
+   * It executes in the application's own context, with the platform's references (Clock, log level, …), and nothing of that context flows
    * back to the caller (NEXUS I44). The caller needs no runtime and provides no services: interrupting the returned
    * effect interrupts the command, and typed failures and defects pass through unchanged.
    *
@@ -495,10 +494,10 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
     // application's Scope closes, VALANCE closes admission, waits up to `shutdown.grace` for the admitted commands to finish, then interrupts and awaits
     // every one that is left, BEFORE NEXUS terminates and the platform releases its resources. This finalizer is added right after `Application.start` registered
     // NEXUS's own; Scope finalizers run in reverse order, so it runs first. It owns commands only, not daemons or escaped fibers.
-    const admitted = new Set<Fiber.RuntimeFiber<unknown, unknown>>();
+    const admitted = new Set<Fiber.Fiber<unknown, unknown>>();
     let admissionClosed = false;
 
-    const grace = Duration.decode(options.shutdown?.grace ?? 0);
+    const grace = Duration.fromInputUnsafe(options.shutdown?.grace ?? 0);
 
     yield* Effect.addFinalizer(() =>
       Effect.suspend(() => {
@@ -518,7 +517,7 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
         // No grace is no wait at all (not even a turn): a command admitted in the step the close began is interrupted before it runs.
         return commands.length === 0
           ? Effect.void
-          : (Duration.isZero(grace) ? Effect.void : Effect.flatMap(Effect.forkDaemon(waited), Fiber.await)).pipe(
+          : (Duration.isZero(grace) ? Effect.void : Effect.flatMap(Effect.forkDetach(waited), Fiber.await)).pipe(
               Effect.andThen(Effect.forEach(commands, (command) => Fiber.interrupt(command), { discard: true })), // interrupts what is left, and awaits each ACTUAL exit
             );
       }),
@@ -656,44 +655,48 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
         return { view, render, snapshot, generation: generations.get(view) ?? 0, patches, ...attended(value) } satisfies Viewed;
       });
 
-    // The one place an event enters the application's execution: its own fiber, with its own FiberRefs (NEXUS
-    // `runFork`: the handle holds none of them, so joining it imports nothing into the caller). The caller's
+    // The one place an event enters the application's execution: its own fiber, with the application's own Context (NEXUS
+    // `runFork`: the handle holds none of it, so joining it imports nothing into the caller). The caller's
     // interruption interrupts the event; results, typed failures and defects pass through unchanged.
     // Admission: the command registers ITS OWN fiber as its first step. The admission check and the registration are one
     // synchronous step inside that fiber (no gap in which the drain's snapshot could be taken between them); a refusal is a
     // defect, by Effect's own means. The command leaves the registry on every exit.
     const admit = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F, R> =>
       Effect.acquireUseRelease(
-        Effect.withFiberRuntime<void>((fiber) =>
+        Effect.withFiber<void>((fiber) =>
           Effect.sync(() => {
             if (admissionClosed) {
               throw new ValanceError("admission-closed", "VALANCE: admission is closed (draining)");
             }
 
-            admitted.add(fiber as Fiber.RuntimeFiber<unknown, unknown>);
+            admitted.add(fiber);
           }),
         ),
         () => effect,
         () =>
-          Effect.withFiberRuntime<void>((fiber) =>
+          Effect.withFiber<void>((fiber) =>
             Effect.sync(() => {
-              admitted.delete(fiber as Fiber.RuntimeFiber<unknown, unknown>);
+              admitted.delete(fiber);
             }),
           ),
       );
+    // Effect 4 starts a forked fiber at once, so it can already have told someone it is running when the caller gets to wait for it: an interruption of the caller must not
+    // land between the fork and the handler that interrupts the command, or the command would be left running with nobody to stop it. Only the wait is interruptible.
     const inApplication = <A, F>(effect: Effect.Effect<A, F, R>): Effect.Effect<A, F> =>
-      Effect.suspend(() => {
-        const handle = Nexus.Runtime.runFork(nexus.runtime, admit(effect));
+      Effect.uninterruptibleMask((restore) =>
+        Effect.suspend(() => {
+          const handle = Nexus.Runtime.runFork(nexus.runtime, admit(effect));
 
-        return Fiber.join(handle).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
-      });
+          return restore(Fiber.join(handle)).pipe(Effect.onInterrupt(() => Fiber.interrupt(handle)));
+        }),
+      );
 
     const running: Running<S, E> = {
       nexus,
       hasContext: app.context !== undefined,
       render: Effect.flatMap(state.get, renderOf),
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
-      // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
+      // presented is not presented again (by reference: contract v1 says an equal-valued state is presented, which v4's structural Equal would skip), so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
       // `state.get` is read after the wake, so what is rendered is never older than the element that woke it; the first element is still the first draw.
       // With units, a change in any occurrence's state wakes a render too, and a render is wanted when either the application's state or the units' state is not the one last rendered.
       values:
@@ -706,18 +709,18 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
                     Effect.sync(() => admissions),
                   ),
                 ),
-                (left, right) => Equal.equals(left[0], right[0]) && left[1] === right[1],
+                (left, right) => left[0] === right[0] && left[1] === right[1],
               ),
-              undefined as Viewed | undefined,
-              (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
+              (): Viewed | undefined => undefined,
+              (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, ReadonlyArray<Viewed>] => [viewed, [viewed]])),
             )
           : Stream.mapAccumEffect(
               Stream.changesWith(
                 Stream.mapEffect(Stream.merge(state.values, registry.epoch.values), () => Effect.all([state.get, registry.epoch.get, Effect.sync(() => admissions)])),
                 (left, right) => left[0] === right[0] && left[1] === right[1] && left[2] === right[2],
               ),
-              undefined as Viewed | undefined,
-              (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, Viewed] => [viewed, viewed])),
+              (): Viewed | undefined => undefined,
+              (previous, [value]) => advance(previous, value).pipe(Effect.map((viewed): readonly [Viewed | undefined, ReadonlyArray<Viewed>] => [viewed, [viewed]])),
             ),
       dispatch: (viewed, handler, payload) => {
         const host = hosts.get(viewed.view);
@@ -818,12 +821,12 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
         nexus.runtime,
         Effect.exit(
           admit(binding([])).pipe(
-            Effect.tapErrorCause((cause) =>
-              admissionClosed || Cause.isInterruptedOnly(cause)
+            Effect.tapCause((cause) =>
+              admissionClosed || Cause.hasInterruptsOnly(cause)
                 ? Effect.void
                 : Effect.logError("start-time work failed").pipe(
                     Effect.annotateLogs({ failure: failureIdentity(cause) }),
-                    Effect.zipRight(
+                    Effect.andThen(
                       Effect.sync(() => {
                         try {
                           options.onStartFailure?.(cause);
@@ -990,7 +993,7 @@ const connect = <S, E, T extends Target, A>(
     const bound = ledgerBound(options?.ledger);
     const dispatched: Array<DispatchExit<E>> = [];
     let dropped = 0;
-    const pending: Array<Fiber.RuntimeFiber<unknown, never>> = [];
+    const pending: Array<Fiber.Fiber<unknown, never>> = [];
 
     const target = create((handler, payload) => {
       const render = drawn.current;
@@ -1001,7 +1004,7 @@ const connect = <S, E, T extends Target, A>(
 
       options?.record?.event({ handler, payload, render: render.render });
 
-      // `dispatch` runs inside the application (its platform's FiberRefs apply) and nothing flows back (NEXUS I44).
+      // `dispatch` runs inside the application (its platform's references apply) and nothing flows back (NEXUS I44).
       const fiber = Effect.runFork(
         Effect.exit(running.dispatch(render, handler, payload)).pipe(
           Effect.tap((exit) => {
@@ -1015,7 +1018,7 @@ const connect = <S, E, T extends Target, A>(
             return Effect.forEach(
               leaving,
               (left) =>
-                Exit.isFailure(left) && !Cause.isInterruptedOnly(left.cause)
+                Exit.isFailure(left) && !Cause.hasInterruptsOnly(left.cause)
                   ? Effect.logError("event command exit dropped from the ledger").pipe(Effect.annotateLogs({ failure: failureIdentity(left.cause) }))
                   : Effect.void,
               { discard: true },

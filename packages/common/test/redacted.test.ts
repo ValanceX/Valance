@@ -9,11 +9,11 @@ import { stateSchema } from "../src/internal.js";
 describe("the application's state schema and Redacted fields", () => {
   it("is still a struct with persist set, and names the secret", () => {
     const author = defineApp({
-      state: { name: field(Schema.String, "a"), token: field(Schema.RedactedFromSelf(Schema.String), Redacted.make("d")) },
+      state: { name: field(Schema.String, "a"), token: field(Schema.Redacted(Schema.String), Redacted.make("d")) },
       persist: ["name"],
     });
 
-    expect(stateSchema(author).ast._tag).toBe("TypeLiteral");
+    expect(stateSchema(author).ast._tag).toBe("Objects");
     expect(redactedFields(stateSchema(author))).toEqual(["token"]);
   });
 });

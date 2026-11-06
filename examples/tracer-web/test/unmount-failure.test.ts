@@ -21,15 +21,13 @@ const shape = (exit: Exit.Exit<unknown, unknown> | "hung"): string =>
     ? "hung"
     : Exit.isSuccess(exit)
       ? "success"
-      : Cause.isDieType(exit.cause)
-        ? `defect ${(exit.cause.defect as Error).message}`
-        : Cause.isInterruptedOnly(exit.cause)
+      : Cause.hasDies(exit.cause)
+        ? `defect ${(Cause.squash(exit.cause) as Error).message}`
+        : Cause.hasInterruptsOnly(exit.cause)
           ? "interrupted"
           : "other";
 const bounded = <A>(effect: Effect.Effect<A, unknown>) =>
-  Effect.runPromise(
-    effect.pipe(Effect.exit, Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const })),
-  );
+  Effect.runPromise(effect.pipe(Effect.exit, Effect.timeoutOrElse({ duration: "800 millis", orElse: () => Effect.succeed("hung" as const) })));
 
 for (const kind of ["mount", "hydrate"] as const) {
   const first = kind === "mount" ? "draw" : "hydrate";
@@ -93,7 +91,7 @@ describe("unmount throws in other situations", () => {
     const counts = { acquired: 0, released: 0 };
     const platform: Nexus.Application.Platform = Layer.merge(
       Nexus.Capability.EnvironmentLive(new Map()),
-      Layer.scopedDiscard(
+      Layer.effectDiscard(
         Effect.acquireRelease(
           Effect.sync(() => {
             counts.acquired += 1;
@@ -106,7 +104,7 @@ describe("unmount throws in other situations", () => {
       ),
     );
     const shared = await run(Scope.make());
-    const handle = await run(Valance.start(definition({ n: 0, bad: false }), { platform }).pipe(Scope.extend(shared)));
+    const handle = await run(Valance.start(definition({ n: 0, bad: false }), { platform }).pipe(Scope.provide(shared)));
     const container = new JSDOM("<!doctype html><body></body>").window.document.createElement("main");
     const ops: Array<string> = [];
 
@@ -129,7 +127,7 @@ describe("unmount throws in other situations", () => {
       };
     };
 
-    await run(Valance.mount(handle, factory).pipe(Scope.extend(shared)));
+    await run(Valance.mount(handle, factory).pipe(Scope.provide(shared)));
     expect(shape(await bounded(Scope.close(shared, Exit.void)))).toBe("defect unmount failed");
     expect(ops).toEqual(["draw", "unmount"]);
     expect(counts).toEqual({ acquired: 1, released: 1 }); // the platform resource was still released

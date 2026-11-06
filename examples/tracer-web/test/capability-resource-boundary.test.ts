@@ -30,12 +30,12 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const kind = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasInterruptsOnly(exit.cause)
       ? "interrupted"
-      : Cause.isDieType(exit.cause)
-        ? `die ${String((exit.cause.defect as Error).message).slice(0, 60)}`
-        : Cause.isFailType(exit.cause)
-          ? `fail ${typeof exit.cause.error === "string" ? exit.cause.error : (exit.cause.error as { _tag: string })._tag}`
+      : Cause.hasDies(exit.cause)
+        ? `die ${String((Cause.squash(exit.cause) as Error).message).slice(0, 60)}`
+        : Cause.hasFails(exit.cause)
+          ? `fail ${typeof Cause.squash(exit.cause) === "string" ? Cause.squash(exit.cause) : (Cause.squash(exit.cause) as { _tag: string })._tag}`
           : "other";
 
 const app = Valance.define({
@@ -65,7 +65,7 @@ const app = Valance.define({
       ),
       // commits, then the capability fails
       "app/commitThenMeter": bind("commitThenMeter", () =>
-        Effect.zipRight(
+        Effect.andThen(
           state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, n: c.n + 100 })),
           Effect.flatMap(Nexus.Capability.require(Meter), (meter) => meter.use()),
         ),
@@ -86,7 +86,7 @@ const app = Valance.define({
 const world = async (owner: string) => {
   const counts = { acquired: 0, released: 0, uses: 0 };
   const failing = { value: false };
-  const layer: Nexus.Application.Platform = Layer.scoped(
+  const layer: Nexus.Application.Platform = Layer.effect(
     Nexus.Capability.Environment,
     Effect.map(
       Effect.acquireRelease(
@@ -110,14 +110,14 @@ const world = async (owner: string) => {
     ),
   );
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app, { platform: layer }).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(app, { platform: layer }).pipe(Scope.provide(appScope)));
   const mount = async () => {
     const page = load("");
     const scope = await run(Scope.make());
 
     await run(
       Valance.mount(handle, ((report) => Web.target({ container: page.container, primitives })(report)) as Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>>).pipe(
-        Scope.extend(scope),
+        Scope.provide(scope),
       ),
     );
 
@@ -133,7 +133,7 @@ const world = async (owner: string) => {
         urlOf: (s: { readonly n: number }) => `/${s.n}`,
         stateOf: (url: URL) => ({ n: Number(url.pathname.slice(1)) }),
         navigate: "app/navigate",
-      } as never).pipe(Scope.extend(scope)),
+      } as never).pipe(Scope.provide(scope)),
     );
     await sleep(30);
 

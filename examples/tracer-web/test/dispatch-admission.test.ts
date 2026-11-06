@@ -32,14 +32,14 @@ const hold = (promises: Map<string, Promise<void>>, id: string) => {
 const shape = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasInterruptsOnly(exit.cause)
       ? "interrupted"
-      : Cause.isDieType(exit.cause)
-        ? `died ${(exit.cause.defect as Error).message}`
-        : Cause.isFailType(exit.cause)
-          ? `failed ${(exit.cause.error as { _tag?: string })._tag}`
+      : Cause.hasDies(exit.cause)
+        ? `died ${(Cause.squash(exit.cause) as Error).message}`
+        : Cause.hasFails(exit.cause)
+          ? `failed ${(Cause.squash(exit.cause) as { _tag?: string })._tag}`
           : "other";
-const closeOf = (b: { readonly appScope: Scope.CloseableScope }) => () => Effect.runPromise(Scope.close(b.appScope, Exit.void));
+const closeOf = (b: { readonly appScope: Scope.Closeable }) => () => Effect.runPromise(Scope.close(b.appScope, Exit.void));
 
 describe("report, admission, execution, completion", () => {
   it("A. admission is part of the report, not of the command's start: an interaction reported in the same step the application starts closing is admitted, then interrupted before it ever executed; one reported after is refused", async () => {
@@ -199,7 +199,7 @@ describe("closing the application", () => {
           view: () => "a" as const,
           commands: () => ({}), // the render's own view name selects the host
         }),
-      ).pipe(Scope.extend(otherScope)),
+      ).pipe(Scope.provide(otherScope)),
     );
     const dispatch = () => Effect.runPromise(Effect.exit(runningOf(other).dispatch(viewed, handler, payload as never)));
 

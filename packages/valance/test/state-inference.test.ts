@@ -9,15 +9,15 @@ import * as Valance from "../src/index.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
 // The shape the developer slice used: ONE struct whose field is a union of literals. This is the shape that failed.
-const Flat = Schema.Struct({ phase: Schema.Literal("loading", "ready", "failed"), quote: Schema.String });
+const Flat = Schema.Struct({ phase: Schema.Literals(["loading", "ready", "failed"]), quote: Schema.String });
 type Flat = typeof Flat.Type;
 
 // A discriminated union of structs. It never failed (its members give `initial` a contextual type), and is kept to say so.
-const State = Schema.Union(
+const State = Schema.Union([
   Schema.Struct({ phase: Schema.Literal("loading") }),
   Schema.Struct({ phase: Schema.Literal("ready"), value: Schema.String }),
   Schema.Struct({ phase: Schema.Literal("error"), message: Schema.String }),
-);
+]);
 type State = typeof State.Type;
 
 describe("the application's state type is inferred from its schema, not from `initial`", () => {

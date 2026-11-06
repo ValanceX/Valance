@@ -57,23 +57,31 @@ const application = Valance.define({
 });
 
 const fixedClock = (n: number): Clock.Clock => {
-  const base = Clock.make();
+  const live = Clock.Clock.defaultValue();
 
-  return Object.assign(Object.create(Object.getPrototypeOf(base) as object) as Clock.Clock, base, { currentTimeMillis: Effect.succeed(n), unsafeCurrentTimeMillis: () => n });
+  return {
+    currentTimeMillis: Effect.succeed(n),
+    currentTimeMillisUnsafe: () => n,
+    currentTimeNanos: live.currentTimeNanos,
+    currentTimeNanosUnsafe: () => live.currentTimeNanosUnsafe(),
+    monotonicTimeNanos: live.monotonicTimeNanos,
+    monotonicTimeNanosUnsafe: () => live.monotonicTimeNanosUnsafe(),
+    sleep: (duration) => live.sleep(duration),
+  };
 };
 
-const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.setClock(fixedClock(42)));
+const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.succeed(Clock.Clock, fixedClock(42)));
 
 /** Starts the application, hands its handle to `body`, and returns what `body` returns. */
 const within = <A>(body: (handle: Valance.ApplicationHandle<State, unknown>) => Effect.Effect<A, unknown>): Promise<A> =>
   Effect.runPromise(Effect.scoped(Effect.flatMap(Valance.start(application, { platform }), (handle) => body(handle as Valance.ApplicationHandle<State, unknown>))));
 
 /** The typed failure of an exit, or a description of what else it was. */
-const typed = (exit: Exit.Exit<unknown, unknown>): unknown => (Exit.isFailure(exit) && Cause.isFailType(exit.cause) ? exit.cause.error : exit);
+const typed = (exit: Exit.Exit<unknown, unknown>): unknown => (Exit.isFailure(exit) && Cause.hasFails(exit.cause) ? Cause.squash(exit.cause) : exit);
 
 describe("command: validated input and a pure transition", () => {
   it("1. changes state with no Effect in author code, and is an ordinary NEXUS command", async () => {
-    const state = await within((handle) => Effect.zipRight(handle.invoke("app/add", [{ value: 3 }]), handle.state));
+    const state = await within((handle) => Effect.andThen(handle.invoke("app/add", [{ value: 3 }]), handle.state));
 
     expect(state.count).toBe(3);
   });
@@ -122,7 +130,7 @@ describe("command: validated input and a pure transition", () => {
 
   it("3. concurrent transitions all land", async () => {
     const count = await within((handle) =>
-      Effect.zipRight(
+      Effect.andThen(
         Effect.all(
           Array.from({ length: 200 }, () => handle.invoke("app/increment", [])),
           { concurrency: "unbounded" },
@@ -135,7 +143,7 @@ describe("command: validated input and a pure transition", () => {
   });
 
   it("4. a union-shaped state needs no annotation, and the next state is checked against the state's type", async () => {
-    const Union = Schema.Union(Schema.Struct({ view: Schema.Literal("a"), n: Schema.Number }), Schema.Struct({ view: Schema.Literal("b") }));
+    const Union = Schema.Union([Schema.Struct({ view: Schema.Literal("a"), n: Schema.Number }), Schema.Struct({ view: Schema.Literal("b") })]);
     const app = Valance.define({
       name: "union",
       state: { schema: Union, initial: { view: "a" as const, n: 0 } },
@@ -200,11 +208,11 @@ describe("command: validated input and a pure transition", () => {
 describe("command: the type contract is the state's own type", () => {
   // Each case is a compile-time claim (checked by `tsc`, not by vitest): what a transition may return is exactly a value of the state's type.
   const Item = Schema.Struct({ id: Schema.String });
-  const Readonly = Schema.Union(Schema.Struct({ kind: Schema.Literal("a"), items: Schema.Array(Item) }), Schema.Struct({ kind: Schema.Literal("b"), items: Schema.Array(Item) }));
-  const Mutable = Schema.Union(
+  const Readonly = Schema.Union([Schema.Struct({ kind: Schema.Literal("a"), items: Schema.Array(Item) }), Schema.Struct({ kind: Schema.Literal("b"), items: Schema.Array(Item) })]);
+  const Mutable = Schema.Union([
     Schema.Struct({ kind: Schema.Literal("a"), items: Schema.mutable(Schema.Array(Item)) }),
     Schema.Struct({ kind: Schema.Literal("b"), items: Schema.mutable(Schema.Array(Item)) }),
-  );
+  ]);
   const Plain = Schema.Struct({ count: Schema.Number, tags: Schema.mutable(Schema.Array(Schema.String)) });
 
   it("a union state: narrowing, a literal member, a transition that reads nothing, and spread/append, for readonly and for mutable arrays", () => {
@@ -336,7 +344,7 @@ describe("diagnostic identity (decision: a pure command's validation failure car
 describe("entry: a named entry runs a command with plain-valued arguments", () => {
   it("5. a plain-valued argument reaches the command as the plain value ({ value: x } is x)", async () => {
     const label = await within((handle) =>
-      Effect.zipRight(
+      Effect.andThen(
         handle.invoke("app/describe", [{ value: "hello" }]),
         Effect.map(handle.state, (state) => state.label),
       ),
@@ -364,7 +372,7 @@ describe("entry: a named entry runs a command with plain-valued arguments", () =
 
   it("every argument is passed, in order, as a plain value", async () => {
     const label = await within((handle) =>
-      Effect.zipRight(
+      Effect.andThen(
         handle.invoke("app/join", [{ value: "x" }, { value: "y" }]),
         Effect.map(handle.state, (state) => state.label),
       ),
@@ -421,7 +429,7 @@ describe("entry: a named entry runs a command with plain-valued arguments", () =
 describe("regression: the existing paths are unchanged", () => {
   it("10. an effectful command (a NEXUS command over an Effect, reading the platform's clock) runs through the same entry form", async () => {
     const clock = await within((handle) =>
-      Effect.zipRight(
+      Effect.andThen(
         handle.invoke("app/stamp", []),
         Effect.map(handle.state, (state) => state.clock),
       ),

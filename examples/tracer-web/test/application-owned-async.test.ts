@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { textTarget, type TextTarget } from "./non-dom-target.js";
 import { titleProgram } from "./title-program.js";
 
-const State = Schema.Struct({ phase: Schema.Literal("loading", "ready", "failed"), detail: Schema.String });
+const State = Schema.Struct({ phase: Schema.Literals(["loading", "ready", "failed"]), detail: Schema.String });
 type State = typeof State.Type;
 
 type Outcome = { readonly _tag: "Ok"; readonly value: string } | { readonly _tag: "Err"; readonly reason: string };
@@ -86,13 +86,13 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
     ),
   ); // registered before start: runs after NEXUS terminates
 
-  const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.provide(scope)));
   let target: TextTarget | undefined;
 
   if (options.mount !== false) {
     const factory = textTarget();
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.provide(scope)));
   }
 
   // The host's only act: start the application's own command. The caller's fiber is a child of the SCOPE, not of any mount or page.
@@ -136,7 +136,7 @@ describe("an application-owned async operation, started by the host into the app
 
     expect(b.resource.log).toEqual(["started", "interrupted"]);
     expect(b.released).toEqual(["platform resource released"]);
-    expect(Exit.isInterrupted(await Effect.runPromise(Fiber.await(await b.load)))).toBe(true);
+    expect(Exit.hasInterrupts(await Effect.runPromise(Fiber.await(await b.load)))).toBe(true);
 
     await b.resource.open({ _tag: "Ok", value: "late" });
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -155,7 +155,7 @@ describe("an application-owned async operation, started by the host into the app
     const factory = textTarget();
     let target!: TextTarget;
 
-    await Effect.runPromise(Valance.mount(b.handle, (report) => (target = factory(report))).pipe(Scope.extend(b.scope)));
+    await Effect.runPromise(Valance.mount(b.handle, (report) => (target = factory(report))).pipe(Scope.provide(b.scope)));
     expect(target.calls.map((call) => call.op)).toEqual(["draw"]);
     expect(target.screen()).toContain("ready: early");
 
@@ -166,9 +166,9 @@ describe("an application-owned async operation, started by the host into the app
     const resource = fakeResource();
     const scope = await Effect.runPromise(Scope.make());
     const mountScope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.provide(scope)));
 
-    await Effect.runPromise(Valance.mount(handle, textTarget()).pipe(Scope.extend(mountScope)));
+    await Effect.runPromise(Valance.mount(handle, textTarget()).pipe(Scope.provide(mountScope)));
 
     const load = Effect.runPromise(Effect.forkIn(Effect.exit(handle.invoke("app/load", [])), scope));
 
@@ -197,7 +197,7 @@ describe("an application-owned async operation, started by the host into the app
       ),
     );
 
-    const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app(resource)).pipe(Scope.provide(scope)));
     const orphan = Effect.runFork(Effect.exit(handle.invoke("app/load", []))); // owned by nothing: not the Scope, not a mount
 
     await wait(() => resource.log.includes("started"));
@@ -205,6 +205,6 @@ describe("an application-owned async operation, started by the host into the app
 
     expect(resource.log).toEqual(["started", "interrupted"]);
     expect(released).toEqual(["platform resource released"]);
-    expect(Exit.isInterrupted(await Effect.runPromise(Fiber.join(orphan)))).toBe(true);
+    expect(Exit.hasInterrupts(await Effect.runPromise(Fiber.join(orphan)))).toBe(true);
   });
 });

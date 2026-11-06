@@ -40,7 +40,7 @@ const page = (html = "") => {
 const logging = (events: Array<string>, container: () => Element | undefined) => {
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(
+    Layer.effectDiscard(
       Effect.acquireRelease(
         Effect.sync(() => {
           events.push("platform acquired");
@@ -84,7 +84,7 @@ const build = (events: Array<string>, container: () => Element | undefined) =>
             ? Effect.sync(() => {
                 events.push("hang started");
               }).pipe(
-                Effect.zipRight(Effect.never),
+                Effect.andThen(Effect.never),
                 Effect.onInterrupt(() =>
                   Effect.sync(() => {
                     events.push(`hang interrupted (container ${container()?.innerHTML === "" ? "empty" : "drawn"})`);
@@ -285,7 +285,7 @@ describe("Web.run: one lifetime, one stop", () => {
     expect(events).toEqual(["platform acquired", "hang started", "hang interrupted (container empty)", "platform released (container empty)"]);
 
     const exit = host.mounted.dispatched[0]!; // the dispatching mount's record, as the core keeps it
-    expect(Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true);
   });
 
   it("7. stop does not alter committed state, and the state stays readable afterwards", async () => {
@@ -322,7 +322,7 @@ describe("Web.run: one lifetime, one stop", () => {
 
     const refused = await Effect.runPromise(Effect.exit(host.handle.invoke("home/reverse", [])));
 
-    expect(Exit.isFailure(refused) && Cause.isDie(refused.cause)).toBe(true); // the core's own terminal refusal: a defect, not a typed failure
+    expect(Exit.isFailure(refused) && Cause.hasDies(refused.cause)).toBe(true); // the core's own terminal refusal: a defect, not a typed failure
     expect(p.container.innerHTML).toBe("");
   });
 });
@@ -382,7 +382,7 @@ describe("Web.run: failure facts are the core's own", () => {
     p.click(p.container.querySelector("button")!);
     const ended = await Effect.runPromise(host.mounted.followed); // the mechanism the core already gives
 
-    expect(Exit.isFailure(ended) && Cause.isFailType(ended.cause) && ended.cause.error._tag).toBe("MeshDiagnostics");
+    expect(Exit.isFailure(ended) && Cause.hasFails(ended.cause) && (Cause.squash(ended.cause) as { _tag: string })._tag).toBe("MeshDiagnostics");
     expect((await Effect.runPromise(host.handle.state)).bad).toBe(true); // the application committed and is alive
     await Effect.runPromise(host.handle.invoke("notfound/back", [])); // and still takes entries
     expect(logged).toEqual([]);
@@ -405,7 +405,7 @@ describe("Web.run: failure facts are the core's own", () => {
 
     const exit = host.mounted.dispatched[0]!;
 
-    expect(Exit.isFailure(exit) && Cause.isFailType(exit.cause) && exit.cause.error).toBe("typed-boom");
+    expect(Exit.isFailure(exit) && Cause.hasFails(exit.cause) && Cause.squash(exit.cause)).toBe("typed-boom");
     expect((await Effect.runPromise(host.handle.state)).value).toBe("init"); // no commit, no error state
     expect(p.label()).toBe("init"); // nothing rendered
     expect(logged).toEqual([]); // no report, no global event
@@ -444,7 +444,7 @@ describe("Web.run: a convenience over the core, not the definition of it", () =>
     );
     const scope = await Effect.runPromise(Scope.make());
 
-    await Effect.runPromise(Valance.mount(host.handle, Web.target({ container: second.container, primitives })).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(host.handle, Web.target({ container: second.container, primitives })).pipe(Scope.provide(scope)));
     first.click(first.button("Reverse"));
     await until(() => first.label() === "reversed" && second.label() === "reversed"); // one application, two presentations
 

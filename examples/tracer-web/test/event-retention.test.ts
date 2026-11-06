@@ -3,7 +3,7 @@
 // until `settled` describe Stage 34 as first recorded.)
 // The real path is exercised (click -> PORT report -> `connect` -> `running.dispatch` -> command), with ONE piece of test
 // instrumentation: the Running's `dispatch` is wrapped (as Stage 28 wrapped `invoke`) so that each dispatch carries two canaries:
-//   - a FIBER canary, pinned only by the fiber that `connect` forks for the event (set in that fiber's FiberRefs): alive while `pending` holds it;
+//   - a FIBER canary, pinned only by the fiber that `connect` forks for the event (set in that fiber's context): alive while `pending` holds it;
 //   - an EXIT canary, placed inside the Exit's value / typed error / defect: alive while anything holds the recorded Exit (`dispatched`).
 // A defect cannot be marked with an exit canary without re-raising it inside the dispatch fiber, and re-raising pins that fiber (verified: an
 // instrumentation artifact), so defect Exits carry no exit canary: their retention is read from `dispatched` itself, their fiber from the fiber canary.
@@ -15,7 +15,7 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { handleOf, runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
-import { Cause, Deferred, Effect, Exit, Fiber, FiberRef, Schema, Scope, Stream } from "effect";
+import { Cause, Context, Deferred, Effect, Exit, Fiber, Schema, Scope, Stream } from "effect";
 import { runInNewContext } from "node:vm";
 import { setFlagsFromString } from "node:v8";
 import { describe, expect, it, vi } from "vitest";
@@ -42,22 +42,22 @@ const firstValue = (args: ReadonlyArray<Nexus.Mesh.IntentArgument>): unknown => 
   return first !== undefined && "value" in first ? first.value : undefined;
 };
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
-  Exit.isSuccess(exit)
-    ? "succeeded"
-    : Cause.isFailType(exit.cause)
-      ? "failed"
-      : Cause.isDieType(exit.cause)
-        ? "died"
-        : Cause.isInterruptedOnly(exit.cause)
-          ? "interrupted"
-          : "other";
+  Exit.isSuccess(exit) ? "succeeded" : Cause.hasFails(exit.cause) ? "failed" : Cause.hasDies(exit.cause) ? "died" : Cause.hasInterruptsOnly(exit.cause) ? "interrupted" : "other";
 
 interface Canaries {
   readonly fibers: Array<WeakRef<object>>;
   readonly exits: Array<WeakRef<object>>;
 }
 const alive = (refs: ReadonlyArray<WeakRef<object>>) => refs.filter((ref) => ref.deref() !== undefined).length;
-const canaryRef = FiberRef.unsafeMake<object | undefined>(undefined);
+// What a FiberRef write was in Effect 3: a change to the Context of the fiber that runs it, which every later step of that fiber sees.
+const writeIntoFiber = <S>(reference: Context.Reference<S>, value: S): Effect.Effect<void> =>
+  Effect.withFiber((fiber) =>
+    Effect.sync(() => {
+      fiber.setContext(Context.add(fiber.context, reference, value));
+    }),
+  );
+
+const canaryRef = Context.Reference<object | undefined>("retention/canary", { defaultValue: () => undefined });
 
 /** Builds, starts and mounts the application; returns only what a test needs. Everything else stays local so that `run` below can let it go. */
 // `ledger` is `Infinity` here: these tests measure the logical growth of the ledger (N events, N exits). The default bound is tested in G.
@@ -131,7 +131,7 @@ const build = async (canaries: Canaries, ledger = Infinity) => {
   const page = load("");
   const target: Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> = (report) => Web.target({ container: page.container, primitives })(report);
   const scope = await Effect.runPromise(Scope.make());
-  const started = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.extend(scope)))) as Valance.ApplicationHandle<State, string>;
+  const started = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.provide(scope)))) as Valance.ApplicationHandle<State, string>;
   const real = runningOf(started as never);
   // The instrumentation: same Running, `dispatch` wrapped to attach the canaries. Nothing else about the path changes.
   const watched = handleOf({
@@ -143,8 +143,8 @@ const build = async (canaries: Canaries, ledger = Infinity) => {
       canaries.fibers.push(new WeakRef(fiberCanary));
       canaries.exits.push(new WeakRef(exitCanary));
 
-      return Effect.zipRight(
-        FiberRef.set(canaryRef, fiberCanary),
+      return Effect.andThen(
+        writeIntoFiber(canaryRef, fiberCanary),
         real.dispatch(viewed, handler, payload).pipe(
           Effect.map((dispatched) => ({ ...dispatched, exitCanary })),
           Effect.mapError((error) => ({ error, exitCanary })),
@@ -152,7 +152,7 @@ const build = async (canaries: Canaries, ledger = Infinity) => {
       ) as never;
     },
   }) as Valance.ApplicationHandle<State, string>;
-  const mount = (await Effect.runPromise(Valance.mount(watched as never, target, { ledger }).pipe(Scope.extend(scope)))) as Valance.Mounted<string>;
+  const mount = (await Effect.runPromise(Valance.mount(watched as never, target, { ledger }).pipe(Scope.provide(scope)))) as Valance.Mounted<string>;
 
   await until(() => page.container.querySelector("button") !== null);
   const row = (id: string) => page.container.querySelectorAll("div")[ids.indexOf(id as never)]!.querySelector("button")!;
@@ -276,11 +276,11 @@ describe("E, F, I: what `settled` is", () => {
     await Effect.runPromise(
       Effect.forEach(
         Array.from({ length: 500 }, (_, index) => index),
-        () => Effect.yieldNow(),
+        () => Effect.yieldNow,
         { discard: true },
       ),
     );
-    expect(await Effect.runPromise(Fiber.poll(waiting)).then((option) => option._tag)).toBe("None"); // still waiting
+    expect(waiting.pollUnsafe()).toBeUndefined(); // still waiting
     expect((await b.census()).fibersAlive).toBe(2); // snapshot taken by `settled` does not let go of running fibers early
 
     await b.release("slowA", "a");
@@ -288,11 +288,11 @@ describe("E, F, I: what `settled` is", () => {
     await Effect.runPromise(
       Effect.forEach(
         Array.from({ length: 300 }, (_, index) => index),
-        () => Effect.yieldNow(),
+        () => Effect.yieldNow,
         { discard: true },
       ),
     );
-    expect(await Effect.runPromise(Fiber.poll(waiting)).then((option) => option._tag)).toBe("None"); // one of two done: still waiting
+    expect(waiting.pollUnsafe()).toBeUndefined(); // one of two done: still waiting
 
     b.click("ok"); // an event dispatched while `settled` is waiting
     await until(() => b.mount.dispatched.length === 2);

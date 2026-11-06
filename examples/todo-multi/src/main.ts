@@ -16,7 +16,7 @@ export default defineApp({
     items: field(Schema.Array(Item), []),
     entry: field(Schema.String, ""), // what is typed in the new-item field, until it is added
     seq: field(Schema.Number, 1), // the next item's number
-    theme: field(Schema.Literal("system", "light", "dark"), "system"), // the colors: the system's unless the person chose
+    theme: field(Schema.Literals(["system", "light", "dark"]), "system"), // the colors: the system's unless the person chose
     navigation: field(Schema.Boolean, true), // the desktop layout's
   },
   // What the window looks like: the person's choice, or the system's colors when they have not made one.
@@ -28,7 +28,7 @@ export default defineApp({
     summary: derive(Schema.String, (state) => `${state.items.filter((item) => !item.done).length} of ${state.items.length} open`),
     // The colors drawn: the person's choice, or the system's when they have not made one. A template cannot branch on `theme == "system"` and then know the other two (no flow typing), so
     // the choice is resolved here, once, and the layout reads a value that is exactly "light" or "dark".
-    resolvedTheme: derive(Schema.Literal("light", "dark"), (state) => (state.theme === "system" ? state.colorScheme : state.theme)),
+    resolvedTheme: derive(Schema.Literals(["light", "dark"]), (state) => (state.theme === "system" ? state.colorScheme : state.theme)),
   }),
   commands: (command) => ({
     setEntry: command(Schema.Struct({ text: Schema.String }), ({ text }, state) => ({ ...state, entry: text.slice(0, 200) })),

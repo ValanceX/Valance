@@ -12,8 +12,8 @@ import { restoreRedacted } from "../src/web-redacted.js";
 import { renderToHtml } from "../src/web-server.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
-// `RedactedFromSelf`: its encoded side is a Redacted too, so a Redacted default and a Redacted `state` option decode as they are (NEXUS decodes both).
-const State = Schema.Struct({ name: Schema.String, token: Schema.RedactedFromSelf(Schema.String) });
+// `Schema.Redacted`: its encoded side is a Redacted too, so a Redacted default and a Redacted `state` option decode as they are (NEXUS decodes both).
+const State = Schema.Struct({ name: Schema.String, token: Schema.Redacted(Schema.String) });
 type State = typeof State.Type;
 
 const app = (options: { readonly scope?: (state: State) => Record<string, unknown>; readonly initial?: Partial<State> } = {}) =>
@@ -46,7 +46,10 @@ describe("Schema.Redacted state fields (C-3)", () => {
   });
 
   it("finds a field by Schema.Redacted too, optional or not", () => {
-    expect(redactedFields(Schema.Struct({ a: Schema.Redacted(Schema.String), b: Schema.optional(Schema.Redacted(Schema.String)), c: Schema.String }))).toEqual(["a", "b"]);
+    expect(redactedFields(Schema.Struct({ a: Schema.RedactedFromValue(Schema.String), b: Schema.optional(Schema.RedactedFromValue(Schema.String)), c: Schema.String }))).toEqual([
+      "a",
+      "b",
+    ]);
   });
 
   it("vlx check's reports: no default, and a view that reads the field", () => {
@@ -56,7 +59,7 @@ describe("Schema.Redacted state fields (C-3)", () => {
   });
 
   it("masks a union with a Redacted at the top level (NullOr)", async () => {
-    const Nullable = Schema.Struct({ name: Schema.String, token: Schema.NullOr(Schema.RedactedFromSelf(Schema.String)) });
+    const Nullable = Schema.Struct({ name: Schema.String, token: Schema.NullOr(Schema.Redacted(Schema.String)) });
     const nullable = Valance.define({
       name: "nullable",
       state: { schema: Nullable, initial: { name: "ada", token: null } },
@@ -72,19 +75,22 @@ describe("Schema.Redacted state fields (C-3)", () => {
   });
 
   it("refuses (redacted-unmaskable) a Redacted below the top level, or under a schema that is not a plain struct", () => {
-    const R = Schema.RedactedFromSelf(Schema.String);
-    const codes = (schema: Schema.Schema<any, any, never>) => unmaskableFields(schema);
+    const R = Schema.Redacted(Schema.String);
+    const codes = (schema: Schema.Codec<any, any, never>) => unmaskableFields(schema);
 
     expect(codes(Schema.Struct({ a: Schema.Struct({ b: R }) }))).toEqual(["a"]);
     expect(codes(Schema.Struct({ a: Schema.Array(R) }))).toEqual(["a"]);
-    expect(codes(Schema.Struct({ a: Schema.Union(R, Schema.Struct({ b: R })) }))).toEqual(["a"]);
-    expect(codes(Schema.Struct({ a: Schema.Record({ key: Schema.String, value: R }) }))).toEqual(["a"]);
+    expect(codes(Schema.Struct({ a: Schema.Union([R, Schema.Struct({ b: R })]) }))).toEqual(["a"]);
+    expect(codes(Schema.Struct({ a: Schema.Record(Schema.String, R) }))).toEqual(["a"]);
     class Held extends Schema.Class<Held>("Held")({ token: R }) {}
     expect(codes(Held)).toEqual(["(state)"]);
-    expect(codes(Schema.Struct({ token: R }).pipe(Schema.filter(() => true)))).toEqual(["(state)"]);
-    expect(codes(Schema.Struct({ token: Schema.optionalWith(R, { default: () => Redacted.make("d") }) }))).toEqual(["(state)"]);
+    expect(codes(Schema.Struct({ token: R }).check(Schema.makeFilter(() => true)))).toEqual(["(state)"]);
     // top-level ones, and a struct with none, are fine
     expect(codes(Schema.Struct({ a: R, b: Schema.NullOr(R), c: Schema.String }))).toEqual([]);
+    // A decoding default sits on the field in Effect 4 (in Effect 3 it wrapped the whole struct), so the field is a top-level one and is masked.
+    const defaulted = Schema.Struct({ token: R.pipe(Schema.withDecodingDefaultKey(Effect.succeed(Redacted.make("d")))) });
+    expect(codes(defaulted)).toEqual([]);
+    expect(redactedFields(defaulted)).toEqual(["token"]);
 
     const nested = Valance.define({
       name: "nested",
@@ -124,13 +130,13 @@ describe("Schema.Redacted state fields (C-3)", () => {
   it("renderToHtml fails closed on a Redacted it cannot mask: a ValanceError with the code, before anything starts", async () => {
     const nested = Valance.define({
       name: "nested",
-      state: { schema: Schema.Struct({ a: Schema.Struct({ b: Schema.RedactedFromSelf(Schema.String) }) }), initial: { a: { b: Redacted.make("x") } } },
+      state: { schema: Schema.Struct({ a: Schema.Struct({ b: Schema.Redacted(Schema.String) }) }), initial: { a: { b: Redacted.make("x") } } },
       views: { only: { program: eventFreeProgram, scope: () => ({}) } },
       view: () => "only" as const,
       commands: () => ({}),
     });
     const exit = await Effect.runPromiseExit(renderToHtml(nested, {}));
 
-    expect(Exit.isFailure(exit) && Cause.isDie(exit.cause) && (Cause.squash(exit.cause) as { code?: string }).code).toBe("redacted-unmaskable");
+    expect(Exit.isFailure(exit) && Cause.hasDies(exit.cause) && (Cause.squash(exit.cause) as { code?: string }).code).toBe("redacted-unmaskable");
   });
 });

@@ -3,7 +3,7 @@
 import type * as Mesh from "@valancex/nexus";
 
 import { compileProgram } from "@valancex/mesh-compiler";
-import { Chunk, Effect, Exit, Schema, Scope, Stream } from "effect";
+import { Effect, Exit, Schema, Scope, Stream } from "effect";
 import { Render } from "@valancex/mesh-runtime";
 import { describe, expect, it, vi } from "vitest";
 
@@ -88,7 +88,7 @@ const treeOf = (render: { readonly tree: unknown }) => JSON.stringify(render.tre
 const run = async (withPatch: boolean, steps: ReadonlyArray<readonly [string, string]>) => {
   const calls: Array<string> = [];
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
   const factory: Valance.TargetFactory<Valance.Target> = () => ({
     draw: () => {
       calls.push("draw");
@@ -106,7 +106,7 @@ const run = async (withPatch: boolean, steps: ReadonlyArray<readonly [string, st
     unmount: () => undefined,
   });
 
-  await Effect.runPromise(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, factory).pipe(Scope.provide(scope)));
 
   for (const [name, argument] of steps) {
     await Effect.runPromise(handle.invoke(`app/${name}`, [{ value: argument }]).pipe(Effect.orDie));
@@ -153,9 +153,9 @@ describe("only what changed is drawn", () => {
 
   it("the stream's last render is the render of the state, and only the later ones carry patches", async () => {
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
     const running = runningOf(handle);
-    const collected = Effect.runPromise(Stream.runCollect(Stream.take(running.values, 3)).pipe(Effect.map(Chunk.toReadonlyArray)));
+    const collected = Effect.runPromise(Stream.runCollect(Stream.take(running.values, 3)));
 
     await new Promise((resolve) => setTimeout(resolve, 25));
     await Effect.runPromise(handle.invoke("app/title", [{ value: "U" }]).pipe(Effect.orDie));
@@ -168,6 +168,42 @@ describe("only what changed is drawn", () => {
     expect(seen.map((viewed) => viewed.patches !== undefined)).toEqual([false, true, true]);
     expect(treeOf(seen[2]!.render)).toBe(treeOf(fresh.render));
     await Effect.runPromise(Scope.close(scope, Exit.void));
+  });
+});
+
+describe("a state already presented is not presented again (by reference, contract v1: no state equality)", () => {
+  /** Commits `steps` one at a time, each given time to render, and returns how many presentations the stream made after the first draw. */
+  const presentations = async (steps: ReadonlyArray<readonly [string, string]>) => {
+    const scope = await Effect.runPromise(Scope.make());
+    const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
+    let seen = 0;
+
+    Effect.runFork(Stream.runForEach(runningOf(handle).values, () => Effect.sync(() => void seen++)).pipe(Scope.provide(scope)));
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    for (const [name, argument] of steps) {
+      await Effect.runPromise(handle.invoke(`app/${name}`, [{ value: argument }]).pipe(Effect.orDie));
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    await Effect.runPromise(Scope.close(scope, Exit.void));
+
+    return seen - 1;
+  };
+
+  it("two commits of a structurally equal state each render: an equal-valued new state is presented (Effect 4's Equal would call it equal; the dedupe is `===` on purpose)", async () => {
+    // "title" builds a new state object each time: the second sets "U" again, equal by value and not by reference.
+    expect(
+      await presentations([
+        ["title", "U"],
+        ["title", "U"],
+      ]),
+    ).toBe(2);
+  });
+
+  it("a commit that changes one nested field renders", async () => {
+    // "add" changes only `items`, a nested array; the top-level fields are the same values.
+    expect(await presentations([["add", "c"]])).toBe(1);
   });
 });
 

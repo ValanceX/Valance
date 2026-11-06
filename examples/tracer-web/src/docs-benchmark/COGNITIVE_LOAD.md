@@ -27,7 +27,7 @@ Layer: **App** = complexity that belongs to the problem · **FW** = caused by VA
 | 10 | clear the search box from state | "the application cleared the query, so the box is empty" | **it is not**: after `go` cleared the query the state said `""` and the box still showed `"st"` (pinned in `test/docs-benchmark.test.ts`). State and screen disagree, and no application code can fix it | none available | PORT / DOM | Eng | **3** (correctness) |
 | 11 | Back / Forward | "the URL follows the state" | `history: { window, urlOf, stateOf, navigate }`, and `"app/navigate": Valance.entry(go, nav => nav)` because popstate hands over one object; `navigate` is a string key not checked against `go`'s input | `entry`, the `"app/"` key | VALANCE | FW | 2 |
 | 12 | expandable section | "toggle a flag" | a pure command, plus #7 for the conditional | none beyond #7 | none | App | 0 |
-| 13 | **search: loading, results, failure** | "on input: wait, then show the answer or the failure" | `Nexus.Command.define(name, Schema.Struct, body)`, `Effect.gen` and `yield*`, `Effect.tryPromise` with the abort `signal`, `Effect.either`, `state.update(fn)` where `fn` returns an `Effect` (twice), `result._tag === "Right"`, `.right` / `.left` | NEXUS `Command`, Effect | Eng | **3** |
+| 13 | **search: loading, results, failure** | "on input: wait, then show the answer or the failure" | `Nexus.Command.define(name, Schema.Struct, body)`, `Effect.gen` and `yield*`, `Effect.tryPromise` with the abort `signal`, `Effect.result`, `state.update(fn)` where `fn` returns an `Effect` (twice), `result._tag === "Success"`, `.success` / `.failure` | NEXUS `Command`, Effect | Eng | **3** |
 | 14 | overlapping searches | "an older answer must not replace a newer one" | a `ticket` in state, bumped when a search starts, read back from the value `state.update` returns, compared when the answer arrives | the ticket recipe | none beyond #13 | FW | 2 |
 | 15 | a page change supersedes a search | "going to a page closes the search" | with the ticket **in state**, the pure `go` command bumps it: the recipe composes with pure commands. (With the ticket in a closure, as the Learn page shows, `go` needs `Nexus.Command.define` and `Effect.suspend`; see `../items/FRICTION.md` #7) | which place the ticket lives | none | FW | 1 |
 | 16 | server rendering | "render the same application for a URL" | `renderToHtml(app, { primitives, state: stateFor(url) })`, which **returns an `Effect`**, so `Effect.runPromise` is needed at the call; the application needs a search service on the server although it cannot be awaited there | `Effect.runPromise` | Effect | FW | 2 |
@@ -48,7 +48,7 @@ Layer: **App** = complexity that belongs to the problem · **FW** = caused by VA
 
 **A keyed list.** To render one: `mesh-each`, `as`, `key`, a manifest entry, a record shape in `scope` = **5 concepts, all MESH's**.
 
-**Async.** Loading / success / failure: **16 engine-reference occurrences, 12 distinct** in the command (`Nexus.Command.define`, `Effect.gen`, `yield*`, `state.update`, `Effect.succeed`, `Effect.tryPromise`, `Effect.either`, `_tag`, `.right`, `.left`, and the input's `Schema`). Overlapping work: **1** more concept (the ticket) and **0** more engine references when the ticket is state. Engine imports required in `app.ts`: **2** (`@valancex/nexus`, `effect`).
+**Async.** Loading / success / failure: **16 engine-reference occurrences, 12 distinct** in the command (`Nexus.Command.define`, `Effect.gen`, `yield*`, `state.update`, `Effect.succeed`, `Effect.tryPromise`, `Effect.result`, `_tag`, `.success`, `.failure`, and the input's `Schema`). Overlapping work: **1** more concept (the ticket) and **0** more engine references when the ticket is state. Engine imports required in `app.ts`: **2** (`@valancex/nexus`, `effect`).
 
 **SSR.** `renderToHtml`, `stateFor`, the same `primitives` = **3**, one of them an Effect boundary (#16). **Hydration.** `present: "hydrate"` and `state` = **1**.
 
@@ -76,11 +76,11 @@ const search = Nexus.Command.define("docs.search", Schema.Struct({ query: Schema
   const started = yield* state.update((current) => Effect.succeed({ ...current, search: /* loading, or idle, with ticket + 1 */ }));
   if (query.trim() === "") return;
   const mine = started.search.ticket;
-  const result = yield* Effect.tryPromise({ try: (signal) => searchDocs(query, signal), catch: String }).pipe(Effect.either);
+  const result = yield* Effect.tryPromise({ try: (signal) => searchDocs(query, signal), catch: String }).pipe(Effect.result);
   yield* state.update((current) => Effect.succeed(
     current.search.ticket !== mine ? current
-      : result._tag === "Right" ? { ...current, search: { /* done, results: result.right */ } }
-      : { ...current, search: { /* failed, message: result.left */ } }));
+      : result._tag === "Success" ? { ...current, search: { /* done, results: result.success */ } }
+      : { ...current, search: { /* failed, message: result.failure */ } }));
 }));
 ```
 

@@ -12,7 +12,7 @@ import { primitives } from "../src/catalog/web.js";
 
 const { catalog } = inject("page");
 
-export const State = Schema.Struct({ view: Schema.Literal("a", "b"), n: Schema.Number });
+export const State = Schema.Struct({ view: Schema.Literals(["a", "b"]), n: Schema.Number });
 export type State = Schema.Schema.Type<typeof State>;
 export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 export const initial: State = { view: "a", n: 0 };
@@ -58,7 +58,7 @@ export const app = (timeline: Array<string>) => {
                 }),
             );
 
-            return Effect.asVoid(Effect.zipRight(flip, flip));
+            return Effect.asVoid(Effect.andThen(flip, flip));
           }),
           () => ({}),
         ),

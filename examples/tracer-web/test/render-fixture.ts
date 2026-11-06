@@ -51,11 +51,11 @@ export const causeOf = (exit: Exit.Exit<unknown, unknown> | "hung"): "hung" | "s
     ? "hung"
     : Exit.isSuccess(exit)
       ? "success"
-      : Cause.isInterruptedOnly(exit.cause)
+      : Cause.hasInterruptsOnly(exit.cause)
         ? "interrupted"
-        : Cause.isFailType(exit.cause) && (exit.cause.error as { _tag?: string })._tag === "MeshDiagnostics"
+        : Cause.hasFails(exit.cause) && (Cause.squash(exit.cause) as { _tag?: string })._tag === "MeshDiagnostics"
           ? "MeshDiagnostics"
-          : Cause.isDieType(exit.cause)
+          : Cause.hasDies(exit.cause)
             ? "defect"
             : "other";
 
@@ -68,7 +68,7 @@ export const rig = async () => {
   const hooks: { onScope?: () => void } = {};
   const app = definition({ n: 0, bad: false }, hooks);
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(app).pipe(Scope.provide(appScope)));
   const served = await run(renderToHtml(definition({ n: 0, bad: false }), { primitives, state: { n: 0, bad: false } }));
 
   const open = async (kind: Kind, options: { readonly updateThrows?: () => boolean; readonly inUpdate?: () => void; readonly unmountThrows?: () => boolean } = {}) => {
@@ -107,7 +107,7 @@ export const rig = async () => {
         },
       };
     };
-    const mounted = await run((kind === "mount" ? Valance.mount(handle, factory) : Valance.hydrate(handle, factory)).pipe(Scope.extend(scope)));
+    const mounted = await run((kind === "mount" ? Valance.mount(handle, factory) : Valance.hydrate(handle, factory)).pipe(Scope.provide(scope)));
 
     return { container, ops, scope, mounted, label: () => container.querySelector("section")?.getAttribute("aria-label"), close: () => run(Scope.close(scope, Exit.void)) };
   };
@@ -118,12 +118,12 @@ export const rig = async () => {
         Effect.map(mounted.followed, (exit): string =>
           Exit.isSuccess(exit)
             ? "ended"
-            : Cause.isInterruptedOnly(exit.cause)
+            : Cause.hasInterruptsOnly(exit.cause)
               ? "interrupted"
-              : Cause.isFailType(exit.cause)
-                ? `typed ${(exit.cause.error as { _tag: string })._tag}`
-                : Cause.isDieType(exit.cause)
-                  ? `defect ${(exit.cause.defect as Error).message}`
+              : Cause.hasFails(exit.cause)
+                ? `typed ${(Cause.squash(exit.cause) as { _tag: string })._tag}`
+                : Cause.hasDies(exit.cause)
+                  ? `defect ${(Cause.squash(exit.cause) as Error).message}`
                   : "other",
         ),
         Effect.succeed("following"),

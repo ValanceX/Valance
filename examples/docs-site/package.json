@@ -2,7 +2,7 @@
   "name": "@valancex/docs-site",
   "version": "0.0.0",
   "private": true,
-  "description": "A real example: a documentation site (routes, links, search, server rendering, hydration) built on the published @valancex/valance.",
+  "description": "A real example: a documentation site (routes, links, search, server rendering, hydration) built on @valancex/valance, without the CLI.",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -14,15 +14,15 @@
     "start": "node dist/server/serve-main.js"
   },
   "dependencies": {
-    "@valancex/valance": "^0.5.0"
+    "@valancex/valance": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@valancex/mesh-compiler": "^0.18.0",
     "@valancex/mesh-runtime": "^0.18.0",
-    "@valancex/nexus": "^0.10.3",
+    "@valancex/nexus": "^0.18.0",
     "@valancex/port-web": "^0.15.0",
-    "effect": "^3.10.0",
+    "effect": "^4.1.0",
     "playwright": "1.64.1",
     "typescript": "^7.0.2",
     "vite": "7.3.6",

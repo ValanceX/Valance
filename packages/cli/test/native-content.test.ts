@@ -166,11 +166,11 @@ const started = async () => {
   await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
 
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application(content, built.program, author)).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application(content, built.program, author)).pipe(Scope.provide(scope)));
   let tree: RenderTree | undefined;
 
   await Effect.runPromise(
-    Valance.mount(handle, () => ({ draw: (next) => void (tree = next), update: (next) => void (tree = next), unmount: () => undefined })).pipe(Scope.extend(scope)),
+    Valance.mount(handle, () => ({ draw: (next) => void (tree = next), update: (next) => void (tree = next), unmount: () => undefined })).pipe(Scope.provide(scope)),
   );
   await new Promise((resolve) => setTimeout(resolve, 30));
 

@@ -31,7 +31,7 @@ import card from "./card.mprx";
 import badge from "./badge.mprx";
 
 export default defineApp({
-  state: { theme: field(Schema.Literal("light", "dark"), "light") },
+  state: { theme: field(Schema.Literals(["light", "dark"]), "light") },
   context: (state) => ({ theme: state.theme }),
   layout: component(layout),
   components: [component(card), component(badge, { props: {}, events: {}, uses: ["theme"] })],
@@ -63,7 +63,7 @@ export default defineApp({
 
 ## With `define`
 
-`Valance.define` takes the same `context: (state) => values` beside each view's `scope`. The derived manifest takes the values' Schema: `manifest({ ..., context: Schema.Struct({ theme: Schema.Literal("light", "dark") }) })` writes the manifest's top-level `context`. A hand-written manifest declares it directly:
+`Valance.define` takes the same `context: (state) => values` beside each view's `scope`. The derived manifest takes the values' Schema: `manifest({ ..., context: Schema.Struct({ theme: Schema.Literals(["light", "dark"]) }) })` writes the manifest's top-level `context`. A hand-written manifest declares it directly:
 
 ```json
 "context": { "theme": { "kind": "enum", "values": ["light", "dark"] } },

@@ -63,7 +63,7 @@ describe("heterogeneous failures in one command table", () => {
   it("the definition is an ordinary ApplicationDefinition: `start` accepts it and the handle carries exactly the union", () => {
     const three = Valance.define({ name: "three", ...base, commands: () => ({ fetch: offline(), save: saveError(), login: authError() }) });
     const started = (d: typeof three) => Valance.start(d);
-    type HandleErrors = Effect.Effect.Success<ReturnType<typeof started>> extends Valance.ApplicationHandle<any, infer E> ? E : never;
+    type HandleErrors = Effect.Success<ReturnType<typeof started>> extends Valance.ApplicationHandle<any, infer E> ? E : never;
 
     expectTypeOf<HandleErrors>().toEqualTypeOf<Offline | SaveError | AuthError | CVE>();
   });
@@ -83,10 +83,10 @@ describe("heterogeneous failures in one command table", () => {
   it("runtime is unchanged: each command reaches its caller with its own failure value", async () => {
     const app = Valance.define({ name: "run", ...base, commands: () => ({ fetch: offline(), save: saveError() }) });
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
     const failure = async (key: string) => {
       const exit = await Effect.runPromise(Effect.exit(handle.invoke(key, [])));
-      return Exit.isFailure(exit) ? Cause.failureOption(exit.cause) : undefined;
+      return Exit.isFailure(exit) ? Cause.findErrorOption(exit.cause) : undefined;
     };
 
     expect(await failure("app/fetch")).toMatchObject({ _tag: "Some", value: { _tag: "Offline" } });

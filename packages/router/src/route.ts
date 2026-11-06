@@ -9,9 +9,9 @@ export interface RouteConfig<P, Q, S, C> {
   /** The route's name: unique, and what state, redirects and `href` refer to. */
   readonly name: string;
   /** The path parameters. The encoded side is strings (what an address holds); the decoded side is what the application sees. A value that does not decode, or that decodes to something that is not JSON (a `NaN`, a Date), means the route does not match. */
-  readonly params?: Schema.Schema<P, any>;
+  readonly params?: Schema.Codec<P, any>;
   /** The query parameters, the same way. A key that appears more than once arrives as an array of strings. A query that does not decode means the route does not match. */
-  readonly query?: Schema.Schema<Q, any>;
+  readonly query?: Schema.Codec<Q, any>;
   /** The document's title for this route: a string, or a function of its parameters. */
   readonly title?: string | ((context: TitleContext<P, Q>) => string | undefined);
   /** Static facts about the route for guards to read (`{ requires: "admin" }`). */
@@ -52,7 +52,7 @@ export interface Route<P = Record<string, never>, Q = Record<string, never>, S =
  *     const message = route("/inbox/:id", {
  *       name: "message",
  *       params: Schema.Struct({ id: Schema.NumberFromString }),
- *       query: Schema.Struct({ tab: Schema.optional(Schema.Literal("all", "unread")) }),
+ *       query: Schema.Struct({ tab: Schema.optional(Schema.Literals(["all", "unread"])) }),
  *       title: ({ params }) => `Message ${params.id}`,
  *       canDeactivate: ({ state }) => !state.draft.dirty,
  *     });

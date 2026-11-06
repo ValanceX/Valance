@@ -39,7 +39,7 @@ const rig = async (shutdown: Nexus.Runtime.ShutdownOptions | undefined, takes: n
       }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
   });
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app, shutdown === undefined ? {} : { shutdown }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app, shutdown === undefined ? {} : { shutdown }).pipe(Scope.provide(scope)));
   const caller = Effect.runPromise(Effect.exit(handle.invoke("app/slow", [])));
 
   while (!timeline.includes("started")) {
@@ -94,7 +94,7 @@ describe("shutdown.grace", () => {
 
     await closing;
 
-    expect(Exit.isFailure(late) && Cause.isDie(late.cause) && Valance.isValanceError(Cause.squash(late.cause)) && (Cause.squash(late.cause) as { code: string }).code).toBe(
+    expect(Exit.isFailure(late) && Cause.hasDies(late.cause) && Valance.isValanceError(Cause.squash(late.cause)) && (Cause.squash(late.cause) as { code: string }).code).toBe(
       "admission-closed",
     );
     expect(r.timeline).toEqual(["started", "committed", "closed"]);

@@ -23,9 +23,17 @@ beforeAll(async () => {
 
 // A complete Clock (sleep included) that reads `n`.
 const fixed = (n: number): Clock.Clock => {
-  const base = Clock.make();
+  const live = Clock.Clock.defaultValue();
 
-  return Object.assign(Object.create(Object.getPrototypeOf(base) as object) as Clock.Clock, base, { currentTimeMillis: Effect.succeed(n), unsafeCurrentTimeMillis: () => n });
+  return {
+    currentTimeMillis: Effect.succeed(n),
+    currentTimeMillisUnsafe: () => n,
+    currentTimeNanos: live.currentTimeNanos,
+    currentTimeNanosUnsafe: () => live.currentTimeNanosUnsafe(),
+    monotonicTimeNanos: live.monotonicTimeNanos,
+    monotonicTimeNanosUnsafe: () => live.monotonicTimeNanosUnsafe(),
+    sleep: (duration) => live.sleep(duration),
+  };
 };
 
 const container = (html: string): HTMLElement => {
@@ -70,7 +78,7 @@ it("hydrates the server's /about in Chromium, then real clicks cross the program
       callerClocks.push(t);
     }),
   );
-  const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.setClock(fixed(42)));
+  const platform: Nexus.Application.Platform = Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.succeed(Clock.Clock, fixed(42)));
   const button = (index: number) => main.querySelectorAll("button")[index]!;
   const press = (index: number, expected: string) =>
     Effect.promise(async () => {

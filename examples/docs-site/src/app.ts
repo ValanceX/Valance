@@ -11,7 +11,7 @@ import { pages, type Page } from "./content.js";
 
 const Search = Schema.Struct({
   query: Schema.String,
-  status: Schema.Literal("idle", "loading", "done", "failed"),
+  status: Schema.Literals(["idle", "loading", "done", "failed"]),
   results: Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String })),
   message: Schema.String,
 });

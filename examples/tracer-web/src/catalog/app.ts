@@ -13,17 +13,17 @@ export const Item = Schema.Struct({ id: Schema.String, name: Schema.String });
 export type Item = Schema.Schema.Type<typeof Item>;
 const Items = Schema.Array(Item);
 
-export const AppState = Schema.Union(
+export const AppState = Schema.Union([
   Schema.Struct({ view: Schema.Literal("home"), items: Items }),
   Schema.Struct({ view: Schema.Literal("details"), items: Items, selectedId: Schema.String }),
   Schema.Struct({ view: Schema.Literal("not-found"), items: Items }),
-);
+]);
 export type AppState = Schema.Schema.Type<typeof AppState>;
 
 export const initial: AppState = { view: "home", items: [{ id: "A", name: "Alpha" }] };
 
 /** The part of the state a URL carries: where the application is, not what it holds. `items` is not in a URL. */
-export const Navigation = Schema.Struct({ view: Schema.Literal("home", "details", "not-found"), id: Schema.String });
+export const Navigation = Schema.Struct({ view: Schema.Literals(["home", "details", "not-found"]), id: Schema.String });
 export type Navigation = Schema.Schema.Type<typeof Navigation>;
 
 /** The state a navigation leads to, given the data the application holds. An unknown item is the not-found view: the application decides. */

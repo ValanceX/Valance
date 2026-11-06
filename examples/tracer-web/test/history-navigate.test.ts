@@ -39,11 +39,11 @@ const boot = async (navigate: string, commandsOf: (state: Valance.StateHandle<St
     view: () => "only" as const,
     commands: commandsOf as never,
   });
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
 
   await Effect.runPromise(
     Web.history(handle, { window: win, urlOf: ({ place }) => `/place/${place}`, stateOf: (url) => ({ place: url.pathname.slice("/place/".length), step: 1 }), navigate }).pipe(
-      Scope.extend(scope),
+      Scope.provide(scope),
     ),
   );
 

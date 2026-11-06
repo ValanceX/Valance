@@ -71,7 +71,7 @@ const world = async () => {
     },
   });
   const appScope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(appScope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(appScope)));
   const admit = (id: string, kind = "rmw") => Effect.runFork(Effect.exit(handle.invoke("app/work", [{ value: id }, { value: kind }] as never)));
   const state = () => Effect.runPromise(handle.state);
   const until = async (done: () => boolean) => {
@@ -82,9 +82,9 @@ const world = async () => {
       await sleep(5);
     }
   };
-  const exitOf = async (fiber: Fiber.RuntimeFiber<Exit.Exit<unknown, unknown>>): Promise<string> => {
+  const exitOf = async (fiber: Fiber.Fiber<Exit.Exit<unknown, unknown>>): Promise<string> => {
     const e = await Effect.runPromise(Fiber.join(fiber));
-    return Exit.isSuccess(e) ? "success" : Cause.isInterruptedOnly(e.cause) ? "interrupted" : "other";
+    return Exit.isSuccess(e) ? "success" : Cause.hasInterruptsOnly(e.cause) ? "interrupted" : "other";
   };
 
   return { events, reads, gate, admit, state, until, exitOf, appScope, handle, close: () => Effect.runPromise(Scope.close(appScope, Exit.void)) };

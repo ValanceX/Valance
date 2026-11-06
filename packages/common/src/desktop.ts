@@ -99,6 +99,6 @@ export const start = async ({ content, program, author, wasm, assets, theme }: D
       onSite(href)
         ? handle.invoke("app/go", [{ value: (table.stateOf(new URL(href, "http://app.invalid/")) as { readonly id: string }).id }] as never)
         : // an address elsewhere goes to the person's own program for it, when it is one a link may open; anything else is dropped
-          opener.open(href).pipe(Effect.catchAll((error) => Effect.sync(() => console.error(`a link was not opened: ${error.message}`)))),
+          opener.open(href).pipe(Effect.catch((error) => Effect.sync(() => console.error(`a link was not opened: ${error.message}`)))),
   });
 };

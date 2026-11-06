@@ -124,7 +124,7 @@ export const commonSpec = (manager: PackageManager): string => {
  * from the checkout, so a range would install a second copy beside it, and TypeScript refuses a Schema from one copy where the other's is expected.
  */
 export const effectSpec = (manager: PackageManager): string => {
-  const range = own().dependencies["effect"] ?? "^3.10.0";
+  const range = own().dependencies["effect"] ?? "^4.1.0";
   const linked = fileURLToPath(new URL("../common/node_modules/effect", PACKAGE));
 
   return inCheckout() && existsSync(linked) ? `${manager === "pnpm" ? "link" : "file"}:${realpathSync(linked)}` : range;

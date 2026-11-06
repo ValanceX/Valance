@@ -33,7 +33,7 @@ const counting = () => {
   const counts = { acquired: 0, released: 0 };
   const platform: Nexus.Application.Platform = Layer.merge(
     Nexus.Capability.EnvironmentLive(new Map()),
-    Layer.scopedDiscard(
+    Layer.effectDiscard(
       Effect.acquireRelease(
         Effect.sync(() => {
           counts.acquired += 1;
@@ -91,6 +91,7 @@ describe("API tracer: one definition, two shapes", () => {
           p.click(p.rowButton("Beta"));
           yield* Effect.promise(() => until(() => p.container.textContent?.startsWith("Item B: Beta") === true));
           expect(p.container.firstElementChild).not.toBe(section);
+          yield* Effect.promise(() => until(() => writes.length === 1)); // the render and the history write follow the state independently: neither is promised to come first
           expect(writes).toEqual(["push /items/B"]);
 
           // The browser's Back: popstate enters through the application's binding; home is drawn afresh; the data outlived the view.
@@ -138,6 +139,7 @@ describe("API tracer: one definition, two shapes", () => {
           p.click(p.rowButton("Beta"));
           yield* Effect.promise(() => until(() => p.container.textContent?.startsWith("Item B: Beta") === true));
           expect(p.container.firstElementChild).not.toBe(section);
+          yield* Effect.promise(() => until(() => writes.length === 1));
           expect(writes).toEqual(["push /items/B"]);
 
           // The platform-originated entry: popstate. It is the only way something outside MESH reaches the application here.

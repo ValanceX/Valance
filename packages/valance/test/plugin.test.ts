@@ -1,7 +1,7 @@
 // The plugin contract (`./web/plugin`): composition and its conflicts, the platform merge, the head as HTML and as DOM, delivery, and the three entry points that take plugins
 // (`manifest`, `renderToHtml`, and, in examples/tracer-web, `Web.run`). Pure unless a test says otherwise.
 import * as Nexus from "@valancex/nexus";
-import { Cause, Effect, Exit, Layer, Option, Schema } from "effect";
+import { Cause, Effect, Exit, Layer, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { isValanceError } from "../src/errors.js";
@@ -82,7 +82,7 @@ describe("the platform merge", () => {
           return yield* Nexus.Capability.require(capability).pipe(
             Effect.provide(context),
             Effect.map((value) => value.who),
-            Effect.catchAll((error) => Effect.succeed(`unavailable: ${error.id}`)),
+            Effect.catch((error) => Effect.succeed(`unavailable: ${error.id}`)),
           );
         }),
       ),
@@ -110,7 +110,7 @@ describe("the platform merge", () => {
   it("releases what each platform acquired when the merged platform ends, the last acquired first", async () => {
     const log: Array<string> = [];
     const acquiring = (name: string): Nexus.Application.Platform =>
-      Layer.scoped(
+      Layer.effect(
         Nexus.Capability.Environment,
         Effect.acquireRelease(
           Effect.sync(() => {
@@ -428,6 +428,6 @@ describe("manifest and renderToHtml take plugins", () => {
     );
 
     expect(Exit.isFailure(exit)).toBe(true);
-    expect(Exit.isFailure(exit) && Option.isSome(Cause.dieOption(exit.cause)) && isValanceError(Cause.dieOption(exit.cause).pipe(Option.getOrThrow))).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasDies(exit.cause) && isValanceError(Cause.squash(exit.cause))).toBe(true);
   });
 });

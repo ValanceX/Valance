@@ -7,12 +7,12 @@ import { defineApp, field } from "../src/index.js";
 
 it("types a context value by the layout name it is given under", () => {
   const ok = defineApp({
-    state: { theme: field(Schema.Literal("light", "dark"), "light") },
+    state: { theme: field(Schema.Literals(["light", "dark"]), "light") },
     context: (state) => ({ theme: state.theme, colorScheme: state.colorScheme, open: 1 }),
   });
 
   defineApp({
-    state: { theme: field(Schema.Literal("light", "dark"), "light") },
+    state: { theme: field(Schema.Literals(["light", "dark"]), "light") },
     // @ts-expect-error: `theme` is "light" | "dark", not a number
     context: () => ({ theme: 3 }),
   });

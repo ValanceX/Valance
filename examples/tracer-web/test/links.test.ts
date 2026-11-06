@@ -79,6 +79,7 @@ describe("a plain left click on a link is the application's navigation", () => {
     expect(p.title()).toBe("page home");
     expect(await p.click(p.anchor("About"))).toBe(true);
     await until(() => p.title() === "page about");
+    await until(() => p.win.location.pathname === "/app/about"); // the render and the URL write follow the state independently: neither is promised to come first
     expect(p.win.location.pathname).toBe("/app/about");
     expect(p.browserNavigations).toEqual([]);
 
@@ -182,10 +183,10 @@ describe("the browser keeps every other click", () => {
   it("without a container, links are ordinary anchors (the pre-existing behavior); and after stop, the application no longer takes them", async () => {
     const p = page("http://localhost/app/home");
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(application()).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(application()).pipe(Scope.provide(scope)));
 
-    await Effect.runPromise(Valance.mount(handle, Web.target({ container: p.container, primitives })).pipe(Scope.extend(scope)));
-    await Effect.runPromise(Web.history(handle, { window: p.win, urlOf, stateOf, navigate: "go" }).pipe(Scope.extend(scope))); // no `container`
+    await Effect.runPromise(Valance.mount(handle, Web.target({ container: p.container, primitives })).pipe(Scope.provide(scope)));
+    await Effect.runPromise(Web.history(handle, { window: p.win, urlOf, stateOf, navigate: "go" }).pipe(Scope.provide(scope))); // no `container`
     expect(await p.click(p.anchor("About"))).toBe(false);
     expect(p.title()).toBe("page home");
     await Effect.runPromise(Scope.close(scope, Exit.void));

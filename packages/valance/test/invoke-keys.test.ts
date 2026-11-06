@@ -37,14 +37,14 @@ const spread = Valance.define({
 const started = async <K extends string>(definition: Valance.ApplicationDefinition<State, any, never, "main", K>) => {
   const scope = await Effect.runPromise(Scope.make());
 
-  return { handle: await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope))), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
+  return { handle: await Effect.runPromise(Valance.start(definition).pipe(Scope.provide(scope))), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
 };
 
 describe("invoke's key, from the command table", () => {
   it("names the table's keys (what an editor completes) and still takes any string", () => {
-    type Key = Parameters<Effect.Effect.Success<ReturnType<typeof Valance.start<State, any, never, "main", "app/add" | "app/reset">>>["invoke"]>[0];
+    type Key = Parameters<Effect.Success<ReturnType<typeof Valance.start<State, any, never, "main", "app/add" | "app/reset">>>["invoke"]>[0];
     // `define` gives `start` exactly the table's keys
-    type Inferred = Parameters<Effect.Effect.Success<ReturnType<typeof startApp>>["invoke"]>[0];
+    type Inferred = Parameters<Effect.Success<ReturnType<typeof startApp>>["invoke"]>[0];
     const startApp = () => Valance.start(app);
 
     expectTypeOf<Inferred>().toEqualTypeOf<Key>();

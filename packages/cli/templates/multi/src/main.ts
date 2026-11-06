@@ -9,7 +9,7 @@ import webLayout from "./web/layout.mprx";
 // unless it is imported here and listed.
 export default defineApp({
   state: {
-    theme: field(Schema.Literal("light", "dark"), "light"), // the web layout's
+    theme: field(Schema.Literals(["light", "dark"]), "light"), // the web layout's
     navigation: field(Schema.Boolean, true), // the desktop layout's
   },
   commands: (command) => ({

@@ -29,7 +29,7 @@ export const reportMountEnd = (mounted: Valance.Mounted<unknown>): Effect.Effect
     Effect.gen(function* () {
       if (Exit.isSuccess(exit)) {
         yield* Effect.logWarning("the application ended; the page is inert");
-      } else if (Cause.isInterruptedOnly(exit.cause)) {
+      } else if (Cause.hasInterruptsOnly(exit.cause)) {
         return;
       } else {
         yield* Effect.logError("the page stopped following the application", Cause.pretty(exit.cause));
@@ -37,7 +37,7 @@ export const reportMountEnd = (mounted: Valance.Mounted<unknown>): Effect.Effect
 
       yield* mounted.settled;
       const outcomes = mounted.dispatched;
-      const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.isInterruptedOnly(outcome.cause));
+      const failed = outcomes.filter((outcome) => Exit.isFailure(outcome) && !Cause.hasInterruptsOnly(outcome.cause));
 
       yield* Effect.logInfo(
         `event commands in this mount: ${outcomes.filter(Exit.isSuccess).length} succeeded, ${failed.length} failed, ${outcomes.length - outcomes.filter(Exit.isSuccess).length - failed.length} interrupted`,

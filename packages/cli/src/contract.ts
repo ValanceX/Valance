@@ -8,7 +8,7 @@ import { isField, isSnippet } from "@valancex/common";
 
 import type { Node } from "./tree.js";
 
-type SchemaOf = Schema.Schema<any, any, never>;
+type SchemaOf = Schema.Codec<any, any, never>;
 
 /** The model's entry for a component: exactly the interface it declares. */
 export interface Entry {
@@ -49,7 +49,7 @@ const reasonOf = (error: unknown): string => {
 };
 
 /** No payload: the schema of nothing. */
-const isEmpty = (schema: SchemaOf): boolean => ["VoidKeyword", "UndefinedKeyword"].includes(schema.ast._tag);
+const isEmpty = (schema: SchemaOf): boolean => ["Void", "Undefined"].includes(schema.ast._tag);
 
 /** The entry a declared interface makes, and every schema in it that has no model type. */
 export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly entry: Entry; readonly problems: ReadonlyArray<Problem> } => {
@@ -83,7 +83,8 @@ export const entryOf = (declared: NonNullable<Node["interface"]>): { readonly en
         throw new Error("`children` is reserved for the content between the component's tags: declare it `snippet()`");
       }
 
-      const schema = isField(declaration) ? declaration.schema : declaration;
+      // Asked of the schema rather than the field: `isField` narrows to `Field<unknown>`, which does not take the `Field<any>` out of the other branch.
+      const schema = Schema.isSchema(declaration) ? declaration : declaration.schema;
       const type = typeOf(schema);
       const optional = type.kind === "optional";
 

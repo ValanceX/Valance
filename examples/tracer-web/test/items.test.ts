@@ -36,7 +36,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 const headless = async () => {
   const s = service();
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application(programs, s.fetchDetail)).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application(programs, s.fetchDetail)).pipe(Scope.provide(scope)));
   const state = (): Promise<AppState> => Effect.runPromise(handle.state);
   // An invoked command that waits is awaited by its caller: the host runs it as a fiber of the application's own Scope and does not wait here.
   const invoke = (key: string, args: Parameters<typeof handle.invoke>[1]) => Effect.runPromise(Effect.forkIn(Effect.exit(handle.invoke(key, args)), scope));
@@ -207,6 +207,7 @@ describe("the browser: hydrate a server-rendered detail, then use it", () => {
 
     p.click("Alpha");
     await until(() => s.calls.length === 1 && p.texts()[1] === "Loading…");
+    await until(() => p.win.location.search !== ""); // the render and the URL write follow the state independently: Back needs the entry to go back from
     p.win.history.back();
     await until(() => p.buttons().join() === "Alpha,Beta,Gamma");
     s.calls[0]!.resolve("alpha text");

@@ -107,7 +107,7 @@ The [full learning path](docs/tutorials/README.md) has a table of common tasks. 
 ## Examples
 
 - [`examples/docs-app`](examples/docs-app): the application model in about 200 authored lines: content, a layout, a component, a stylesheet.
-- [`examples/docs-site`](examples/docs-site): a runnable app on the published `@valancex/valance` package, without the CLI: links, search, URLs, server rendering and hydration.
+- [`examples/docs-site`](examples/docs-site): a runnable app on `@valancex/valance`, without the CLI: links, search, URLs, server rendering and hydration.
 - [`examples/todo-multi`](examples/todo-multi): one to-do application for the web and a native window: shared state, commands and components, each target's own layout.
 - [`examples/todo`](examples/todo): a native desktop application written directly on `Native.run`.
 - [`examples/tracer-web`](examples/tracer-web): the contract test suite (lifetimes, hydration, history, failure), with small fixture apps. It is the evidence behind the contract, not a model application.

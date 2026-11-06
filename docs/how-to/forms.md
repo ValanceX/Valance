@@ -12,9 +12,9 @@ One description of what is valid: the schema the submitted command takes. `Form.
 
 ```ts
 const Signup = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(2)).annotations({ title: "Name", message: () => "Enter at least 2 characters" }),
-  age: Schema.NumberFromString.pipe(Schema.int(), Schema.between(18, 120)).annotations({ title: "Age", message: () => "Enter a whole number from 18 to 120" }),
-  accept: Schema.Literal(true).annotations({ title: "I accept the terms", message: () => "You must accept the terms" }),
+  name: Schema.String.check(Schema.isMinLength(2)).annotate({ title: "Name", message: "Enter at least 2 characters" }),
+  age: Schema.NumberFromString.check(Schema.isInt(), Schema.isBetween({ minimum: 18, maximum: 120 })).annotate({ title: "Age", message: "Enter a whole number from 18 to 120" }),
+  accept: Schema.Literal(true).annotate({ title: "I accept the terms", message: "You must accept the terms" }),
 });
 const signup = Form.make(Signup);
 
@@ -46,7 +46,7 @@ That is the whole form: 24 lines of schema, wiring and template, and no validati
 - **What a field holds** is the text typed (a yes or no for a boolean), whether the person has left it, and a server's message. A number is typed as text and decoded by the schema (`NumberFromString`).
 - **When an error is shown:** when the field is wrong and the person has left it once, or tried to submit. Not at the first keystroke. Once shown it follows the typing and clears the moment the text is right. A failed submit touches every field, and `form.message` says how many need attention (for a live region).
 - **One message per field**, in your words: the `message` annotation of the check, else of the field, else the `message` function, else a plain sentence (never the schema's developer text, and never the typed text of a secret).
-- **A rule across fields** is a `Schema.filter` on the struct that reports at a path: `{ path: ["confirm"], message: "Passwords must match" }`. It runs once the fields are valid, so it shows after the rest is right.
+- **A rule across fields** is a `Schema.makeFilter` check on the struct that reports at a path: `{ path: ["confirm"], issue: "Passwords must match" }`. It runs once the fields are valid, so it shows after the rest is right.
 - **A secret** (`Schema.Redacted`) is a `password` field, never repeated in a message, and never in a draft.
 - **A server's answer.** A check the client cannot make reaches the field with `Form.fieldErrors({ name: "That name is taken" })` and `form.reject(state, errors)`; editing the field clears it.
 - **A draft** (`form.draft(state)`, `form.restore(draft)`) is what was typed, without secrets, for a library to keep; one made for another schema is not restored.
@@ -56,7 +56,7 @@ That is the whole form: 24 lines of schema, wiring and template, and no validati
 
 A form is a model, not a primitive: `textfield`, `checkbox`, `radiogroup`, `text` and `button`. `describedby` names the message element, which is always drawn (empty when there is no message), because a primitive's relation prop cannot be left out of a template that may or may not have a value; an empty `aria-describedby` is an error in HTML (the Nu Html Checker says so).
 
-**A closed set** (`Schema.Literal("small", "medium", "large")`) is a field of kind `choice`, with its values in `f.choices`. Draw it as a `radiogroup` with one `radio` for each, and choose with `edit`:
+**A closed set** (`Schema.Literals(["small", "medium", "large"])`) is a field of kind `choice`, with its values in `f.choices`. Draw it as a `radiogroup` with one `radio` for each, and choose with `edit`:
 
 ```html
 {#if f.kind == "choice"}<radiogroup label={f.title} invalid={f.invalid} describedby={f.errorId}>{#each f.choices as c (c)}<radio label={c} value={c} checked={f.value == c} on.select={edit(f.name, $event)} />{/each}</radiogroup>{/if}

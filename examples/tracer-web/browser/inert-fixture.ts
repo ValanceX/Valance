@@ -38,7 +38,7 @@ export const label = (root: Element): string | null | undefined => root.querySel
 export const following = (mounted: Valance.Mounted<unknown>) =>
   Effect.runPromise(
     Effect.race(
-      Effect.map(mounted.followed, (exit) => (Exit.isSuccess(exit) ? "ended" : Cause.isDieType(exit.cause) ? "failed: defect" : "failed: diagnostics")),
+      Effect.map(mounted.followed, (exit) => (Exit.isSuccess(exit) ? "ended" : Cause.hasDies(exit.cause) ? "failed: defect" : "failed: diagnostics")),
       Effect.succeed("following"),
     ),
   );

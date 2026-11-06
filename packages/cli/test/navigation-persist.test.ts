@@ -67,7 +67,7 @@ const running = async <A>(
   const platform = platformOf([[Store, webStore("Test", area)], ...(owner === "engine" ? [[Navigation, { owner: "engine" as const }] as const] : [])]);
 
   try {
-    return await use(await Effect.runPromise(Valance.start(app, { platform }).pipe(Scope.extend(scope))));
+    return await use(await Effect.runPromise(Valance.start(app, { platform }).pipe(Scope.provide(scope))));
   } finally {
     await Effect.runPromise(Scope.close(scope, Exit.void));
   }

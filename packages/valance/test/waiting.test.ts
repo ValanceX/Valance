@@ -8,7 +8,7 @@ import * as Valance from "../src/index.js";
 import { renderToHtml } from "../src/web-server.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
-const State = Schema.Struct({ page: Schema.String, query: Schema.String, status: Schema.Literal("idle", "loading", "done", "failed"), result: Schema.String });
+const State = Schema.Struct({ page: Schema.String, query: Schema.String, status: Schema.Literals(["idle", "loading", "done", "failed"]), result: Schema.String });
 type State = typeof State.Type;
 const initial: State = { page: "a", query: "", status: "idle", result: "" };
 
@@ -75,7 +75,7 @@ const app = (work: (query: string, signal: AbortSignal) => Promise<string>, opti
 const headless = async (options: Parameters<typeof app>[1] = {}) => {
   const s = service();
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app(s.work, options)).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app(s.work, options)).pipe(Scope.provide(scope)));
   const state = () => Effect.runPromise(handle.state) as Promise<State>;
   /**
    * Starts a run and returns its CALLER's fiber, so what the caller observes can be read. The caller is outside the application's Scope (a host page, a test), as a real caller is:
@@ -140,7 +140,7 @@ describe("loading, success, failure: ordinary state", () => {
       }),
     });
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(s).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(s).pipe(Scope.provide(scope)));
 
     await Effect.runPromise(handle.invoke("app/search", [{ value: "x" }]));
     expect(await Effect.runPromise(handle.state)).toMatchObject({ status: "failed", result: "sync" });
@@ -256,7 +256,7 @@ describe("interruption is not success, and the application's close", () => {
     expect(await t.state()).toMatchObject({ status: "loading" }); // the state stays readable, exactly as the last commit left it
     const exit = await t.exitOf(caller);
 
-    expect(Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true);
     expect(Exit.isSuccess(exit)).toBe(false);
   });
 
@@ -319,7 +319,7 @@ describe("when the author's own functions misbehave", () => {
     await settle();
     const exit = await t.exitOf(caller);
 
-    expect(Exit.isFailure(exit) && Cause.isDie(exit.cause)).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasDies(exit.cause)).toBe(true);
     expect(await t.state()).toMatchObject({ status: "loading" });
     await t.close();
   });

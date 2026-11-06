@@ -21,7 +21,7 @@ const attempt = async (v: Variant) => {
   const doc = new JSDOM(`<!doctype html><body></body>`, { url: "http://localhost/" }).window.document;
   const scope = await run(Scope.make());
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(definition(v.initial)).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(definition(v.initial)).pipe(Scope.provide(appScope)));
   const container = doc.createElement("main");
   const ops: Array<string> = [];
 
@@ -67,11 +67,7 @@ const attempt = async (v: Variant) => {
   };
   const effect = v.kind === "mount" ? Valance.mount(handle, factory) : Valance.hydrate(handle, factory);
   const exit = await Effect.runPromise(
-    effect.pipe(
-      Scope.extend(scope),
-      Effect.exit,
-      Effect.timeoutTo({ duration: "800 millis", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "hung", onTimeout: () => "hung" as const }),
-    ),
+    effect.pipe(Scope.provide(scope), Effect.exit, Effect.timeoutOrElse({ duration: "800 millis", orElse: () => Effect.succeed("hung" as const) })),
   );
 
   await sleep(40);
@@ -118,7 +114,7 @@ for (const kind of ["mount", "hydrate"] as const) {
       await run(failed.handle.invoke("app/fix", []));
       const fresh = await run(Scope.make());
       const effect = kind === "mount" ? Valance.mount(failed.handle, failed.factory) : Valance.hydrate(failed.handle, failed.factory);
-      const exit = await Effect.runPromise(Effect.exit(effect.pipe(Scope.extend(fresh))));
+      const exit = await Effect.runPromise(Effect.exit(effect.pipe(Scope.provide(fresh))));
 
       expect(causeOf(exit)).toBe("success");
       expect(failed.ops).toEqual([kind === "mount" ? "draw" : "hydrate"]); // only the fresh attempt acted
@@ -143,6 +139,6 @@ describe("hydrate: a mismatch is not a failure", () => {
     expect(causeOf(r.exit)).toBe("success");
     expect(r.ops).toEqual(["hydrate"]);
     expect(r.container.querySelector("section")?.getAttribute("aria-label")).toBe("n0"); // the client's render, not the server's
-    expect((r.exit as Exit.Exit<{ hydration: { adopted: boolean } }, unknown> & { value: { hydration: { adopted: boolean } } }).value.hydration.adopted).toBe(false);
+    expect((r.exit as unknown as Exit.Success<{ hydration: { adopted: boolean } }, unknown>).value.hydration.adopted).toBe(false);
   });
 });

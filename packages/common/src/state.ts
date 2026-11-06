@@ -48,6 +48,6 @@ export const badDefaults = (author: DefinedApp | undefined): ReadonlyArray<strin
   }
 
   return Object.entries(state.schema.fields)
-    .filter(([name, schema]) => !Schema.is(schema as Schema.Schema<unknown>)(state.initial[name]))
+    .filter(([name, schema]) => !Schema.is(schema as Schema.Codec<unknown>)(state.initial[name]))
     .map(([name]) => name);
 };

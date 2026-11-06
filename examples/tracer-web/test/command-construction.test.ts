@@ -16,18 +16,18 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { textTarget } from "./non-dom-target.js";
 
 // ---- prototype -------------------------------------------------------------------------------------------------------------------------------------
-type Fields = Record<string, Schema.Schema.All>;
+type Fields = Record<string, Schema.Top>;
 /** A command declared without a state handle: what `command(...)` returns. The class IS the brand: `instanceof` is the whole discrimination. */
 class Declared<S, I> {
   constructor(
-    readonly input: Schema.Schema<any> | undefined,
+    readonly input: Schema.Codec<any> | undefined,
     readonly transition: (input: I, state: S) => S,
   ) {}
 }
 function command<S>(transition: (state: S) => S): Declared<S, void>;
 function command<S, F extends Fields>(input: Schema.Struct<F>, transition: (input: Schema.Struct.Type<F>, state: S) => S): Declared<S, Schema.Struct.Type<F>>;
 function command(a: unknown, b?: unknown): unknown {
-  return b === undefined ? new Declared(undefined, (_input: unknown, state: unknown) => (a as (s: unknown) => unknown)(state)) : new Declared(a as Schema.Schema<any>, b as never);
+  return b === undefined ? new Declared(undefined, (_input: unknown, state: unknown) => (a as (s: unknown) => unknown)(state)) : new Declared(a as Schema.Codec<any>, b as never);
 }
 type Entry<S, E, R extends Valance.Ambient> = Valance.CommandTable<E, R>[string] | Declared<S, any>;
 /** Resolve declared commands against the application's state, then hand the ordinary table to the real `define`. */
@@ -75,7 +75,7 @@ const program: Mesh.Program = (
   })
 ).program!;
 
-const State = Schema.Struct({ count: Schema.Number, phase: Schema.Literal("idle", "loading", "ready", "failed") });
+const State = Schema.Struct({ count: Schema.Number, phase: Schema.Literals(["idle", "loading", "ready", "failed"]) });
 type State = typeof State.Type;
 const views = { counter: { program, scope: ({ count, phase }: State) => ({ label: `Count: ${count} (${phase})`, step: 5 }) } };
 
@@ -121,12 +121,12 @@ const declared = defineA({
           const feed = yield* Nexus.Capability.require(Feed).pipe(Effect.orDie); // NOTE: a table cannot mix commands that fail DIFFERENTLY (see the report); one failure type per table
 
           yield* state.update((s) => Effect.succeed({ ...s, phase: "loading" as const }));
-          const result = yield* feed.get.pipe(Effect.either);
+          const result = yield* feed.get.pipe(Effect.result);
 
           if (mine !== latest) {
             return;
           }
-          yield* state.update((s) => Effect.succeed(result._tag === "Right" ? { count: result.right, phase: "ready" as const } : { ...s, phase: "failed" as const }));
+          yield* state.update((s) => Effect.succeed(result._tag === "Success" ? { count: result.success, phase: "ready" as const } : { ...s, phase: "failed" as const }));
         }),
       ),
       "app/reset": Valance.entry(
@@ -172,11 +172,11 @@ const world = () => {
 const boot = async (definition: typeof declared = declared) => {
   const w = world();
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(definition, { platform: w.platform }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(definition, { platform: w.platform }).pipe(Scope.provide(scope)));
   const factory = textTarget();
   let screen!: ReturnType<typeof factory>;
 
-  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
 
   return {
     ...w,
@@ -235,7 +235,7 @@ describe("A: declared commands on the real runtime", () => {
       ),
     );
 
-    expect(Exit.isFailure(missing) && Cause.failureOption(missing.cause)).toMatchObject({ _tag: "Some", value: { _tag: "ConformanceViolation" } });
+    expect(Exit.isFailure(missing) && Cause.findErrorOption(missing.cause)).toMatchObject({ _tag: "Some", value: { _tag: "ConformanceViolation" } });
   });
 
   it("safety: cancellation on close still interrupts the async command in the same table", async () => {
@@ -317,7 +317,7 @@ function bound<S>(state: Nexus.State.StateHandle<S>) {
     transition: (input: Schema.Struct.Type<F>, current: S) => S,
   ): Nexus.Command.Command<Schema.Struct.Type<F>, void, never, never>;
   function command(a: unknown, b?: unknown): unknown {
-    return b === undefined ? make(Schema.Struct({}), (_input, current) => (a as (s: S) => S)(current)) : make(a as Schema.Schema<any>, b as never);
+    return b === undefined ? make(Schema.Struct({}), (_input, current) => (a as (s: S) => S)(current)) : make(a as Schema.Codec<any>, b as never);
   }
 
   return command;
@@ -342,11 +342,11 @@ describe("A': the curried constructor with a no-input form", () => {
 
   it("types and runs on the real runtime: a click, an argumented click, wrong input rejected", async () => {
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(prime).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(prime).pipe(Scope.provide(scope)));
     const factory = textTarget();
     let screen!: ReturnType<typeof factory>;
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (screen = factory(report))).pipe(Scope.provide(scope)));
     screen.activate("Increment");
     await until(() => screen.screen().includes("Count: 1"));
     screen.activate("Add");

@@ -18,7 +18,7 @@ const author = defineApp({
 
 describe("derived values", () => {
   it("are names the layout reads, with their types, beside the state's fields", () => {
-    const accepts = Schema.is(scopeSchema(author) as Schema.Schema<unknown>);
+    const accepts = Schema.is(scopeSchema(author) as Schema.Codec<unknown>);
     const known = frame(content, "/", "expanded");
 
     // a scope without the derived names, or with one of the wrong type, is not a scope of this application

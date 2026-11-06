@@ -6,8 +6,8 @@
     "budgets": [
       {
         "type": "initial",
-        "warning": 105200,
-        "error": 210400
+        "warning": 74404,
+        "error": 148808
       },
       {
         "type": "runtime",
@@ -24,9 +24,9 @@
         "what": "Counter application, JavaScript, brotli",
         "path": "counter.deduped.js.brotli",
         "unit": "bytes",
-        "baseline": 93722,
-        "ceiling": 98500,
-        "previousCeiling": 92400,
+        "baseline": 67049,
+        "ceiling": 67584,
+        "previousCeiling": 98500,
         "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
@@ -52,9 +52,9 @@
         "what": "Counter application, everything the browser transfers, brotli",
         "path": "browser.deduped.noThrottling.bytesTransferredBrotli",
         "unit": "bytes",
-        "baseline": 279594,
-        "ceiling": 293600,
-        "previousCeiling": 274100,
+        "baseline": 257311,
+        "ceiling": 258048,
+        "previousCeiling": 293600,
         "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
@@ -62,9 +62,9 @@
         "what": "docs-app, JavaScript, brotli",
         "path": "docsApp.js.brotli",
         "unit": "bytes",
-        "baseline": 98520,
-        "ceiling": 103500,
-        "previousCeiling": 97400,
+        "baseline": 71997,
+        "ceiling": 72704,
+        "previousCeiling": 103500,
         "analysis": "docs/explanation/evidence/measurement/size-2026-10-24.md"
       },
       {
@@ -89,8 +89,8 @@
         "what": "Counter, JavaScript heap after 200 updates",
         "path": "browser.deduped.noThrottling.afterUpdates.jsHeapUsedBytes",
         "unit": "bytes",
-        "baseline": 4575160,
-        "ceiling": 4630800,
+        "baseline": 2973128,
+        "ceiling": 3021824,
         "previousCeiling": 4630800,
         "note": "W24: the 1,000-update heap gate stays off"
       },

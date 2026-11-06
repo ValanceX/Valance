@@ -41,12 +41,11 @@ describe("the web host (`run`) and the end of a mount", () => {
     const win = new JSDOM(`<!doctype html><html><body><main></main></body></html>`, { url: "http://localhost/" }).window;
     const container = win.document.querySelector("main")!;
     const logs: Array<string> = [];
-    const logger = Logger.replace(
-      Logger.defaultLogger,
+    const logger = Logger.layer([
       Logger.make(({ logLevel, message }) => {
-        logs.push(`${logLevel.label}: ${String(message).split("\n")[0]}`);
+        logs.push(`${logLevel.toUpperCase()}: ${String(message).split("\n")[0]}`);
       }),
-    );
+    ]);
     const click = () => container.querySelector("button")!.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
 
     await Effect.runPromise(

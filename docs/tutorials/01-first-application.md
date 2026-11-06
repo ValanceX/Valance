@@ -73,7 +73,7 @@ export default defineApp({
   layout: component(layout),
   components: [themeToggle],
   state: {
-    theme: field(Schema.Literal("light", "dark"), "light"),
+    theme: field(Schema.Literals(["light", "dark"]), "light"),
   },
   commands: (command) => ({
     toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
@@ -85,7 +85,7 @@ export default defineApp({
 
 ```ts
   state: {
-    theme: field(Schema.Literal("light", "dark"), "light"),
+    theme: field(Schema.Literals(["light", "dark"]), "light"),
     count: field(Schema.Number, 0),
   },
   commands: (command) => ({

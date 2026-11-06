@@ -1,6 +1,6 @@
 // A command that races a shutdown can tell a refusal from a bug by a stable code, whichever layer refused it (NEXUS's `Runtime.Refusal`, or VALANCE's own drain).
 import * as Nexus from "@valancex/nexus";
-import { Cause, Deferred, Effect, Exit, Layer, Option, Schema, Scope } from "effect";
+import { Cause, Deferred, Effect, Exit, Layer, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
@@ -8,7 +8,7 @@ import { eventFreeProgram } from "./event-free-program.js";
 
 const State = Schema.Struct({ n: Schema.Number });
 
-const defectOf = (exit: Exit.Exit<unknown, unknown>): unknown => (Exit.isFailure(exit) ? Option.getOrUndefined(Cause.dieOption(exit.cause)) : undefined);
+const defectOf = (exit: Exit.Exit<unknown, unknown>): unknown => (Exit.isFailure(exit) ? (Cause.hasDies(exit.cause) ? Cause.squash(exit.cause) : undefined) : undefined);
 
 describe("refusals", () => {
   it("work refused while the application drains, and after it has closed, is a refusal with a stable code; a bug is not", async () => {
@@ -32,7 +32,7 @@ describe("refusals", () => {
     });
     const scope = await Effect.runPromise(Scope.make());
     const handle = await Effect.runPromise(
-      Valance.start(application, { platform: Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.empty) }).pipe(Scope.extend(scope)),
+      Valance.start(application, { platform: Layer.merge(Nexus.Capability.EnvironmentLive(new Map()), Layer.empty) }).pipe(Scope.provide(scope)),
     );
 
     Effect.runFork(handle.invoke("app/hold", []));

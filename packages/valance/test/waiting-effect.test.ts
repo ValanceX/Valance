@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import * as Valance from "../src/index.js";
 import { eventFreeProgram } from "./event-free-program.js";
 
-const State = Schema.Struct({ query: Schema.String, status: Schema.Literal("idle", "loading", "done", "failed"), result: Schema.String, failure: Schema.String });
+const State = Schema.Struct({ query: Schema.String, status: Schema.Literals(["idle", "loading", "done", "failed"]), result: Schema.String, failure: Schema.String });
 type State = typeof State.Type;
 
 const Lookup = Nexus.Capability.define<{ readonly find: (query: string) => Promise<string> }>("test/lookup");
@@ -43,7 +43,7 @@ const platform = (find: (query: string) => Promise<string>): Nexus.Application.P
 
 const run = async (work: Parameters<typeof app>[0], find?: (query: string) => Promise<string>) => {
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app(work), find === undefined ? {} : { platform: platform(find) }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app(work), find === undefined ? {} : { platform: platform(find) }).pipe(Scope.provide(scope)));
 
   return {
     state: () => Effect.runPromise(handle.state) as Promise<State>,
@@ -150,7 +150,7 @@ describe("an Effect as the work of a waiting command", () => {
     const exit = await Effect.runPromise(Fiber.join(caller));
 
     expect(interrupted).toBe(true);
-    expect(Exit.isFailure(exit) && Cause.isInterruptedOnly(exit.cause)).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(true);
     expect(await t.state()).toMatchObject({ status: "loading" });
   });
 });

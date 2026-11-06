@@ -13,7 +13,7 @@ const BASIC = { "content/index.md": PAGE("Home", "Text."), "content/guide/a.md":
 const LAYOUT = (inner: string): string => `<shell class="x" theme="light">${inner}</shell>`;
 const BADGE = '<span class="b">{tone}</span>';
 const main = (props: string): string =>
-  `import { component, defineApp, field } from "@valancex/common";\nimport { Schema } from "effect";\nimport layout from "./layout.mprx";\nimport badge from "./badge.mprx";\n\nconst Tone = Schema.Literal("info", "danger");\n\nexport default defineApp({\n  layout: component(layout),\n  components: [component(badge, { props: ${props} })],\n});\n`;
+  `import { component, defineApp, field } from "@valancex/common";\nimport { Schema } from "effect";\nimport layout from "./layout.mprx";\nimport badge from "./badge.mprx";\n\nconst Tone = Schema.Literals(["info", "danger"]);\n\nexport default defineApp({\n  layout: component(layout),\n  components: [component(badge, { props: ${props} })],\n});\n`;
 const codes = async (files: Record<string, string>): Promise<ReadonlyArray<string>> =>
   (await check(project({ ...BASIC, "src/badge.mprx": BADGE, ...files }))).diagnostics.map(({ file, line, code }) => `${file}:${line} ${code}`);
 
@@ -23,8 +23,8 @@ describe("the model a contract makes", () => {
     const { field } = await import("@valancex/common");
     const { entry, problems } = entryOf({
       props: {
-        tone: field(Schema.Literal("info", "danger"), "info"),
-        shade: Schema.UndefinedOr(Schema.Literal("light", "dark")),
+        tone: field(Schema.Literals(["info", "danger"]), "info"),
+        shade: Schema.UndefinedOr(Schema.Literals(["light", "dark"])),
         title: Schema.String,
         size: field(Schema.UndefinedOr(Schema.Number), 3),
       },
@@ -50,14 +50,14 @@ describe("the model a contract makes", () => {
   it("refuses a default that is not a value of the prop's type, at the declaration", async () => {
     const { Schema } = await import("effect");
     const { field } = await import("@valancex/common");
-    const { problems } = entryOf({ props: { tone: field(Schema.Literal("info", "danger"), "loud" as never) }, events: {} });
+    const { problems } = entryOf({ props: { tone: field(Schema.Literals(["info", "danger"]), "loud" as never) }, events: {} });
 
     expect(problems).toEqual([{ kind: "props", name: "tone", reason: "its default is not a value of its type" }]);
   });
 });
 
 describe("the use site is checked against the closed set (vlx check)", () => {
-  const props = "{ tone: field(Tone, 'info'), shade: Schema.UndefinedOr(Schema.Literal('light', 'dark')) }";
+  const props = "{ tone: field(Tone, 'info'), shade: Schema.UndefinedOr(Schema.Literals(['light', 'dark'])) }";
 
   it("accepts a member, and the omitted prop that has a default", async () => {
     expect(await codes({ "src/main.ts": main(props), "src/layout.mprx": LAYOUT('<badge tone="danger" /><badge />') })).toEqual([]);
@@ -71,7 +71,7 @@ describe("the use site is checked against the closed set (vlx check)", () => {
   });
 
   it("a prop without a default is still required, and an optional one may be left out", async () => {
-    const without = "{ tone: Tone, shade: Schema.UndefinedOr(Schema.Literal('light', 'dark')) }";
+    const without = "{ tone: Tone, shade: Schema.UndefinedOr(Schema.Literals(['light', 'dark'])) }";
 
     expect(await codes({ "src/main.ts": main(without), "src/layout.mprx": LAYOUT("<badge />") })).toEqual(["src/layout.mprx:1 missing-required-prop"]);
     expect(await codes({ "src/main.ts": main(without), "src/layout.mprx": LAYOUT('<badge tone="info" />') })).toEqual([]);
@@ -96,9 +96,9 @@ describe("the TypeScript side", () => {
   const header = 'import { field } from "@valancex/common";\nimport { Schema } from "effect";\n';
 
   it("accepts a default that is a member and refuses one that is not", () => {
-    expect(diagnosticsOf(`${header}export const ok = field(Schema.Literal("info", "danger"), "info");\n`)).toEqual([]);
+    expect(diagnosticsOf(`${header}export const ok = field(Schema.Literals(["info", "danger"]), "info");\n`)).toEqual([]);
 
-    const bad = diagnosticsOf(`${header}export const bad = field(Schema.Literal("info", "danger"), "loud");\n`);
+    const bad = diagnosticsOf(`${header}export const bad = field(Schema.Literals(["info", "danger"]), "loud");\n`);
 
     expect(bad).toHaveLength(1);
     expect(bad[0]).toContain('"loud"');

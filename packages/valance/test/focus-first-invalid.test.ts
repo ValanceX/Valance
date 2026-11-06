@@ -56,7 +56,7 @@ const definition = (options: Pick<Valance.ApplicationDefinition<any, any, any, a
 const run = async (application: ReturnType<typeof definition>, steps: ReadonlyArray<readonly [string, string]>, canFocus = true) => {
   const calls: Array<string> = [];
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
   let tree: Mesh.Mesh.Render["tree"] | undefined;
   const factory: Valance.TargetFactory<Valance.Target> = () => ({
     draw: (drawn) => {
@@ -69,7 +69,7 @@ const run = async (application: ReturnType<typeof definition>, steps: ReadonlyAr
     unmount: () => undefined,
   });
 
-  await Effect.runPromise(Valance.mount(handle, factory).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle, factory).pipe(Scope.provide(scope)));
 
   for (const [name, argument] of steps) {
     await Effect.runPromise(handle.invoke(`app/${name}`, [{ value: argument }]).pipe(Effect.orDie));

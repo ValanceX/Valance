@@ -129,7 +129,7 @@ describe("scopes", () => {
   it("nests: the outer scope sees the request first, the request's own interceptors last, and every request inside is covered", async () => {
     const log: Array<string> = [];
     const http = client(log);
-    const work = withInterceptors(Effect.zipRight(http.request({ ...item, interceptors: [mark(log, "request")] }), http.request(item)), mark(log, "inner"));
+    const work = withInterceptors(Effect.andThen(http.request({ ...item, interceptors: [mark(log, "request")] }), http.request(item)), mark(log, "inner"));
 
     await get(withInterceptors(work, mark(log, "outer")));
     expect(log).toEqual(["global>", "outer>", "inner>", "request>", "<request", "<inner", "<outer", "<global", "global>", "outer>", "inner>", "<inner", "<outer", "<global"]);

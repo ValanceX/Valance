@@ -6,8 +6,8 @@ import template from "./badge.mprx";
 export const badge = component(template, {
   props: {
     label: Schema.String,
-    intent: field(Schema.Literal("neutral", "accent", "danger"), "neutral"),
-    size: field(Schema.Literal("sm", "md"), "md"),
+    intent: field(Schema.Literals(["neutral", "accent", "danger"]), "neutral"),
+    size: field(Schema.Literals(["sm", "md"]), "md"),
   },
   events: {},
 });

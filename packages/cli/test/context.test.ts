@@ -26,7 +26,7 @@ import card from "./card.mprx";
 import badge from "./badge.mprx";
 
 export default defineApp({
-  state: { theme: field(Schema.Literal("light", "dark"), "dark"), token: field(Schema.RedactedFromSelf(Schema.String), Redacted.make("t")) },
+  state: { theme: field(Schema.Literals(["light", "dark"]), "dark"), token: field(Schema.Redacted(Schema.String), Redacted.make("t")) },
   commands: (command) => ({ lighten: command((state) => ({ ...state, theme: "light" as const })) }),
   context: ${options.context ?? "(state) => ({ theme: state.theme })"},
   layout: component(layout),
@@ -85,7 +85,7 @@ describe("the context channel in a project", () => {
 
       return JSON.stringify(render.tree).match(/"text":"(light|dark)"/)?.[1] ?? "";
     };
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
 
     try {
       expect(await badge()).toBe("dark");

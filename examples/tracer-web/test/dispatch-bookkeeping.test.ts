@@ -26,17 +26,15 @@ const show = (exit: Exit.Exit<unknown, unknown> | "HUNG"): string =>
     ? "HUNG"
     : Exit.isSuccess(exit)
       ? "succeeded"
-      : Cause.isFailType(exit.cause)
-        ? `failed ${JSON.stringify(exit.cause.error)}`
-        : Cause.isDieType(exit.cause)
-          ? `died ${(exit.cause.defect as Error).message}`
-          : Cause.isInterruptedOnly(exit.cause)
+      : Cause.hasFails(exit.cause)
+        ? `failed ${JSON.stringify(Cause.squash(exit.cause))}`
+        : Cause.hasDies(exit.cause)
+          ? `died ${(Cause.squash(exit.cause) as Error).message}`
+          : Cause.hasInterruptsOnly(exit.cause)
             ? "interrupted"
             : "other";
 const bounded = <A>(effect: Effect.Effect<A, unknown>) =>
-  Effect.runPromise(
-    effect.pipe(Effect.exit, Effect.timeoutTo({ duration: "250 millis", onSuccess: (e) => e as Exit.Exit<unknown, unknown> | "HUNG", onTimeout: () => "HUNG" as const })),
-  );
+  Effect.runPromise(effect.pipe(Effect.exit, Effect.timeoutOrElse({ duration: "250 millis", orElse: () => Effect.succeed("HUNG" as const) })));
 
 const boot = async () => {
   const log: Array<string> = [];
@@ -60,14 +58,14 @@ const boot = async () => {
     view: () => "home" as const,
     commands: (state: Nexus.State.StateHandle<State>) => {
       const commit = (value: string) =>
-        Effect.zipRight(
+        Effect.andThen(
           state.update((c): Effect.Effect<State> => Effect.succeed({ ...c, value })),
           Effect.sync(() => {
             log.push(`commit ${value}`);
           }),
         );
       const gated = (name: "gate1" | "gate2") =>
-        Effect.zipRight(
+        Effect.andThen(
           Effect.sync(() => {
             log.push(`${name} started`);
           }),
@@ -109,7 +107,7 @@ const boot = async () => {
     },
   });
   const appScope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app, { state: initial }).pipe(Scope.extend(appScope)));
+  const handle = await Effect.runPromise(Valance.start(app, { state: initial }).pipe(Scope.provide(appScope)));
   const mountOn = async () => {
     const page = load("");
     const ops: Array<string> = [];
@@ -132,7 +130,7 @@ const boot = async () => {
       };
     };
     const scope = await Effect.runPromise(Scope.make());
-    const mounted = await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.extend(scope)));
+    const mounted = await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.provide(scope)));
     return {
       page,
       ops,

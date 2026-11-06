@@ -72,13 +72,13 @@ export interface ManifestOptions {
   /** The application's Web realization table: its tags, and each tag's props and events. */
   readonly primitives: WebPrimitives;
   /** Each view's scope Schema, by the view's name (its key in `define`'s `views`): every name the view's template may read. */
-  readonly scopes: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+  readonly scopes: Readonly<Record<string, Schema.Codec<any, any, never>>>;
   /** The application's `commands`: the very function `define` takes. It is called once, with a state that fails if the table reads it while being built. */
   readonly commands: (state: Nexus.State.StateHandle<any>) => Readonly<Record<string, unknown>>;
   /** Plugins whose tags are part of the application's vocabulary: their `primitives` join `primitives`, composed as `compose` in `./web/plugin` says (a tag is declared once). */
   readonly plugins?: ReadonlyArray<Plugin<any>>;
   /** The context values' Schema (MESH 0.18): a struct of every context name the application gives, typed as `define`'s `context` returns them. Absent: the manifest declares no context. */
-  readonly context?: Schema.Schema<any, any, never>;
+  readonly context?: Schema.Codec<any, any, never>;
 }
 
 // ---- Schema → MESH type -------------------------------------------------------------------------------------------------------------------------------------------
@@ -87,35 +87,31 @@ type Field = { readonly type: MeshType; readonly required: boolean };
 
 const typeOf = (ast: AST.AST, path: string): MeshType => {
   switch (ast._tag) {
-    case "StringKeyword":
+    case "String":
       return { kind: "string" };
-    case "NumberKeyword":
+    case "Number":
       return { kind: "number" };
-    case "BooleanKeyword":
+    case "Boolean":
       return { kind: "boolean" };
-    case "AnyKeyword":
-    case "UnknownKeyword":
+    case "Any":
+    case "Unknown":
       return { kind: "any" };
+    case "Null":
+      return { kind: "null" };
     case "Literal":
-      if (ast.literal === null) {
-        return { kind: "null" };
-      }
-
       // A string literal is a closed set of one (the model keeps what the schema says); a number or boolean literal is its primitive.
       return typeof ast.literal === "string"
         ? { kind: "enum", values: [ast.literal] }
         : { kind: typeof ast.literal === "number" ? "number" : typeof ast.literal === "boolean" ? "boolean" : "string" };
-    case "Refinement":
-      return typeOf(ast.from, path);
     case "Union": {
-      const members = ast.types.filter((member) => member._tag !== "UndefinedKeyword");
+      const members = ast.types.filter((member) => member._tag !== "Undefined");
       // A union made only of string literals (however nested) is a closed set, an `enum`; mixed with `string` it is just a string.
       const literals = (member: AST.AST): ReadonlyArray<string> | undefined =>
         member._tag === "Literal" && typeof member.literal === "string"
           ? [member.literal]
           : member._tag === "Union"
-            ? member.types.every((each) => each._tag === "UndefinedKeyword" || literals(each) !== undefined)
-              ? member.types.filter((each) => each._tag !== "UndefinedKeyword").flatMap((each) => literals(each)!)
+            ? member.types.every((each) => each._tag === "Undefined" || literals(each) !== undefined)
+              ? member.types.filter((each) => each._tag !== "Undefined").flatMap((each) => literals(each)!)
               : undefined
             : undefined;
       const closed = members.length > 0 ? members.map(literals) : undefined;
@@ -131,7 +127,7 @@ const typeOf = (ast: AST.AST, path: string): MeshType => {
       if (kinds.size !== 1) {
         throw new ManifestError(
           path,
-          `a union of different kinds has no MESH type${members.some((member) => member._tag === "Literal" && member.literal === null) ? " (null is a value in MESH, a type of its own; MESH has no union, so say which)" : ""}`,
+          `a union of different kinds has no MESH type${members.some((member) => member._tag === "Null") ? " (null is a value in MESH, a type of its own; MESH has no union, so say which)" : ""}`,
         );
       }
 
@@ -139,13 +135,13 @@ const typeOf = (ast: AST.AST, path: string): MeshType => {
 
       return members.length === ast.types.length ? only : { kind: "optional", type: only };
     }
-    case "TupleType":
+    case "Arrays":
       if (ast.elements.length === 0 && ast.rest.length === 1) {
-        return { kind: "list", element: typeOf(ast.rest[0]!.type, `${path}[]`) };
+        return { kind: "list", element: typeOf(ast.rest[0]!, `${path}[]`) };
       }
 
       throw new ManifestError(path, "a fixed-length tuple has no MESH type; use an array");
-    case "TypeLiteral": {
+    case "Objects": {
       if (ast.indexSignatures.length > 0) {
         throw new ManifestError(path, "a record with an index signature has no MESH type; name its fields");
       }
@@ -160,17 +156,20 @@ const typeOf = (ast: AST.AST, path: string): MeshType => {
   }
 };
 
+// Effect 4 has no `Union.make`: what it did, a union of one member is that member and of none is `never`.
+const unionOf = (members: ReadonlyArray<AST.AST>): AST.AST => (members.length === 1 ? members[0]! : members.length === 0 ? AST.never : new AST.Union(members));
+
 const fieldOf = (property: AST.PropertySignature, path: string): Field => {
-  const withoutUndefined = property.type._tag === "Union" ? AST.Union.make(property.type.types.filter((member) => member._tag !== "UndefinedKeyword")) : property.type;
+  const withoutUndefined = property.type._tag === "Union" ? unionOf(property.type.types.filter((member) => member._tag !== "Undefined")) : property.type;
 
   // `p?: T` (and `p?: T | undefined`) may be left out; `p: T | undefined` must be written but may be absent.
-  return property.isOptional ? { type: typeOf(withoutUndefined, path), required: false } : { type: typeOf(property.type, path), required: true };
+  return AST.isOptional(property.type) ? { type: typeOf(withoutUndefined, path), required: false } : { type: typeOf(property.type, path), required: true };
 };
 
-const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.TypeLiteral => {
-  const ast = AST.typeAST(schema.ast);
+const structOf = (schema: Schema.Codec<any, any, never>, path: string): AST.Objects => {
+  const ast = AST.toType(schema.ast);
 
-  if (ast._tag !== "TypeLiteral" || ast.indexSignatures.length > 0) {
+  if (ast._tag !== "Objects" || ast.indexSignatures.length > 0) {
     throw new ManifestError(path, "must be a Schema.Struct: it names the values the view reads");
   }
 
@@ -178,7 +177,7 @@ const structOf = (schema: Schema.Schema<any, any, never>, path: string): AST.Typ
 };
 
 /** A struct's fields as names a template reads, each with its type: optional when the field may be left out. */
-const namesOf = (schema: Schema.Schema<any, any, never>, path: string): Readonly<Record<string, MeshType>> =>
+const namesOf = (schema: Schema.Codec<any, any, never>, path: string): Readonly<Record<string, MeshType>> =>
   Object.fromEntries(
     structOf(schema, path).propertySignatures.map((property) => {
       const field = fieldOf(property, `${path}.${String(property.name)}`);
@@ -263,12 +262,12 @@ const commandsOf = (table: Readonly<Record<string, unknown>>, views: ReadonlySet
       throw new ManifestError(key, "a bare name must hold a command (a function such as an `entry` belongs under an exact key)");
     }
 
-    const input = (value as { readonly input: Schema.Schema<any, any, never> }).input;
-    const ast = AST.typeAST(input.ast);
+    const input = (value as { readonly input: Schema.Codec<any, any, never> }).input;
+    const ast = AST.toType(input.ast);
 
     commands[key] = {
       parameters:
-        ast._tag === "TypeLiteral" && ast.indexSignatures.length === 0
+        ast._tag === "Objects" && ast.indexSignatures.length === 0
           ? ast.propertySignatures.map((property) => {
               const field = fieldOf(property, `${key}.${String(property.name)}`);
 

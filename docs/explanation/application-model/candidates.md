@@ -34,7 +34,7 @@ my-docs/
 ```ts
 import { defineApp, Schema } from "@valancex/cli";
 export default defineApp({
-  state: { schema: Schema.Struct({ theme: Schema.Literal("light", "dark") }), initial: { theme: "light" } },
+  state: { schema: Schema.Struct({ theme: Schema.Literals(["light", "dark"]) }), initial: { theme: "light" } },
   commands: (command) => ({ toggleTheme: command((s) => ({ ...s, theme: s.theme === "light" ? "dark" : "light" })) }),
 });
 ```

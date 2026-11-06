@@ -52,11 +52,11 @@ describe("the application model on a target that is not the web", () => {
 
     const scope = await Effect.runPromise(Scope.make());
     const app = application(content, built.program, author);
-    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
     const factory = textTarget();
     let target: ReturnType<typeof factory> | undefined;
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.provide(scope)));
 
     const first = target!.screen();
 
@@ -81,11 +81,11 @@ describe("navigation on a target that is not the web", () => {
     await init(readFileSync(createRequire(import.meta.url).resolve("@valancex/mesh-runtime/mesh-runtime.wasm")));
 
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(application(content, built.program, author)).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(application(content, built.program, author)).pipe(Scope.provide(scope)));
     const factory = textTarget();
     let target: ReturnType<typeof factory> | undefined;
 
-    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, (report) => (target = factory(report))).pipe(Scope.provide(scope)));
 
     // On the web a click on `<a href>` is taken by the history listener, not by a template event: the render tree has the address and no handler. A target has nothing to report for a link.
     const links = target!

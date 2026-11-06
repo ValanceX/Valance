@@ -75,7 +75,7 @@ const record = async (): Promise<string> => {
   const written: string[] = [];
   const recording = recorder({ write: (line) => written.push(line), runtime: "test", programs: () => ({ templates: program.templates, model }) });
   const scope = await Effect.runPromise(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(application).pipe(Scope.provide(scope)));
   let report: Valance.Report = () => undefined;
   let tree: { readonly root: { readonly children: ReadonlyArray<{ readonly events?: Record<string, string> }> } } | undefined;
   const rows = () => (tree?.root.children ?? []).filter((child) => child.events !== undefined && "press" in child.events);
@@ -93,7 +93,7 @@ const record = async (): Promise<string> => {
         };
       },
       { record: recording },
-    ).pipe(Scope.extend(scope)),
+    ).pipe(Scope.provide(scope)),
   );
 
   await Effect.runPromise(handle.invoke("app/add", [{ value: 3 }]).pipe(Effect.orDie));

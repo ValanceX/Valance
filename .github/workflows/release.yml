@@ -58,8 +58,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # All of CI, on the commit being released.
+  # All of CI, on the commit being released. Not on a pull request: the pull request's own CI run is that run, and a second copy of it would only repeat it.
   ci:
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/ci.yml
 
   # The conformance report (decision A15), regenerated for this release candidate: the specification verifiers
@@ -69,6 +70,8 @@ jobs:
   # report is uploaded; it is signed by the accessibility maintainer, not here.
   conformance:
     needs: ci
+    # `ci` is skipped on a pull request (its own CI run covers it); a failed or cancelled `ci` still stops the job.
+    if: ${{ !failure() && !cancelled() }}
     # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
     runs-on: ubuntu-24.04
     steps:
@@ -109,6 +112,8 @@ jobs:
   # ceiling is crossed. A tag push (a real release) also requires the known reds that have an expected value (the newest set installs together) to be green; a dry run only reports them.
   budgets:
     needs: ci
+    # `ci` is skipped on a pull request (its own CI run covers it); a failed or cancelled `ci` still stops the job.
+    if: ${{ !failure() && !cancelled() }}
     # ubuntu-24.04, not ubuntu-latest (26.04 now): Playwright does not support chromium there yet ("does not support chromium on ubuntu26.04-x64").
     runs-on: ubuntu-24.04
     steps:
@@ -132,10 +137,19 @@ jobs:
           PLAYWRIGHT_MODULES: ${{ github.workspace }}/node_modules/.pnpm/node_modules
         run: |
           node scripts/measure-footprint.mjs --tree --runs 3 --json budgets-results.json
-          node scripts/measure-footprint.mjs --runs 3 --json budgets-previous.json
+          # The previous release is built from this tree's example, so it can only be measured when it runs on the same Effect as the tree: across an Effect major (0.16 on Effect 3, 0.17 on Effect 4)
+          # the example does not build against it, and the ratio gates are reported, not gated (W4), until the next release has a comparable one.
+          major='const v = JSON.parse(require("fs").readFileSync(0, "utf8")); console.log((String(v.peerDependencies?.effect ?? v.dependencies?.effect ?? "").match(/\d+/) ?? [""])[0])'
+          tree=$(node -e "$major" < packages/cli/package.json)
+          published=$(npm view @valancex/cli --json | node -e "$major")
+          if [ "$tree" = "$published" ]; then
+            node scripts/measure-footprint.mjs --runs 3 --json budgets-previous.json
+          else
+            echo "previous release is on effect $published, the tree on effect $tree: not measured"
+          fi
       - name: Hold the tree to its budgets
         run: |
-          node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json --json budgets-report.json ${{ github.event_name == 'push' && '--strict-known' || '' }}
+          node scripts/check-budgets.mjs --results budgets-results.json ${{ hashFiles('budgets-previous.json') != '' && '--against budgets-previous.json' || '' }} --json budgets-report.json ${{ github.event_name == 'push' && '--strict-known' || '' }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -147,6 +161,8 @@ jobs:
 
   pack:
     needs: [ci, conformance, budgets]
+    # `ci` is skipped on a pull request (its own CI run covers it); a failed or cancelled `ci` still stops the job.
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

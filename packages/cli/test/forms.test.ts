@@ -14,9 +14,9 @@ const MAIN = `import { component, defineApp, field, Form } from "@valancex/commo
 import { Schema } from "effect";
 import layout from "./layout.mprx";
 const Signup = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(2)).annotations({ title: "Name", message: () => "Enter at least 2 characters" }),
-  age: Schema.NumberFromString.pipe(Schema.int(), Schema.between(18, 120)).annotations({ title: "Age", message: () => "Enter a whole number from 18 to 120" }),
-  accept: Schema.Literal(true).annotations({ title: "I accept the terms", message: () => "You must accept the terms" }),
+  name: Schema.String.check(Schema.isMinLength(2)).annotate({ title: "Name", message: "Enter at least 2 characters" }),
+  age: Schema.NumberFromString.check(Schema.isInt(), Schema.isBetween({ minimum: 18, maximum: 120 })).annotate({ title: "Age", message: "Enter a whole number from 18 to 120" }),
+  accept: Schema.Literal(true).annotate({ title: "I accept the terms", message: "You must accept the terms" }),
 });
 const signup = Form.make(Signup);
 export default defineApp({

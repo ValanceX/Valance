@@ -95,7 +95,7 @@ await Effect.runPromise(
 
     yield* Valance.hydrate(handle, Web.target({ container, primitives, native }));   // or Valance.mount, or a wrapper as above
     yield* Web.history(handle, { window, container, urlOf, stateOf, navigate: "go" });
-  }).pipe(Scope.extend(scope)),
+  }).pipe(Scope.provide(scope)),
 );
 // await Effect.runPromise(Scope.close(scope, Exit.void));               // ends the screen, then the application
 ```

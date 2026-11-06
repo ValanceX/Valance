@@ -11,12 +11,12 @@ import { primitives } from "../src/catalog/web.js";
 import { load } from "./helpers.js";
 
 export const programs = await compilePrograms();
-export const State = Schema.Struct({ view: Schema.Literal("a", "b"), n: Schema.Number, bad: Schema.Boolean });
+export const State = Schema.Struct({ view: Schema.Literals(["a", "b"]), n: Schema.Number, bad: Schema.Boolean });
 export type State = Schema.Schema.Type<typeof State>;
 export const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect);
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const show = (exit: Exit.Exit<unknown, unknown>): string =>
-  Exit.isSuccess(exit) ? "succeeded" : Cause.isDieType(exit.cause) ? `died ${(exit.cause.defect as Error).message}` : Cause.isFailType(exit.cause) ? "failed" : "interrupted";
+  Exit.isSuccess(exit) ? "succeeded" : Cause.hasDies(exit.cause) ? `died ${(Cause.squash(exit.cause) as Error).message}` : Cause.hasFails(exit.cause) ? "failed" : "interrupted";
 
 /** View A (notfound program): an event that REPAIRS (+10, bad cleared); view B (details program): an event that adds 100. A's render fails while `bad`. */
 export const boot = async () => {
@@ -34,7 +34,7 @@ export const boot = async () => {
         Nexus.Mesh.bind(
           Nexus.Command.define(`t.${name}`, Schema.Struct({}), () =>
             Effect.asVoid(
-              Effect.zipRight(
+              Effect.andThen(
                 state.update((c): Effect.Effect<State> => Effect.succeed(change(c))),
                 Effect.sync(() => {
                   log.push(`commit ${name}`);
@@ -56,7 +56,7 @@ export const boot = async () => {
     },
   });
   const appScope = await run(Scope.make());
-  const handle = await run(Valance.start(app).pipe(Scope.extend(appScope)));
+  const handle = await run(Valance.start(app).pipe(Scope.provide(appScope)));
   const mountOn = async (options: { readonly page?: ReturnType<typeof load>; readonly updateThrows?: () => boolean; readonly onUpdate?: () => void } = {}) => {
     const page = options.page ?? load("");
     const ops: Array<string> = [];
@@ -85,7 +85,7 @@ export const boot = async () => {
     };
     const label = (): string => page.container.querySelector("section")?.getAttribute("aria-label") ?? "";
     const scope = await run(Scope.make());
-    const mounted = await run(Valance.mount(handle, target).pipe(Scope.extend(scope)));
+    const mounted = await run(Valance.mount(handle, target).pipe(Scope.provide(scope)));
 
     return {
       page,
@@ -104,12 +104,12 @@ export const boot = async () => {
             Effect.map(mounted.followed, (e): string =>
               Exit.isSuccess(e)
                 ? "ended"
-                : Cause.isInterruptedOnly(e.cause)
+                : Cause.hasInterruptsOnly(e.cause)
                   ? "interrupted"
-                  : Cause.isFailType(e.cause)
-                    ? `failed ${(e.cause.error as { _tag: string })._tag}`
-                    : Cause.isDieType(e.cause)
-                      ? `defect ${(e.cause.defect as Error).message}`
+                  : Cause.hasFails(e.cause)
+                    ? `failed ${(Cause.squash(e.cause) as { _tag: string })._tag}`
+                    : Cause.hasDies(e.cause)
+                      ? `defect ${(Cause.squash(e.cause) as Error).message}`
                       : "other",
             ),
             Effect.succeed("following"),

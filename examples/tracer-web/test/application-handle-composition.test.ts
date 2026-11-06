@@ -25,18 +25,17 @@ const history = async (b: Booted) => {
     pushed.push(String(target));
     push(data, unused, target);
   };
-  const logger = Logger.replace(
-    Logger.defaultLogger,
+  const logger = Logger.layer([
     Logger.make(({ message }) => {
       logs.push(String(message));
     }),
-  );
+  ]);
   const scope = await run(Scope.make());
 
   await run(
     Web.history(b.handle, { window: dom.window as unknown as Window, urlOf: (s: { readonly n: number }) => `/n${s.n}`, stateOf: () => ({}), navigate: "app/bump" } as never).pipe(
       Effect.provide(logger),
-      Scope.extend(scope),
+      Scope.provide(scope),
     ),
   );
   await sleep(30);
@@ -149,9 +148,9 @@ describe("one handle, one application", () => {
         }) as unknown as Record<string, Nexus.Mesh.Binding<never, never>>,
     });
     const scope = await run(Scope.make());
-    const handle = await run(Valance.start(other).pipe(Scope.extend(scope)));
+    const handle = await run(Valance.start(other).pipe(Scope.provide(scope)));
     const b = await boot();
-    const typed = (exit: Exit.Exit<unknown, unknown>) => (Exit.isFailure(exit) && Cause.isFailType(exit.cause) ? (exit.cause.error as { _tag: string })._tag : "not typed");
+    const typed = (exit: Exit.Exit<unknown, unknown>) => (Exit.isFailure(exit) && Cause.hasFails(exit.cause) ? (Cause.squash(exit.cause) as { _tag: string })._tag : "not typed");
 
     await run(handle.invoke("app/only-here", []));
     expect(await run(handle.state)).toEqual({ n: 100 });

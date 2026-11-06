@@ -81,4 +81,18 @@ describe("vlx dev", () => {
       await running.close();
     }
   });
+
+  it("closes within 5 seconds, so a keep-alive connection a browser left open does not hold the process", async () => {
+    const root = project({ "content/index.md": PAGE("Home", "Text.") });
+    const running = await dev(root, { port: 6200 + Math.floor(Math.random() * 300), log: () => undefined });
+    // A request that Node's fetch keeps alive in its pool; the server must not wait for it to idle out.
+    const response = await fetch(running.url);
+
+    await response.text();
+
+    const started = Date.now();
+
+    await running.close();
+    expect(Date.now() - started).toBeLessThan(5000);
+  }, 10000);
 });

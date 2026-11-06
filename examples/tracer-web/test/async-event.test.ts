@@ -23,18 +23,18 @@ const programs = await compilePrograms();
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isFailType(exit.cause)
-      ? `failed ${JSON.stringify(exit.cause.error)}`
-      : Cause.isDieType(exit.cause)
-        ? `died: ${(exit.cause.defect as Error).message}`
-        : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasFails(exit.cause)
+      ? `failed ${JSON.stringify(Cause.squash(exit.cause))}`
+      : Cause.hasDies(exit.cause)
+        ? `died: ${(Cause.squash(exit.cause) as Error).message}`
+        : Cause.hasInterruptsOnly(exit.cause)
           ? "interrupted"
-          : `other: ${exit.cause._tag}`;
+          : `other: ${exit.cause.reasons[0]?._tag}`;
 const yields = (n: number) =>
   Effect.runPromise(
     Effect.forEach(
       Array.from({ length: n }, (_, index) => index),
-      () => Effect.yieldNow(),
+      () => Effect.yieldNow,
       { discard: true },
     ),
   );
@@ -115,7 +115,7 @@ const boot = async () => {
               yield* commit(`B:${yield* wait("partial")}`);
             });
           case "caught":
-            return Effect.catchAll(Effect.fail("caught-boom") as Effect.Effect<void, string>, (error) => commit(`error: ${error}`)); // failure as ordinary state
+            return Effect.catch(Effect.fail("caught-boom") as Effect.Effect<void, string>, (error) => commit(`error: ${error}`)); // failure as ordinary state
           case "slowA":
             return Effect.flatMap(wait("slowA"), (v) => commit(`A:${v}`));
           case "slowB":
@@ -178,7 +178,7 @@ const boot = async () => {
       }),
     ),
   );
-  const handle = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.extend(scope)))) as Valance.ApplicationHandle<State, string>;
+  const handle = (await Effect.runPromise(Valance.start(app as never, { state: initial }).pipe(Scope.provide(scope)))) as Valance.ApplicationHandle<State, string>;
 
   Effect.runFork(
     Stream.runForEach(runningOf(handle as never).states as Stream.Stream<State>, (state) =>
@@ -193,7 +193,7 @@ const boot = async () => {
       ),
     ),
   );
-  const mount = (await Effect.runPromise(Valance.mount(handle as never, target).pipe(Scope.extend(scope)))) as Valance.Mounted<string>;
+  const mount = (await Effect.runPromise(Valance.mount(handle as never, target).pipe(Scope.provide(scope)))) as Valance.Mounted<string>;
 
   await until(() => events.includes("render draw: init"));
   const rowButton = (id: string) => page.container.querySelectorAll("div")[ids.indexOf(id as never)]!.querySelector("button")!;
@@ -251,9 +251,9 @@ describe("A: the success baseline, through a real click", () => {
 
     expect(b.events.filter((event) => !event.startsWith("render draw"))).toEqual([
       "values: init",
+      "values: success", // Effect 4 wakes the state's subscriber inside the commit, before the command goes on to log its commit
       "commit success",
       "open(success) exit: succeeded",
-      "values: success",
       "render update: success",
     ]);
     expect(b.dispatched()).toEqual(["succeeded"]);

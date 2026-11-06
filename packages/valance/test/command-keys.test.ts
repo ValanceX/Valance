@@ -1,6 +1,6 @@
 // Task 25 (Tier 1, opt-in, audit I2): `handle.command(key, input)` runs a command by a key the type CHECKS (a typo is a type error), with the input typed from the command:
 // a bare command takes its input whole, by field name, never by position. An exact `"component/name"` key takes its entry's arguments, as `invoke` does. `invoke` is unchanged.
-import { Effect, Exit, Schema, Scope } from "effect";
+import { Cause, Effect, Exit, Option, Schema, Scope } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import * as Valance from "../src/index.js";
@@ -50,7 +50,7 @@ const spread = Valance.define({
 const started = async <E, K extends string>(definition: Valance.ApplicationDefinition<State, E, never, "main", K>) => {
   const scope = await Effect.runPromise(Scope.make());
 
-  return { handle: await Effect.runPromise(Valance.start(definition).pipe(Scope.extend(scope))), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
+  return { handle: await Effect.runPromise(Valance.start(definition).pipe(Scope.provide(scope))), close: () => Effect.runPromise(Scope.close(scope, Exit.void)) };
 };
 
 describe("handle.command: a checked key, a typed input", () => {
@@ -78,13 +78,13 @@ describe("handle.command: a checked key, a typed input", () => {
     const { handle, close } = await started(app);
     const exit = await Effect.runPromise(Effect.exit(handle.command("app/move", { from: 1, to: "b" } as never)));
 
-    expect(exit).toMatchObject({ _tag: "Failure", cause: { error: { _tag: "CommandValidationError" } } });
+    expect(Exit.isFailure(exit) && Option.getOrUndefined(Cause.findErrorOption(exit.cause))).toMatchObject({ _tag: "CommandValidationError" });
     await close();
   });
 
   it("checks the key and the input in the type", () => {
     const startApp = () => Valance.start(app);
-    type Handle = Effect.Effect.Success<ReturnType<typeof startApp>>;
+    type Handle = Effect.Success<ReturnType<typeof startApp>>;
     const typed = (handle: Handle) => {
       // @ts-expect-error a typo is a type error
       void handle.command("app/mvoe", { from: "a", to: "b" });
@@ -106,7 +106,9 @@ describe("handle.command: a checked key, a typed input", () => {
 
     await Effect.runPromise(handle.command("app/increment"));
     expect((await Effect.runPromise(handle.state)).count).toBe(1);
-    expect(await Effect.runPromise(Effect.exit(handle.command("app/nope")))).toMatchObject({ _tag: "Failure", cause: { error: { _tag: "UnmappedCommand" } } });
+    const unmapped = await Effect.runPromise(Effect.exit(handle.command("app/nope")));
+
+    expect(Exit.isFailure(unmapped) && Option.getOrUndefined(Cause.findErrorOption(unmapped.cause))).toMatchObject({ _tag: "UnmappedCommand" });
     await close();
   });
 

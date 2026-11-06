@@ -18,7 +18,7 @@ export const fromWindowEvent = (entry: Entry, win: Window, name: string, key: st
   Effect.gen(function* () {
     const listener = (event: Event): void => {
       void Effect.runPromise(
-        entry.invoke(key, [{ value: (event as CustomEvent<never>).detail }]).pipe(Effect.catchAllCause((cause) => Effect.logError("host event failed", Cause.pretty(cause)))),
+        entry.invoke(key, [{ value: (event as CustomEvent<never>).detail }]).pipe(Effect.catchCause((cause) => Effect.logError("host event failed", Cause.pretty(cause)))),
       );
     };
 

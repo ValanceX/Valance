@@ -15,20 +15,20 @@ interface Owner {
 const Owner = Nexus.Capability.define<Owner>("example/application-owner");
 
 const platform = (log: Array<string>): Nexus.Application.Platform =>
-  Layer.scoped(
+  Layer.effect(
     Nexus.Capability.Environment,
     Effect.gen(function* () {
       const scope = yield* Scope.make();
 
       yield* Effect.addFinalizer(() =>
-        Effect.zipRight(
+        Effect.andThen(
           Effect.sync(() => {
             log.push("owner scope closing");
           }),
           Scope.close(scope, Exit.void),
         ),
       );
-      const owner: Owner = { own: (acquire) => Scope.extend(acquire, scope) as never };
+      const owner: Owner = { own: (acquire) => Scope.provide(acquire, scope) as never };
 
       return { resolutions: new Map([[Owner.id, { _tag: "Available" as const, implementation: owner }]]) };
     }),
@@ -124,7 +124,7 @@ const boot = async (options: { readonly start?: string; readonly gated?: Readonl
       }),
     ),
   ); // registered first: runs LAST
-  const handle = await Effect.runPromise(Valance.start(w.definition, { platform: platform(w.log) }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(w.definition, { platform: platform(w.log) }).pipe(Scope.provide(scope)));
 
   return { ...w, handle, close: () => Effect.runPromise(Scope.close(scope, Exit.void)), state: () => Effect.runPromise(handle.state) };
 };

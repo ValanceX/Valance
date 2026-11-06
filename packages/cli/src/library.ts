@@ -85,7 +85,7 @@ export const planLibrary = (answers: LibraryAnswers): ReadonlyMap<string, string
       sideEffects: ["**/*.css"],
       valance: { kind: "components", targets: ["web", "desktop"] },
       scripts: { build: "vlx library build", check: "vlx library check" },
-      peerDependencies: { "@valancex/common": range, effect: ">=3.10.0 <4" },
+      peerDependencies: { "@valancex/common": range, effect: "^4.1.0" },
       devDependencies: { "@types/node": "^22.0.0", "@valancex/cli": cliSpec(manager, answers.cli), "@valancex/common": commonSpec(manager), effect, typescript: "^5.6.0" },
     }),
   );

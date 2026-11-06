@@ -5,7 +5,7 @@ import type { Mesh } from "@valancex/nexus";
 
 import * as Nexus from "@valancex/nexus";
 import { compileProgram } from "@valancex/mesh-compiler";
-import { Cause, Effect, Exit, Layer, Schema, Scope } from "effect";
+import { Cause, Effect, Exit, Layer, Option, Schema, Scope } from "effect";
 import { describe, expect, it } from "vitest";
 
 import * as Valance from "../src/index.js";
@@ -88,11 +88,13 @@ const application = (views: Record<string, Mesh.Program>, current: string, keys:
 
 const startOf = (app: ReturnType<typeof application>) => Effect.runPromise(Effect.exit(Effect.scoped(Valance.start(app))));
 const failureOf = <A>(exit: Exit.Exit<A, Valance.StartError>): Valance.StartError => {
-  if (Exit.isSuccess(exit) || !Cause.isFailType(exit.cause)) {
+  const failure = Exit.isSuccess(exit) ? undefined : exit.cause.reasons.length === 1 ? exit.cause.reasons.find(Cause.isFailReason) : undefined;
+
+  if (failure === undefined) {
     throw new Error(`expected a typed start failure, got ${JSON.stringify(exit)}`);
   }
 
-  return exit.cause.error;
+  return failure.error;
 };
 const violationOf = (error: Valance.StartError): ReadonlyArray<Valance.UnmappedDeclaration> => {
   if (error._tag !== "ConformanceViolation") {
@@ -119,7 +121,7 @@ describe("start conformance: every declared event has a command-table key (D ⊆
     const counts = { acquired: 0, released: 0 };
     const platform: Nexus.Application.Platform = Layer.merge(
       Nexus.Capability.EnvironmentLive(new Map()),
-      Layer.scopedDiscard(
+      Layer.effectDiscard(
         Effect.acquireRelease(
           Effect.sync(() => {
             counts.acquired += 1;
@@ -132,9 +134,9 @@ describe("start conformance: every declared event has a command-table key (D ⊆
       ),
     );
     const scope = await Effect.runPromise(Scope.make());
-    const exit = await Effect.runPromise(Effect.exit(Valance.start(application({ main: programs.home }, "main", []), { platform }).pipe(Scope.extend(scope))));
+    const exit = await Effect.runPromise(Effect.exit(Valance.start(application({ main: programs.home }, "main", []), { platform }).pipe(Scope.provide(scope))));
 
-    expect(Exit.isFailure(exit) && Cause.isFailType(exit.cause) && exit.cause.error._tag).toBe("ConformanceViolation");
+    expect(Exit.isFailure(exit) && Option.getOrUndefined(Cause.findErrorOption(exit.cause))?._tag).toBe("ConformanceViolation");
     expect(counts).toEqual({ acquired: 1, released: 0 }); // acquired before the check: the caller's Scope owns it
     await Effect.runPromise(Scope.close(scope, Exit.void));
     expect(counts).toEqual({ acquired: 1, released: 1 });
@@ -206,8 +208,8 @@ describe("start conformance: a program MESH rejects fails start, before D ⊆ B"
       ),
     );
 
-    expect(Exit.isFailure(result) && Cause.isFailType(result.cause) && result.cause.error).toMatchObject({ _tag: "MeshDiagnostics" });
-    expect(Exit.isFailure(result) && Cause.isFailType(result.cause) && JSON.stringify(result.cause.error)).toContain("runtime-value-mismatch");
+    expect(Exit.isFailure(result) && Cause.hasFails(result.cause) && Cause.squash(result.cause)).toMatchObject({ _tag: "MeshDiagnostics" });
+    expect(Exit.isFailure(result) && Cause.hasFails(result.cause) && JSON.stringify(Cause.squash(result.cause))).toContain("runtime-value-mismatch");
   });
 });
 

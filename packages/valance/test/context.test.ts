@@ -37,7 +37,7 @@ if (built.program === undefined) {
 }
 
 const program = built.program;
-const State = Schema.Struct({ title: Schema.String, theme: Schema.Literal("light", "dark"), token: Schema.RedactedFromSelf(Schema.String) });
+const State = Schema.Struct({ title: Schema.String, theme: Schema.Literals(["light", "dark"]), token: Schema.Redacted(Schema.String) });
 type State = typeof State.Type;
 
 const app = (context: (state: State) => Record<string, unknown>) =>
@@ -64,11 +64,11 @@ const texts = (tree: unknown): ReadonlyArray<string> => {
 describe("define's context projection (C-1)", () => {
   it("reaches a component that uses it, and a state change re-renders it as an update", async () => {
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app((state) => ({ theme: state.theme }))).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app((state) => ({ theme: state.theme }))).pipe(Scope.provide(scope)));
     const running = runningOf(handle);
     const seen: Array<{ readonly render: { readonly tree: unknown }; readonly patches?: unknown }> = [];
 
-    Effect.runFork(Stream.runForEach(running.values, (viewed) => Effect.sync(() => void seen.push(viewed as never))).pipe(Scope.extend(scope)));
+    Effect.runFork(Stream.runForEach(running.values, (viewed) => Effect.sync(() => void seen.push(viewed as never))).pipe(Scope.provide(scope)));
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(texts(seen.at(-1)!.render.tree)).toEqual(["home", "dark nobody"]);
 
@@ -91,15 +91,15 @@ describe("define's context projection (C-1)", () => {
 
   it("refuses to record a session up front: a session log holds no context values, so it could not be replayed", async () => {
     const scope = await Effect.runPromise(Scope.make());
-    const handle = await Effect.runPromise(Valance.start(app((state) => ({ theme: state.theme }))).pipe(Scope.extend(scope)));
+    const handle = await Effect.runPromise(Valance.start(app((state) => ({ theme: state.theme }))).pipe(Scope.provide(scope)));
     const recording = recorder({ write: () => undefined, runtime: "test", programs: () => ({ templates: program.templates, model: program.model }) });
     const target = () => ({ draw: () => undefined, update: () => undefined, unmount: () => undefined });
-    const exit = await Effect.runPromiseExit(Valance.mount(handle, target, { record: recording }).pipe(Scope.extend(scope)));
+    const exit = await Effect.runPromiseExit(Valance.mount(handle, target, { record: recording }).pipe(Scope.provide(scope)));
 
     expect(exit._tag).toBe("Failure");
     expect(JSON.stringify(exit)).toContain("context-not-recordable");
     // Without a recorder it mounts.
-    expect((await Effect.runPromiseExit(Valance.mount(handle, target).pipe(Scope.extend(scope))))._tag).toBe("Success");
+    expect((await Effect.runPromiseExit(Valance.mount(handle, target).pipe(Scope.provide(scope))))._tag).toBe("Success");
     await Effect.runPromise(Scope.close(scope, Exit.void));
   });
 });

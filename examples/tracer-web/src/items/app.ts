@@ -8,7 +8,7 @@ import * as Nexus from "@valancex/nexus";
 import { Effect, Schema } from "effect";
 
 const Item = Schema.Struct({ id: Schema.String, title: Schema.String });
-const Detail = Schema.Struct({ status: Schema.Literal("idle", "loading", "ready", "failed"), text: Schema.String });
+const Detail = Schema.Struct({ status: Schema.Literals(["idle", "loading", "ready", "failed"]), text: Schema.String });
 
 export const AppState = Schema.Struct({ items: Schema.Array(Item), selected: Schema.String, detail: Detail });
 export type AppState = typeof AppState.Type;
@@ -58,10 +58,10 @@ export const commands = (fetchDetail: FetchDetail) => (state: Nexus.State.StateH
     Effect.gen(function* () {
       const mine = ++latest;
       yield* set((current) => ({ ...current, selected: id, detail: { status: "loading", text: "" } }));
-      const result = yield* Effect.tryPromise({ try: (signal) => fetchDetail(id, signal), catch: String }).pipe(Effect.either);
+      const result = yield* Effect.tryPromise({ try: (signal) => fetchDetail(id, signal), catch: String }).pipe(Effect.result);
 
       if (mine !== latest) return; // a newer request started meanwhile: drop this result
-      yield* set((current) => ({ ...current, detail: result._tag === "Right" ? { status: "ready", text: result.right } : { status: "failed", text: result.left } }));
+      yield* set((current) => ({ ...current, detail: result._tag === "Success" ? { status: "ready", text: result.success } : { status: "failed", text: result.failure } }));
     });
 
   // Going back must also supersede a request still in flight, and the counter that does so is the commands' closure: so this is not a pure `command`.

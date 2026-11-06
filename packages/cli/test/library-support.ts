@@ -38,7 +38,7 @@ export const libraryFiles = (options: LibraryOptions = {}): Record<string, strin
         type: "module",
         exports: options.exports ?? { ".": { types: "./dist/index.d.ts", valance: "./dist/index.js" } },
         sideEffects: ["**/*.css"],
-        peerDependencies: { "@valancex/common": "^0.14.0", effect: "^3.10.0" },
+        peerDependencies: { "@valancex/common": "^0.14.0", effect: "^4.1.0" },
         valance: options.field ?? { kind: "components", targets: ["web", "desktop"], styles: ["./dist/disclosure.css"] },
       },
       null,

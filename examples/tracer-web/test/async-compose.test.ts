@@ -1,5 +1,5 @@
 // Stage 32: async COMPOSITION, observed. Same rules as Stage 31: ordinary application, ordinary commands, ordinary Effect, deterministic gates;
-// no async abstraction anywhere. Each command composes gate-controlled operations with plain Effect (sequencing, `Effect.all`, `Effect.either`,
+// no async abstraction anywhere. Each command composes gate-controlled operations with plain Effect (sequencing, `Effect.all`, `Effect.result`,
 // `fork`, `forkDaemon`). One ordered trace records the commands' steps, `State.values` emissions (internal face, read on purpose) and renders.
 import type { HydrationResult } from "@valancex/port-web";
 
@@ -7,7 +7,7 @@ import * as Nexus from "@valancex/nexus";
 import * as Valance from "@valancex/valance";
 import { runningOf } from "@valancex/valance/internal";
 import * as Web from "@valancex/valance/web";
-import { Cause, Deferred, Effect, Exit, Fiber, Option, Schema, Scope, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Schema, Scope, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { titleProgram } from "./title-program.js";
@@ -20,20 +20,18 @@ type State = Schema.Schema.Type<typeof State>;
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isFailType(exit.cause)
-      ? `failed ${JSON.stringify(exit.cause.error)}`
-      : Option.isSome(Cause.failureOption(exit.cause))
-        ? `failed ${JSON.stringify(Cause.failureOption(exit.cause).pipe(Option.getOrThrow))} (cause also records an interrupted sibling)`
-        : Cause.isDieType(exit.cause)
-          ? `died: ${(exit.cause.defect as Error).message}`
-          : Cause.isInterruptedOnly(exit.cause)
-            ? "interrupted"
-            : `other: ${exit.cause._tag}`;
+    : Cause.hasFails(exit.cause)
+      ? `failed ${JSON.stringify(Cause.squash(exit.cause))}`
+      : Cause.hasDies(exit.cause)
+        ? `died: ${(Cause.squash(exit.cause) as Error).message}`
+        : Cause.hasInterruptsOnly(exit.cause)
+          ? "interrupted"
+          : `other: ${exit.cause.reasons[0]?._tag}`;
 const yields = (n: number) =>
   Effect.runPromise(
     Effect.forEach(
       Array.from({ length: n }, (_, index) => index),
-      () => Effect.yieldNow(),
+      () => Effect.yieldNow,
       { discard: true },
     ),
   );
@@ -123,15 +121,15 @@ const boot = async () => {
           "parSettled",
           Effect.gen(function* () {
             // failures caught, then one commit
-            const [a, b] = yield* Effect.all([Effect.either(op("A")), Effect.either(op("B"))], { concurrency: "unbounded" });
+            const [a, b] = yield* Effect.all([Effect.result(op("A")), Effect.result(op("B"))], { concurrency: "unbounded" });
 
-            yield* commit(`A:${a._tag === "Right" ? "ok" : "failed"},B:${b._tag === "Right" ? "ok" : "failed"}`);
+            yield* commit(`A:${a._tag === "Success" ? "ok" : "failed"},B:${b._tag === "Success" ? "ok" : "failed"}`);
           }),
         ),
         define(
           "owned",
           Effect.gen(function* () {
-            const child = yield* Effect.fork(branch("A"));
+            const child = yield* Effect.forkChild(branch("A"));
             yield* Fiber.join(child);
           }),
         ), // structured child, awaited
@@ -139,7 +137,7 @@ const boot = async () => {
           "detached",
           Effect.gen(function* () {
             // daemon child, command exits
-            yield* Effect.forkDaemon(branch("A"));
+            yield* Effect.forkDetach(branch("A"));
             yield* Deferred.await(gateOf("A").started);
             events.push("detached command returning");
           }),
@@ -200,7 +198,7 @@ const boot = async () => {
       }),
     ),
   ); // runs after NEXUS terminates, as a resource would
-  const handle = (await Effect.runPromise(Valance.start(app as never, { state: { value: "init", ticket: 0 } }).pipe(Scope.extend(scope)))) as Valance.ApplicationHandle<
+  const handle = (await Effect.runPromise(Valance.start(app as never, { state: { value: "init", ticket: 0 } }).pipe(Scope.provide(scope)))) as Valance.ApplicationHandle<
     State,
     string
   >;
@@ -218,7 +216,7 @@ const boot = async () => {
       ),
     ),
   );
-  await Effect.runPromise(Valance.mount(handle as never, target).pipe(Scope.extend(scope)));
+  await Effect.runPromise(Valance.mount(handle as never, target).pipe(Scope.provide(scope)));
   await until(() => events.includes("render draw: init"));
 
   return {
@@ -247,8 +245,8 @@ const boot = async () => {
     fail: (name: string, error: string) => Effect.runPromise(Deferred.fail(gateOf(name).gate, error)),
     seen: (event: string) => until(() => events.includes(event)),
     state: async () => Effect.runPromise(handle.state),
-    exit: (fiber: Fiber.RuntimeFiber<unknown, unknown>) => Effect.runPromise(Fiber.await(fiber)).then(show),
-    poll: async (fiber: Fiber.RuntimeFiber<unknown, unknown>) => (await Effect.runPromise(Fiber.poll(fiber)))._tag === "Some",
+    exit: (fiber: Fiber.Fiber<unknown, unknown>) => Effect.runPromise(Fiber.await(fiber)).then(show),
+    poll: async (fiber: Fiber.Fiber<unknown, unknown>) => fiber.pollUnsafe() !== undefined,
     values: () => events.filter((event) => event.startsWith("values:")),
     renders: () => events.filter((event) => event.startsWith("render")),
   };
@@ -257,7 +255,7 @@ type Booted = Awaited<ReturnType<typeof boot>>;
 
 /** The trace between two markers, for the command-owned steps. */
 const slice = (b: Booted, from: string) => b.events.slice(at(b.events, from));
-const joinAll = (...fibers: Array<Fiber.RuntimeFiber<unknown, unknown>>) => Promise.all(fibers.map((fiber) => Effect.runPromise(Fiber.await(fiber))));
+const joinAll = (...fibers: Array<Fiber.Fiber<unknown, unknown>>) => Promise.all(fibers.map((fiber) => Effect.runPromise(Fiber.await(fiber))));
 
 describe("A: sequential composition is ordinary sequencing", () => {
   it("start A, await, commit, start B, await, commit: B does not start until A's commit; each commit is its own value (and, the test waiting for each render, its own render)", async () => {
@@ -379,7 +377,7 @@ describe("C: partial failure is ordinary Effect failure", () => {
     await b.started("A");
     await b.started("B");
     await b.fail("A", "boom-A");
-    expect(await b.exit(caller)).toBe('failed "boom-A" (cause also records an interrupted sibling)');
+    expect(await b.exit(caller)).toBe('failed "boom-A"');
     await b.release("B", "late-b");
     await yields(500);
 
@@ -404,7 +402,7 @@ describe("C: partial failure is ordinary Effect failure", () => {
     expect(b.values()).toEqual(["values: init", "values: b"]);
   });
 
-  it("caught failure (Effect.either per branch): the sibling is NOT interrupted; the command succeeds and commits the settled outcome once", async () => {
+  it("caught failure (Effect.result per branch): the sibling is NOT interrupted; the command succeeds and commits the settled outcome once", async () => {
     const b = await boot();
     const caller = b.invoke("parSettled");
 

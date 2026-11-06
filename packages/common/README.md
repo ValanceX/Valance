@@ -16,7 +16,7 @@ import themeToggle from "./theme-toggle.js";
 export default defineApp({
   layout: component(layout),
   components: [themeToggle],
-  state: { theme: field(Schema.Literal("light", "dark"), "light") },
+  state: { theme: field(Schema.Literals(["light", "dark"]), "light") },
   commands: (command) => ({
     toggleTheme: command((state) => ({ ...state, theme: state.theme === "light" ? "dark" : "light" })),
   }),

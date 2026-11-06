@@ -14,8 +14,8 @@ const MAIN = `import { component, defineApp, field, Form } from "@valancex/commo
 import { Schema } from "effect";
 import layout from "./layout.mprx";
 const Order = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(2)).annotations({ title: "Name", message: () => "Enter at least 2 characters" }),
-  size: Schema.Literal("small", "medium", "large").annotations({ title: "Size", message: () => "Choose a size" }),
+  name: Schema.String.check(Schema.isMinLength(2)).annotate({ title: "Name", message: "Enter at least 2 characters" }),
+  size: Schema.Literals(["small", "medium", "large"]).annotate({ title: "Size", message: "Choose a size" }),
 });
 const order = Form.make(Order);
 export default defineApp({

@@ -13,11 +13,11 @@ import { run, sleep, world } from "./lifecycle-world.js";
 const describeExit = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "success"
-    : Cause.isFailType(exit.cause)
-      ? `typed ${(exit.cause.error as { _tag: string })._tag}`
-      : Cause.isDieType(exit.cause)
-        ? `defect: ${(exit.cause.defect as Error).message}`
-        : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasFails(exit.cause)
+      ? `typed ${(Cause.squash(exit.cause) as { _tag: string })._tag}`
+      : Cause.hasDies(exit.cause)
+        ? `defect: ${(Cause.squash(exit.cause) as Error).message}`
+        : Cause.hasInterruptsOnly(exit.cause)
           ? "interrupted"
           : "other";
 const TERMINATED = "defect: NEXUS: the runtime has begun terminating";

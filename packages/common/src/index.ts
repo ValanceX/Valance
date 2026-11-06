@@ -10,7 +10,7 @@
 //   export default defineApp({
 //     layout: component(layout),
 //     components: [themeToggle],
-//     state: { theme: field(Schema.Literal("light", "dark"), "light") },
+//     state: { theme: field(Schema.Literals(["light", "dark"]), "light") },
 //     commands: (command) => ({ toggleTheme: command((s) => ({ ...s, theme: s.theme === "light" ? "dark" : "light" })) }),
 //   });
 //
@@ -20,7 +20,7 @@
 //   import { Schema } from "effect";
 //   import template from "./theme-toggle.mprx";
 //   export default component(template, {
-//     props: { theme: Schema.Literal("light", "dark") },
+//     props: { theme: Schema.Literals(["light", "dark"]) },
 //     events: { toggle: Schema.Void },                      // an event's schema is its payload; the empty schema is no payload
 //   });
 import type * as Valance from "@valancex/valance";
@@ -61,7 +61,7 @@ export const FORM = Symbol.for("valancex.common.form");
 /** A state field: its type and its default, declared together. */
 export interface Field<A = unknown> {
   readonly [FIELD]: true;
-  readonly schema: Schema.Schema<A, any, never>;
+  readonly schema: Schema.Codec<A, any, never>;
   readonly initial: A;
 }
 
@@ -74,16 +74,16 @@ export const DERIVED = Symbol.for("valancex.common.derived");
 /** A value worked out from the state, and the type it has. A template reads it by name, like a state field, and no command changes it. */
 export interface Derived<A = unknown> {
   readonly [DERIVED]: true;
-  readonly schema: Schema.Schema<A, any, never>;
+  readonly schema: Schema.Codec<A, any, never>;
   readonly from: (state: any) => A;
 }
 
 /** What `derived` is given: `derive(type, (state) => value)`. The state is the application's, as a command sees it. */
-export type DeriveMaker<S> = <A, I = A>(schema: Schema.Schema<A, I, never>, from: (state: S) => A) => Derived<A>;
+export type DeriveMaker<S> = <A, I = A>(schema: Schema.Codec<A, I, never>, from: (state: S) => A) => Derived<A>;
 
-const derive: DeriveMaker<any> = (schema, from) => ({ [DERIVED]: true, schema: schema as Schema.Schema<any, any, never>, from });
+const derive: DeriveMaker<any> = (schema, from) => ({ [DERIVED]: true, schema: schema as Schema.Codec<any, any, never>, from });
 
-export const field = <A, I = A>(schema: Schema.Schema<A, I, never>, initial: NoInfer<A>): Field<A> => ({ [FIELD]: true, schema: schema as Schema.Schema<A, any, never>, initial });
+export const field = <A, I = A>(schema: Schema.Codec<A, I, never>, initial: NoInfer<A>): Field<A> => ({ [FIELD]: true, schema: schema as Schema.Codec<A, any, never>, initial });
 
 /** Fields declared one by one. */
 export type Fields = Readonly<Record<string, Field<any>>>;
@@ -119,7 +119,7 @@ export interface Component {
   readonly template: Template;
   /** Present when the component declares its props (an omitted side of a declared interface is none). Absent: the contract is inferred from the template and its uses. */
   readonly props?: Readonly<Record<string, PropDeclaration>>;
-  readonly events?: Readonly<Record<string, Schema.Schema<any, any, never>>>;
+  readonly events?: Readonly<Record<string, Schema.Codec<any, any, never>>>;
   /** The prop that is the component's accessible name, when its template passes the name of whoever uses it through to a control (see `Contract.name`). */
   readonly name?: string;
   /** The state and commands of one occurrence of the component, when it has any (see `unit`). */
@@ -134,7 +134,7 @@ export const SNIPPET = Symbol.for("valancex.common.snippet");
 export interface SnippetDeclaration {
   readonly [SNIPPET]: true;
   /** The types of the snippet's parameters, in order; `{@render name(a, b)}` passes exactly these. */
-  readonly params: ReadonlyArray<Schema.Schema<any, any, never>>;
+  readonly params: ReadonlyArray<Schema.Codec<any, any, never>>;
   /** Whether an occurrence may leave it out. Rendering it then needs `{#if has(name)}` around the render (`possibly-absent-snippet`). */
   readonly isOptional: boolean;
   /** The same snippet, which an occurrence may leave out: `snippet(Item).optional()`. */
@@ -146,9 +146,9 @@ export interface SnippetDeclaration {
  * `{#snippet row(item, index)}` an occurrence passes and the template renders with `{@render row(item, index)}`. The prop named `children` is reserved for the content between the tags and takes no
  * parameters. A snippet is not data: it has no default, is not a field of a record or an event's payload, and is declared on a component that has a template. `snippet(...).optional()` is one an occurrence may leave out (an absent one draws nothing), and `children: snippet().optional()` is content an occurrence may leave out.
  */
-export const snippet = (...params: ReadonlyArray<Schema.Schema<any, any, never>>): SnippetDeclaration => declare(params, false);
+export const snippet = (...params: ReadonlyArray<Schema.Codec<any, any, never>>): SnippetDeclaration => declare(params, false);
 
-const declare = (params: ReadonlyArray<Schema.Schema<any, any, never>>, isOptional: boolean): SnippetDeclaration => ({
+const declare = (params: ReadonlyArray<Schema.Codec<any, any, never>>, isOptional: boolean): SnippetDeclaration => ({
   [SNIPPET]: true,
   params,
   isOptional,
@@ -159,7 +159,7 @@ const declare = (params: ReadonlyArray<Schema.Schema<any, any, never>>, isOption
 export const isSnippet = (value: unknown): value is SnippetDeclaration => typeof value === "object" && value !== null && SNIPPET in value;
 
 /** A prop is declared by its schema, by `field(schema, default)` when an occurrence that leaves it out should get a value, or by `snippet(…)` when it is a piece of template. */
-export type PropDeclaration = Schema.Schema<any, any, never> | Field<any> | SnippetDeclaration;
+export type PropDeclaration = Schema.Codec<any, any, never> | Field<any> | SnippetDeclaration;
 
 /** Whether a prop is declared with a default. */
 export const isFormField = (value: unknown): boolean => typeof value === "object" && value !== null && FORM in value;
@@ -169,12 +169,12 @@ export const isField = (value: unknown): value is Field => typeof value === "obj
 export interface Contract<P extends string, E extends string> {
   /**
    * The inputs the template reads, each with its type. Optional when the schema admits `undefined`. `field(schema, default)` gives a prop a default: an occurrence of the component that leaves
-   * the prop out gets the default (for a component with a template; a primitive ignores it), and the prop may then be left out. A string-literal union (`Schema.Literal("a", "b")`) is a closed set:
+   * the prop out gets the default (for a component with a template; a primitive ignores it), and the prop may then be left out. A string-literal union (`Schema.Literals(["a", "b"])`) is a closed set:
    * the model checks every literal written for it. With neither `props` nor `events` the contract is inferred; with either, the interface is exactly what is written (an omitted side is none).
    */
   readonly props?: { readonly [K in P]: PropDeclaration };
   /** The events the template raises, each with its payload's schema; `Schema.Void` is no payload. */
-  readonly events?: { readonly [K in E]: Schema.Schema<any, any, never> };
+  readonly events?: { readonly [K in E]: Schema.Codec<any, any, never> };
   /**
    * The prop that is the component's accessible name: a component whose template draws a control and takes its name from whoever uses it (a labelled checkbox of the design system) says which
    * prop that is, and the toolchain holds both sides to it. The prop must be a string every use writes (the model reports a use that omits it, where it is written), and the template must read it;
@@ -269,7 +269,7 @@ export const unit = <F extends Fields>(definition: {
 
   return {
     [UNIT]: true,
-    schema: schema as unknown as Schema.Schema<StateOf<F>, any, never>,
+    schema: schema as unknown as Schema.Codec<StateOf<F>, any, never>,
     fields,
     controllable: definition.controllable ?? [],
     commands: Object.fromEntries(
@@ -338,7 +338,7 @@ export interface AppDefinition<S extends StateInput = {}> {
    */
   readonly resolve?: Readonly<Record<string, ResolveId>>;
   /**
-   * Application state beyond the page: `{ theme: field(Schema.Literal("light", "dark"), "light") }`. Its fields become names a layout can read. A hand-built `{ schema, initial }` is also accepted, for
+   * Application state beyond the page: `{ theme: field(Schema.Literals(["light", "dark"]), "light") }`. Its fields become names a layout can read. A hand-built `{ schema, initial }` is also accepted, for
    * hydration and shared schemas.
    */
   readonly state?: S;

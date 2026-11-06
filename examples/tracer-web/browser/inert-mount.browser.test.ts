@@ -28,10 +28,10 @@ describe("a mount that stopped following", () => {
 
     try {
       const [appScope, scopeA, scopeB, scopeC] = await Promise.all([Scope.make(), Scope.make(), Scope.make(), Scope.make()].map(run));
-      const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
+      const handle = await run(Valance.start(application()).pipe(Scope.provide(appScope!)));
       const factory = (root: Element): Valance.TargetFactory<Valance.HydratableTarget<HydrationResult>> => Web.target({ container: root, primitives });
-      const mountedA = await run(Valance.mount(handle, factory(rootA)).pipe(Scope.extend(scopeA!)));
-      const mountedB = await run(Valance.mount(handle, factory(rootB)).pipe(Scope.extend(scopeB!)));
+      const mountedA = await run(Valance.mount(handle, factory(rootA)).pipe(Scope.provide(scopeA!)));
+      const mountedB = await run(Valance.mount(handle, factory(rootB)).pipe(Scope.provide(scopeB!)));
 
       await run(handle.invoke("app/bump", []));
       await expect.poll(() => [label(rootA), label(rootB)]).toEqual(["n1", "n1"]);
@@ -57,7 +57,7 @@ describe("a mount that stopped following", () => {
       expect([label(rootA), label(rootB)]).toEqual(["n1", "n1"]);
 
       // A fresh mount after the application advanced renders the CURRENT state, and follows from there.
-      const mountedC = await run(Valance.mount(handle, factory(rootC)).pipe(Scope.extend(scopeC!)));
+      const mountedC = await run(Valance.mount(handle, factory(rootC)).pipe(Scope.provide(scopeC!)));
 
       expect(label(rootC)).toBe("n3");
       await run(handle.invoke("app/bump", []));
@@ -89,7 +89,7 @@ describe("a mount that stopped following", () => {
 
     try {
       const [appScope, scopeA, scopeB, scopeC] = await Promise.all([Scope.make(), Scope.make(), Scope.make(), Scope.make()].map(run));
-      const handle = await run(Valance.start(application()).pipe(Scope.extend(appScope!)));
+      const handle = await run(Valance.start(application()).pipe(Scope.provide(appScope!)));
       let failing = false;
       // A target that fails to realize an update: PORT's failure, in this mount alone. A wrapper over the public `TargetFactory`; PORT is otherwise real.
       const flaky =
@@ -113,8 +113,8 @@ describe("a mount that stopped following", () => {
             },
           };
         };
-      const mountedA = await run(Valance.mount(handle, flaky(rootA)).pipe(Scope.extend(scopeA!)));
-      const mountedB = await run(Valance.mount(handle, Web.target({ container: rootB, primitives })).pipe(Scope.extend(scopeB!)));
+      const mountedA = await run(Valance.mount(handle, flaky(rootA)).pipe(Scope.provide(scopeA!)));
+      const mountedB = await run(Valance.mount(handle, Web.target({ container: rootB, primitives })).pipe(Scope.provide(scopeB!)));
 
       failing = true;
       await run(handle.invoke("app/bump", []));
@@ -132,7 +132,7 @@ describe("a mount that stopped following", () => {
       expect(rootA.innerHTML).toBe("");
       await run(handle.invoke("app/bump", []));
       await expect.poll(() => label(rootB)).toBe("n3");
-      const mountedC = await run(Valance.mount(handle, Web.target({ container: rootC, primitives })).pipe(Scope.extend(scopeC!)));
+      const mountedC = await run(Valance.mount(handle, Web.target({ container: rootC, primitives })).pipe(Scope.provide(scopeC!)));
 
       expect(label(rootC)).toBe("n3");
       expect(await Promise.all([following(mountedB), following(mountedC)])).toEqual(["following", "following"]);

@@ -41,7 +41,7 @@ it("the search command shows loading, then results; a newer search wins; going t
       }),
   );
   const scope = Effect.runSync(Scope.make());
-  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app).pipe(Scope.provide(scope)));
   const state = () => Effect.runSync(handle.state as never) as typeof initial;
   const until = async (done: () => boolean) => {
     for (let turn = 0; turn < 200 && !done(); turn += 1) {

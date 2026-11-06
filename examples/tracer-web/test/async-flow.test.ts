@@ -21,16 +21,16 @@ type State = Schema.Schema.Type<typeof State>;
 const show = (exit: Exit.Exit<unknown, unknown>): string =>
   Exit.isSuccess(exit)
     ? "succeeded"
-    : Cause.isDieType(exit.cause)
-      ? `died: ${(exit.cause.defect as Error).message}`
-      : Cause.isInterruptedOnly(exit.cause)
+    : Cause.hasDies(exit.cause)
+      ? `died: ${(Cause.squash(exit.cause) as Error).message}`
+      : Cause.hasInterruptsOnly(exit.cause)
         ? "interrupted"
-        : `other: ${exit.cause._tag}`;
+        : `other: ${exit.cause.reasons[0]?._tag}`;
 const yields = (n: number) =>
   Effect.runPromise(
     Effect.forEach(
       Array.from({ length: n }, (_, index) => index),
-      () => Effect.yieldNow(),
+      () => Effect.yieldNow,
       { discard: true },
     ),
   );
@@ -120,8 +120,9 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
               yield* commit(name, value);
             });
 
-            yield* how === "fork" ? Effect.fork(child) : Effect.forkDaemon(child);
+            yield* how === "fork" ? Effect.forkChild(child) : Effect.forkDetach(child);
             yield* Deferred.await(started);
+            yield* Effect.yieldNow; // Effect 4 runs a forked child when its parent yields: let it reach its gate before the command returns
             events.push(`${name} command returning (${how} child)`);
           }).pipe(
             Effect.onExit((exit) =>
@@ -139,6 +140,7 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
           const name = `J#${index}`;
           const { gate, started } = slot("J", index);
           const child = Effect.gen(function* () {
+            yield* Deferred.succeed(started, undefined); // Effect 4 starts the child only when its parent yields, so the child says when it is at its gate
             const value = yield* Deferred.await(gate).pipe(
               Effect.onInterrupt(() =>
                 Effect.sync(() => {
@@ -150,9 +152,8 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
             events.push(`${name} child resumed ${value}`);
             yield* commit(name, value);
           });
-          const fiber = yield* Effect.fork(child);
+          const fiber = yield* Effect.forkChild(child);
 
-          yield* Deferred.succeed(started, undefined);
           yield* Fiber.join(fiber);
         }).pipe(
           Effect.onExit((exit) =>
@@ -204,7 +205,7 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
       }),
     ),
   ); // registered BEFORE start: runs after NEXUS terminates, as a platform resource would
-  const handle = await Effect.runPromise(Valance.start(app, { state: { value: "init" } }).pipe(Scope.extend(scope)));
+  const handle = await Effect.runPromise(Valance.start(app, { state: { value: "init" } }).pipe(Scope.provide(scope)));
 
   Effect.runFork(
     Stream.runForEach(runningOf(handle).states, (state) =>
@@ -221,7 +222,7 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
   );
 
   if (options.mount !== false) {
-    await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.extend(scope)));
+    await Effect.runPromise(Valance.mount(handle, target).pipe(Scope.provide(scope)));
   }
 
   const invoke = (key: string) =>
@@ -261,14 +262,14 @@ const boot = async (options: { readonly mount?: boolean } = {}) => {
     },
     seen: (event: string) => until(() => events.includes(event)),
     state: async () => (await Effect.runPromise(handle.state)).value,
-    poll: async (fiber: Fiber.RuntimeFiber<unknown, unknown>) => (await Effect.runPromise(Fiber.poll(fiber)))._tag === "Some",
+    poll: async (fiber: Fiber.Fiber<unknown, unknown>) => fiber.pollUnsafe() !== undefined,
   };
 };
 
 const at = (events: ReadonlyArray<string>, event: string) => events.indexOf(event);
 
 describe("async data flow, observed", () => {
-  it("A: one async result: nothing happens until the gate opens; then commit -> values -> render, in that order", async () => {
+  it("A: one async result: nothing happens until the gate opens; then commit -> values -> render, in that order (the command's own log of the commit comes after the emission)", async () => {
     const b = await boot();
 
     await b.seen("render draw: init");
@@ -283,7 +284,7 @@ describe("async data flow, observed", () => {
     await Effect.runPromise(Fiber.join(caller));
     await b.seen("render update: a1");
 
-    expect(b.events.slice(3)).toEqual(["A#0 resumed a1", "A#0 committed a1", "A command exit: succeeded", "caller of app/startA: succeeded", "values: a1", "render update: a1"]);
+    expect(b.events.slice(3)).toEqual(["A#0 resumed a1", "values: a1", "A#0 committed a1", "A command exit: succeeded", "caller of app/startA: succeeded", "render update: a1"]); // Effect 4 wakes the state's subscriber inside the commit, before the command goes on
     expect(await b.state()).toBe("a1");
   });
 

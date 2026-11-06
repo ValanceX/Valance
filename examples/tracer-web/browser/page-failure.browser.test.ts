@@ -29,10 +29,11 @@ it("a real page whose run() cannot start keeps the server's HTML, marks itself f
     await expect.poll(() => win.__seen.length).toBeGreaterThan(0); // the report follows the marker in the same fiber
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(win.__seen).toHaveLength(1); // one report; no uncaught error, no unhandled rejection
-    expect(win.__seen[0]).toMatch(/^log: .*level=ERROR .*the page could not start/); // Effect's default logger writes every level through console.log
+    expect(win.__seen[0]).toMatch(/^log: .*ERROR .*the page could not start/); // Effect's default logger writes every level through console.log
     expect(win.__seen[0]).toContain("InitialValueInvalid"); // the typed StartError, with the schema's reason (`count`)
-    expect(win.__seen[0]).toContain("Expected number, actual");
-    expect(win.__seen[0]).toContain("zero");
+    expect(win.__seen[0]).toContain("Expected number");
+    // Effect 4 names the path of a value that does not fit, not the value itself, so the log still carries no application data.
+    expect(win.__seen[0]).toContain("count");
 
     app().querySelectorAll("button")[0]!.click(); // nothing is mounted: the server's buttons are inert
     await new Promise((resolve) => setTimeout(resolve, 200));
