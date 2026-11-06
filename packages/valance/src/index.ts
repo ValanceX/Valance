@@ -696,7 +696,7 @@ export const start = <S, E, R extends Ambient, V extends string, K extends strin
       hasContext: app.context !== undefined,
       render: Effect.flatMap(state.get, renderOf),
       // Latest available state. Each element the state stream delivers is only a wake-up: the state rendered is the CURRENT one, and a state already
-      // presented is not presented again, so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
+      // presented is not presented again (by reference: contract v1 says an equal-valued state is presented, which v4's structural Equal would skip), so commits that landed while a render was in progress are superseded by the latest, not queued behind it.
       // `state.get` is read after the wake, so what is rendered is never older than the element that woke it; the first element is still the first draw.
       // With units, a change in any occurrence's state wakes a render too, and a render is wanted when either the application's state or the units' state is not the one last rendered.
       values:
