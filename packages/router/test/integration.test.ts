@@ -152,7 +152,7 @@ describe("the router in a page", () => {
     expect(p.container.querySelector("p")!.textContent).toBe("message");
 
     p.win.history.back();
-    await until(() => p.here() === "/");
+    await until(() => p.here() === "/" && p.title() === "Home"); // the browser has the address at once; the route, and the title that follows it, are the application's, a turn later
     expect((await p.route()).name).toBe("home");
     expect(p.title()).toBe("Home");
   });
@@ -207,7 +207,7 @@ describe("the router in a page", () => {
 
     await p.edit(false);
     p.win.history.back();
-    await until(() => p.here() === "/");
+    await until(() => p.here() === "/" && p.title() === "Home");
     expect((await p.route()).name).toBe("home");
   });
 

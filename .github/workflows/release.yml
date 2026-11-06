@@ -132,10 +132,19 @@ jobs:
           PLAYWRIGHT_MODULES: ${{ github.workspace }}/node_modules/.pnpm/node_modules
         run: |
           node scripts/measure-footprint.mjs --tree --runs 3 --json budgets-results.json
-          node scripts/measure-footprint.mjs --runs 3 --json budgets-previous.json
+          # The previous release is built from this tree's example, so it can only be measured when it runs on the same Effect as the tree: across an Effect major (0.16 on Effect 3, 0.17 on Effect 4)
+          # the example does not build against it, and the ratio gates are reported, not gated (W4), until the next release has a comparable one.
+          major='const v = JSON.parse(require("fs").readFileSync(0, "utf8")); console.log((String(v.peerDependencies?.effect ?? v.dependencies?.effect ?? "").match(/\d+/) ?? [""])[0])'
+          tree=$(node -e "$major" < packages/cli/package.json)
+          published=$(npm view @valancex/cli --json | node -e "$major")
+          if [ "$tree" = "$published" ]; then
+            node scripts/measure-footprint.mjs --runs 3 --json budgets-previous.json
+          else
+            echo "previous release is on effect $published, the tree on effect $tree: not measured"
+          fi
       - name: Hold the tree to its budgets
         run: |
-          node scripts/check-budgets.mjs --results budgets-results.json --against budgets-previous.json --json budgets-report.json ${{ github.event_name == 'push' && '--strict-known' || '' }}
+          node scripts/check-budgets.mjs --results budgets-results.json ${{ hashFiles('budgets-previous.json') != '' && '--against budgets-previous.json' || '' }} --json budgets-report.json ${{ github.event_name == 'push' && '--strict-known' || '' }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:
