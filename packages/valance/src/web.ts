@@ -203,7 +203,10 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
     const running = runningOf(application);
     const scope = yield* Effect.scope;
     const { window: win } = options;
-    const popped = yield* Queue.unbounded<{ readonly href: string; readonly entry: number | undefined }>();
+    // One queue for everything the follower handles, in the order it happened: the states, fed by a fiber that subscribes at once, and the popstates.
+    const popped = yield* Queue.unbounded<
+      { readonly _tag: "state"; readonly state: S } | { readonly _tag: "popstate"; readonly href: string; readonly entry: number | undefined }
+    >();
     const { container } = options;
     // A bare `navigate` names a command that takes the navigation fact as its input; an exact key ("app/navigate") is the binding it always was.
     const navigateKey = options.navigate.includes("/") ? options.navigate : INPUT_KEY(options.navigate);
@@ -227,8 +230,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
             options.onNavigated?.(navigation);
           }).pipe(Effect.catchCause((cause) => Effect.logError("navigation hook failed", cause)));
 
-    // The baseline is the state `history` starts with, read now: Effect 4 runs the follower (and its subscription) only after `history` returns, so a navigation made at once would
-    // otherwise be taken for the baseline and never written. A defect in `urlOf` leaves it unset, and the follower's first state is the baseline, as before.
+    // The baseline is the state `history` starts with, read now, so that the first state the feeder delivers (the same one) is not mistaken for a navigation. A defect in `urlOf` leaves it unset, and the follower's first state is the baseline, as before.
     yield* Effect.flatMap(running.state, (state) =>
       Effect.sync(() => {
         last = options.urlOf(state);
@@ -236,120 +238,117 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
       }),
     ).pipe(Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)));
 
-    const follower = yield* Stream.runForEach(
-      Stream.merge(
-        Stream.map(running.states, (state) => ({ _tag: "state" as const, state })),
-        Stream.map(Stream.fromQueue(popped), (arrival) => ({ _tag: "popstate" as const, ...arrival })),
-      ),
-      (event) =>
-        (event._tag === "state"
-          ? Effect.gen(function* () {
-              // The URL first. The link click this write answers (if any) is taken here, once, so it is announced once.
-              const landed = yield* Effect.sync(() => {
-                const url = options.urlOf(event.state);
+    // Not Stream.merge: Effect 4 starts what merge forks only when the parent yields, so the subscription to the state would be made late and the states committed before it lost.
+    // The feeder starts at once and so subscribes before this returns.
+    yield* Stream.runForEach(running.states, (state) => Queue.offer(popped, { _tag: "state" as const, state })).pipe(Effect.forkIn(scope, { startImmediately: true }));
 
-                const before = previous;
+    const follower = yield* Stream.runForEach(Stream.fromQueue(popped), (event) =>
+      (event._tag === "state"
+        ? Effect.gen(function* () {
+            // The URL first. The link click this write answers (if any) is taken here, once, so it is announced once.
+            const landed = yield* Effect.sync(() => {
+              const url = options.urlOf(event.state);
 
-                previous = event.state;
+              const before = previous;
 
-                if (last === undefined) {
-                  last = url;
-                } else if (url !== last) {
-                  last = url;
+              previous = event.state;
 
-                  if (before !== undefined && options.modeOf?.(before, event.state) === "replace") {
-                    win.history.replaceState({ [ENTRY]: position }, "", url);
+              if (last === undefined) {
+                last = url;
+              } else if (url !== last) {
+                last = url;
+
+                if (before !== undefined && options.modeOf?.(before, event.state) === "replace") {
+                  win.history.replaceState({ [ENTRY]: position }, "", url);
+                } else {
+                  position += 1;
+                  win.history.pushState({ [ENTRY]: position }, "", url);
+                }
+
+                if (top) {
+                  top = false;
+
+                  if (win.scrollY !== 0 || win.scrollX !== 0) {
+                    win.scrollTo(0, 0);
+                  }
+                }
+
+                const destination = arrived;
+
+                arrived = undefined;
+
+                return destination;
+              }
+
+              return undefined;
+            });
+
+            // After the URL, so a title or head function that throws cannot keep the URL from following the state. The head wins over the title.
+            yield* Effect.sync(() => {
+              if (options.titleOf !== undefined) {
+                const title = cleanTitle(options.titleOf(event.state));
+
+                if (win.document.title !== title) {
+                  win.document.title = title;
+                }
+              }
+
+              if (options.head !== undefined) {
+                applyHead(win.document, options.head(event.state));
+              }
+            }).pipe(Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)));
+
+            if (landed !== undefined) {
+              yield* announce({ kind: "link", url: landed });
+            }
+          })
+        : Effect.gen(function* () {
+            const arrived = new URL(event.href);
+            let destination = arrived;
+
+            // Asked first. Not for a move that stays on the application's own URL (a `#fragment` entry fires popstate too): nothing leaves, so nothing can object.
+            if (options.guard !== undefined && !sameAddress(arrived, last)) {
+              const target = yield* permitted(options.guard, { kind: "popstate", url: arrived }, running.state, win.location.origin);
+
+              if (target === undefined) {
+                yield* Effect.sync(() => {
+                  const delta = (event.entry ?? 0) - position;
+
+                  if (delta !== 0) {
+                    ignoring += 1;
+                    win.history.go(-delta); // the browser moves back to where the page was; the popstate that causes is the page's own
                   } else {
                     position += 1;
-                    win.history.pushState({ [ENTRY]: position }, "", url);
+                    win.history.pushState({ [ENTRY]: position }, "", last ?? win.location.href); // an entry this page did not write: stay at the application's URL
                   }
+                });
 
-                  if (top) {
-                    top = false;
-
-                    if (win.scrollY !== 0 || win.scrollX !== 0) {
-                      win.scrollTo(0, 0);
-                    }
-                  }
-
-                  const destination = arrived;
-
-                  arrived = undefined;
-
-                  return destination;
-                }
-
-                return undefined;
-              });
-
-              // After the URL, so a title or head function that throws cannot keep the URL from following the state. The head wins over the title.
-              yield* Effect.sync(() => {
-                if (options.titleOf !== undefined) {
-                  const title = cleanTitle(options.titleOf(event.state));
-
-                  if (win.document.title !== title) {
-                    win.document.title = title;
-                  }
-                }
-
-                if (options.head !== undefined) {
-                  applyHead(win.document, options.head(event.state));
-                }
-              }).pipe(Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)));
-
-              if (landed !== undefined) {
-                yield* announce({ kind: "link", url: landed });
-              }
-            })
-          : Effect.gen(function* () {
-              const arrived = new URL(event.href);
-              let destination = arrived;
-
-              // Asked first. Not for a move that stays on the application's own URL (a `#fragment` entry fires popstate too): nothing leaves, so nothing can object.
-              if (options.guard !== undefined && !sameAddress(arrived, last)) {
-                const target = yield* permitted(options.guard, { kind: "popstate", url: arrived }, running.state, win.location.origin);
-
-                if (target === undefined) {
-                  yield* Effect.sync(() => {
-                    const delta = (event.entry ?? 0) - position;
-
-                    if (delta !== 0) {
-                      ignoring += 1;
-                      win.history.go(-delta); // the browser moves back to where the page was; the popstate that causes is the page's own
-                    } else {
-                      position += 1;
-                      win.history.pushState({ [ENTRY]: position }, "", last ?? win.location.href); // an entry this page did not write: stay at the application's URL
-                    }
-                  });
-
-                  return;
-                }
-
-                destination = target;
+                return;
               }
 
-              position = event.entry ?? position;
+              destination = target;
+            }
 
-              // A redirect rewrites the entry the browser moved to, so the address bar holds the address the application is at.
-              if (destination.href !== arrived.href) {
-                const rewritten = destination;
+            position = event.entry ?? position;
 
-                yield* Effect.sync(() => win.history.replaceState({ [ENTRY]: position }, "", `${rewritten.pathname}${rewritten.search}${rewritten.hash}`));
-              }
+            // A redirect rewrites the entry the browser moved to, so the address bar holds the address the application is at.
+            if (destination.href !== arrived.href) {
+              const rewritten = destination;
 
-              // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
-              yield* running
-                .invoke(navigateKey, [{ value: options.stateOf(destination) }])
-                .pipe(Effect.catchCause((cause) => Effect.logError("popstate navigation failed", cause)));
-              // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
-              last = options.urlOf(yield* running.state);
-              yield* announce({ kind: "popstate", url: destination });
-            })
-        ).pipe(
-          // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
-          // It never ends the follower, which would silently stop every later URL write; the baseline stays where it was.
-          Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)),
-        ),
+              yield* Effect.sync(() => win.history.replaceState({ [ENTRY]: position }, "", `${rewritten.pathname}${rewritten.search}${rewritten.hash}`));
+            }
+
+            // Through the application's own entry: it runs in the application, and a failure or defect is logged, never the follower's.
+            yield* running.invoke(navigateKey, [{ value: options.stateOf(destination) }]).pipe(Effect.catchCause((cause) => Effect.logError("popstate navigation failed", cause)));
+            // The state the popstate produced is the new baseline, whatever URL history happens to hold for it.
+            last = options.urlOf(yield* running.state);
+            yield* announce({ kind: "popstate", url: destination });
+          })
+      ).pipe(
+        // `urlOf` and `stateOf` are the application's: a defect in either is a failed synchronization, logged like a failed popstate navigation.
+        // It never ends the follower, which would silently stop every later URL write; the baseline stays where it was.
+        Effect.catchCause((cause) => Effect.logError("history synchronization failed", cause)),
+      ),
     ).pipe(Effect.forkIn(scope));
 
     const onPopState = (): void => {
@@ -359,7 +358,7 @@ export const history = <S, E>(application: ApplicationHandle<S, E>, options: His
         return;
       }
 
-      Queue.offerUnsafe(popped, { href: win.location.href, entry: entryOf(win.history.state) });
+      Queue.offerUnsafe(popped, { _tag: "popstate", href: win.location.href, entry: entryOf(win.history.state) });
     };
 
     win.addEventListener("popstate", onPopState);

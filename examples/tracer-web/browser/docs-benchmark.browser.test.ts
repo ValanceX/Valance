@@ -59,6 +59,7 @@ it("a hydrated guide: sidebar and prev/next navigation keep keyed identity, the 
   await until(() => document.title === "State · Valance"); // set for the first state, just after history attaches
   await userEvent.click(link("Reference: API"));
   await until(() => title() === "API");
+  await until(() => document.title === "API · Valance"); // the render and the title write follow the state independently
   expect(document.title).toBe("API · Valance"); // the browser's own title follows the application
   expect(location.pathname).toBe("/docs/reference/api"); // pushed by history; the document itself was not navigated
   expect([...root.querySelectorAll("nav > ul > li")]).toEqual(adopted); // keyed identity: the same <li> elements after navigation

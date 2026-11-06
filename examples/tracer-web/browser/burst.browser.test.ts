@@ -184,6 +184,7 @@ describe("bursty commits: a mount presents the latest state (superseded intermed
     } else {
       expect(skipped.logs[0]).toEqual(["draw A0", "draw B0", "draw A0"]);
     }
+    expect(skipped.logs[0]!.at(-1)).toMatch(/ A0$/); // converged on the final state either way: the last presentation is of A
     expect(await run(skipped.handle.state)).toEqual({ view: "a", n: 0 });
     await skipped.close();
 

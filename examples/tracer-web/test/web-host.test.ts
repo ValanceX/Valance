@@ -220,12 +220,10 @@ describe("Web.run: one ordinary page", () => {
     expect(writes).toEqual([]); // starting the host wrote nothing, and left the URL where the application put it
     expect(p.win.location.pathname).toBe("/not-found");
 
-    await new Promise((resolve) => setTimeout(resolve, 50)); // history follows the state from the first turn after `run` returns; a navigation before that is seen as the state it led to, with no URL for the states between
     p.click(p.container.querySelector("button")!); // the not-found view's own intent: the application navigates home
     await until(() => p.container.querySelectorAll("div").length === 3);
     p.click([...p.container.querySelectorAll("div")].find((row) => row.querySelector("span")?.textContent === "Beta")!.querySelector("button")!);
     await until(() => p.container.textContent?.startsWith("Item B: Beta") === true);
-    await until(() => writes.length === 2); // the render and the history write follow the state independently: neither is promised to come first
     expect(writes).toEqual(["push /", "push /items/B"]); // each the application's own urlOf, written once, by history
 
     p.win.history.back(); // the browser's Back: the application's navigate entry, not the host

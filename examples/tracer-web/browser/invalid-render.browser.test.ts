@@ -134,15 +134,11 @@ it("C valid → invalid → valid in one burst: the mount presents the latest (v
     await run(handle.invoke("app/burst", []));
     expect(await run(handle.state)).toEqual({ n: 1, bad: false });
     // Skipping a superseded state is allowed, not promised, and Effect 4 wakes the follower at the first commit, so the invalid intermediate may be presented. Either the mount
-    // converged on the final state and follows, or it stopped on the intermediate's diagnostic; both leave the application running.
-    await sleep(100);
-    const skippedIntermediate = (await following(mounted)) === "following";
+    // converged on the final state and follows, or the intermediate was drawn and the mount stopped on its diagnostic. Nothing else is an outcome.
+    await expect.poll(async () => ((await following(mounted)) === "following" && label(root) === "n1") || (await following(mounted)) === "failed: diagnostics").toBe(true);
+    const intermediateDrawn = (await following(mounted)) === "failed: diagnostics";
 
-    if (skippedIntermediate) {
-      expect(label(root)).toBe("n1");
-    } else {
-      expect(await following(mounted)).toBe("failed: diagnostics");
-    }
+    expect(await run(handle.state)).toEqual({ n: 1, bad: false });
 
     // The skipped state WOULD have failed: the diagnostic exists, out of band, and was skipped, not absent.
     const skipped = await run(Effect.exit(renderToHtml(definition(), { primitives, state: { n: 0, bad: true } })));
@@ -150,7 +146,7 @@ it("C valid → invalid → valid in one burst: the mount presents the latest (v
     expect(diagnosticsOf(skipped)).toContain("runtime-value-mismatch");
 
     await run(handle.invoke("app/bump", [])); // and a mount that followed carries on
-    if (skippedIntermediate) {
+    if (!intermediateDrawn) {
       await expect.poll(() => label(root)).toBe("n2");
     }
     await run(Scope.close(scope, Exit.void));

@@ -38,6 +38,7 @@ it("hydrate the server's page; a real click navigates the application, not the d
   expect(root.querySelectorAll("a")[1]).toBe(about); // the server's own anchor was adopted
   await userEvent.click(about);
   await expect.poll(() => title()).toBe("page about");
+  await expect.poll(() => location.pathname).toBe("/app/about"); // the render and the URL write follow the state independently
   expect(location.pathname).toBe("/app/about");
   expect((window as unknown as { __alive?: boolean }).__alive).toBe(true);
   history.back();

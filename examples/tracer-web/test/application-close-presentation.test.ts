@@ -36,14 +36,20 @@ describe("application close: state boundary, not presentation boundary", () => {
       await closeApp(b);
       closeResolved.value = true;
       const atClose = [...m.ops];
+      const shownAtClose = titles(m.trees).map((t) => Number(t.slice(1)));
       const committed = (await b.state()).n;
 
       await sleep(60);
       reset();
       expect(committed).toBe(3);
       // Which of the committed states was the last one presented is the follower's scheduling, not a promise: Effect 4 wakes it inside the first commit, so it is already
-      // presenting A1 when the other two commit, and the close can end its stream before it comes back for them. What is promised is that nothing later than the committed state is shown.
-      expect(Number(titles(m.trees).at(-1)!.slice(1))).toBeLessThanOrEqual(3);
+      // presenting A1 when the other two commit, and the close can end its stream before it comes back for them. What is promised: states are presented in commit order,
+      // what was shown when the close resolved is not taken back, and nothing later than the committed state is shown.
+      const shown = titles(m.trees).map((t) => Number(t.slice(1)));
+
+      expect(shown).toEqual([...shown].sort((x, y) => x - y));
+      expect(shown.at(-1)!).toBeGreaterThanOrEqual(shownAtClose.at(-1)!);
+      expect(shown.at(-1)!).toBeLessThanOrEqual(committed);
       expect(m.ops.length).toBeGreaterThanOrEqual(atClose.length);
       expect(renderedAfterClose.length).toBeGreaterThan(0); // (MESH began rendering it before the close resolved in this scheduling; the target operation came after: not claimed either way)
       expect((await b.state()).n).toBe(3); // and nothing committed
