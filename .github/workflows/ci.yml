@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  # Branch pushes only: a release tag runs all of CI through release.yml.
+  # `main` only: a branch with a pull request is run by the pull request (a second run of the same commit would be a duplicate), and a release tag runs all of CI through release.yml.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
