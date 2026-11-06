@@ -461,6 +461,13 @@ const renamedHint = (
   return tag !== undefined && Object.hasOwn(renamed, tag) ? ` (\`${tag}\` is now \`${renamed[tag]}\`)` : "";
 };
 
+/**
+ * The model the templates are checked against, without compiling them: what the state, the commands and the declared contracts say now. For the editor while a template is wrong, when there is no
+ * compiled program to take the inferred contracts from. Fails (`AppError`) only when the model itself cannot be made: a state field or a contract with no type the model can hold.
+ */
+export const modelOfProject = (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): unknown =>
+  modelOf(root, author, templatesOf(root, author, vocabulary, views).tree, vocabulary);
+
 /** Compiles the application's templates against a target's vocabulary (the web's by default). Fails with every diagnostic, each pointing into the file it is about. */
 export const compileViews = async (root: string, author: DefinedApp | undefined, vocabulary: Vocabulary = webVocabulary, views: string = BUILT_IN): Promise<Compiled> => {
   const { all, tree, excluded } = templatesOf(root, author, vocabulary, views);

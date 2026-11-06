@@ -24,7 +24,7 @@ import type { Diagnostic } from "./diagnostics.js";
 import { AppError, format } from "./diagnostics.js";
 import type { TargetId } from "./targets.js";
 import { devDesktop } from "./dev-desktop.js";
-import { generateContent, generateEntries, generateProgram } from "./emit.js";
+import { generateContent, generateEntries, generateProgram, webStylesheets } from "./emit.js";
 import { GENERATED_DIR, OUTPUT_DIR } from "./project.js";
 import { baseConfig, SERVER_ENTRY } from "./vite.js";
 
@@ -104,7 +104,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
   const failed = new Map<string, ReadonlyArray<Diagnostic>>();
   let pending: Promise<void> = Promise.resolve();
 
-  generateEntries(root, config, { record: options.record !== undefined });
+  generateEntries(root, config, { record: options.record !== undefined, linkedStyles: true });
 
   if (options.record !== undefined) {
     recordingNotice(root, options.record, config).forEach(log);
@@ -160,10 +160,15 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
                     render: (pathname: string, built: { script: string; styles: ReadonlyArray<string> }) => Promise<{ status: number; html: string }>;
                   };
                   const { status, html } = await render(url.pathname, { script: `${config.web.base}${GENERATED_DIR}/client.ts`, styles: [] });
+                  // The styles are linked in the HTML, not imported by the script, so the page is never shown unstyled while the module graph loads. Linked outside the
+                  // application's head (which would treat Vite's hot-swapped copy as stale and replace it), they are left to Vite, which swaps a linked stylesheet in place.
+                  const links = webStylesheets(root)
+                    .map((file) => `<link rel="stylesheet" href="${config.web.base}${file}">`)
+                    .join("");
 
                   response.statusCode = status;
                   response.setHeader("content-type", "text/html; charset=utf-8");
-                  response.end(await vite.transformIndexHtml(url.pathname, html));
+                  response.end(await vite.transformIndexHtml(url.pathname, html.replace("</head>", `${links}</head>`)));
                 } catch (error) {
                   vite.ssrFixStacktrace(error as Error);
                   next(error);
@@ -201,7 +206,7 @@ const start = async (root: string, config: Config, options: DevOptions, restart:
     const wasFailing = failed.size > 0;
 
     if (stages.includes("entries")) {
-      generateEntries(root, config, { record: options.record !== undefined });
+      generateEntries(root, config, { record: options.record !== undefined, linkedStyles: true });
     }
     if (stages.includes("content")) {
       await run("content", () => generateContent(root, config));
